@@ -30,6 +30,17 @@ which is what makes the golden-master tests meaningful.
 
 ## What is implemented
 
+- **Client selection, sourced from monday.com.** The Deal Header carries a client dropdown built from
+  the distinct values of the **Client** column on the *Global Pipeline* board — 269 clients, grouped
+  by pipeline status, each showing country and deal count. Picking a client renames every
+  client-named label in the model: the page title, the two payment legs in panel 5, the settlement
+  and confirmed-days notes, the standard-terms warnings and Offer File column H. See
+  *Client list* below.
+- **An optional Pro Forma block.** Not every trade has a TradeCo pro forma invoice, so panel 2 has an
+  *Applies to this trade* switch. Turning it off excludes the block from pricing, validation and the
+  rate snapshot, and disables its inputs. Panel 2 is a leaf — panels 3 to 5 and the Offer File never
+  read it — so B27:B53 stay bit-for-bit identical either way. The parity tests assert that on every
+  downstream output.
 - **Five pricing panels** in the same vertical order as the `Cantu` tab (*Spec – Overview §7*),
   carrying the workbook's visual grammar: yellow cells are editable inputs, grey cells are
   computed and show their source cell plus a formula tooltip on hover, and the purple italic
@@ -49,6 +60,32 @@ which is what makes the golden-master tests meaningful.
 - **Append-only audit log** at field-level granularity — who changed what, when, from what to what,
   and why. No hard deletes anywhere: cancelling is a soft-delete.
 
+## Client list
+
+Seeded from monday.com at build time:
+
+| | |
+|---|---|
+| Board | *Global Pipeline* — `18299408349` |
+| Column | `board_relation_mkx6fyx4` ("Client") → *Global Database* `1462356365` |
+| Captured | 269 distinct clients from 308 pipeline deals — 86 active, 103 prospect, 80 lost |
+| Per client | name, monday item id, strongest deal status, country, region, deal count |
+
+Refresh it three ways, from the **Reference data** tab:
+
+1. **Refresh from monday.com** — Rates Admin only. Prompts for an API token, uses it for that one
+   request and never stores it, anywhere. Two caveats: a personal token grants full account access,
+   so don't paste one into a copy of this file you don't control; and browsers block the call from a
+   `file://` page, so the page must be served over http(s) for it to work.
+2. **Import JSON** — accepts either the exported shape or a bare array of
+   `{id, name, status, country, region}`. This is the right path for shared copies, and needs no token.
+3. **Export JSON** — hand the current list to someone else, or diff it.
+
+Both refresh paths write an audit event recording the before and after counts.
+
+The proper long-term fix is a server-side sync holding the token in a secret manager, per
+*Spec – Overview §6*. That is the same shape as the CME rate feed and belongs in the same job runner.
+
 ## Deliberate departures from the workbook
 
 These are places where the workbook and the spec disagree, and the spec wins.
@@ -66,6 +103,11 @@ These are places where the workbook and the spec disagree, and the spec wins.
    per `deal.supplier_invoice_tenor_days` in the Data Model tab.
 4. **Blank identifiers.** The workbook prints `0` on the Offer File when Transaction Code or Trade
    Identifier are empty (visible in the source file). Both are required before a deal can be priced.
+5. **The client is a field, not a hardcoded name.** The workbook is a Cantu-only file. Here the client
+   is selected per deal and every client-named label follows it. One thing is deliberately *not*
+   renamed: source-cell references such as `Cantu!B47` or `Cantu!A12:C23`. Those point at a sheet in
+   the source workbook and must stay literal, or traceability breaks.
+6. **The Pro Forma block is optional**, where the workbook always computes it.
 
 ## Not built here
 
@@ -80,6 +122,7 @@ HTML file. Their local stand-ins:
 | CME daily rate fetch | Rates-Admin-gated manual curve entry (the spec's override path) |
 | Annual calendar refresh job | Static calendars + a forward-coverage warning under 180 days |
 | Server-side PDF + document hash | Browser print-to-PDF + pure-JS SHA-256 |
+| Scheduled monday.com client sync | Seeded list + token-per-request refresh / JSON import |
 
 ## Open items — spec tabs that could not be read
 

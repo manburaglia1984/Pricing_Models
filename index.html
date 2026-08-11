@@ -138,6 +138,12 @@ pre{background:var(--calc-bg);border:1px solid var(--line);border-radius:8px;pad
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 @media (max-width:820px){.grid2{grid-template-columns:1fr}}
 .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.toggle{display:inline-flex;align-items:center;gap:6px;text-transform:none;letter-spacing:0;font-size:11.5px;font-weight:520;color:var(--ink-2);cursor:pointer;user-select:none}
+.toggle input{width:auto;margin:0;accent-color:var(--accent);cursor:pointer}
+.toggle input:disabled{cursor:not-allowed}
+.card.off>h2{opacity:.75}
+.card.off .row:not(.keep){opacity:.4}
+#pfDisabledNote{opacity:1 !important}
 .field-inline{display:flex;align-items:center;gap:7px;flex-wrap:wrap;min-width:0}
 .field-inline label{font-size:12px;color:var(--ink-2);white-space:nowrap}
 .field-inline input,.field-inline select{width:auto;min-width:110px;max-width:100%;text-align:left}
@@ -155,7 +161,7 @@ pre{background:var(--calc-bg);border:1px solid var(--line);border-radius:8px;pad
 
 <header class="top">
   <div class="top-row">
-    <div class="brand">Cantu Purchase/Sale Facility — Pricing Model<small id="dealCaption">No deal loaded</small></div>
+    <div class="brand"><span id="brandTitle">Purchase/Sale Facility — Pricing Model</span><small id="dealCaption">No deal loaded</small></div>
     <span class="badge DRAFT" id="stateBadge">DRAFT</span>
     <div class="spacer"></div>
     <div class="field-inline">
@@ -181,7 +187,7 @@ pre{background:var(--calc-bg);border:1px solid var(--line);border-radius:8px;pad
   </div>
   <nav class="tabs" id="tabs">
     <button data-view="pricing" aria-selected="true">Pricing</button>
-    <button data-view="rates">Rates &amp; Calendars</button>
+    <button data-view="rates">Reference data</button>
     <button data-view="offer">Offer File</button>
     <button data-view="deals">Deals</button>
     <button data-view="audit">Audit log</button>
@@ -200,6 +206,7 @@ pre{background:var(--calc-bg);border:1px solid var(--line);border-radius:8px;pad
       <div class="card tight">
         <h2>Deal header <span class="src">Cantu!A4:B5</span></h2>
         <div class="body">
+          <div class="row"><div class="lbl">Client (Agent)<span class="note" id="clientNote">From the Monday.com Global Pipeline. Drives every client-named label in this model.</span></div><div class="cell"><select class="in" id="f_client" data-field="clientId"></select></div></div>
           <div class="row"><div class="lbl">Transaction Code</div><div class="cell"><input type="text" class="in" id="f_txcode" data-field="transactionCode"></div></div>
           <div class="row"><div class="lbl">Trade Identifier</div><div class="cell"><input type="text" class="in" id="f_tradeid" data-field="tradeIdentifier"></div></div>
           <div class="row"><div class="lbl">Relevant Obligor<span class="note">Offer File!A3</span></div><div class="cell"><input type="text" class="in" id="f_obligor" data-field="obligor"></div></div>
@@ -219,14 +226,17 @@ pre{background:var(--calc-bg);border:1px solid var(--line);border-radius:8px;pad
       </div>
 
       <!-- Panel 2 -->
-      <div class="card">
-        <h2>2 — TradeCo Pro Forma Invoices <span class="src">Cantu!A12:C23</span></h2>
-        <div class="body">
+      <div class="card" id="card_pf">
+        <h2>2 — TradeCo Pro Forma Invoices
+          <label class="toggle"><input type="checkbox" id="f_pfEnabled" data-field="pfEnabled" checked><span>Applies to this trade</span></label>
+          <span class="src">Cantu!A12:C23</span></h2>
+        <div class="body" id="body_pf">
+          <div class="banner info" id="pfDisabledNote" style="display:none;margin:10px 0 4px"><div><b>Not applicable.</b> This trade has no TradeCo Pro Forma invoice. The block is excluded from pricing, validation and the rate snapshot. Nothing downstream changes — panels 3 to 5 and the Offer File never reference it.</div></div>
           <div class="row"><div class="lbl">Issue Date<span class="note">It should be a date before (around 5 days) Supplier Invoice Maturity Date</span></div><div class="cell"><input type="date" class="in" id="f_pfIssue" data-field="pfIssueDate"></div></div>
           <div class="row"><div class="lbl">Tenor (days)<span class="note">It could be "Bladex Settlement Date" + 2</span></div><div class="cell"><input type="number" class="in" id="f_pfTenor" data-field="pfTenorDays" min="1" step="1"></div></div>
           <div class="row"><div class="lbl">Maturity Date</div><div class="cell"><span class="calc" id="o_pfMaturity" title="B15 = B13 + B14"><span class="f">B15</span>—</span></div></div>
           <div class="row"><div class="lbl"><span id="o_pfRateLabel">Term SOFR</span><span class="note">Issuance Date Pro Forma — interpolated from the Pro Forma curve at Bladex Days</span></div><div class="cell"><span class="calc" id="o_pfRate" title="B16 = 'SOFR Interpolation Pro Forma'!C9"><span class="f">B16</span>—</span></div></div>
-          <div class="row"><div class="lbl">Margin (Bladex Margin + TradeCo Fee)<span class="note">Should be always the same unless pricing discussion with Cantu/Bladex</span></div><div class="cell suffix" data-suffix="%"><input type="number" class="in" id="f_pfMargin" data-field="pfMargin" step="0.00001"></div></div>
+          <div class="row"><div class="lbl">Margin (Bladex Margin + TradeCo Fee)<span class="note" data-tpl="Should be always the same unless pricing discussion with {client}/Bladex">Should be always the same unless pricing discussion with the client/Bladex</span></div><div class="cell suffix" data-suffix="%"><input type="number" class="in" id="f_pfMargin" data-field="pfMargin" step="0.00001"></div></div>
           <div class="row"><div class="lbl">Agency Fee</div><div class="cell suffix" data-suffix="%"><input type="number" class="in" id="f_pfAgency" data-field="pfAgencyFee" step="0.00001"></div></div>
           <div class="row"><div class="lbl">TradeCo Mark-up</div><div class="cell"><span class="calc" id="o_pfMarkup" title="B19 = B17 + B16 + B18"><span class="f">B19</span>—</span></div></div>
           <div class="row"><div class="lbl">Factor</div><div class="cell"><span class="calc" id="o_pfFactor" title="B20 = B19 × (B15 − B13) / 360"><span class="f">B20</span>—</span></div></div>
@@ -244,7 +254,7 @@ pre{background:var(--calc-bg);border:1px solid var(--line);border-radius:8px;pad
           <div class="row"><div class="lbl">Tenor (days)</div><div class="cell"><span class="calc" id="o_tcTenor" title="B27 = B41 + (B40 − B26)"><span class="f">B27</span>—</span></div></div>
           <div class="row"><div class="lbl">Maturity Date</div><div class="cell"><span class="calc" id="o_tcMaturity" title="B28 = B42 = B40 + B41"><span class="f">B28</span>—</span></div></div>
           <div class="row"><div class="lbl"><span id="o_tcRateLabel">Term SOFR</span><span class="note">Prior Funding: Interpolated SOFR Rate — live curve at Bladex Days</span></div><div class="cell"><span class="calc" id="o_tcRate" title="B29 = 'SOFR Interpolation'!C9"><span class="f">B29</span>—</span></div></div>
-          <div class="row"><div class="lbl">Margin (Bladex Margin + TradeCo Fee)<span class="note">Should be always the same unless pricing discussion with Cantu/Bladex</span></div><div class="cell suffix" data-suffix="%"><input type="number" class="in" id="f_tcMargin" data-field="tcMargin" step="0.00001"></div></div>
+          <div class="row"><div class="lbl">Margin (Bladex Margin + TradeCo Fee)<span class="note" data-tpl="Should be always the same unless pricing discussion with {client}/Bladex">Should be always the same unless pricing discussion with the client/Bladex</span></div><div class="cell suffix" data-suffix="%"><input type="number" class="in" id="f_tcMargin" data-field="tcMargin" step="0.00001"></div></div>
           <div class="row"><div class="lbl">Agency Fee<span class="note">Also drives the Cantu agency-fee payment leg (B52)</span></div><div class="cell suffix" data-suffix="%"><input type="number" class="in" id="f_tcAgency" data-field="tcAgencyFee" step="0.00001"></div></div>
           <div class="row"><div class="lbl">TradeCo Mark-up</div><div class="cell"><span class="calc" id="o_tcMarkup" title="B32 = B30 + B29 + B31"><span class="f">B32</span>—</span></div></div>
           <div class="row"><div class="lbl">Factor</div><div class="cell"><span class="calc" id="o_tcFactor" title="B33 = B32 × (B28 − B40) / 360"><span class="f">B33</span>—</span></div></div>
@@ -259,11 +269,11 @@ pre{background:var(--calc-bg);border:1px solid var(--line);border-radius:8px;pad
         <h2>4 — IAA Offer File <span class="src">Cantu!A38:C47</span></h2>
         <div class="body">
           <div class="row"><div class="lbl">TradeCo Invoices/BoE Face Value</div><div class="cell"><span class="calc" id="o_faceValue" title="B39 = B36"><span class="f">B39</span>—</span></div></div>
-          <div class="row"><div class="lbl">Bladex Settlement Date<span class="note">Date when Bladex will disburse funds to Cantu</span></div><div class="cell"><input type="date" class="in" id="f_bladexSettle" data-field="bladexSettlementDate"></div></div>
-          <div class="row"><div class="lbl">Days<span class="note">Number of days confirmed with Cantu — also the interpolation tenor for both curves</span></div><div class="cell"><input type="number" class="in" id="f_bladexDays" data-field="bladexDays" min="1" step="1"></div></div>
+          <div class="row"><div class="lbl">Bladex Settlement Date<span class="note" data-tpl="Date when Bladex will disburse funds to {client}">Date when Bladex will disburse funds to the client</span></div><div class="cell"><input type="date" class="in" id="f_bladexSettle" data-field="bladexSettlementDate"></div></div>
+          <div class="row"><div class="lbl">Days<span class="note" data-tpl="Number of days confirmed with {client} — also the interpolation tenor for both curves">Number of days confirmed with the client — also the interpolation tenor for both curves</span></div><div class="cell"><input type="number" class="in" id="f_bladexDays" data-field="bladexDays" min="1" step="1"></div></div>
           <div class="row"><div class="lbl">TradeCo Invoice/BoE Maturity Date <span id="o_bdCheck" class="inline-tag">—</span></div><div class="cell"><span class="calc" id="o_iaaMaturity" title="B42 = B40 + B41"><span class="f">B42</span>—</span></div></div>
           <div class="row"><div class="lbl"><span id="o_iaaRateLabel">Term SOFR</span></div><div class="cell"><span class="calc" id="o_iaaRate" title="B43 = B29"><span class="f">B43</span>—</span></div></div>
-          <div class="row"><div class="lbl">Bladex Margin<span class="note">Should be always the same unless pricing discussion with Cantu/Bladex</span></div><div class="cell suffix" data-suffix="%"><input type="number" class="in" id="f_bladexMargin" data-field="bladexMargin" step="0.00001"></div></div>
+          <div class="row"><div class="lbl">Bladex Margin<span class="note" data-tpl="Should be always the same unless pricing discussion with {client}/Bladex">Should be always the same unless pricing discussion with the client/Bladex</span></div><div class="cell suffix" data-suffix="%"><input type="number" class="in" id="f_bladexMargin" data-field="bladexMargin" step="0.00001"></div></div>
           <div class="row"><div class="lbl">Bladex Cost of Funds</div><div class="cell"><span class="calc" id="o_bladexCoF" title="B45 = B44 + B43"><span class="f">B45</span>—</span></div></div>
           <div class="row"><div class="lbl">Factor</div><div class="cell"><span class="calc" id="o_iaaFactor" title="B46 = B45 × (B42 − B40) / 360"><span class="f">B46</span>—</span></div></div>
           <div class="row"><div class="lbl"><b>IAA Purchase Price</b></div><div class="cell"><span class="calc strong" id="o_purchasePrice" title="B47 = B39 × (1 − B46)"><span class="f">B47</span>—</span></div></div>
@@ -275,8 +285,8 @@ pre{background:var(--calc-bg);border:1px solid var(--line);border-radius:8px;pad
         <h2>5 — Payment waterfall <span class="src">Cantu!A49:C53</span></h2>
         <div class="body">
           <div class="row"><div class="lbl">Legal/Structuring Fees<span class="note">If applicable</span></div><div class="cell suffix" data-suffix="$"><input type="number" class="in" id="f_legalFees" data-field="legalFees" step="0.01"></div></div>
-          <div class="row head"><div class="lbl">Payment to Cantu Supplier (Supplier Invoice)</div><div class="cell"><span class="calc" id="o_paySupplier" title="B51 = B39 × (1 − B33) − B49"><span class="f">B51</span>—</span></div></div>
-          <div class="row"><div class="lbl">Payment to Cantu (Agency Fee)</div><div class="cell"><span class="calc" id="o_payAgency" title="B52 = B39 × B31 × B41 / 360"><span class="f">B52</span>—</span></div></div>
+          <div class="row head"><div class="lbl" data-tpl="Payment to {client} Supplier (Supplier Invoice)">Payment to the client's Supplier (Supplier Invoice)</div><div class="cell"><span class="calc" id="o_paySupplier" title="B51 = B39 × (1 − B33) − B49"><span class="f">B51</span>—</span></div></div>
+          <div class="row"><div class="lbl" data-tpl="Payment to {client} (Agency Fee)">Payment to the client (Agency Fee)</div><div class="cell"><span class="calc" id="o_payAgency" title="B52 = B39 × B31 × B41 / 360"><span class="f">B52</span>—</span></div></div>
           <div class="row"><div class="lbl">Payment to TradeCo (TradeCo Fee)</div><div class="cell"><span class="calc" id="o_payTradeCo" title="B53 = B47 − B51 − B52"><span class="f">B53</span>—</span></div></div>
           <div class="row"><div class="lbl"><b>Reconciliation</b> — legs vs IAA Purchase Price</div><div class="cell"><span class="calc strong" id="o_recon" title="B51 + B52 + B53 − B47 must be exactly 0">—</span></div></div>
         </div>
@@ -308,6 +318,21 @@ pre{background:var(--calc-bg);border:1px solid var(--line);border-radius:8px;pad
 <!-- ================= RATES & CALENDARS ================= -->
 <section class="view" id="view-rates">
   <div id="ratesBanners"></div>
+  <div class="card">
+    <h2>Clients <span class="src">monday.com · Global Pipeline</span></h2>
+    <div class="body">
+      <div id="clientSourceBox"></div>
+      <div class="toolbar">
+        <button class="btn" id="btnSyncMonday">Refresh from monday.com</button>
+        <label class="btn" style="display:inline-flex;align-items:center">Import JSON<input type="file" id="clientImportFile" accept="application/json" style="display:none"></label>
+        <button class="btn" id="btnClientExport">Export JSON</button>
+        <div class="field-inline" style="margin-left:auto"><label for="clientFilter">Filter</label>
+          <input type="text" id="clientFilter" placeholder="name or country" style="min-width:170px"></div>
+      </div>
+      <p class="tiny" style="margin:0 0 10px">A refresh asks for a monday.com API token, uses it for that one request and never stores it — not in this file, not in localStorage. Because the token grants full account access, prefer <b>Import JSON</b> or a server-side sync for shared copies. Browsers block the direct call from a <code>file://</code> page; serve this file over http(s) for it to work.</p>
+      <div class="scroll" style="max-height:420px"><table id="clientTable"></table></div>
+    </div>
+  </div>
   <div class="grid2">
     <div class="card tight">
       <h2>Live curve — CME_TERM_SOFR <span class="src">'SOFR Interpolation'</span></h2>
@@ -529,6 +554,285 @@ for (const k in CALENDARS){
 }
 const APPLICABLE = ['US','GB','BR','HK'];
 
+/* Clients — distinct values of the "Client" column on the monday.com Global Pipeline board
+   (18299408349, column board_relation_mkx6fyx4 → Global Database 1462356365), deduplicated,
+   each carrying its strongest deal status. Seeded below; refreshable from the Reference data tab. */
+const MONDAY_SOURCE = { boardId:'18299408349', boardName:'Global Pipeline',
+  clientColumnId:'board_relation_mkx6fyx4', account:'silverbirchfinance.monday.com' };
+const SEED_CLIENTS = [
+{"id":"1462356445","name":"ABSA Group Limited","status":"Lost","country":"South Africa","region":"RoW","deals":1},
+{"id":"4054172846","name":"Acerias Paz del Rio (APDR)","status":"Lost","country":"Colombia","region":"Americas","deals":1},
+{"id":"18373006239","name":"Acesco Colombia SAS","status":"Lost","country":"Colombia","region":"Americas","deals":1},
+{"id":"1854114581","name":"Aditya Birla Group","status":"Implementation","country":"India","region":"RoW","deals":1},
+{"id":"11820901798","name":"Administración Nacional de Telecomunicaciones","status":"Prospect","country":"Uruguay","region":"Americas","deals":1},
+{"id":"11821151982","name":"Aeroman","status":"Discovery","country":"El Salvador","region":"Americas","deals":1},
+{"id":"9010937015","name":"Aeromexico SAB de CV","status":"Prospect","country":"Mexico","region":"Americas","deals":1},
+{"id":"18244631013","name":"AES ANDRES","status":"Live","country":"Dominican Republic","region":"Americas","deals":1},
+{"id":"18244616028","name":"AES Panama","status":"Live","country":"Panama","region":"Americas","deals":1},
+{"id":"18380887786","name":"Africell","status":"Lost","country":"United Kingdom","region":"RoW","deals":1},
+{"id":"12015838702","name":"AG Group","status":"Validation","country":"Guatemala","region":"Americas","deals":1},
+{"id":"4337350950","name":"Agrofert S.A.","status":"Lost","country":"Paraguay","region":"Americas","deals":1},
+{"id":"2375416238","name":"Agthia Group PJSC","status":"Validation","country":"United Arab Emirates","region":"RoW","deals":1},
+{"id":"9631084585","name":"Ahold Delhaize","status":"Hold","country":"Netherlands","region":"RoW","deals":1},
+{"id":"2405083419","name":"Al Dahra (Al Dahra Group LLC)","status":"Lost","country":"United Arab Emirates","region":"RoW","deals":1},
+{"id":"18378523706","name":"Alhel","status":"Prospect","country":"Mexico","region":"Americas","deals":1},
+{"id":"1870266873","name":"Alicorp S.A.A","status":"Validation","country":"Peru","region":"Americas","deals":1},
+{"id":"9456855296","name":"Alpek SA de CV","status":"Prospect","country":"Mexico","region":"Americas","deals":2},
+{"id":"9223991027","name":"Altan Redes S.A.P.I. de C.V.","status":"Prospect","country":"Mexico","region":"Americas","deals":1},
+{"id":"1561740291","name":"Altice Europe N.V","status":"Hold","country":"France","region":"RoW","deals":1},
+{"id":"1984667857","name":"Alvean Sugar","status":"Hold","country":"Switzerland","region":"RoW","deals":1},
+{"id":"7641372161","name":"Amaggi SA","status":"Lost","country":"Brazil","region":"Americas","deals":1},
+{"id":"18373369824","name":"Amarilo SAS","status":"Lost","country":"Colombia","region":"Americas","deals":1},
+{"id":"1812893228","name":"Amcor Plc","status":"Prospect","country":"Switzerland","region":"RoW","deals":1},
+{"id":"1561765238","name":"America Movil","status":"Lost","country":"Mexico","region":"Americas","deals":1},
+{"id":"10650148182","name":"American Airlines Group Inc","status":"Prospect","country":"United States","region":"Americas","deals":1},
+{"id":"18369474929","name":"Anagra","status":"Prospect","country":"Chile","region":"Americas","deals":1},
+{"id":"4092004196","name":"Anglo American","status":"Live","country":"Singapore","region":"RoW","deals":2},
+{"id":"11975527626","name":"Apple Inc","status":"Prospect","country":"United Kingdom","region":"insert the RoW","deals":1},
+{"id":"18380855486","name":"Applus","status":"Validation","country":"Spain","region":"RoW","deals":1},
+{"id":"1855304186","name":"Archer-Daniels-Midland","status":"Lost","country":"Singapore","region":"RoW","deals":1},
+{"id":"18373371577","name":"Arcos Dorados BV","status":"Lost","country":"Argentina","region":"Americas","deals":1},
+{"id":"6131826677","name":"Asahi","status":"Validation","country":"United Kingdom","region":"RoW","deals":1},
+{"id":"18373372517","name":"Astara","status":"Lost","country":"Colombia","region":"Americas","deals":1},
+{"id":"9076630422","name":"Aston Martin","status":"Hold","country":"United Kingdom","region":"RoW","deals":1},
+{"id":"8947125677","name":"AT&T Comunicaciones Digitales S de RL de CV","status":"Prospect","country":"Mexico","region":"Americas","deals":1},
+{"id":"18385570037","name":"BAIT","status":"Prospect","country":"Mexico","region":"Americas","deals":1},
+{"id":"2279079823","name":"Barry Callebaut","status":"Discovery","country":"Switzerland","region":"RoW","deals":1},
+{"id":"1776909438","name":"BB Energy","status":"Prospect","country":"United Kingdom","region":"RoW","deals":1},
+{"id":"11130637411","name":"Beaufond Plc","status":"Validation","country":"United Arab Emirates","region":"RoW","deals":1},
+{"id":"11839374155","name":"Becle","status":"Prospect","country":"Ireland","region":"RoW","deals":1},
+{"id":"18380881845","name":"Bell Microsystems","status":"Discovery","country":"United Kingdom","region":"RoW","deals":1},
+{"id":"12254352972","name":"Beta San Miguel SA de CV","status":"Prospect","country":"Mexico","region":"Americas","deals":1},
+{"id":"1561514165","name":"BHP","status":"Prospect","country":"United Kingdom","region":"RoW","deals":1},
+{"id":"12254208065","name":"Bitron de Mexico SA de CV","status":"Discovery","country":"Mexico","region":"Americas","deals":1},
+{"id":"11117946464","name":"Blommer Chocolate Company","status":"Prospect","country":"United States","region":"Americas","deals":1},
+{"id":"11555334585","name":"Boots Opticians","status":"Prospect","country":"United Kingdom","region":"RoW","deals":1},
+{"id":"7648742267","name":"Braskem S.A.","status":"Lost","country":"Brazil","region":"Americas","deals":1},
+{"id":"18380869220","name":"BRF (Federated Foods)","status":"Validation","country":"United Arab Emirates","region":"RoW","deals":1},
+{"id":"18373251349","name":"Bunge","status":"Lost","country":"Paraguay","region":"Americas","deals":1},
+{"id":"18369568960","name":"C&W Panama","status":"Discovery","country":"Panama","region":"Americas","deals":1},
+{"id":"9106071708","name":"Cadena Comercial Oxxo S.A. de C.V.","status":"Prospect","country":"Mexico","region":"Americas","deals":1},
+{"id":"18245034180","name":"CAFAM Caja de Compensacion Familiar","status":"Validation","country":"Colombia","region":"Americas","deals":1},
+{"id":"7648722617","name":"Caldic BV","status":"Prospect","country":"Brazil","region":"Americas","deals":1},
+{"id":"1835293336","name":"Calidda (Gas Natural de Lima y Callao S.A.)","status":"Live","country":"Peru","region":"Americas","deals":1},
+{"id":"18244750063","name":"Cantu Store","status":"Live","country":"Brazil","region":"Americas","deals":1},
+{"id":"18380888538","name":"Capita Plc","status":"Lost","country":"United Kingdom","region":"RoW","deals":1},
+{"id":"1561719507","name":"Cargill","status":"Prospect","country":"United States","region":"RoW","deals":1},
+{"id":"3639565615","name":"Carvajal S.A.","status":"Lost","country":"Colombia","region":"Americas","deals":1},
+{"id":"2612104070","name":"Celsia Colombia S.A. E.S.P.","status":"Live","country":"Colombia","region":"Americas","deals":3},
+{"id":"18372520004","name":"Cemex Colombia S.A.","status":"Prospect","country":"Colombia","region":"Americas","deals":1},
+{"id":"18372488515","name":"Cemex US","status":"Validation","country":"United States","region":"Americas","deals":2},
+{"id":"18373254674","name":"Cepsa S.A.","status":"Lost","country":"Spain","region":"Americas","deals":1},
+{"id":"11375235141","name":"Chevron","status":"Prospect","country":"United States","region":"RoW","deals":1},
+{"id":"18245078502","name":"Citrofrut S.A. de C.V.","status":"Lost","country":"Mexico","region":"Americas","deals":1},
+{"id":"12490812637","name":"CK Hutchinson","status":"Prospect","country":"Hong Kong","region":"RoW","deals":1},
+{"id":"11461689216","name":"Clara","status":"Prospect","country":"Mexico","region":"Americas","deals":1},
+{"id":"1561776393","name":"Coca-Cola Europacific Partners","status":"Lost","country":"United Kingdom","region":"RoW","deals":1},
+{"id":"18372516081","name":"Coca-Cola FEMSA SAB de CV","status":"Discovery","country":"Mexico","region":"Americas","deals":1},
+{"id":"2544286385","name":"ColTel (Telefonica Colombia; Colombia Telecomunicaciones S.A. E.S.P. BIC)","status":"Lost","country":"Colombia","region":"Americas","deals":1},
+{"id":"7648703495","name":"Companhia Siderurgica Nacional (CSN)","status":"Lost","country":"Brazil","region":"Americas","deals":1},
+{"id":"4337887852","name":"Compania Siderurgica Huachipato (CSH)","status":"Lost","country":"Chile","region":"Americas","deals":1},
+{"id":"4054180084","name":"Controladora Mabe, S.A. de C.V. (Mabe)","status":"Prospect","country":"Mexico","region":"Americas","deals":1},
+{"id":"11328022073","name":"Controladora Vuela Compañía de Aviación, S.A.B. de C.V.","status":"Lost","country":"Mexico","region":"Americas","deals":1},
+{"id":"18372575757","name":"Corona Industrial SA","status":"Prospect","country":"Colombia","region":"Americas","deals":1},
+{"id":"18373367554","name":"Corporacion Aceros Arequipa SA","status":"Lost","country":"Peru","region":"Americas","deals":1},
+{"id":"11484916180","name":"Corteva Mexico","status":"Prospect","country":"Mexico","region":"Americas","deals":2},
+{"id":"1462356564","name":"Credit Agricole Corporate and Investment Bank (CACIB)","status":"Prospect","country":"France","region":"RoW","deals":1},
+{"id":"11410709592","name":"Cunova GmbH","status":"Lost","country":"Germany","region":"RoW","deals":1},
+{"id":"9456880657","name":"Cuprum","status":"Prospect","country":"Mexico","region":"Americas","deals":1},
+{"id":"18380851994","name":"Damen Group","status":"Hold","country":"Netherlands","region":"RoW","deals":1},
+{"id":"18380886204","name":"Dazn","status":"Hold","country":"United Kingdom","region":"RoW","deals":1},
+{"id":"18372583474","name":"Deacero S.A. de C.V.","status":"Prospect","country":"Mexico","region":"Americas","deals":1},
+{"id":"10650128594","name":"Dell Technologies Inc.","status":"Prospect","country":"United States","region":"Americas","deals":1},
+{"id":"9247060079","name":"Deutsche Bank AG, London Branch","status":"Validation","country":"Germany","region":"RoW","deals":1},
+{"id":"1561691139","name":"Diageo","status":"Prospect","country":"United Kingdom","region":"RoW","deals":1},
+{"id":"12490769438","name":"Digi Communications","status":"Prospect","country":"United Kingdom","region":"RoW","deals":1},
+{"id":"18373276498","name":"Dos Pinos SRL","status":"Lost","country":"Costa Rica","region":"Americas","deals":1},
+{"id":"2442223218","name":"Ducab (Dubai Cable Company)","status":"Prospect","country":"United Arab Emirates","region":"RoW","deals":1},
+{"id":"1953445872","name":"EBRD","status":"Implementation","country":"United Kingdom","region":"RoW","deals":1},
+{"id":"18372737099","name":"Ecom Agroindustrial Corp.","status":"Discovery","country":"Switzerland","region":"RoW","deals":2},
+{"id":"10978412931","name":"Ecopetrol S.A.","status":"Discovery","country":"Colombia","region":"Americas","deals":1},
+{"id":"1561529888","name":"ED&F Man Holdings Limited","status":"Prospect","country":"United Kingdom","region":"RoW","deals":1},
+{"id":"1561796687","name":"EG Group (Euro Garages)","status":"Hold","country":"United Kingdom","region":"RoW","deals":1},
+{"id":"2196031451","name":"EGA (Emirates Global Aluminium)","status":"Implementation","country":"United Arab Emirates","region":"RoW","deals":1},
+{"id":"18373373527","name":"Eisa","status":"Lost","country":"Brazil","region":"Americas","deals":1},
+{"id":"2421990357","name":"El Puerto de Liverpool S.A.B. de C.V","status":"Prospect","country":"Mexico","region":"Americas","deals":1},
+{"id":"11555303051","name":"Ellab","status":"Hold","country":"Denmark","region":"RoW","deals":1},
+{"id":"18381198195","name":"Empresa de Telefonos de Bogota ESP SA","status":"Validation","country":"Colombia","region":"Americas","deals":1},
+{"id":"18372701846","name":"Empresas Publicas de Medellin S.A. E.S.P","status":"Prospect","country":"Colombia","region":"Americas","deals":2},
+{"id":"11769100310","name":"Endava","status":"Hold","country":"United Kingdom","region":"insert the RoW","deals":1},
+{"id":"1757728495","name":"Enel Colombia SA ESP","status":"Validation","country":"Colombia","region":"Americas","deals":1},
+{"id":"18373374344","name":"Equirent SA","status":"Lost","country":"Colombia","region":"Americas","deals":1},
+{"id":"18372731998","name":"Esentia Energy Systems","status":"Prospect","country":"Mexico","region":"Americas","deals":1},
+{"id":"8818009389","name":"Export Trading Group","status":"Discovery","country":"Mauritius","region":"RoW","deals":1},
+{"id":"18372733831","name":"Federacion Nacional de Cafeteros S.A.","status":"Prospect","country":"Colombia","region":"Americas","deals":1},
+{"id":"1462356506","name":"First Abu Dhabi Bank PJSC (FAB)","status":"Prospect","country":"United Arab Emirates","region":"RoW","deals":1},
+{"id":"18380850248","name":"Fiskars","status":"Hold","country":"Finland","region":"RoW","deals":1},
+{"id":"12254639354","name":"Flying Food Group LLC","status":"Prospect","country":"United States","region":"Americas","deals":1},
+{"id":"18373310805","name":"Fogel De Centroamerica S.A.","status":"Lost","country":"Guatemala","region":"Americas","deals":1},
+{"id":"9456768661","name":"Frisa S.A. de C.V.","status":"Prospect","country":"Mexico","region":"Americas","deals":1},
+{"id":"18385580239","name":"Fuller","status":"Prospect","country":"Mexico","region":"Americas","deals":1},
+{"id":"18369606514","name":"Gatun Energy","status":"Prospect","country":"Panama","region":"Americas","deals":1},
+{"id":"12254276733","name":"GCC SAB de CV","status":"Prospect","country":"Mexico","region":"Americas","deals":1},
+{"id":"18380876100","name":"General Motors (GM)","status":"Prospect","country":"United States","region":"RoW","deals":1},
+{"id":"18373313152","name":"Gerdau","status":"Lost","country":"Brazil","region":"Americas","deals":1},
+{"id":"1817434563","name":"Glenmark Pharmaceuticals Limited","status":"Prospect","country":"India","region":"RoW","deals":1},
+{"id":"18373375380","name":"GNP Seguros","status":"Lost","country":"Mexico","region":"Americas","deals":1},
+{"id":"9456821427","name":"Gruma SAB de CV","status":"Lost","country":"Mexico","region":"Americas","deals":1},
+{"id":"18144319774","name":"Grupo Axo","status":"Lost","country":"Mexico","region":"Americas","deals":1},
+{"id":"18007983632","name":"Grupo Bimbo","status":"Prospect","country":"Mexico","region":"Americas","deals":1},
+{"id":"18373272795","name":"Grupo Cerveceria Nacional de Panama","status":"Lost","country":"Panama","region":"Americas","deals":1},
+{"id":"18373315781","name":"Grupo Dokka Holding Internacional S.A.","status":"Lost","country":"Costa Rica","region":"Americas","deals":1},
+{"id":"18123858194","name":"Grupo Herdez","status":"Prospect","country":"Mexico","region":"Americas","deals":1},
+{"id":"18205712529","name":"Grupo Infra","status":"Lost","country":"Mexico","region":"Americas","deals":1},
+{"id":"18372931691","name":"Grupo Lamosa SAB de CV","status":"Prospect","country":"Mexico","region":"Americas","deals":1},
+{"id":"18373355305","name":"Grupo Levapan","status":"Lost","country":"Colombia","region":"Americas","deals":1},
+{"id":"18372949561","name":"Grupo Rotoplas S.A.B. de C.V.","status":"Prospect","country":"Mexico","region":"Americas","deals":1},
+{"id":"18372746060","name":"Grupo Salinas","status":"Lost","country":"Mexico","region":"Americas","deals":1},
+{"id":"18244929783","name":"Grupo Traxion S.A. de C.V.","status":"Lost","country":"Mexico","region":"Americas","deals":1},
+{"id":"11572075032","name":"GSK","status":"Prospect","country":"United Kingdom","region":"RoW","deals":1},
+{"id":"9418539758","name":"Haleon","status":"Prospect","country":"United Kingdom","region":"RoW","deals":2},
+{"id":"1709893230","name":"Harbour Energy","status":"Prospect","country":"United Kingdom","region":"RoW","deals":1},
+{"id":"2432525034","name":"Heineken","status":"Hold","country":"Netherlands","region":"RoW","deals":1},
+{"id":"18380848596","name":"Hella Gutman","status":"Hold","country":"Germany","region":"RoW","deals":1},
+{"id":"11572010339","name":"Hikma Pharma","status":"Hold","country":"United Kingdom","region":"RoW","deals":1},
+{"id":"18372925618","name":"Hochschild Mining (Chile) S.A.","status":"Prospect","country":"Chile","region":"Americas","deals":1},
+{"id":"18372487345","name":"Holcim Group LATAM","status":"Lost","country":"Mexico","region":"Americas","deals":1},
+{"id":"6627000616","name":"Honor","status":"Lost","country":"China","region":"RoW","deals":1},
+{"id":"4396949608","name":"Hortifrut S.A.","status":"Lost","country":"Chile","region":"Americas","deals":1},
+{"id":"3671333274","name":"Iberdrola","status":"Validation","country":"Mexico","region":"Americas","deals":1},
+{"id":"1561751256","name":"Iliad","status":"Prospect","country":"France","region":"RoW","deals":1},
+{"id":"2715151044","name":"Inchcape","status":"Lost","country":"Chile","region":"Americas","deals":1},
+{"id":"8710761082","name":"Ineos Energy","status":"Discovery","country":"United Kingdom","region":"RoW","deals":1},
+{"id":"10764538513","name":"Instituto Costarricense de Electricidad - ICE","status":"Lost","country":"Costa Rica","region":"Americas","deals":1},
+{"id":"18380757913","name":"Jaguar Land Rover (JLR)","status":"Implementation","country":"United Kingdom","region":"RoW","deals":1},
+{"id":"7641416594","name":"JBS US","status":"Lost","country":"United States","region":"Americas","deals":1},
+{"id":"8362109002","name":"Johnson & Johnson (J&J, JNJ)","status":"Lost","country":"Switzerland","region":"RoW","deals":1},
+{"id":"18385578471","name":"Jose Cuervo","status":"Prospect","country":"Mexico","region":"Americas","deals":1},
+{"id":"18385577983","name":"Kavak","status":"Prospect","country":"Mexico","region":"Americas","deals":1},
+{"id":"18378511973","name":"Konfio","status":"Lost","country":"Mexico","region":"Americas","deals":1},
+{"id":"12253510834","name":"Konica Minolta US","status":"Discovery","country":"United States","region":"Americas","deals":1},
+{"id":"1561745710","name":"KPN","status":"Prospect","country":"Netherlands","region":"RoW","deals":1},
+{"id":"18373321951","name":"Kuo, S.A.B. de C.V.","status":"Lost","country":"Mexico","region":"Americas","deals":1},
+{"id":"10988591036","name":"Kyndryl Holdings Inc","status":"Lost","country":"United States","region":"Americas","deals":1},
+{"id":"18373376812","name":"Leche Gloria S.A.","status":"Lost","country":"Peru","region":"Americas","deals":1},
+{"id":"2432534451","name":"Lenovo","status":"Hold","country":"Malaysia","region":"RoW","deals":1},
+{"id":"7648534680","name":"LHG Mining S.A","status":"Prospect","country":"Brazil","region":"Americas","deals":1},
+{"id":"2545889228","name":"Liberty LatAm - Costa Rica","status":"Live","country":"Costa Rica","region":"Americas","deals":1},
+{"id":"2798409449","name":"Liberty LatAm - Puerto Rico","status":"Live","country":"Puerto Rico","region":"Americas","deals":2},
+{"id":"2683630297","name":"Lord Capital","status":"Lost","country":"United States","region":"Americas","deals":1},
+{"id":"5891827350","name":"Maaden (Ma'aden)","status":"Prospect","country":"Saudi Arabia","region":"RoW","deals":1},
+{"id":"11135878219","name":"Macropay","status":"Prospect","country":"Mexico","region":"Americas","deals":1},
+{"id":"11571992115","name":"Marubeni","status":"Hold","country":"Japan","region":"RoW","deals":1},
+{"id":"18380869920","name":"MasOrange","status":"Prospect","country":"Spain","region":"RoW","deals":1},
+{"id":"18385578241","name":"Megacable","status":"Discovery","country":"Mexico","region":"Americas","deals":1},
+{"id":"4054186727","name":"Mercado Libre","status":"Validation","country":"Mexico","region":"Americas","deals":2},
+{"id":"18245112385","name":"Metalsa S.A. de C.V.","status":"Lost","country":"Mexico","region":"Americas","deals":2},
+{"id":"18297520083","name":"Metsa","status":"Validation","country":"Finland","region":"RoW","deals":2},
+{"id":"11307590533","name":"Miami Trading Zone LLC","status":"Validation","country":"United States","region":"Americas","deals":1},
+{"id":"10988628787","name":"Micron Technology Inc","status":"Prospect","country":"United States","region":"Americas","deals":1},
+{"id":"7648542338","name":"Minerva S.A.","status":"Lost","country":"Brazil","region":"Americas","deals":1},
+{"id":"18373249277","name":"Montealegre S.A.","status":"Lost","country":"Paraguay","region":"Americas","deals":1},
+{"id":"4337673041","name":"Mundo Telecomunicaciones","status":"Lost","country":"Chile","region":"Americas","deals":1},
+{"id":"18372929485","name":"Máquinas Agrícolas Jacto S.A.","status":"Lost","country":"Brazil","region":"Americas","deals":1},
+{"id":"11517163637","name":"Nativa Agronegocios","status":"Validation","country":"Brazil","region":"Americas","deals":1},
+{"id":"4337770860","name":"Naturgy Panama","status":"Lost","country":"Panama","region":"Americas","deals":1},
+{"id":"1561704539","name":"Nestle","status":"Prospect","country":"United Arab Emirates","region":"RoW","deals":2},
+{"id":"11066822617","name":"Nissan","status":"Prospect","country":"Mexico","region":"Americas","deals":1},
+{"id":"1561650771","name":"Nokia Europe","status":"Prospect","country":"Finland","region":"RoW","deals":1},
+{"id":"11544963124","name":"Nscale","status":"Prospect","country":"United Kingdom","region":"RoW","deals":1},
+{"id":"18372490140","name":"Nutresa S.A.","status":"Prospect","country":"Colombia","region":"Americas","deals":1},
+{"id":"4695827378","name":"Occidental petroleum (Oxy)","status":"Discovery","country":"United States","region":"Americas","deals":1},
+{"id":"18380867614","name":"OCP","status":"Prospect","country":"Morocco","region":"RoW","deals":1},
+{"id":"18380871198","name":"Odido","status":"Prospect","country":"Netherlands","region":"RoW","deals":1},
+{"id":"7186908022","name":"Olam Food Ingredients (OFI)","status":"Live","country":"Singapore","region":"RoW","deals":2},
+{"id":"2545986608","name":"Olam Global Agri Pte Limited","status":"Live","country":"Singapore","region":"RoW","deals":3},
+{"id":"9048162673","name":"Omarsa S.A.","status":"Lost","country":"Ecuador","region":"Americas","deals":1},
+{"id":"18380870755","name":"Ooredoo","status":"Prospect","country":"Kuwait","region":"RoW","deals":1},
+{"id":"18372938265","name":"Orbia Advance Corporation, S.A.B. de C.V.","status":"Prospect","country":"Mexico","region":"Americas","deals":1},
+{"id":"11170831675","name":"Orsted","status":"Discovery","country":"Denmark","region":"RoW","deals":1},
+{"id":"18372994253","name":"P.M.I. Comercio Internacional S.A. De C.V.","status":"Prospect","country":"Mexico","region":"Americas","deals":1},
+{"id":"1757782589","name":"Pernod Ricard","status":"Prospect","country":"France","region":"RoW","deals":1},
+{"id":"11136146052","name":"Petróleos del Perú - PETROPERÚ S.A.","status":"Lost","country":"Peru","region":"Americas","deals":1},
+{"id":"18373378358","name":"Procaps SAS","status":"Lost","country":"Colombia","region":"Americas","deals":1},
+{"id":"18373359815","name":"Procesadora Nacional de Alimentos CA","status":"Lost","country":"Ecuador","region":"Americas","deals":1},
+{"id":"18372946589","name":"Promigas Peru","status":"Prospect","country":"Peru","region":"Americas","deals":1},
+{"id":"4184964941","name":"Promigas S.A. E.S.P","status":"Validation","country":"Colombia","region":"Americas","deals":1},
+{"id":"1561724402","name":"Proximus","status":"Discovery","country":"Belgium","region":"RoW","deals":1},
+{"id":"3390232398","name":"Puma Energy","status":"Lost","country":"Panama","region":"Americas","deals":1},
+{"id":"11853675178","name":"Radiant World","status":"Lost","country":"United Kingdom","region":"insert the RoW","deals":1},
+{"id":"2886856338","name":"Radio Jamaica Limited","status":"Lost","country":"Jamaica","region":"Americas","deals":1},
+{"id":"9938929412","name":"Rassini","status":"Discovery","country":"Mexico","region":"Americas","deals":1},
+{"id":"18373001586","name":"Refinería Dominicana De Petróleo PDV, S.A.","status":"Lost","country":"Dominican Republic","region":"Americas","deals":1},
+{"id":"1780857481","name":"Rentokil Initial","status":"Prospect","country":"United Kingdom","region":"RoW","deals":1},
+{"id":"2785768718","name":"Repsol","status":"Prospect","country":"Mexico","region":"Americas","deals":1},
+{"id":"1561509794","name":"Rio Tinto","status":"Hold","country":"Singapore","region":"RoW","deals":1},
+{"id":"11307665122","name":"Riopaila Castilla S.A.","status":"Lost","country":"Colombia","region":"Americas","deals":1},
+{"id":"12155883768","name":"Sahara Group","status":"Prospect","country":"Switzerland","region":"RoW","deals":1},
+{"id":"18380855037","name":"SALIC","status":"Discovery","country":"Saudi Arabia","region":"RoW","deals":1},
+{"id":"4367058130","name":"San Miguel Industrias","status":"Lost","country":"Peru","region":"Americas","deals":1},
+{"id":"12253549956","name":"Sanitas US","status":"Discovery","country":"United States","region":"Americas","deals":1},
+{"id":"1757796846","name":"Saudi Telecommunications Company (STC)","status":"Implementation","country":"Bahrain","region":"RoW","deals":2},
+{"id":"10733246953","name":"Scania","status":"Prospect","country":"Sweden","region":"RoW","deals":1},
+{"id":"18372951346","name":"Seara Meats B.V.","status":"Prospect","country":"Brazil","region":"RoW","deals":2},
+{"id":"1462356641","name":"SEB London","status":"Prospect","country":"Sweden","region":"RoW","deals":1},
+{"id":"18385580475","name":"Sempra Infrastructure","status":"Prospect","country":"Mexico","region":"Americas","deals":1},
+{"id":"8590872401","name":"Siemens Energy","status":"Lost","country":"Mexico","region":"Americas","deals":1},
+{"id":"18373363513","name":"Sigma Q","status":"Lost","country":"Guatemala","region":"Americas","deals":1},
+{"id":"11731211178","name":"SLB (Schlumberger)","status":"Prospect","country":"France","region":"RoW","deals":1},
+{"id":"18372972116","name":"Sociedad Productores de Leche S.A.","status":"Prospect","country":"Chile","region":"Americas","deals":1},
+{"id":"18380874878","name":"Solventum","status":"Prospect","country":"United States","region":"RoW","deals":1},
+{"id":"8949806595","name":"South Mill","status":"Lost","country":"United States","region":"Americas","deals":1},
+{"id":"18372986583","name":"Square Trading Singapore Pte Ltd","status":"Prospect","country":"Colombia","region":"Americas","deals":1},
+{"id":"18373364370","name":"Steel Resources LLC","status":"Lost","country":"United States","region":"Americas","deals":1},
+{"id":"18380881337","name":"Stena Oil","status":"Implementation","country":"Norway","region":"RoW","deals":1},
+{"id":"11877527381","name":"Sucden","status":"Prospect","country":"France","region":"RoW","deals":1},
+{"id":"7648509328","name":"Suzano S.A.","status":"Validation","country":"Brazil","region":"RoW","deals":2},
+{"id":"12254679576","name":"Swissport Brasil Ltda","status":"Prospect","country":"Brazil","region":"Americas","deals":1},
+{"id":"12253541770","name":"Tecnofil S.A.","status":"Discovery","country":"Peru","region":"Americas","deals":1},
+{"id":"18372976905","name":"Telecom Argentina S.A.","status":"Prospect","country":"Argentina","region":"Americas","deals":1},
+{"id":"2544288316","name":"Telefonica Chile  (Telefónica Chile S.A.)","status":"Lost","country":"Chile","region":"Americas","deals":2},
+{"id":"2544284477","name":"Telefonica del Peru S.A.A.","status":"Lost","country":"Peru","region":"Americas","deals":1},
+{"id":"2544283184","name":"Telefonica Germany","status":"Hold","country":"Germany","region":"RoW","deals":1},
+{"id":"2544282265","name":"Telefonica Mexico (Pegaso PCS S.A. de C.V.)","status":"Live","country":"Mexico","region":"Americas","deals":3},
+{"id":"1462356526","name":"Telefonica Spain ASA","status":"Lost","country":"Spain","region":"Americas","deals":1},
+{"id":"1462356401","name":"Telenor ASA","status":"Live","country":"Finland","region":"RoW","deals":3},
+{"id":"1853732712","name":"Telia","status":"Lost","country":"Sweden","region":"RoW","deals":1},
+{"id":"7882665224","name":"Temenos","status":"Live","country":"Switzerland","region":"RoW","deals":1},
+{"id":"18373366107","name":"Termobarranquilla SA ESP","status":"Validation","country":"Colombia","region":"Americas","deals":1},
+{"id":"18372981068","name":"Ternium Mexico, S. A. de C. V.","status":"Prospect","country":"Mexico","region":"Americas","deals":1},
+{"id":"11467938702","name":"Teva Pharma","status":"Validation","country":"Israel","region":"RoW","deals":1},
+{"id":"1904673243","name":"Texel Finance Limited","status":"Live","country":"United States","region":"RoW","deals":1},
+{"id":"12253552267","name":"The Mosaic Group","status":"Prospect","country":"United States","region":"Americas","deals":1},
+{"id":"18369634040","name":"Tigo Colombia","status":"Discovery","country":"Colombia","region":"Americas","deals":1},
+{"id":"18244785875","name":"Tigo Panama","status":"Live","country":"Panama","region":"Americas","deals":2},
+{"id":"11080710180","name":"Touton SA","status":"Prospect","country":"France","region":"RoW","deals":1},
+{"id":"12253625740","name":"Toyota Financial Services Mexico SA de CV","status":"Prospect","country":"Mexico","region":"Americas","deals":1},
+{"id":"12254610767","name":"Toyota Motors de Mexico SA de CV","status":"Prospect","country":"Mexico","region":"Americas","deals":1},
+{"id":"2544208099","name":"Trafigura Pte Ltd","status":"Lost","country":"Singapore","region":"RoW","deals":1},
+{"id":"8817999156","name":"Traveloka","status":"Hold","country":"Singapore","region":"RoW","deals":1},
+{"id":"10733291401","name":"trelle","status":"Prospect","country":"Sweden","region":"RoW","deals":1},
+{"id":"9725109768","name":"Turner Construction","status":"Lost","country":"United States","region":"Americas","deals":1},
+{"id":"18245682603","name":"Uniban S.A.","status":"Prospect","country":"Colombia","region":"Americas","deals":1},
+{"id":"1757811423","name":"Unilever","status":"Prospect","country":"United Kingdom","region":"RoW","deals":1},
+{"id":"12254220619","name":"Vale S.A.","status":"Prospect","country":"Brazil","region":"Americas","deals":1},
+{"id":"18245762485","name":"Vanti S.A. E.S.P.","status":"Discovery","country":"Colombia","region":"Americas","deals":1},
+{"id":"1462356423","name":"Very Group","status":"Hold","country":"United Kingdom","region":"RoW","deals":1},
+{"id":"18244697275","name":"Vitali","status":"Live","country":"Guatemala","region":"Americas","deals":1},
+{"id":"9456788635","name":"Vitro SAB de CV","status":"Prospect","country":"Mexico","region":"Americas","deals":1},
+{"id":"1861623478","name":"Vodafone Group","status":"Discovery","country":"United Kingdom","region":"RoW","deals":2},
+{"id":"1953429874","name":"Volvo Group","status":"Prospect","country":"Sweden","region":"RoW","deals":1},
+{"id":"18373377590","name":"VTR","status":"Lost","country":"Chile","region":"Americas","deals":1},
+{"id":"18380863620","name":"Wilmott Dixon","status":"Lost","country":"United Kingdom","region":"RoW","deals":1},
+{"id":"1561684491","name":"WOM S.A.","status":"Validation","country":"Chile","region":"Americas","deals":4},
+{"id":"9456720991","name":"Xignux SA de CV","status":"Prospect","country":"Mexico","region":"Americas","deals":1},
+{"id":"1462356480","name":"Zain Telecommunications Company","status":"Prospect","country":"United Arab Emirates","region":"RoW","deals":1},
+{"id":"18380853487","name":"Zegona","status":"Hold","country":"Spain","region":"RoW","deals":1},
+{"id":"18380871977","name":"ZF Groups","status":"Lost","country":"Germany","region":"RoW","deals":1}
+];
+const STATUS_RANK = {Live:0, Implementation:1, Validation:2, Discovery:3, Hold:4, Prospect:5, Lost:6};
+const ACTIVE_STATUSES = ['Live','Implementation','Validation','Discovery','Hold'];
+
 const MARKET_DEFAULTS = { margin:'0.03', agencyFee:'0.001', bladexMargin:'0.0235' };
 const RECEIVING_ACCOUNT_TEXT = 'See Part A (Receiving Account(s)) of Annex 2 (Accounts) to the IAA Addendum';
 
@@ -549,19 +853,28 @@ function interpolate(pillars, tenorDays){
   return {rate:slope.mul(D.of(x-lo.days)).add(lo.rate), method, lower:lo, upper:hi};
 }
 
-/** price(inputs, rateQuote) -> outputs. No I/O, no clock reads, no DB. */
+/** price(inputs, rateQuote) -> outputs. No I/O, no clock reads, no DB.
+ *  The Pro Forma block (panel 2) is optional. When inputs.pfEnabled is false every pf* output is
+ *  null and no pro forma rate is required. Nothing downstream reads them: panels 3-5 and the
+ *  Offer File depend only on the supplier amount, the TradeCo inputs, the Bladex inputs and the
+ *  live curve — so disabling the block leaves B27:B53 bit-for-bit identical. */
 function price(i, q){
   const supplierAmount = D.of(i.supplierAmount);
   const supplierPaymentDate = dAdd(i.supplierIssueDate, Number(i.supplierTenorDays));
 
-  const pfMaturityDate = dAdd(i.pfIssueDate, Number(i.pfTenorDays));                     // B15
-  const pfRate  = D.of(q.pfRate);                                                        // B16
-  const pfMarkup= D.of(i.pfMargin).add(pfRate).add(D.of(i.pfAgencyFee));                 // B19
-  const pfDays  = dDiff(pfMaturityDate, i.pfIssueDate);
-  const pfFactor= pfMarkup.mul(D.of(pfDays)).div(D.of(360));                             // B20
-  const pfInvoice1 = supplierAmount;                                                     // B21
-  const pfTotal = supplierAmount.div(ONE.sub(pfFactor));                                 // B23
-  const pfInvoice2 = pfTotal.sub(pfInvoice1);                                            // B22
+  const pfOn = i.pfEnabled !== false;
+  let pfMaturityDate=null, pfRate=null, pfMarkup=null, pfDays=null, pfFactor=null,
+      pfInvoice1=null, pfTotal=null, pfInvoice2=null;
+  if(pfOn){
+    pfMaturityDate = dAdd(i.pfIssueDate, Number(i.pfTenorDays));                         // B15
+    pfRate   = D.of(q.pfRate);                                                           // B16
+    pfMarkup = D.of(i.pfMargin).add(pfRate).add(D.of(i.pfAgencyFee));                    // B19
+    pfDays   = dDiff(pfMaturityDate, i.pfIssueDate);
+    pfFactor = pfMarkup.mul(D.of(pfDays)).div(D.of(360));                                // B20
+    pfInvoice1 = supplierAmount;                                                         // B21
+    pfTotal  = supplierAmount.div(ONE.sub(pfFactor));                                    // B23
+    pfInvoice2 = pfTotal.sub(pfInvoice1);                                                // B22
+  }
 
   const tcMaturityDate = dAdd(i.bladexSettlementDate, Number(i.bladexDays));             // B28 = B42
   const tcTenorDays = Number(i.bladexDays) + dDiff(i.bladexSettlementDate, i.tcIssueDate); // B27
@@ -585,7 +898,7 @@ function price(i, q){
   const payToCantuAgency = faceValue.mul(D.of(i.tcAgencyFee)).mul(D.of(Number(i.bladexDays))).div(D.of(360)); // B52
   const payToTradeCo = purchasePrice.sub(payToSupplier).sub(payToCantuAgency);           // B53
 
-  return { supplierPaymentDate, supplierAmount,
+  return { supplierPaymentDate, supplierAmount, pfOn,
     pfMaturityDate, pfRate, pfMarkup, pfFactor, pfDays, pfInvoice1, pfInvoice2, pfTotal,
     tcTenorDays, tcMaturityDate, liveRate, tcMarkup, tcFactor, tcDays, tcInvoice1, tcInvoice2, tcTotal,
     faceValue, iaaMaturityDate, bladexCostOfFunds, iaaFactor, purchasePrice,
@@ -614,23 +927,26 @@ function validate(deal, out, quotes, bd){
   const E=(rule,msg)=>errors.push({rule,msg});
   const W=(rule,msg)=>warnings.push({rule,msg});
   const i=deal.inputs;
+  const pfOn = i.pfEnabled !== false;
+  const CLIENT = clientLabel(deal);
 
+  if(!String(i.clientId||'').trim()) E('DEAL.CLIENT','Select a client. Every client-named label and the agency-fee leg refer to it.');
   if(!String(i.transactionCode||'').trim()) E('DEAL.TXCODE','Transaction Code is required (Cantu!B4 — blank prints as 0 on the Offer File).');
   if(!String(i.tradeIdentifier||'').trim()) E('DEAL.TRADEID','Trade Identifier is required (Cantu!B5 — blank prints as 0 on the Offer File).');
   if(!String(i.obligor||'').trim()) E('DEAL.OBLIGOR','Relevant Obligor is required (Offer File!A3).');
   if(i.currency!=='USD') E('DEAL.CCY','Currency must be USD. Multi-currency is modelled but not enabled.');
 
-  for(const [k,lbl] of [['supplierIssueDate','Supplier Invoice Issue Date'],['pfIssueDate','Pro Forma Issue Date'],
-                        ['tcIssueDate','TradeCo Invoice Issue Date'],['bladexSettlementDate','Bladex Settlement Date']])
-    if(!isValidDate(i[k])) E('DATE.REQUIRED', lbl+' is required.');
+  for(const [k,lbl,needed] of [['supplierIssueDate','Supplier Invoice Issue Date',true],['pfIssueDate','Pro Forma Issue Date',pfOn],
+                        ['tcIssueDate','TradeCo Invoice Issue Date',true],['bladexSettlementDate','Bladex Settlement Date',true]])
+    if(needed && !isValidDate(i[k])) E('DATE.REQUIRED', lbl+' is required.');
 
   if(!(D.of(i.supplierAmount||0).gt(ZERO))) E('AMT.POSITIVE','Supplier Invoice Amount must be greater than zero (Cantu!B10).');
   if(Number(i.supplierTenorDays)<1) E('TENOR.SUPPLIER','Supplier tenor must be at least 1 day.');
-  if(Number(i.pfTenorDays)<1) E('TENOR.PF','Pro Forma tenor must be at least 1 day (Cantu!B14).');
+  if(pfOn && Number(i.pfTenorDays)<1) E('TENOR.PF','Pro Forma tenor must be at least 1 day (Cantu!B14).');
   if(Number(i.bladexDays)<1) E('TENOR.BLADEX','Bladex Days must be at least 1 (Cantu!B41).');
 
   if(out){
-    if(out.pfFactor.gte(ONE)) E('FACTOR.PF','Pro Forma factor is ≥ 1 — B23 = B10/(1−B20) is undefined or negative.');
+    if(pfOn && out.pfFactor.gte(ONE)) E('FACTOR.PF','Pro Forma factor is ≥ 1 — B23 = B10/(1−B20) is undefined or negative.');
     if(out.tcFactor.gte(ONE)) E('FACTOR.TC','TradeCo factor is ≥ 1 — B36 = B10/(1−B33) is undefined or negative.');
     if(out.iaaFactor.gte(ONE)) E('FACTOR.IAA','IAA factor is ≥ 1 — the purchase price would be zero or negative.');
     if(out.purchasePrice.lte(ZERO)) E('PRICE.POSITIVE','IAA Purchase Price must be greater than zero.');
@@ -654,6 +970,7 @@ function validate(deal, out, quotes, bd){
 
   if(quotes){
     for(const [key,label] of [['live','Live curve'],['pf','Pro forma curve']]){
+      if(key==='pf' && !pfOn) continue;
       const q=quotes[key]; if(!q) continue;
       if(q.method==='LINEAR_EXTRAP') W('RATE.EXTRAP', label+' rate is extrapolated beyond the observable pillars — off-curve pricing.');
       const age=dDiff(todayISO(), q.businessDate);
@@ -663,7 +980,7 @@ function validate(deal, out, quotes, bd){
   }
 
   // Workbook column-C business notes, as soft checks.
-  if(isValidDate(i.supplierIssueDate) && isValidDate(i.pfIssueDate)){
+  if(pfOn && isValidDate(i.supplierIssueDate) && isValidDate(i.pfIssueDate)){
     const supPay = dAdd(i.supplierIssueDate, Number(i.supplierTenorDays||0));
     const gap = dDiff(supPay, i.pfIssueDate);
     // Threshold is 30 days: the workbook's own reference deal runs 24 days, so a tighter
@@ -673,13 +990,13 @@ function validate(deal, out, quotes, bd){
   }
   if(isValidDate(i.tcIssueDate) && isValidDate(i.bladexSettlementDate) && i.tcIssueDate!==i.bladexSettlementDate)
     W('NOTE.TC_ISSUE','TradeCo Issue Date differs from the Bladex Settlement Date, so B27 ('+ (out?out.tcTenorDays:'?') +'d) no longer equals Bladex Days ('+i.bladexDays+'d).');
-  if(Number(i.pfTenorDays) !== Number(i.bladexDays)+2 && Number(i.pfTenorDays) !== Number(i.bladexDays))
+  if(pfOn && Number(i.pfTenorDays) !== Number(i.bladexDays)+2 && Number(i.pfTenorDays) !== Number(i.bladexDays))
     W('NOTE.PF_TENOR','Pro Forma tenor is '+i.pfTenorDays+'d. The workbook note suggests Bladex Days + 2 ('+(Number(i.bladexDays)+2)+'d).');
-  for(const [k,def,lbl] of [['pfMargin',MARKET_DEFAULTS.margin,'Pro Forma margin'],['tcMargin',MARKET_DEFAULTS.margin,'TradeCo margin'],
-                            ['bladexMargin',MARKET_DEFAULTS.bladexMargin,'Bladex margin'],
-                            ['pfAgencyFee',MARKET_DEFAULTS.agencyFee,'Pro Forma agency fee'],['tcAgencyFee',MARKET_DEFAULTS.agencyFee,'TradeCo agency fee']])
-    if(!D.of(i[k]||0).eq(D.of(def)))
-      W('NOTE.STANDARD_TERMS', lbl+' is '+pct(D.of(i[k]||0))+', not the standing '+pct(D.of(def))+'. Confirm a pricing discussion with Cantu/Bladex took place.');
+  for(const [k,def,lbl,needed] of [['pfMargin',MARKET_DEFAULTS.margin,'Pro Forma margin',pfOn],['tcMargin',MARKET_DEFAULTS.margin,'TradeCo margin',true],
+                            ['bladexMargin',MARKET_DEFAULTS.bladexMargin,'Bladex margin',true],
+                            ['pfAgencyFee',MARKET_DEFAULTS.agencyFee,'Pro Forma agency fee',pfOn],['tcAgencyFee',MARKET_DEFAULTS.agencyFee,'TradeCo agency fee',true]])
+    if(needed && !D.of(i[k]||0).eq(D.of(def)))
+      W('NOTE.STANDARD_TERMS', lbl+' is '+pct(D.of(i[k]||0))+', not the standing '+pct(D.of(def))+'. Confirm a pricing discussion with '+CLIENT+'/Bladex took place.');
   if(D.of(i.legalFees||0).gt(ZERO))
     W('NOTE.LEGAL_FEES','Legal/Structuring Fees of '+money(D.of(i.legalFees))+' are deducted from the supplier leg (B51) and therefore land in the TradeCo residual (B53).');
 
@@ -692,8 +1009,9 @@ const uuid = () => (crypto.randomUUID ? crypto.randomUUID()
   : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return (c==='x'?r:(r&0x3|0x8)).toString(16);}));
 
 function blankInputs(){
-  return { transactionCode:'', tradeIdentifier:'', obligor:'Gripmaster', currency:'USD',
+  return { clientId:'', clientName:'', transactionCode:'', tradeIdentifier:'', obligor:'Gripmaster', currency:'USD',
     supplierIssueDate:'2026-06-16', supplierTenorDays:30, supplierAmount:'850000',
+    pfEnabled:true,
     pfIssueDate:'2026-06-22', pfTenorDays:180, pfMargin:MARKET_DEFAULTS.margin, pfAgencyFee:MARKET_DEFAULTS.agencyFee,
     tcIssueDate:'2026-07-16', tcMargin:MARKET_DEFAULTS.margin, tcAgencyFee:MARKET_DEFAULTS.agencyFee,
     bladexSettlementDate:'2026-07-16', bladexDays:180, bladexMargin:MARKET_DEFAULTS.bladexMargin, legalFees:'0' };
@@ -711,13 +1029,28 @@ function defaultCurves(){
            pf:{curveCode:'CME_TERM_SOFR_PF', businessDate:bd, source:'MANUAL_OVERRIDE',
                overrideReason:'Seeded from Cantu Pricing Model 07222026.xlsx', pillars:DEFAULT_PILLARS_PF.map(p=>({...p}))} };
 }
+function defaultClients(){
+  return { source:{...MONDAY_SOURCE, syncedAt:null, via:'seeded'}, list:SEED_CLIENTS.map(c=>({...c})) };
+}
 let store = load();
 function load(){
-  try{ const raw=localStorage.getItem(LS_KEY); if(raw){ const s=JSON.parse(raw); if(s && s.deals) return s; } }catch(e){}
+  try{ const raw=localStorage.getItem(LS_KEY);
+    if(raw){ const s=JSON.parse(raw);
+      if(s && s.deals){ if(!s.clients || !s.clients.list || !s.clients.list.length) s.clients=defaultClients(); return s; } }
+  }catch(e){}
   const actor='m.buraglia';
   const d=newDeal(actor);
   d.inputs.transactionCode='SC DRC-CANTU-SB01'; d.inputs.tradeIdentifier='DRC-CANTU-SB01';
-  return { deals:[d], currentDealId:d.id, curves:defaultCurves(), audit:[] };
+  const seed=SEED_CLIENTS.find(c=>/^cantu/i.test(c.name));
+  if(seed){ d.inputs.clientId=seed.id; d.inputs.clientName=seed.name; }
+  return { deals:[d], currentDealId:d.id, curves:defaultCurves(), clients:defaultClients(), audit:[] };
+}
+const clientList = () => (store.clients && store.clients.list) || [];
+const findClient = id => clientList().find(c=>String(c.id)===String(id)) || null;
+/** The client name used for every client-named label. Falls back while none is selected. */
+function clientLabel(deal){
+  const i = deal && deal.inputs || {};
+  return (i.clientName && i.clientName.trim()) || (findClient(i.clientId)||{}).name || 'Client';
 }
 const save = () => { try{ localStorage.setItem(LS_KEY, JSON.stringify(store)); }catch(e){ console.warn('Persist failed', e); } };
 const actor = () => ({ name: (document.getElementById('actorName').value||'unknown').trim(),
@@ -740,7 +1073,8 @@ function quoteFrom(curve, tenorDays){
 function liveQuotes(deal){
   const t=Number(deal.inputs.bladexDays);
   if(!(t>=1)) return null;
-  return { live:quoteFrom(store.curves.live,t), pf:quoteFrom(store.curves.pf,t) };
+  return { live:quoteFrom(store.curves.live,t),
+           pf: deal.inputs.pfEnabled===false ? null : quoteFrom(store.curves.pf,t) };
 }
 /** Bound snapshot when priced or later; live curve while DRAFT. */
 function effectiveQuotes(deal){ return deal.rateQuotes || liveQuotes(deal); }
@@ -751,7 +1085,7 @@ function computeAll(deal){
     ? dAdd(deal.inputs.bladexSettlementDate, Number(deal.inputs.bladexDays)) : null);
   let out=null, calcError=null;
   if(q){
-    try{ out=price(deal.inputs, {pfRate:q.pf.rate, liveRate:q.live.rate}); }
+    try{ out=price(deal.inputs, {pfRate:q.pf?q.pf.rate:null, liveRate:q.live.rate}); }
     catch(e){ calcError=e.message; }
   }
   const v=validate(deal, out, q, bd);
@@ -779,7 +1113,8 @@ function doPrice(){
       audit('deal',d.id,'WARNING_ACKNOWLEDGED',w.rule,null,w.msg,reason.trim()); }
   }
   d.rateQuotes = liveQuotes(d);
-  setState(d,'PRICED','Rate snapshot bound: live '+d.rateQuotes.live.rate+' / pro forma '+d.rateQuotes.pf.rate);
+  setState(d,'PRICED','Rate snapshot bound: live '+d.rateQuotes.live.rate+
+    (d.rateQuotes.pf ? ' / pro forma '+d.rateQuotes.pf.rate : ' (no pro forma block on this trade)'));
 }
 function doApprove(){
   const d=currentDeal();
@@ -835,12 +1170,15 @@ const OFFER_FIELDS = [
   ['E','Currency',                'currency',          'USD'],
   ['F','Supplier Payment',        'supplierPayment',   'Cantu!B51'],
   ['G','TradeCo Payment',         'tradeCoPayment',    'Cantu!B53'],
-  ['H','Agency Fee to Cantu',     'agencyFeeToCantu',  'Cantu!B52'],
+  ['H','Agency Fee to {client}',  'agencyFeeToCantu',  'Cantu!B52'],
   ['I','Total Purchase Price',    'totalPurchasePrice','Cantu!B47'],
   ['J','Maturity Amount',         'maturityAmount',    'Cantu!B36'],
   ['K','Maturity Date',           'maturityDate',      'Cantu!B42'],
   ['L','Receiving Account details','receivingAccount', 'boilerplate'],
 ];
+/** Offer File column headers with the client name substituted in. */
+const offerFields = deal => OFFER_FIELDS.map(([col,label,key,src]) =>
+  [col, label.replace(/\{client\}/g, clientLabel(deal)), key, src]);
 function offerPayload(d, r){
   const i=d.inputs, o=r.out;
   return { relevantObligor:i.obligor, transactionCode:i.transactionCode,
@@ -858,29 +1196,59 @@ const setCalc = (id, text, bad) => { const el=$(id); if(!el) return;
   const f=el.querySelector('.f'); el.textContent=text; if(f) el.prepend(f); el.classList.toggle('bad', !!bad); };
 
 const PCT_FIELDS = new Set(['pfMargin','pfAgencyFee','tcMargin','tcAgencyFee','bladexMargin']);
-const FIELD_IDS = {transactionCode:'f_txcode', tradeIdentifier:'f_tradeid', obligor:'f_obligor', currency:'f_currency',
+const FIELD_IDS = {clientId:'f_client', transactionCode:'f_txcode', tradeIdentifier:'f_tradeid', obligor:'f_obligor', currency:'f_currency',
   supplierIssueDate:'f_supIssue', supplierTenorDays:'f_supTenor', supplierAmount:'f_supAmount',
-  pfIssueDate:'f_pfIssue', pfTenorDays:'f_pfTenor', pfMargin:'f_pfMargin', pfAgencyFee:'f_pfAgency',
+  pfEnabled:'f_pfEnabled', pfIssueDate:'f_pfIssue', pfTenorDays:'f_pfTenor', pfMargin:'f_pfMargin', pfAgencyFee:'f_pfAgency',
   tcIssueDate:'f_tcIssue', tcMargin:'f_tcMargin', tcAgencyFee:'f_tcAgency',
   bladexSettlementDate:'f_bladexSettle', bladexDays:'f_bladexDays', bladexMargin:'f_bladexMargin', legalFees:'f_legalFees'};
 
 function loadInputsIntoForm(d){
+  renderClientOptions();
   for(const [field,id] of Object.entries(FIELD_IDS)){
     const el=$(id); if(!el) continue;
     const raw=d.inputs[field];
-    el.value = PCT_FIELDS.has(field) ? D.of(raw||0).mul(100).toFixed(5) : (raw ?? '');
+    if(el.type==='checkbox') el.checked = raw !== false;
+    else el.value = PCT_FIELDS.has(field) ? D.of(raw||0).mul(100).toFixed(5) : (raw ?? '');
   }
 }
 function readField(field, el){
+  if(el.type==='checkbox') return el.checked;
   if(PCT_FIELDS.has(field)) return D.of(el.value||0).div(100).toFixed(12);
   if(['supplierTenorDays','pfTenorDays','bladexDays'].includes(field)) return Number(el.value||0);
   return el.value;
 }
 
+/** Populate the client dropdown, grouped by pipeline status. */
+function renderClientOptions(){
+  const sel=$('f_client'); if(!sel) return;
+  const keep=sel.value;
+  const list=clientList();
+  const groups=[['Active',c=>ACTIVE_STATUSES.includes(c.status)],
+                ['Prospect',c=>c.status==='Prospect'],
+                ['Lost / inactive',c=>!ACTIVE_STATUSES.includes(c.status)&&c.status!=='Prospect']];
+  let html='<option value="">— Select client —</option>';
+  for(const [label,pred] of groups){
+    const rows=list.filter(pred).sort((a,b)=>a.name.localeCompare(b.name));
+    if(!rows.length) continue;
+    html+='<optgroup label="'+esc(label)+' ('+rows.length+')">'+
+      rows.map(c=>'<option value="'+esc(c.id)+'">'+esc(c.name)+(c.country?' · '+esc(c.country):'')+'</option>').join('')+'</optgroup>';
+  }
+  sel.innerHTML=html;
+  sel.value=keep;
+}
+
+/** Rewrite every client-named label from its {client} template. */
+function applyClientNaming(name){
+  for(const el of document.querySelectorAll('[data-tpl]')) el.textContent = el.dataset.tpl.replace(/\{client\}/g, name);
+  $('brandTitle').textContent = name+' Purchase/Sale Facility — Pricing Model';
+  document.title = name+' Pricing Model';
+}
+
 function render(){
   const d=currentDeal(); if(!d) return;
   const r=computeAll(d);
-  renderHeader(d,r); renderPricing(d,r); renderRates(); renderOffer(d,r);
+  applyClientNaming(clientLabel(d));
+  renderHeader(d,r); renderPricing(d,r); renderRates(); renderClients(); renderOffer(d,r);
   renderDeals(); renderAudit(); renderAbout();
   save();
 }
@@ -890,8 +1258,10 @@ function renderHeader(d,r){
   $('stateBadge').className='badge '+d.state;
   $('dealCaption').textContent = (d.inputs.transactionCode||'(untitled)')+' · v'+d.versionNo+
     ' · created by '+d.createdBy+(d.approvedBy?' · approved by '+d.approvedBy:'');
-  const locked=LOCKED(d.state);
-  for(const id of Object.values(FIELD_IDS)){ const el=$(id); if(el) el.disabled=locked; }
+  const locked=LOCKED(d.state), pfOff=d.inputs.pfEnabled===false;
+  const PF_INPUTS=['f_pfIssue','f_pfTenor','f_pfMargin','f_pfAgency'];
+  for(const id of Object.values(FIELD_IDS)){ const el=$(id); if(!el) continue;
+    el.disabled = locked || (pfOff && PF_INPUTS.includes(id)); }
   $('btnPrice').disabled = !TRANSITIONS[d.state].includes('PRICED');
   $('btnApprove').disabled = d.state!=='PRICED';
   $('btnIssue').disabled = d.state!=='APPROVED';
@@ -906,12 +1276,19 @@ function renderHeader(d,r){
 }
 
 function renderPricing(d,r){
-  const o=r.out, cur=d.inputs.currency;
+  const o=r.out, cur=d.inputs.currency, pfOn=d.inputs.pfEnabled!==false;
+  const c=findClient(d.inputs.clientId);
+  $('clientNote').textContent = c
+    ? [c.country, c.region, c.status+' in pipeline', c.deals+' deal'+(c.deals===1?'':'s')].filter(Boolean).join(' · ')
+    : 'From the monday.com Global Pipeline. Drives every client-named label in this model.';
+  $('card_pf').classList.toggle('off', !pfOn);
+  $('pfDisabledNote').style.display = pfOn ? 'none' : '';
   const banners=[];
   if(r.calcError) banners.push(['err','<b>Calculation error.</b> '+esc(r.calcError)]);
   if(d.state==='DRAFT') banners.push(['info','<b>Indicative.</b> This deal is a DRAFT priced off the live curve — no rate snapshot is bound yet.']);
-  if(d.rateQuotes) banners.push(['ok','<b>Rate snapshot bound.</b> Live '+pct(D.of(d.rateQuotes.live.rate))+' · Pro forma '+
-    pct(D.of(d.rateQuotes.pf.rate))+' · quoted '+new Date(d.rateQuotes.live.quotedAt).toLocaleString()+'. Re-pricing this deal will always reproduce these numbers.']);
+  if(d.rateQuotes) banners.push(['ok','<b>Rate snapshot bound.</b> Live '+pct(D.of(d.rateQuotes.live.rate))+
+    (d.rateQuotes.pf ? ' · Pro forma '+pct(D.of(d.rateQuotes.pf.rate)) : '')+
+    ' · quoted '+new Date(d.rateQuotes.live.quotedAt).toLocaleString()+'. Re-pricing this deal will always reproduce these numbers.']);
   if(r.quotes){
     const age=dDiff(todayISO(), r.quotes.live.businessDate);
     if(age>1 && !d.rateQuotes) banners.push(['warn','<b>Stale rates.</b> The live curve business date is '+fmtShort(r.quotes.live.businessDate)+' ('+age+' days old).']);
@@ -929,7 +1306,7 @@ function renderPricing(d,r){
     setCalc('o_pfMaturity', fmtShort(o.pfMaturityDate));
     setCalc('o_pfRate', pct(o.pfRate));
     setCalc('o_pfMarkup', pct(o.pfMarkup));
-    setCalc('o_pfFactor', fac(o.pfFactor), o.pfFactor.gte(ONE));
+    setCalc('o_pfFactor', fac(o.pfFactor), !!o.pfFactor && o.pfFactor.gte(ONE));
     setCalc('o_pfInv1', money(o.pfInvoice1,cur));
     setCalc('o_pfInv2', money(o.pfInvoice2,cur));
     setCalc('o_pfTotal', money(o.pfTotal,cur));
@@ -953,7 +1330,7 @@ function renderPricing(d,r){
     const bad=o.reconciliation.abs().gt(D.of('0.000001'));
     setCalc('o_recon', (bad?'✗ ':'✓ ')+o.reconciliation.toFixed(10), bad);
     const mo = n => Math.floor(n/30)+'-month Term SOFR';
-    $('o_pfRateLabel').textContent = mo(Number(d.inputs.pfTenorDays)||0);
+    $('o_pfRateLabel').textContent = pfOn ? mo(Number(d.inputs.pfTenorDays)||0) : 'Term SOFR (not applicable)';
     $('o_tcRateLabel').textContent = mo(o.tcTenorDays);
     $('o_iaaRateLabel').textContent = mo(o.tcTenorDays);
   } else {
@@ -984,7 +1361,7 @@ function renderPricing(d,r){
 
   // quote panel
   $('quoteBox').innerHTML = !r.quotes ? '<p class="tiny">Enter Bladex Days to quote a rate.</p>' :
-    ['live','pf'].map(k=>{
+    ['live','pf'].filter(k=>r.quotes[k]).map(k=>{
       const q=r.quotes[k];
       return '<div style="padding:6px 0;border-bottom:1px dashed var(--line)">'+
         '<div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline">'+
@@ -1007,7 +1384,7 @@ function renderPricing(d,r){
     ['Discount', o?money(o.faceValue.sub(o.purchasePrice),cur):'—'],
     ['Gross yield to Bladex', o?pct(o.iaaFactor.div(ONE.sub(o.iaaFactor)).mul(D.of(360)).div(D.of(o.tcDays||1)),4):'—'],
     ['TradeCo net fee (B53)', o?money(o.payToTradeCo,cur):'—'],
-    ['Cantu agency fee (B52)', o?money(o.payToCantuAgency,cur):'—'],
+    [esc(clientLabel(d))+' agency fee (B52)', o?money(o.payToCantuAgency,cur):'—'],
     ['Tenor', o?o.tcDays+' days':'—'],
   ].map(([k,v])=>'<tr><td>'+k+'</td><td class="n">'+v+'</td></tr>').join('')+'</table>';
 }
@@ -1043,6 +1420,77 @@ function renderRates(){
     }).join('')+'</tbody>';
 }
 
+function renderClients(){
+  const src=(store.clients&&store.clients.source)||{};
+  const list=clientList();
+  const active=list.filter(c=>ACTIVE_STATUSES.includes(c.status)).length;
+  $('clientSourceBox').innerHTML='<div class="banner info" style="margin-bottom:12px"><div>'+
+    '<b>'+list.length+' clients</b> ('+active+' active) from <b>'+esc(src.boardName||'—')+'</b> · board '+esc(src.boardId||'—')+
+    ' · column <code>'+esc(src.clientColumnId||'—')+'</code><br>'+
+    '<span class="tiny">'+(src.syncedAt
+      ? 'Last refreshed '+new Date(src.syncedAt).toLocaleString()+' ('+esc(src.via||'')+')'
+      : 'Seeded with the list captured when this file was built — not yet refreshed from the API.')+'</span></div></div>';
+  const f=($('clientFilter').value||'').toLowerCase().trim();
+  const rows=list.filter(c=>!f || c.name.toLowerCase().includes(f) || (c.country||'').toLowerCase().includes(f))
+                 .sort((a,b)=>(STATUS_RANK[a.status]??9)-(STATUS_RANK[b.status]??9) || a.name.localeCompare(b.name));
+  $('clientTable').innerHTML='<thead><tr><th>Client</th><th>Status</th><th>Country</th><th>Region</th><th class="n">Deals</th><th></th></tr></thead><tbody>'+
+    (rows.length?rows.map(c=>'<tr><td>'+esc(c.name)+'</td>'+
+      '<td><span class="inline-tag '+(ACTIVE_STATUSES.includes(c.status)?'ok':c.status==='Prospect'?'':'warn')+'">'+esc(c.status||'—')+'</span></td>'+
+      '<td>'+esc(c.country||'—')+'</td><td>'+esc(c.region||'—')+'</td><td class="n">'+(c.deals??'—')+'</td>'+
+      '<td class="n"><button class="btn sm" data-pick-client="'+esc(c.id)+'">Use</button></td></tr>').join('')
+     :'<tr><td colspan="6" class="tiny">No clients match.</td></tr>')+'</tbody>';
+}
+
+/* Pull the client list from monday.com. The token is used for this call only and never stored. */
+async function syncClientsFromMonday(){
+  if(actor().role!=='Rates Admin') return alert('Refreshing reference data requires the Rates Admin role.');
+  const token=prompt('monday.com API token (used for this request only, never stored):');
+  if(token===null) return;
+  if(!token.trim()) return alert('A token is required.');
+  const btn=$('btnSyncMonday'); btn.disabled=true; btn.textContent='Refreshing…';
+  const query=`query($cursor: String) { boards(ids: [${MONDAY_SOURCE.boardId}]) { items_page(limit: 200, cursor: $cursor) {
+      cursor items { column_values(ids: ["${MONDAY_SOURCE.clientColumnId}","color_mkx6xtq7","country_mkx6d0kq","text_mm25mynq"]) {
+        id text ... on BoardRelationValue { linked_items { id name } } } } } } }`;
+  try{
+    const raw=[]; let cursor=null;
+    do{
+      const res=await fetch('https://api.monday.com/v2',{method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':token.trim(),'API-Version':'2024-10'},
+        body:JSON.stringify({query, variables:{cursor}})});
+      if(!res.ok) throw new Error('monday.com returned HTTP '+res.status);
+      const json=await res.json();
+      if(json.errors) throw new Error(json.errors.map(e=>e.message).join('; '));
+      const page=json.data.boards[0].items_page;
+      raw.push(...page.items); cursor=page.cursor;
+    } while(cursor);
+    const byId=new Map();
+    for(const it of raw){
+      const cv=Object.fromEntries((it.column_values||[]).map(v=>[v.id,v]));
+      const link=(cv[MONDAY_SOURCE.clientColumnId]||{}).linked_items||[];
+      if(!link.length) continue;
+      const rec={id:String(link[0].id), name:link[0].name,
+        status:(cv.color_mkx6xtq7||{}).text||'', country:(cv.country_mkx6d0kq||{}).text||'',
+        region:(cv.text_mm25mynq||{}).text||'', deals:0};
+      const prev=byId.get(rec.id);
+      if(!prev) byId.set(rec.id,{...rec, deals:1});
+      else { prev.deals++;
+        if((STATUS_RANK[rec.status]??9) < (STATUS_RANK[prev.status]??9)) prev.status=rec.status;
+        prev.country=prev.country||rec.country; prev.region=prev.region||rec.region; }
+    }
+    const list=[...byId.values()].sort((a,b)=>a.name.localeCompare(b.name));
+    if(!list.length) throw new Error('No clients returned — check the board and column ids.');
+    const before=clientList().length;
+    store.clients={source:{...MONDAY_SOURCE, syncedAt:new Date().toISOString(), via:'monday.com API'}, list};
+    audit('client_list',MONDAY_SOURCE.boardId,'UPDATE','clients',before+' clients',list.length+' clients','Refreshed from monday.com');
+    renderClientOptions(); render();
+    alert('Refreshed: '+list.length+' clients from '+MONDAY_SOURCE.boardName+'.');
+  }catch(err){
+    alert('Refresh failed: '+err.message+
+      '\n\nIf this is a network or CORS error, the browser blocked the call — that is expected when the page is opened '+
+      'from a file:// path. Serve it over http(s), or use Import JSON instead.');
+  }finally{ btn.disabled=false; btn.textContent='Refresh from monday.com'; }
+}
+
 function renderOffer(d,r){
   const payload=offerPayload(d,r);
   const issuable = d.state==='ISSUED'||d.state==='SETTLED';
@@ -1050,7 +1498,7 @@ function renderOffer(d,r){
     ? '<div class="banner ok"><div><b>Issued.</b> The record below is the immutable payload stored against this deal.</div></div>'
     : '<div class="banner warn"><div><b>Preview only.</b> The Offer File becomes an immutable, hashed document when the deal reaches ISSUED. Current state: '+d.state+'.</div></div>';
   $('offerTable').innerHTML='<thead><tr><th>Col</th><th>Field</th><th>Value</th><th>Source</th></tr></thead><tbody>'+
-    OFFER_FIELDS.map(([col,label,key,src])=>{
+    offerFields(d).map(([col,label,key,src])=>{
       let v=payload[key];
       if(['supplierPayment','tradeCoPayment','agencyFeeToCantu','totalPurchasePrice','maturityAmount'].includes(key) && v!=null)
         v=money(D.of(v), d.inputs.currency);
@@ -1087,7 +1535,8 @@ function renderAudit(){
 }
 
 /* ---------------------------- parity tests ---------------------------- */
-const GOLDEN_INPUTS = { transactionCode:'GOLDEN', tradeIdentifier:'GOLDEN', obligor:'Gripmaster', currency:'USD',
+const GOLDEN_INPUTS = { clientId:'18244750063', clientName:'Cantu Store',
+  transactionCode:'GOLDEN', tradeIdentifier:'GOLDEN', obligor:'Gripmaster', currency:'USD', pfEnabled:true,
   supplierIssueDate:'2026-06-16', supplierTenorDays:30, supplierAmount:'850000',
   pfIssueDate:'2026-06-22', pfTenorDays:180, pfMargin:'0.03', pfAgencyFee:'0.001',
   tcIssueDate:'2026-07-16', tcMargin:'0.03', tcAgencyFee:'0.001',
@@ -1148,6 +1597,23 @@ function runTests(){
   T('Legal fees reduce supplier leg', o2.payToSupplier.toFixed(2),'845000.00','Cantu!B51');
   T('Legal fees leave price unchanged', o2.purchasePrice.toFixed(2),'853302.69','Cantu!B47');
   T('Legal fees still reconcile', o2.reconciliation.toFixed(10),'0.0000000000','B51+B52+B53−B47');
+
+  // Optional Pro Forma block: disabling it must null out panel 2 and change nothing downstream.
+  const oNoPf = price({...GOLDEN_INPUTS, pfEnabled:false}, {pfRate:null, liveRate:liveQ.rate});
+  T('Pro Forma off — no pro forma rate needed', String(oNoPf.pfRate),'null','Cantu!B16');
+  T('Pro Forma off — panel 2 total is null', String(oNoPf.pfTotal),'null','Cantu!B23');
+  T('Pro Forma off — panel 2 factor is null', String(oNoPf.pfFactor),'null','Cantu!B20');
+  for(const [k,cell] of [['tcFactor','Cantu!B33'],['tcTotal','Cantu!B36'],['faceValue','Cantu!B39'],
+      ['iaaFactor','Cantu!B46'],['purchasePrice','Cantu!B47'],['payToSupplier','Cantu!B51'],
+      ['payToCantuAgency','Cantu!B52'],['payToTradeCo','Cantu!B53']])
+    T('Pro Forma off — '+k+' unchanged', oNoPf[k].toFixed(10), o[k].toFixed(10), cell);
+  T('Pro Forma off — maturity unchanged', oNoPf.iaaMaturityDate, o.iaaMaturityDate,'Cantu!B42');
+  T('Pro Forma off — still reconciles', oNoPf.reconciliation.toFixed(10),'0.0000000000','B51+B52+B53−B47');
+
+  // Client list seeded from monday.com
+  T('Client list loaded', clientList().length>0,'true','monday.com Global Pipeline');
+  T('Client name drives labels', clientLabel({inputs:{clientName:'Acme SA'}}),'Acme SA','Offer File col H');
+  T('Client label falls back', clientLabel({inputs:{}}),'Client','—');
 
   const pass=results.filter(r=>r.pass).length;
   $('testSummary').textContent = pass+' / '+results.length+' passing'+(pass===results.length?' — full parity with the workbook.':' — INVESTIGATE.');
@@ -1210,6 +1676,13 @@ EXACT_PILLAR / LINEAR_INTERP / LINEAR_EXTRAP. For every tenor at or above the sh
 <li><b>Supplier tenor.</b> <code>B9 = B8+30</code> hardcodes a business assumption; it is an editable field here.</li>
 <li><b>Blank identifiers.</b> The workbook prints <code>0</code> on the Offer File when Transaction Code or Trade
 Identifier are empty. Both are required before a deal can be priced.</li>
+<li><b>The client is a field, not a hardcoded name.</b> The workbook is a Cantu-only file. Here the client is picked
+from the monday.com Global Pipeline and every client-named label, the agency-fee leg and Offer File column H follow
+it. Source-cell references such as <code>Cantu!B47</code> are <em>not</em> renamed — they point at a sheet in the
+source workbook and must stay literal for traceability.</li>
+<li><b>The Pro Forma block is optional.</b> Not every trade has a TradeCo pro forma invoice, so panel 2 can be
+switched off per deal. It is a leaf in the dependency graph — panels 3 to 5 and the Offer File never read it — so
+turning it off nulls panel 2 and leaves B27:B53 bit-for-bit identical. The parity tests assert exactly that.</li>
 </ul>
 
 <h3 style="margin:18px 0 6px">Not built here</h3>
@@ -1225,6 +1698,7 @@ document.addEventListener('input', e=>{
   if(el.dataset && el.dataset.field){
     const d=currentDeal(); if(LOCKED(d.state)) return;
     d.inputs[el.dataset.field]=readField(el.dataset.field, el);
+    if(el.dataset.field==='clientId'){ const c=findClient(el.value); d.inputs.clientName = c ? c.name : ''; }
     if(d.state==='PRICED'){ d.rateQuotes=null; d.state='DRAFT';
       audit('deal',d.id,'STATE_CHANGE','state','PRICED','DRAFT','Input edited — rate snapshot voided.'); }
     render();
@@ -1254,6 +1728,37 @@ document.addEventListener('change', e=>{
   if(el.id==='auditScope') renderAudit();
   if(el.id==='actorRole'){ render(); }
 });
+$('clientFilter').addEventListener('input', renderClients);
+$('clientTable').addEventListener('click', e=>{
+  const b=e.target.closest('button[data-pick-client]'); if(!b) return;
+  const d=currentDeal();
+  if(LOCKED(d.state)) return alert('Inputs are locked — this deal is '+d.state+'.');
+  const c=findClient(b.dataset.pickClient); if(!c) return;
+  const prev=d.inputs.clientName;
+  d.inputs.clientId=c.id; d.inputs.clientName=c.name;
+  audit('deal',d.id,'UPDATE','clientName',prev,c.name);
+  if(d.state==='PRICED'){ d.rateQuotes=null; d.state='DRAFT';
+    audit('deal',d.id,'STATE_CHANGE','state','PRICED','DRAFT','Input edited — rate snapshot voided.'); }
+  loadInputsIntoForm(d); render();
+  document.querySelector('#tabs button[data-view="pricing"]').click();
+});
+$('btnSyncMonday').onclick=syncClientsFromMonday;
+$('btnClientExport').onclick=()=>download('monday-clients.json', JSON.stringify(store.clients,null,2),'application/json');
+$('clientImportFile').onchange=e=>{ const f=e.target.files[0]; if(!f) return;
+  const rd=new FileReader(); rd.onload=()=>{
+    try{
+      const j=JSON.parse(rd.result);
+      const list=Array.isArray(j) ? j : (j.list||[]);
+      if(!list.length || !list[0].name) throw new Error('Expected an array of {id,name,status,country,region} objects');
+      const before=clientList().length;
+      store.clients={source:{...MONDAY_SOURCE, ...(j.source||{}), syncedAt:new Date().toISOString(), via:'JSON import'},
+        list:list.map(c=>({id:String(c.id??c.name), name:c.name, status:c.status||'', country:c.country||'', region:c.region||'', deals:c.deals??0}))};
+      audit('client_list',MONDAY_SOURCE.boardId,'UPDATE','clients',before+' clients',list.length+' clients','Imported from JSON');
+      renderClientOptions(); render();
+      alert('Imported '+list.length+' clients.');
+    }catch(err){ alert('Import failed: '+err.message); }
+    finally{ e.target.value=''; } };
+  rd.readAsText(f); };
 document.addEventListener('focusin', e=>{
   if(e.target.dataset && e.target.dataset.field) e.target.dataset.prev = String(currentDeal().inputs[e.target.dataset.field]);
 });
@@ -1294,11 +1799,11 @@ function download(name, text, type){
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 }
 const csvCell = v => /[",\n]/.test(String(v??'')) ? '"'+String(v).replace(/"/g,'""')+'"' : String(v??'');
-$('btnCopyRow').onclick=()=>{ const d=currentDeal(), p=offerPayload(d,computeAll(d));
-  const tsv=OFFER_FIELDS.map(([,l])=>l).join('\t')+'\n'+OFFER_FIELDS.map(([,,k])=>p[k]??'').join('\t');
+$('btnCopyRow').onclick=()=>{ const d=currentDeal(), p=offerPayload(d,computeAll(d)), F=offerFields(d);
+  const tsv=F.map(([,l])=>l).join('\t')+'\n'+F.map(([,,k])=>p[k]??'').join('\t');
   navigator.clipboard.writeText(tsv).then(()=>alert('Offer File row copied.'),()=>alert('Clipboard blocked — use Download CSV.')); };
-$('btnCsv').onclick=()=>{ const d=currentDeal(), p=offerPayload(d,computeAll(d));
-  const csv=OFFER_FIELDS.map(([,l])=>csvCell(l)).join(',')+'\n'+OFFER_FIELDS.map(([,,k])=>csvCell(p[k])).join(',')+'\n';
+$('btnCsv').onclick=()=>{ const d=currentDeal(), p=offerPayload(d,computeAll(d)), F=offerFields(d);
+  const csv=F.map(([,l])=>csvCell(l)).join(',')+'\n'+F.map(([,,k])=>csvCell(p[k])).join(',')+'\n';
   download('offer-file-'+(d.inputs.transactionCode||'deal').replace(/\W+/g,'-')+'.csv', csv, 'text/csv'); };
 $('btnJson').onclick=()=>{ const d=currentDeal(), r=computeAll(d), p=offerPayload(d,r);
   download('offer-file-'+(d.inputs.transactionCode||'deal').replace(/\W+/g,'-')+'.json',
