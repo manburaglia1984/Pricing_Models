@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Cantu Pricing Model</title>
+<title>Pricing Model</title>
 <style>
 :root{
   --bg:#f6f7f9; --panel:#ffffff; --panel-2:#fbfcfd; --ink:#15181d; --ink-2:#5a626e; --ink-3:#8b93a1;
@@ -39,23 +39,20 @@
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
 body{background:var(--bg);color:var(--ink);font:14px/1.5 var(--sans);-webkit-font-smoothing:antialiased}
-.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
 h1,h2,h3{margin:0;font-weight:600;letter-spacing:-.01em}
 a{color:var(--accent)}
 button{font:inherit;cursor:pointer}
 
-/* ---------- chrome ---------- */
 header.top{position:sticky;top:0;z-index:40;background:var(--panel);border-bottom:1px solid var(--line);box-shadow:var(--shadow)}
-.top-row{display:flex;align-items:center;gap:14px;padding:10px 20px;flex-wrap:wrap}
-.brand{font-size:15px;font-weight:650;letter-spacing:-.02em;white-space:nowrap}
+.top-row{display:flex;align-items:center;gap:12px;padding:9px 20px;flex-wrap:wrap}
+.top-row+.top-row{padding-top:0}
+.brand{font-size:15px;font-weight:650;letter-spacing:-.02em}
 .brand small{display:block;font-weight:400;font-size:11px;color:var(--ink-3);letter-spacing:0}
 .spacer{flex:1}
-.badge{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:11.5px;font-weight:650;letter-spacing:.04em;text-transform:uppercase;border:1px solid transparent}
+.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;font-size:11.5px;font-weight:650;letter-spacing:.04em;text-transform:uppercase;border:1px solid transparent}
 .badge.DRAFT{background:var(--calc-bg);color:var(--ink-2);border-color:var(--line-2)}
 .badge.PRICED{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
-.badge.APPROVED{background:var(--ok-bg);color:var(--ok);border-color:var(--ok)}
-.badge.ISSUED{background:var(--ok-bg);color:var(--ok);border-color:var(--ok)}
-.badge.SETTLED{background:var(--ok-bg);color:var(--ok);border-color:var(--ok)}
+.badge.APPROVED,.badge.ISSUED,.badge.SETTLED{background:var(--ok-bg);color:var(--ok);border-color:var(--ok)}
 .badge.CANCELLED{background:var(--err-bg);color:var(--err);border-color:var(--err)}
 .btn{padding:6px 12px;border-radius:7px;border:1px solid var(--line-2);background:var(--panel-2);color:var(--ink);font-size:13px;font-weight:520}
 .btn:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
@@ -69,25 +66,25 @@ nav.tabs button{background:none;border:0;border-bottom:2px solid transparent;pad
 nav.tabs button[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent)}
 nav.tabs button:hover{color:var(--ink)}
 .pill{display:inline-block;min-width:17px;padding:0 5px;border-radius:9px;font-size:10.5px;font-weight:700;line-height:16px;text-align:center;margin-left:5px}
-.pill.err{background:var(--err);color:var(--panel)}
-.pill.warn{background:var(--warn);color:var(--panel)}
+.pill.err{background:var(--err);color:var(--panel)} .pill.warn{background:var(--warn);color:var(--panel)}
 
 main{padding:18px 20px 60px;max-width:1500px;margin:0 auto}
-.view{display:none}
-.view.active{display:block}
+.view{display:none} .view.active{display:block}
 .cols{display:grid;grid-template-columns:minmax(0,1fr) 356px;gap:18px;align-items:start}
 @media (max-width:1100px){.cols{grid-template-columns:minmax(0,1fr)}}
 
 .card{background:var(--panel);border:1px solid var(--line);border-radius:11px;box-shadow:var(--shadow);margin-bottom:16px;overflow:hidden}
-.card>h2{display:flex;align-items:baseline;gap:9px;padding:11px 15px;border-bottom:1px solid var(--line);font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-2);background:var(--panel-2)}
+.card>h2{display:flex;align-items:center;gap:9px;padding:11px 15px;border-bottom:1px solid var(--line);font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-2);background:var(--panel-2)}
 .card>h2 .src{margin-left:auto;font:400 11px/1 var(--mono);color:var(--ink-3);text-transform:none;letter-spacing:0}
 .card .body{padding:6px 15px 13px}
 .card.tight .body{padding:12px 15px}
+.card.deal{border-color:var(--accent);border-width:1px}
+.card.deal>h2{background:var(--accent-soft);color:var(--accent)}
 
-/* ---------- field rows (workbook grammar) ---------- */
 .row{display:grid;grid-template-columns:1fr 190px;gap:10px;align-items:center;padding:5px 0;border-bottom:1px dashed var(--line)}
 .row:last-child{border-bottom:0}
 .row.head{border-bottom:1px solid var(--line-2);margin-top:4px}
+.row.wide{grid-template-columns:1fr}
 .row .lbl{font-size:13.5px;color:var(--ink)}
 .row .note{display:block;font-size:11.5px;font-style:italic;color:var(--note);margin-top:1px}
 .row .cell{text-align:right}
@@ -103,18 +100,26 @@ input:disabled,select:disabled{opacity:.6;cursor:not-allowed}
 .suffix{position:relative}
 .suffix::after{content:attr(data-suffix);position:absolute;right:9px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--ink-3);pointer-events:none}
 .suffix input{padding-right:24px}
-.inline-tag{font:600 10.5px/1 var(--mono);padding:2px 6px;border-radius:4px;border:1px solid var(--line-2);color:var(--ink-2);background:var(--panel-2);white-space:nowrap}
+.inline-tag{display:inline-block;font:600 10.5px/1.5 var(--mono);padding:1px 6px;border-radius:4px;border:1px solid var(--line-2);color:var(--ink-2);background:var(--panel-2);white-space:nowrap}
 .inline-tag.ok{color:var(--ok);border-color:var(--ok);background:var(--ok-bg)}
 .inline-tag.warn{color:var(--warn);border-color:var(--warn);background:var(--warn-bg)}
 .inline-tag.err{color:var(--err);border-color:var(--err);background:var(--err-bg)}
+.jur{display:flex;flex-wrap:wrap;gap:7px;padding:6px 0 2px}
+.jur label{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border:1px solid var(--line-2);border-radius:999px;font-size:12.5px;cursor:pointer;background:var(--panel-2)}
+.jur label:has(input:checked){border-color:var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:560}
+.jur label:has(input:disabled){opacity:.55;cursor:not-allowed}
+.jur input{width:auto;margin:0;accent-color:var(--accent)}
+.toggle{display:inline-flex;align-items:center;gap:6px;text-transform:none;letter-spacing:0;font-size:11.5px;font-weight:520;color:var(--ink-2);cursor:pointer;user-select:none}
+.toggle input{width:auto;margin:0;accent-color:var(--accent);cursor:pointer}
+.card.off>h2{opacity:.75}
+.card.off .row:not(.keep){opacity:.4}
+#pfDisabledNote{opacity:1 !important}
 
-/* ---------- banners / lists ---------- */
 .banner{display:flex;gap:9px;align-items:flex-start;padding:9px 12px;border-radius:8px;font-size:13px;margin:0 0 10px;border:1px solid}
 .banner.err{background:var(--err-bg);color:var(--err);border-color:var(--err)}
 .banner.warn{background:var(--warn-bg);color:var(--warn);border-color:var(--warn)}
 .banner.ok{background:var(--ok-bg);color:var(--ok);border-color:var(--ok)}
 .banner.info{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
-.banner b{font-weight:650}
 .vlist{list-style:none;margin:0;padding:0}
 .vlist li{display:flex;gap:9px;align-items:flex-start;padding:7px 0;border-bottom:1px dashed var(--line);font-size:12.8px}
 .vlist li:last-child{border-bottom:0}
@@ -123,7 +128,6 @@ input:disabled,select:disabled{opacity:.6;cursor:not-allowed}
 .vlist .txt{flex:1;min-width:0}
 .vlist .rule{display:block;font:600 10.5px/1.5 var(--mono);color:var(--ink-3)}
 .vlist .ack{font-size:11.5px;color:var(--ok);font-style:italic}
-.muted{color:var(--ink-2)}
 .tiny{font-size:11.5px;color:var(--ink-3)}
 
 table{width:100%;border-collapse:collapse;font-size:13px}
@@ -132,28 +136,20 @@ th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-
 td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
 tbody tr:hover{background:var(--panel-2)}
 tr.sel{background:var(--accent-soft)}
+tr.dealrow td{background:var(--panel-2);font-weight:600}
+tr.dealrow:hover td{background:var(--accent-soft)}
 .scroll{overflow-x:auto}
 code,.mono{font-family:var(--mono);font-size:12px}
-pre{background:var(--calc-bg);border:1px solid var(--line);border-radius:8px;padding:11px;overflow:auto;font-size:11.5px;line-height:1.55;margin:0}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 @media (max-width:820px){.grid2{grid-template-columns:1fr}}
 .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
-.toggle{display:inline-flex;align-items:center;gap:6px;text-transform:none;letter-spacing:0;font-size:11.5px;font-weight:520;color:var(--ink-2);cursor:pointer;user-select:none}
-.toggle input{width:auto;margin:0;accent-color:var(--accent);cursor:pointer}
-.toggle input:disabled{cursor:not-allowed}
-.card.off>h2{opacity:.75}
-.card.off .row:not(.keep){opacity:.4}
-#pfDisabledNote{opacity:1 !important}
 .field-inline{display:flex;align-items:center;gap:7px;flex-wrap:wrap;min-width:0}
 .field-inline label{font-size:12px;color:var(--ink-2);white-space:nowrap}
 .field-inline input,.field-inline select{width:auto;min-width:110px;max-width:100%;text-align:left}
 @media (max-width:560px){
-  .row{grid-template-columns:1fr}
-  .row .cell{text-align:left}
+  .row{grid-template-columns:1fr} .row .cell{text-align:left}
   .field-inline input,.field-inline select{min-width:0;flex:1 1 90px}
-  main{padding:14px 12px 50px}
-  .top-row{padding:10px 12px}
-  nav.tabs{padding:0 12px}
+  main{padding:14px 12px 50px} .top-row{padding:9px 12px} nav.tabs{padding:0 12px}
 }
 </style>
 </head>
@@ -174,22 +170,26 @@ pre{background:var(--calc-bg);border:1px solid var(--line);border-radius:8px;pad
     </div>
     <button class="btn sm" id="themeBtn" title="Cycle system / dark / light theme">Theme</button>
   </div>
-  <div class="top-row" style="padding-top:0;padding-bottom:10px;gap:8px">
-    <button class="btn primary" id="btnPrice">Price deal</button>
+  <div class="top-row">
+    <div class="field-inline"><label for="dealPicker">Deal</label><select id="dealPicker" style="min-width:230px"></select></div>
+    <div class="field-inline"><label for="tradePicker">Trade</label><select id="tradePicker" style="min-width:180px"></select></div>
+    <button class="btn" id="btnNewDeal">New deal</button>
+    <button class="btn" id="btnNewTrade">New trade</button>
+    <button class="btn" id="btnDupTrade">Duplicate trade</button>
+    <button class="btn" id="btnVersion">New version</button>
+  </div>
+  <div class="top-row" style="padding-bottom:10px">
+    <button class="btn primary" id="btnPrice">Price trade</button>
     <button class="btn" id="btnApprove">Approve</button>
     <button class="btn" id="btnIssue">Issue Offer File</button>
     <button class="btn" id="btnSettle">Mark settled</button>
-    <button class="btn danger" id="btnCancel">Cancel</button>
-    <span style="width:10px"></span>
-    <button class="btn" id="btnNew">New deal</button>
-    <button class="btn" id="btnVersion">New version</button>
-    <button class="btn" id="btnDuplicate">Duplicate</button>
+    <button class="btn danger" id="btnCancel">Cancel trade</button>
   </div>
   <nav class="tabs" id="tabs">
     <button data-view="pricing" aria-selected="true">Pricing</button>
     <button data-view="rates">Reference data</button>
     <button data-view="offer">Offer File</button>
-    <button data-view="deals">Deals</button>
+    <button data-view="deals">Deals &amp; trades</button>
     <button data-view="audit">Audit log</button>
     <button data-view="tests">Parity tests</button>
     <button data-view="about">Spec &amp; traceability</button>
@@ -202,30 +202,37 @@ pre{background:var(--calc-bg);border:1px solid var(--line);border-radius:8px;pad
   <div id="topBanners"></div>
   <div class="cols">
     <div>
-      <!-- Header block -->
-      <div class="card tight">
-        <h2>Deal header <span class="src">Cantu!A4:B5</span></h2>
+      <!-- Deal-level configuration, shared by every trade on the deal -->
+      <div class="card deal tight">
+        <h2>Deal configuration <span class="tiny" style="text-transform:none;letter-spacing:0" id="dealScopeNote"></span><span class="src">shared by all trades</span></h2>
         <div class="body">
-          <div class="row"><div class="lbl">Client (Agent)<span class="note" id="clientNote">From the Monday.com Global Pipeline. Drives every client-named label in this model.</span></div><div class="cell"><select class="in" id="f_client" data-field="clientId"></select></div></div>
-          <div class="row"><div class="lbl">Transaction Code</div><div class="cell"><input type="text" class="in" id="f_txcode" data-field="transactionCode"></div></div>
-          <div class="row"><div class="lbl">Trade Identifier</div><div class="cell"><input type="text" class="in" id="f_tradeid" data-field="tradeIdentifier"></div></div>
-          <div class="row"><div class="lbl">Relevant Obligor<span class="note">Offer File!A3</span></div><div class="cell"><input type="text" class="in" id="f_obligor" data-field="obligor"></div></div>
-          <div class="row"><div class="lbl">Currency<span class="note">Offer File!E3 — USD only until a second currency is required</span></div><div class="cell"><select id="f_currency" data-field="currency"><option>USD</option><option>EUR</option><option>GBP</option><option>BRL</option></select></div></div>
+          <div class="row"><div class="lbl">Client<span class="note" id="clientNote">From the monday.com Global Pipeline. Drives every client-named label in this model.</span></div><div class="cell"><select class="in" id="d_client" data-deal="clientId"></select></div></div>
+          <div class="row"><div class="lbl">Transaction Code<span class="note">Cantu!B4 — identifies the facility. Every trade on this deal carries it.</span></div><div class="cell"><input type="text" class="in" id="d_code" data-deal="code"></div></div>
+          <div class="row"><div class="lbl">Currency<span class="note" id="ccyNote">Selects the base rate index and the day-count basis.</span></div><div class="cell"><select class="in" id="d_currency" data-deal="currency"></select></div></div>
+          <div class="row wide"><div class="lbl">Associated jurisdictions<span class="note">Holiday calendars every trade's maturity date is checked against. Replaces the fixed rows in BD Dates!B4:B13.</span>
+            <div class="jur" id="jurisdictionBox"></div></div></div>
         </div>
       </div>
 
-      <!-- Panel 1 -->
+      <!-- Trade identity -->
+      <div class="card tight">
+        <h2>Trade <span class="src">Cantu!B5 · Offer File!A3</span></h2>
+        <div class="body">
+          <div class="row"><div class="lbl">Trade Identifier<span class="note">Unique within the deal. Offer File column D.</span></div><div class="cell"><input type="text" class="in" id="f_tradeid" data-trade="identifier"></div></div>
+          <div class="row"><div class="lbl">Relevant Obligor<span class="note">Offer File!A3 — may differ per trade.</span></div><div class="cell"><input type="text" class="in" id="f_obligor" data-trade="obligor"></div></div>
+        </div>
+      </div>
+
       <div class="card">
         <h2>1 — Supplier Invoice <span class="src">Cantu!A7:C10</span></h2>
         <div class="body">
           <div class="row"><div class="lbl">Issue Date<span class="note">Supplier Invoice Issue Date</span></div><div class="cell"><input type="date" class="in" id="f_supIssue" data-field="supplierIssueDate"></div></div>
           <div class="row"><div class="lbl">Tenor (days)<span class="note">Hardcoded as +30 in the workbook (B9); editable here</span></div><div class="cell"><input type="number" class="in" id="f_supTenor" data-field="supplierTenorDays" min="1" step="1"></div></div>
           <div class="row"><div class="lbl">Payment Date<span class="note">Supplier Invoice Maturity Date</span></div><div class="cell"><span class="calc" id="o_supPay" title="B9 = B8 + supplier tenor"><span class="f">B9</span>—</span></div></div>
-          <div class="row"><div class="lbl">Supplier Invoice Amount<span class="note">Amount in USD from Supplier Invoice</span></div><div class="cell suffix" data-suffix="$"><input type="number" class="in" id="f_supAmount" data-field="supplierAmount" step="0.01" min="0"></div></div>
+          <div class="row"><div class="lbl">Supplier Invoice Amount<span class="note" id="supAmountNote">Amount from the Supplier Invoice</span></div><div class="cell suffix" id="supAmountWrap" data-suffix="$"><input type="number" class="in" id="f_supAmount" data-field="supplierAmount" step="0.01" min="0"></div></div>
         </div>
       </div>
 
-      <!-- Panel 2 -->
       <div class="card" id="card_pf">
         <h2>2 — TradeCo Pro Forma Invoices
           <label class="toggle"><input type="checkbox" id="f_pfEnabled" data-field="pfEnabled" checked><span>Applies to this trade</span></label>
@@ -235,36 +242,34 @@ pre{background:var(--calc-bg);border:1px solid var(--line);border-radius:8px;pad
           <div class="row"><div class="lbl">Issue Date<span class="note">It should be a date before (around 5 days) Supplier Invoice Maturity Date</span></div><div class="cell"><input type="date" class="in" id="f_pfIssue" data-field="pfIssueDate"></div></div>
           <div class="row"><div class="lbl">Tenor (days)<span class="note">It could be "Bladex Settlement Date" + 2</span></div><div class="cell"><input type="number" class="in" id="f_pfTenor" data-field="pfTenorDays" min="1" step="1"></div></div>
           <div class="row"><div class="lbl">Maturity Date</div><div class="cell"><span class="calc" id="o_pfMaturity" title="B15 = B13 + B14"><span class="f">B15</span>—</span></div></div>
-          <div class="row"><div class="lbl"><span id="o_pfRateLabel">Term SOFR</span><span class="note">Issuance Date Pro Forma — interpolated from the Pro Forma curve at Bladex Days</span></div><div class="cell"><span class="calc" id="o_pfRate" title="B16 = 'SOFR Interpolation Pro Forma'!C9"><span class="f">B16</span>—</span></div></div>
+          <div class="row"><div class="lbl"><span id="o_pfRateLabel">Base rate</span><span class="note">Issuance Date Pro Forma — interpolated from the pro forma curve at Bladex Days</span></div><div class="cell"><span class="calc" id="o_pfRate" title="B16 = pro forma curve interpolated at B41"><span class="f">B16</span>—</span></div></div>
           <div class="row"><div class="lbl">Margin (Bladex Margin + TradeCo Fee)<span class="note" data-tpl="Should be always the same unless pricing discussion with {client}/Bladex">Should be always the same unless pricing discussion with the client/Bladex</span></div><div class="cell suffix" data-suffix="%"><input type="number" class="in" id="f_pfMargin" data-field="pfMargin" step="0.00001"></div></div>
           <div class="row"><div class="lbl">Agency Fee</div><div class="cell suffix" data-suffix="%"><input type="number" class="in" id="f_pfAgency" data-field="pfAgencyFee" step="0.00001"></div></div>
           <div class="row"><div class="lbl">TradeCo Mark-up</div><div class="cell"><span class="calc" id="o_pfMarkup" title="B19 = B17 + B16 + B18"><span class="f">B19</span>—</span></div></div>
-          <div class="row"><div class="lbl">Factor</div><div class="cell"><span class="calc" id="o_pfFactor" title="B20 = B19 × (B15 − B13) / 360"><span class="f">B20</span>—</span></div></div>
-          <div class="row head"><div class="lbl">Total Invoice Amount ($) — Invoice #1</div><div class="cell"><span class="calc" id="o_pfInv1" title="B21 = B10"><span class="f">B21</span>—</span></div></div>
-          <div class="row"><div class="lbl">Financial Cost ($) — Invoice #2</div><div class="cell"><span class="calc" id="o_pfInv2" title="B22 = B23 − B21"><span class="f">B22</span>—</span></div></div>
+          <div class="row"><div class="lbl">Factor<span class="note" id="pfFactorNote"></span></div><div class="cell"><span class="calc" id="o_pfFactor" title="B20 = B19 × (B15 − B13) / basis"><span class="f">B20</span>—</span></div></div>
+          <div class="row head"><div class="lbl">Total Invoice Amount — Invoice #1</div><div class="cell"><span class="calc" id="o_pfInv1" title="B21 = B10"><span class="f">B21</span>—</span></div></div>
+          <div class="row"><div class="lbl">Financial Cost — Invoice #2</div><div class="cell"><span class="calc" id="o_pfInv2" title="B22 = B23 − B21"><span class="f">B22</span>—</span></div></div>
           <div class="row"><div class="lbl"><b>Total TradeCo Invoices Amount</b></div><div class="cell"><span class="calc strong" id="o_pfTotal" title="B23 = B10 / (1 − B20)"><span class="f">B23</span>—</span></div></div>
         </div>
       </div>
 
-      <!-- Panel 3 -->
       <div class="card">
         <h2>3 — TradeCo Invoices <span class="src">Cantu!A25:C36</span></h2>
         <div class="body">
           <div class="row"><div class="lbl">Issue Date<span class="note">It should be a date before (around 5 days) Supplier Invoice Maturity Date</span></div><div class="cell"><input type="date" class="in" id="f_tcIssue" data-field="tcIssueDate"></div></div>
           <div class="row"><div class="lbl">Tenor (days)</div><div class="cell"><span class="calc" id="o_tcTenor" title="B27 = B41 + (B40 − B26)"><span class="f">B27</span>—</span></div></div>
           <div class="row"><div class="lbl">Maturity Date</div><div class="cell"><span class="calc" id="o_tcMaturity" title="B28 = B42 = B40 + B41"><span class="f">B28</span>—</span></div></div>
-          <div class="row"><div class="lbl"><span id="o_tcRateLabel">Term SOFR</span><span class="note">Prior Funding: Interpolated SOFR Rate — live curve at Bladex Days</span></div><div class="cell"><span class="calc" id="o_tcRate" title="B29 = 'SOFR Interpolation'!C9"><span class="f">B29</span>—</span></div></div>
+          <div class="row"><div class="lbl"><span id="o_tcRateLabel">Base rate</span><span class="note">Prior Funding: interpolated base rate — live curve at Bladex Days</span></div><div class="cell"><span class="calc" id="o_tcRate" title="B29 = live curve interpolated at B41"><span class="f">B29</span>—</span></div></div>
           <div class="row"><div class="lbl">Margin (Bladex Margin + TradeCo Fee)<span class="note" data-tpl="Should be always the same unless pricing discussion with {client}/Bladex">Should be always the same unless pricing discussion with the client/Bladex</span></div><div class="cell suffix" data-suffix="%"><input type="number" class="in" id="f_tcMargin" data-field="tcMargin" step="0.00001"></div></div>
-          <div class="row"><div class="lbl">Agency Fee<span class="note">Also drives the Cantu agency-fee payment leg (B52)</span></div><div class="cell suffix" data-suffix="%"><input type="number" class="in" id="f_tcAgency" data-field="tcAgencyFee" step="0.00001"></div></div>
+          <div class="row"><div class="lbl">Agency Fee<span class="note">Also drives the agency-fee payment leg (B52)</span></div><div class="cell suffix" data-suffix="%"><input type="number" class="in" id="f_tcAgency" data-field="tcAgencyFee" step="0.00001"></div></div>
           <div class="row"><div class="lbl">TradeCo Mark-up</div><div class="cell"><span class="calc" id="o_tcMarkup" title="B32 = B30 + B29 + B31"><span class="f">B32</span>—</span></div></div>
-          <div class="row"><div class="lbl">Factor</div><div class="cell"><span class="calc" id="o_tcFactor" title="B33 = B32 × (B28 − B40) / 360"><span class="f">B33</span>—</span></div></div>
-          <div class="row head"><div class="lbl">Total Invoice Amount ($) — Invoice #1</div><div class="cell"><span class="calc" id="o_tcInv1" title="B34 = B10"><span class="f">B34</span>—</span></div></div>
-          <div class="row"><div class="lbl">Financial Cost ($) — Invoice #2</div><div class="cell"><span class="calc" id="o_tcInv2" title="B35 = B36 − B34"><span class="f">B35</span>—</span></div></div>
+          <div class="row"><div class="lbl">Factor<span class="note" id="tcFactorNote"></span></div><div class="cell"><span class="calc" id="o_tcFactor" title="B33 = B32 × (B28 − B40) / basis"><span class="f">B33</span>—</span></div></div>
+          <div class="row head"><div class="lbl">Total Invoice Amount — Invoice #1</div><div class="cell"><span class="calc" id="o_tcInv1" title="B34 = B10"><span class="f">B34</span>—</span></div></div>
+          <div class="row"><div class="lbl">Financial Cost — Invoice #2</div><div class="cell"><span class="calc" id="o_tcInv2" title="B35 = B36 − B34"><span class="f">B35</span>—</span></div></div>
           <div class="row"><div class="lbl"><b>Total TradeCo Invoices Amount</b></div><div class="cell"><span class="calc strong" id="o_tcTotal" title="B36 = B10 / (1 − B33)"><span class="f">B36</span>—</span></div></div>
         </div>
       </div>
 
-      <!-- Panel 4 -->
       <div class="card">
         <h2>4 — IAA Offer File <span class="src">Cantu!A38:C47</span></h2>
         <div class="body">
@@ -272,50 +277,36 @@ pre{background:var(--calc-bg);border:1px solid var(--line);border-radius:8px;pad
           <div class="row"><div class="lbl">Bladex Settlement Date<span class="note" data-tpl="Date when Bladex will disburse funds to {client}">Date when Bladex will disburse funds to the client</span></div><div class="cell"><input type="date" class="in" id="f_bladexSettle" data-field="bladexSettlementDate"></div></div>
           <div class="row"><div class="lbl">Days<span class="note" data-tpl="Number of days confirmed with {client} — also the interpolation tenor for both curves">Number of days confirmed with the client — also the interpolation tenor for both curves</span></div><div class="cell"><input type="number" class="in" id="f_bladexDays" data-field="bladexDays" min="1" step="1"></div></div>
           <div class="row"><div class="lbl">TradeCo Invoice/BoE Maturity Date <span id="o_bdCheck" class="inline-tag">—</span></div><div class="cell"><span class="calc" id="o_iaaMaturity" title="B42 = B40 + B41"><span class="f">B42</span>—</span></div></div>
-          <div class="row"><div class="lbl"><span id="o_iaaRateLabel">Term SOFR</span></div><div class="cell"><span class="calc" id="o_iaaRate" title="B43 = B29"><span class="f">B43</span>—</span></div></div>
+          <div class="row"><div class="lbl"><span id="o_iaaRateLabel">Base rate</span></div><div class="cell"><span class="calc" id="o_iaaRate" title="B43 = B29"><span class="f">B43</span>—</span></div></div>
           <div class="row"><div class="lbl">Bladex Margin<span class="note" data-tpl="Should be always the same unless pricing discussion with {client}/Bladex">Should be always the same unless pricing discussion with the client/Bladex</span></div><div class="cell suffix" data-suffix="%"><input type="number" class="in" id="f_bladexMargin" data-field="bladexMargin" step="0.00001"></div></div>
           <div class="row"><div class="lbl">Bladex Cost of Funds</div><div class="cell"><span class="calc" id="o_bladexCoF" title="B45 = B44 + B43"><span class="f">B45</span>—</span></div></div>
-          <div class="row"><div class="lbl">Factor</div><div class="cell"><span class="calc" id="o_iaaFactor" title="B46 = B45 × (B42 − B40) / 360"><span class="f">B46</span>—</span></div></div>
+          <div class="row"><div class="lbl">Factor<span class="note" id="iaaFactorNote"></span></div><div class="cell"><span class="calc" id="o_iaaFactor" title="B46 = B45 × (B42 − B40) / basis"><span class="f">B46</span>—</span></div></div>
           <div class="row"><div class="lbl"><b>IAA Purchase Price</b></div><div class="cell"><span class="calc strong" id="o_purchasePrice" title="B47 = B39 × (1 − B46)"><span class="f">B47</span>—</span></div></div>
         </div>
       </div>
 
-      <!-- Panel 5 -->
       <div class="card">
         <h2>5 — Payment waterfall <span class="src">Cantu!A49:C53</span></h2>
         <div class="body">
-          <div class="row"><div class="lbl">Legal/Structuring Fees<span class="note">If applicable</span></div><div class="cell suffix" data-suffix="$"><input type="number" class="in" id="f_legalFees" data-field="legalFees" step="0.01"></div></div>
+          <div class="row"><div class="lbl">Legal/Structuring Fees<span class="note">If applicable</span></div><div class="cell suffix" id="legalWrap" data-suffix="$"><input type="number" class="in" id="f_legalFees" data-field="legalFees" step="0.01"></div></div>
           <div class="row head"><div class="lbl" data-tpl="Payment to {client} Supplier (Supplier Invoice)">Payment to the client's Supplier (Supplier Invoice)</div><div class="cell"><span class="calc" id="o_paySupplier" title="B51 = B39 × (1 − B33) − B49"><span class="f">B51</span>—</span></div></div>
-          <div class="row"><div class="lbl" data-tpl="Payment to {client} (Agency Fee)">Payment to the client (Agency Fee)</div><div class="cell"><span class="calc" id="o_payAgency" title="B52 = B39 × B31 × B41 / 360"><span class="f">B52</span>—</span></div></div>
+          <div class="row"><div class="lbl" data-tpl="Payment to {client} (Agency Fee)">Payment to the client (Agency Fee)</div><div class="cell"><span class="calc" id="o_payAgency" title="B52 = B39 × B31 × B41 / basis"><span class="f">B52</span>—</span></div></div>
           <div class="row"><div class="lbl">Payment to TradeCo (TradeCo Fee)</div><div class="cell"><span class="calc" id="o_payTradeCo" title="B53 = B47 − B51 − B52"><span class="f">B53</span>—</span></div></div>
           <div class="row"><div class="lbl"><b>Reconciliation</b> — legs vs IAA Purchase Price</div><div class="cell"><span class="calc strong" id="o_recon" title="B51 + B52 + B53 − B47 must be exactly 0">—</span></div></div>
         </div>
       </div>
     </div>
 
-    <!-- right rail -->
     <div>
-      <div class="card tight">
-        <h2>Validation</h2>
-        <div class="body" id="validationBox"></div>
-      </div>
-      <div class="card tight">
-        <h2>Rate quotes</h2>
-        <div class="body" id="quoteBox"></div>
-      </div>
-      <div class="card tight">
-        <h2>Business-day check <span class="src">BD Dates</span></h2>
-        <div class="body" id="bdBox"></div>
-      </div>
-      <div class="card tight">
-        <h2>Deal summary</h2>
-        <div class="body" id="summaryBox"></div>
-      </div>
+      <div class="card tight"><h2>Validation</h2><div class="body" id="validationBox"></div></div>
+      <div class="card tight"><h2>Rate quotes</h2><div class="body" id="quoteBox"></div></div>
+      <div class="card tight"><h2>Business-day check <span class="src">BD Dates</span></h2><div class="body" id="bdBox"></div></div>
+      <div class="card tight"><h2>Trade summary</h2><div class="body" id="summaryBox"></div></div>
     </div>
   </div>
 </section>
 
-<!-- ================= RATES & CALENDARS ================= -->
+<!-- ================= REFERENCE DATA ================= -->
 <section class="view" id="view-rates">
   <div id="ratesBanners"></div>
   <div class="card">
@@ -330,23 +321,33 @@ pre{background:var(--calc-bg);border:1px solid var(--line);border-radius:8px;pad
           <input type="text" id="clientFilter" placeholder="name or country" style="min-width:170px"></div>
       </div>
       <p class="tiny" style="margin:0 0 10px">A refresh asks for a monday.com API token, uses it for that one request and never stores it — not in this file, not in localStorage. Because the token grants full account access, prefer <b>Import JSON</b> or a server-side sync for shared copies. Browsers block the direct call from a <code>file://</code> page; serve this file over http(s) for it to work.</p>
-      <div class="scroll" style="max-height:420px"><table id="clientTable"></table></div>
+      <div class="scroll" style="max-height:380px"><table id="clientTable"></table></div>
     </div>
   </div>
-  <div class="grid2">
-    <div class="card tight">
-      <h2>Live curve — CME_TERM_SOFR <span class="src">'SOFR Interpolation'</span></h2>
-      <div class="body" id="curveLiveBox"></div>
-    </div>
-    <div class="card tight">
-      <h2>Pro forma curve — CME_TERM_SOFR_PF <span class="src">'SOFR Interpolation Pro Forma'</span></h2>
-      <div class="body" id="curvePfBox"></div>
+
+  <div class="card">
+    <h2>Base rate curves <span class="src">'SOFR Interpolation' generalised per currency</span></h2>
+    <div class="body">
+      <div class="toolbar">
+        <div class="field-inline"><label for="curvePicker">Index</label><select id="curvePicker" style="min-width:230px"></select></div>
+        <span class="tiny" id="curveMeta"></span>
+      </div>
+      <div class="grid2">
+        <div><h3 style="font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-2);margin-bottom:8px">Live curve</h3><div id="curveLiveBox"></div></div>
+        <div><h3 style="font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-2);margin-bottom:8px">Pro forma curve</h3><div id="curvePfBox"></div></div>
+      </div>
     </div>
   </div>
+
+  <div class="card">
+    <h2>Currencies &amp; base rates</h2>
+    <div class="body"><div class="scroll"><table id="ccyTable"></table></div></div>
+  </div>
+
   <div class="card">
     <h2>Holiday calendars <span class="src">BD Dates!B19:K200</span></h2>
     <div class="body">
-      <p class="tiny" style="margin:8px 0 12px">Coverage is the last known-good date per jurisdiction. A maturity date beyond coverage hard-blocks pricing — it is never silently passed. Source URLs below are the official publishers; replace them with the verbatim URLs recorded as cell notes on <code>BD Dates!B19:E19</code> if those differ.</p>
+      <p class="tiny" style="margin:8px 0 12px">Coverage is the last known-good date per jurisdiction. A maturity date beyond coverage hard-blocks pricing — it is never silently passed. Which of these apply is set per deal, above. Source URLs are the official publishers; replace them with the verbatim URLs recorded as cell notes on <code>BD Dates!B19:E19</code> if those differ.</p>
       <div class="scroll"><table id="calTable"></table></div>
     </div>
   </div>
@@ -361,27 +362,25 @@ pre{background:var(--calc-bg);border:1px solid var(--line);border-radius:8px;pad
       <div class="toolbar">
         <button class="btn" id="btnCopyRow">Copy row (TSV)</button>
         <button class="btn" id="btnCsv">Download CSV</button>
+        <button class="btn" id="btnDealCsv">Download deal CSV (all trades)</button>
         <button class="btn" id="btnJson">Download JSON</button>
         <button class="btn" id="btnPrint">Print / PDF</button>
       </div>
       <div class="scroll"><table id="offerTable"></table></div>
     </div>
   </div>
-  <div class="card tight">
-    <h2>Issued documents</h2>
-    <div class="body" id="issuedBox"></div>
-  </div>
+  <div class="card tight"><h2>Issued documents</h2><div class="body" id="issuedBox"></div></div>
 </section>
 
-<!-- ================= DEALS ================= -->
+<!-- ================= DEALS & TRADES ================= -->
 <section class="view" id="view-deals">
   <div class="card">
-    <h2>Deals</h2>
+    <h2>Deals &amp; trades</h2>
     <div class="body">
       <div class="toolbar">
         <button class="btn" id="btnExportAll">Export all data (JSON)</button>
         <label class="btn" style="display:inline-flex;align-items:center">Import JSON<input type="file" id="importFile" accept="application/json" style="display:none"></label>
-        <span class="tiny">Stored in this browser only (localStorage). Deals are never hard-deleted — cancel is a soft-delete.</span>
+        <span class="tiny">Stored in this browser only (localStorage). Nothing is hard-deleted — cancel is a soft-delete.</span>
       </div>
       <div class="scroll"><table id="dealTable"></table></div>
     </div>
@@ -395,7 +394,7 @@ pre{background:var(--calc-bg);border:1px solid var(--line);border-radius:8px;pad
     <div class="body">
       <div class="toolbar">
         <div class="field-inline"><label for="auditScope">Scope</label>
-          <select id="auditScope"><option value="deal">Current deal</option><option value="all">All entities</option></select></div>
+          <select id="auditScope"><option value="trade">Current trade</option><option value="deal">Current deal + its trades</option><option value="all">All entities</option></select></div>
         <button class="btn" id="btnAuditCsv">Download CSV</button>
       </div>
       <div class="scroll"><table id="auditTable"></table></div>
@@ -414,7 +413,6 @@ pre{background:var(--calc-bg);border:1px solid var(--line);border-radius:8px;pad
   </div>
 </section>
 
-<!-- ================= ABOUT ================= -->
 <section class="view" id="view-about">
   <div class="card"><h2>What this is</h2><div class="body" id="aboutBox"></div></div>
 </section>
@@ -423,9 +421,9 @@ pre{background:var(--calc-bg);border:1px solid var(--line);border-radius:8px;pad
 <script>
 "use strict";
 /* =====================================================================
-   Cantu Pricing Model — self-contained HTML implementation.
+   Pricing model — Deal (shared config) → Trades (priced individually).
    Calc engine is pure and decimal-exact (BigInt fixed-point, 20 dp).
-   Every derived field carries its source cell from the workbook.
+   Derived fields carry their source cell from Cantu Pricing Model 07222026.xlsx.
    ===================================================================== */
 
 /* ---------------------------- decimal ---------------------------- */
@@ -457,7 +455,6 @@ class D {
   cmp(o){ const d=D.of(o); return this.v<d.v?-1:this.v>d.v?1:0; }
   lt(o){return this.cmp(o)<0} lte(o){return this.cmp(o)<=0}
   gt(o){return this.cmp(o)>0} gte(o){return this.cmp(o)>=0} eq(o){return this.cmp(o)===0}
-  isZero(){ return this.v===0n; }
   toFixed(n){
     const neg=this.v<0n, abs=neg?-this.v:this.v;
     const q=rdiv(abs, 10n**(SCALE-BigInt(n)));
@@ -465,7 +462,6 @@ class D {
     const out = n===0 ? s : s.slice(0,s.length-n)+'.'+s.slice(s.length-n);
     return (neg && q!==0n ? '-' : '') + out;
   }
-  toNumber(){ return Number(this.toFixed(12)); }
 }
 const ZERO=D.of(0), ONE=D.of(1);
 
@@ -474,7 +470,7 @@ const dParse = s => { const [y,m,d]=String(s).split('-').map(Number); return Dat
 const dFmt   = t => new Date(t).toISOString().slice(0,10);
 const dAdd   = (s,n) => dFmt(dParse(s) + n*86400000);
 const dDiff  = (a,b) => Math.round((dParse(a)-dParse(b))/86400000);
-const dDow   = s => new Date(dParse(s)).getUTCDay();          // 0=Sun … 6=Sat
+const dDow   = s => new Date(dParse(s)).getUTCDay();
 const isValidDate = s => /^\d{4}-\d{2}-\d{2}$/.test(String(s||'')) && !isNaN(dParse(s));
 const fmtLong = s => isValidDate(s) ? new Intl.DateTimeFormat('en-US',
   {weekday:'long',year:'numeric',month:'long',day:'numeric',timeZone:'UTC'}).format(new Date(dParse(s))) : '—';
@@ -482,81 +478,25 @@ const fmtShort = s => isValidDate(s) ? new Intl.DateTimeFormat('en-GB',
   {day:'2-digit',month:'short',year:'2-digit',timeZone:'UTC'}).format(new Date(dParse(s))).replace(/ /g,'-') : '—';
 const todayISO = () => dFmt(Date.now());
 
-/* ---------------------------- formatting ---------------------------- */
-const CURSYM = {USD:'$', EUR:'€', GBP:'£', BRL:'R$'};
-const money = (d,cur) => d==null ? '—'
-  : (CURSYM[cur||'USD'] || (cur+' ')) + Number(d.toFixed(2)).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
-const pct   = (d,dp=5) => d==null?'—':d.mul(100).toFixed(dp)+'%';
-const fac   = d => d==null?'—':d.toFixed(7);
-
-/* ---------------------------- sha-256 (pure) ---------------------------- */
-function sha256(str){
-  const K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
-  let H=[0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
-  const bytes=new TextEncoder().encode(str);
-  const l=bytes.length, bitLen=l*8;
-  const padded=new Uint8Array((((l+9)+63)>>6)<<6);
-  padded.set(bytes); padded[l]=0x80;
-  new DataView(padded.buffer).setUint32(padded.length-4, bitLen>>>0);
-  new DataView(padded.buffer).setUint32(padded.length-8, Math.floor(bitLen/4294967296));
-  const w=new Uint32Array(64), dv=new DataView(padded.buffer);
-  const rr=(x,n)=>(x>>>n)|(x<<(32-n));
-  for(let i=0;i<padded.length;i+=64){
-    for(let t=0;t<16;t++) w[t]=dv.getUint32(i+t*4);
-    for(let t=16;t<64;t++){
-      const s0=rr(w[t-15],7)^rr(w[t-15],18)^(w[t-15]>>>3);
-      const s1=rr(w[t-2],17)^rr(w[t-2],19)^(w[t-2]>>>10);
-      w[t]=(w[t-16]+s0+w[t-7]+s1)>>>0;
-    }
-    let [a,b,c,d,e,f,g,h]=H;
-    for(let t=0;t<64;t++){
-      const S1=rr(e,6)^rr(e,11)^rr(e,25), ch=(e&f)^(~e&g);
-      const t1=(h+S1+ch+K[t]+w[t])>>>0;
-      const S0=rr(a,2)^rr(a,13)^rr(a,22), maj=(a&b)^(a&c)^(b&c);
-      const t2=(S0+maj)>>>0;
-      h=g; g=f; f=e; e=(d+t1)>>>0; d=c; c=b; b=a; a=(t1+t2)>>>0;
-    }
-    H=[H[0]+a,H[1]+b,H[2]+c,H[3]+d,H[4]+e,H[5]+f,H[6]+g,H[7]+h].map(x=>x>>>0);
-  }
-  return H.map(x=>x.toString(16).padStart(8,'0')).join('');
-}
-
-/* ---------------------------- reference data ---------------------------- */
-// Term SOFR pillars as keyed into the workbook on 22-Jul-2026.
-const DEFAULT_PILLARS_LIVE = [
-  {days:30,rate:'0.0364338'},{days:90,rate:'0.0372777'},{days:180,rate:'0.0387550'},{days:360,rate:'0.0403325'}];
-const DEFAULT_PILLARS_PF = [
-  {days:30,rate:'0.0364338'},{days:90,rate:'0.0372777'},{days:180,rate:'0.0385550'},{days:360,rate:'0.0403325'}];
-
-// Transcribed verbatim from BD Dates columns B:E.
-const CALENDARS = {
-  US:{name:'United States', url:'https://www.federalreserve.gov/aboutthefed/k8.htm', days:[
-    '2026-01-01','2026-01-19','2026-02-16','2026-05-25','2026-06-19','2026-07-04','2026-09-07','2026-10-12','2026-11-11','2026-11-26','2026-12-25',
-    '2027-01-01','2027-01-18','2027-02-15','2027-05-31','2027-06-19','2027-07-05','2027-09-06','2027-10-11','2027-11-11','2027-11-25','2027-12-25',
-    '2028-01-01','2028-01-17','2028-02-21','2028-05-29','2028-06-19','2028-07-04','2028-09-04','2028-10-09','2028-11-11','2028-11-23','2028-12-25',
-    '2029-01-01','2029-01-15','2029-02-19','2029-05-28','2029-06-19','2029-07-04','2029-09-03','2029-10-08','2029-11-12','2029-11-22','2029-12-25']},
-  GB:{name:'United Kingdom', url:'https://www.gov.uk/bank-holidays', days:[
-    '2026-01-01','2026-04-03','2026-04-06','2026-05-04','2026-05-25','2026-08-31','2026-12-25','2026-12-28',
-    '2027-01-01','2027-03-26','2027-03-29','2027-05-03','2027-05-31','2027-08-30','2027-12-27','2027-12-28',
-    '2028-01-03','2028-04-14','2028-04-17','2028-05-01','2028-05-29','2028-08-28','2028-12-25','2028-12-26',
-    '2029-01-01','2029-03-30','2029-04-02','2029-05-07','2029-05-28','2029-08-27','2029-12-25','2029-12-26']},
-  BR:{name:'Brazil', url:'https://www.anbima.com.br/feriados/feriados.asp', days:[
-    '2026-01-01','2026-02-16','2026-02-17','2026-04-03','2026-04-21','2026-05-01','2026-06-04','2026-09-07','2026-10-12','2026-11-02','2026-11-15','2026-11-20','2026-12-25',
-    '2027-01-01','2027-02-08','2027-02-09','2027-03-26','2027-04-21','2027-05-01','2027-05-27','2027-09-07','2027-10-12','2027-11-02','2027-11-15','2027-11-20','2027-12-25',
-    '2028-01-01','2028-02-28','2028-02-29','2028-04-14','2028-04-21','2028-05-01','2028-06-15','2028-09-07','2028-10-12','2028-11-02','2028-11-15','2028-11-20','2028-12-25',
-    '2029-01-01','2029-02-12','2029-02-13','2029-03-30','2029-04-21','2029-05-01','2029-05-31','2029-09-07','2029-10-12','2029-11-02','2029-11-15','2029-11-20','2029-12-25']},
-  HK:{name:'Hong Kong', url:'https://www.gov.hk/en/about/abouthk/holiday/', days:[
-    '2026-01-01','2026-02-17','2026-02-18','2026-02-19','2026-04-03','2026-04-04','2026-04-06','2026-04-07','2026-05-01','2026-05-25','2026-06-19','2026-07-01','2026-09-26','2026-10-01','2026-10-19','2026-12-25','2026-12-26',
-    '2027-01-01','2027-02-06','2027-02-08','2027-02-09','2027-03-26','2027-03-27','2027-03-29','2027-04-05','2027-05-01','2027-05-13','2027-06-09','2027-07-01','2027-09-16','2027-10-01','2027-10-08','2027-12-25','2027-12-27']},
+/* ---------------------------- currencies & base rates ----------------------------
+   Currency is a deal-level choice. It selects the base-rate index AND the day-count
+   basis: the workbook hardcodes /360, which is right for Term SOFR and EURIBOR but
+   wrong for a 365-basis index such as Term SONIA. */
+const RATE_INDICES = {
+  USD:{index:'TERM_SOFR',  name:'Term SOFR',  basis:360, symbol:'$'},
+  EUR:{index:'EURIBOR',    name:'EURIBOR',    basis:360, symbol:'€'},
+  GBP:{index:'TERM_SONIA', name:'Term SONIA', basis:365, symbol:'£'},
+  MXN:{index:'TIIE',       name:'TIIE',       basis:360, symbol:'MX$'},
+  COP:{index:'IBR',        name:'IBR',        basis:360, symbol:'COL$'},
+  CHF:{index:'SARON',      name:'SARON',      basis:360, symbol:'CHF '},
+  BRL:{index:'CDI',        name:'CDI',        basis:360, symbol:'R$',
+       conventionNote:'CDI is quoted on a 252-business-day compounded basis. This model applies the workbook’s simple ACT/360 discount, so a BRL price is indicative only — confirm the convention with Bladex before use.'},
 };
-for (const k in CALENDARS){
-  const c=CALENDARS[k]; c.code=k; c.set=new Set(c.days); c.coverageThrough=c.days.reduce((a,b)=>a>b?a:b);
-}
-const APPLICABLE = ['US','GB','BR','HK'];
+const CURRENCIES = Object.keys(RATE_INDICES);
+const idxFor   = ccy => RATE_INDICES[ccy] || RATE_INDICES.USD;
+const basisFor = ccy => idxFor(ccy).basis;
 
-/* Clients — distinct values of the "Client" column on the monday.com Global Pipeline board
-   (18299408349, column board_relation_mkx6fyx4 → Global Database 1462356365), deduplicated,
-   each carrying its strongest deal status. Seeded below; refreshable from the Reference data tab. */
+/* ---------------------------- clients ---------------------------- */
 const MONDAY_SOURCE = { boardId:'18299408349', boardName:'Global Pipeline',
   clientColumnId:'board_relation_mkx6fyx4', account:'silverbirchfinance.monday.com' };
 const SEED_CLIENTS = [
@@ -836,9 +776,93 @@ const ACTIVE_STATUSES = ['Live','Implementation','Validation','Discovery','Hold'
 const MARKET_DEFAULTS = { margin:'0.03', agencyFee:'0.001', bladexMargin:'0.0235' };
 const RECEIVING_ACCOUNT_TEXT = 'See Part A (Receiving Account(s)) of Annex 2 (Accounts) to the IAA Addendum';
 
+/* ---------------------------- calendars ----------------------------
+   US / GB / BR / HK transcribed verbatim from BD Dates columns B:E.
+   EU (TARGET2) is computed — six fixed rules a year, so it needs no transcription. */
+function easterSunday(y){
+  const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,
+        f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,
+        i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),
+        mo=Math.floor((h+l-7*m+114)/31), da=((h+l-7*m+114)%31)+1;
+  return Date.UTC(y,mo-1,da);
+}
+function target2Days(from,to){
+  const out=[];
+  for(let y=from;y<=to;y++){
+    const e=easterSunday(y);
+    out.push(y+'-01-01', dFmt(e-2*86400000), dFmt(e+86400000), y+'-05-01', y+'-12-25', y+'-12-26');
+  }
+  return out.sort();
+}
+const CALENDARS = {
+  US:{name:'United States', url:'https://www.federalreserve.gov/aboutthefed/k8.htm', days:[
+    '2026-01-01','2026-01-19','2026-02-16','2026-05-25','2026-06-19','2026-07-04','2026-09-07','2026-10-12','2026-11-11','2026-11-26','2026-12-25',
+    '2027-01-01','2027-01-18','2027-02-15','2027-05-31','2027-06-19','2027-07-05','2027-09-06','2027-10-11','2027-11-11','2027-11-25','2027-12-25',
+    '2028-01-01','2028-01-17','2028-02-21','2028-05-29','2028-06-19','2028-07-04','2028-09-04','2028-10-09','2028-11-11','2028-11-23','2028-12-25',
+    '2029-01-01','2029-01-15','2029-02-19','2029-05-28','2029-06-19','2029-07-04','2029-09-03','2029-10-08','2029-11-12','2029-11-22','2029-12-25']},
+  GB:{name:'United Kingdom', url:'https://www.gov.uk/bank-holidays', days:[
+    '2026-01-01','2026-04-03','2026-04-06','2026-05-04','2026-05-25','2026-08-31','2026-12-25','2026-12-28',
+    '2027-01-01','2027-03-26','2027-03-29','2027-05-03','2027-05-31','2027-08-30','2027-12-27','2027-12-28',
+    '2028-01-03','2028-04-14','2028-04-17','2028-05-01','2028-05-29','2028-08-28','2028-12-25','2028-12-26',
+    '2029-01-01','2029-03-30','2029-04-02','2029-05-07','2029-05-28','2029-08-27','2029-12-25','2029-12-26']},
+  BR:{name:'Brazil', url:'https://www.anbima.com.br/feriados/feriados.asp', days:[
+    '2026-01-01','2026-02-16','2026-02-17','2026-04-03','2026-04-21','2026-05-01','2026-06-04','2026-09-07','2026-10-12','2026-11-02','2026-11-15','2026-11-20','2026-12-25',
+    '2027-01-01','2027-02-08','2027-02-09','2027-03-26','2027-04-21','2027-05-01','2027-05-27','2027-09-07','2027-10-12','2027-11-02','2027-11-15','2027-11-20','2027-12-25',
+    '2028-01-01','2028-02-28','2028-02-29','2028-04-14','2028-04-21','2028-05-01','2028-06-15','2028-09-07','2028-10-12','2028-11-02','2028-11-15','2028-11-20','2028-12-25',
+    '2029-01-01','2029-02-12','2029-02-13','2029-03-30','2029-04-21','2029-05-01','2029-05-31','2029-09-07','2029-10-12','2029-11-02','2029-11-15','2029-11-20','2029-12-25']},
+  HK:{name:'Hong Kong', url:'https://www.gov.hk/en/about/abouthk/holiday/', days:[
+    '2026-01-01','2026-02-17','2026-02-18','2026-02-19','2026-04-03','2026-04-04','2026-04-06','2026-04-07','2026-05-01','2026-05-25','2026-06-19','2026-07-01','2026-09-26','2026-10-01','2026-10-19','2026-12-25','2026-12-26',
+    '2027-01-01','2027-02-06','2027-02-08','2027-02-09','2027-03-26','2027-03-27','2027-03-29','2027-04-05','2027-05-01','2027-05-13','2027-06-09','2027-07-01','2027-09-16','2027-10-01','2027-10-08','2027-12-25','2027-12-27']},
+  EU:{name:'TARGET2 (euro area)', url:'https://www.ecb.europa.eu/paym/target/html/index.en.html',
+      computed:true, days:target2Days(2026,2035)},
+};
+for (const k in CALENDARS){
+  const c=CALENDARS[k]; c.code=k; c.set=new Set(c.days); c.coverageThrough=c.days.reduce((a,b)=>a>b?a:b);
+}
+const ALL_JURISDICTIONS = Object.keys(CALENDARS);
+const DEFAULT_JURISDICTIONS = ['US','GB','BR','HK'];   // as hardcoded in BD Dates!B4:B13
+
+/* ---------------------------- formatting ---------------------------- */
+const money = (d,ccy) => d==null ? '—'
+  : (idxFor(ccy).symbol || (ccy+' ')) + Number(d.toFixed(2)).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const pct = (d,dp=5) => d==null?'—':d.mul(100).toFixed(dp)+'%';
+const fac = d => d==null?'—':d.toFixed(7);
+
+/* ---------------------------- sha-256 (pure) ---------------------------- */
+function sha256(str){
+  const K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
+  let H=[0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
+  const bytes=new TextEncoder().encode(str), l=bytes.length, bitLen=l*8;
+  const padded=new Uint8Array((((l+9)+63)>>6)<<6);
+  padded.set(bytes); padded[l]=0x80;
+  const dv=new DataView(padded.buffer);
+  dv.setUint32(padded.length-4, bitLen>>>0);
+  dv.setUint32(padded.length-8, Math.floor(bitLen/4294967296));
+  const w=new Uint32Array(64), rr=(x,n)=>(x>>>n)|(x<<(32-n));
+  for(let i=0;i<padded.length;i+=64){
+    for(let t=0;t<16;t++) w[t]=dv.getUint32(i+t*4);
+    for(let t=16;t<64;t++){
+      const s0=rr(w[t-15],7)^rr(w[t-15],18)^(w[t-15]>>>3);
+      const s1=rr(w[t-2],17)^rr(w[t-2],19)^(w[t-2]>>>10);
+      w[t]=(w[t-16]+s0+w[t-7]+s1)>>>0;
+    }
+    let [a,b,c,d,e,f,g,h]=H;
+    for(let t=0;t<64;t++){
+      const S1=rr(e,6)^rr(e,11)^rr(e,25), ch=(e&f)^(~e&g);
+      const t1=(h+S1+ch+K[t]+w[t])>>>0;
+      const S0=rr(a,2)^rr(a,13)^rr(a,22), maj=(a&b)^(a&c)^(b&c);
+      const t2=(S0+maj)>>>0;
+      h=g; g=f; f=e; e=(d+t1)>>>0; d=c; c=b; b=a; a=(t1+t2)>>>0;
+    }
+    H=[H[0]+a,H[1]+b,H[2]+c,H[3]+d,H[4]+e,H[5]+f,H[6]+g,H[7]+h].map(x=>x>>>0);
+  }
+  return H.map(x=>x.toString(16).padStart(8,'0')).join('');
+}
+
 /* ---------------------------- calc engine (pure) ---------------------------- */
 function interpolate(pillars, tenorDays){
-  const ps=[...pillars].sort((a,b)=>a.days-b.days).map(p=>({days:Number(p.days), rate:D.of(p.rate)}));
+  const ps=[...pillars].filter(p=>String(p.rate)!=='').sort((a,b)=>a.days-b.days)
+    .map(p=>({days:Number(p.days), rate:D.of(p.rate)}));
   if(!ps.length) throw new Error('No rate pillars');
   const x=Number(tenorDays);
   const exact=ps.find(p=>p.days===x);
@@ -854,11 +878,13 @@ function interpolate(pillars, tenorDays){
 }
 
 /** price(inputs, rateQuote) -> outputs. No I/O, no clock reads, no DB.
- *  The Pro Forma block (panel 2) is optional. When inputs.pfEnabled is false every pf* output is
- *  null and no pro forma rate is required. Nothing downstream reads them: panels 3-5 and the
- *  Offer File depend only on the supplier amount, the TradeCo inputs, the Bladex inputs and the
- *  live curve — so disabling the block leaves B27:B53 bit-for-bit identical. */
+ *  inputs carry the deal-level convention: currency and dayCountBasis.
+ *  The Pro Forma block (panel 2) is optional — when inputs.pfEnabled is false every pf*
+ *  output is null and no pro forma rate is required. Panel 2 is a leaf: panels 3-5 and the
+ *  Offer File read only the supplier amount, the TradeCo inputs, the Bladex inputs and the
+ *  live curve, so disabling it leaves B27:B53 bit-for-bit identical. */
 function price(i, q){
+  const BASIS = D.of(i.dayCountBasis || 360);
   const supplierAmount = D.of(i.supplierAmount);
   const supplierPaymentDate = dAdd(i.supplierIssueDate, Number(i.supplierTenorDays));
 
@@ -870,7 +896,7 @@ function price(i, q){
     pfRate   = D.of(q.pfRate);                                                           // B16
     pfMarkup = D.of(i.pfMargin).add(pfRate).add(D.of(i.pfAgencyFee));                    // B19
     pfDays   = dDiff(pfMaturityDate, i.pfIssueDate);
-    pfFactor = pfMarkup.mul(D.of(pfDays)).div(D.of(360));                                // B20
+    pfFactor = pfMarkup.mul(D.of(pfDays)).div(BASIS);                                    // B20
     pfInvoice1 = supplierAmount;                                                         // B21
     pfTotal  = supplierAmount.div(ONE.sub(pfFactor));                                    // B23
     pfInvoice2 = pfTotal.sub(pfInvoice1);                                                // B22
@@ -881,7 +907,7 @@ function price(i, q){
   const liveRate = D.of(q.liveRate);                                                     // B29
   const tcMarkup = D.of(i.tcMargin).add(liveRate).add(D.of(i.tcAgencyFee));              // B32
   const tcDays   = dDiff(tcMaturityDate, i.bladexSettlementDate);
-  const tcFactor = tcMarkup.mul(D.of(tcDays)).div(D.of(360));                            // B33
+  const tcFactor = tcMarkup.mul(D.of(tcDays)).div(BASIS);                                // B33
   const tcInvoice1 = supplierAmount;                                                     // B34
   const tcTotal  = supplierAmount.div(ONE.sub(tcFactor));                                // B36
   const tcInvoice2 = tcTotal.sub(tcInvoice1);                                            // B35
@@ -890,15 +916,15 @@ function price(i, q){
   const iaaMaturityDate = dAdd(i.bladexSettlementDate, Number(i.bladexDays));            // B42
   const bladexCostOfFunds = D.of(i.bladexMargin).add(liveRate);                          // B45
   const iaaDays = dDiff(iaaMaturityDate, i.bladexSettlementDate);
-  const iaaFactor = bladexCostOfFunds.mul(D.of(iaaDays)).div(D.of(360));                 // B46
+  const iaaFactor = bladexCostOfFunds.mul(D.of(iaaDays)).div(BASIS);                     // B46
   const purchasePrice = faceValue.mul(ONE.sub(iaaFactor));                               // B47
 
   const legalFees = D.of(i.legalFees||0);                                                // B49
   const payToSupplier = faceValue.mul(ONE.sub(tcFactor)).sub(legalFees);                 // B51
-  const payToCantuAgency = faceValue.mul(D.of(i.tcAgencyFee)).mul(D.of(Number(i.bladexDays))).div(D.of(360)); // B52
+  const payToCantuAgency = faceValue.mul(D.of(i.tcAgencyFee)).mul(D.of(Number(i.bladexDays))).div(BASIS); // B52
   const payToTradeCo = purchasePrice.sub(payToSupplier).sub(payToCantuAgency);           // B53
 
-  return { supplierPaymentDate, supplierAmount, pfOn,
+  return { supplierPaymentDate, supplierAmount, pfOn, dayCountBasis:Number(i.dayCountBasis||360),
     pfMaturityDate, pfRate, pfMarkup, pfFactor, pfDays, pfInvoice1, pfInvoice2, pfTotal,
     tcTenorDays, tcMaturityDate, liveRate, tcMarkup, tcFactor, tcDays, tcInvoice1, tcInvoice2, tcTotal,
     faceValue, iaaMaturityDate, bladexCostOfFunds, iaaFactor, purchasePrice,
@@ -906,9 +932,10 @@ function price(i, q){
     reconciliation: payToSupplier.add(payToCantuAgency).add(payToTradeCo).sub(purchasePrice) };
 }
 
-/* businessDayCheck — replaces BD Dates!C4:C15 */
-function businessDayCheck(dateISO){
-  const rows = APPLICABLE.map(code=>{
+/** businessDayCheck — BD Dates!C4:C15, over the deal's associated jurisdictions. */
+function businessDayCheck(dateISO, jurisdictions){
+  const codes = (jurisdictions && jurisdictions.length ? jurisdictions : []).filter(c=>CALENDARS[c]);
+  const rows = codes.map(code=>{
     const c=CALENDARS[code];
     if(!isValidDate(dateISO)) return {code, name:c.name, status:'NO_DATE', label:'—'};
     if(dateISO > c.coverageThrough) return {code, name:c.name, status:'BEYOND_COVERAGE', label:'CHECK LIST', coverageThrough:c.coverageThrough};
@@ -918,23 +945,32 @@ function businessDayCheck(dateISO){
     return {code, name:c.name, status:'OK', label:'Yes', coverageThrough:c.coverageThrough};
   });
   const anyError = rows.some(r=>r.status!=='OK');
-  return {rows, anyError, verdict: anyError ? 'CHECK DATE!' : 'OK'};
+  return {rows, anyError, verdict: rows.length===0 ? 'NO JURISDICTIONS' : anyError ? 'CHECK DATE!' : 'OK'};
 }
 
 /* ---------------------------- validation ---------------------------- */
-function validate(deal, out, quotes, bd){
+function validate(deal, trade, out, quotes, bd){
   const errors=[], warnings=[];
   const E=(rule,msg)=>errors.push({rule,msg});
   const W=(rule,msg)=>warnings.push({rule,msg});
-  const i=deal.inputs;
+  const i=effectiveInputs(deal,trade);
   const pfOn = i.pfEnabled !== false;
   const CLIENT = clientLabel(deal);
+  const ix = idxFor(deal.currency);
 
-  if(!String(i.clientId||'').trim()) E('DEAL.CLIENT','Select a client. Every client-named label and the agency-fee leg refer to it.');
-  if(!String(i.transactionCode||'').trim()) E('DEAL.TXCODE','Transaction Code is required (Cantu!B4 — blank prints as 0 on the Offer File).');
-  if(!String(i.tradeIdentifier||'').trim()) E('DEAL.TRADEID','Trade Identifier is required (Cantu!B5 — blank prints as 0 on the Offer File).');
-  if(!String(i.obligor||'').trim()) E('DEAL.OBLIGOR','Relevant Obligor is required (Offer File!A3).');
-  if(i.currency!=='USD') E('DEAL.CCY','Currency must be USD. Multi-currency is modelled but not enabled.');
+  // ---- deal-level ----
+  if(!String(deal.clientId||'').trim()) E('DEAL.CLIENT','Select a client on the deal. Every client-named label and the agency-fee leg refer to it.');
+  if(!String(deal.code||'').trim()) E('DEAL.TXCODE','Transaction Code is required on the deal (Cantu!B4 — blank prints as 0 on the Offer File).');
+  if(!RATE_INDICES[deal.currency]) E('DEAL.CCY','Currency '+deal.currency+' has no base rate index configured.');
+  if(!(deal.jurisdictions||[]).length) E('DEAL.JURISDICTIONS','Select at least one associated jurisdiction — with none, the maturity date is never checked against a calendar.');
+  if(ix.conventionNote) W('CCY.CONVENTION', ix.conventionNote);
+
+  // ---- trade-level ----
+  if(!String(trade.identifier||'').trim()) E('TRADE.ID','Trade Identifier is required (Cantu!B5 — blank prints as 0 on the Offer File).');
+  else if(tradesOf(deal.id).some(t=>t.id!==trade.id && !t.cancelled &&
+          String(t.identifier||'').trim().toLowerCase()===String(trade.identifier).trim().toLowerCase()))
+    E('TRADE.ID_UNIQUE','Another trade on this deal already uses the identifier "'+trade.identifier+'".');
+  if(!String(trade.obligor||'').trim()) E('TRADE.OBLIGOR','Relevant Obligor is required (Offer File!A3).');
 
   for(const [k,lbl,needed] of [['supplierIssueDate','Supplier Invoice Issue Date',true],['pfIssueDate','Pro Forma Issue Date',pfOn],
                         ['tcIssueDate','TradeCo Invoice Issue Date',true],['bladexSettlementDate','Bladex Settlement Date',true]])
@@ -944,6 +980,11 @@ function validate(deal, out, quotes, bd){
   if(Number(i.supplierTenorDays)<1) E('TENOR.SUPPLIER','Supplier tenor must be at least 1 day.');
   if(pfOn && Number(i.pfTenorDays)<1) E('TENOR.PF','Pro Forma tenor must be at least 1 day (Cantu!B14).');
   if(Number(i.bladexDays)<1) E('TENOR.BLADEX','Bladex Days must be at least 1 (Cantu!B41).');
+
+  // ---- curves ----
+  const cv=curvesFor(deal.currency);
+  if(!curveLoaded(cv.live)) E('RATE.NO_CURVE','No live '+ix.name+' curve is loaded for '+deal.currency+'. A Rates Admin must enter the pillars on the Reference data tab.');
+  if(pfOn && !curveLoaded(cv.pf)) E('RATE.NO_CURVE_PF','No pro forma '+ix.name+' curve is loaded for '+deal.currency+'.');
 
   if(out){
     if(pfOn && out.pfFactor.gte(ONE)) E('FACTOR.PF','Pro Forma factor is ≥ 1 — B23 = B10/(1−B20) is undefined or negative.');
@@ -962,8 +1003,9 @@ function validate(deal, out, quotes, bd){
       else if(r.status==='WEEKEND') E('CAL.BUSDAY','Maturity date falls on a weekend in '+r.name+'.');
       else if(r.status==='HOLIDAY') E('CAL.BUSDAY','Maturity date is a public holiday in '+r.name+'.');
     }
-    for(const code of APPLICABLE){
-      const c=CALENDARS[code], fwd=dDiff(c.coverageThrough, todayISO());
+    for(const code of (deal.jurisdictions||[])){
+      const c=CALENDARS[code]; if(!c) continue;
+      const fwd=dDiff(c.coverageThrough, todayISO());
       if(fwd<180) W('CAL.FORWARD', c.name+' calendar has only '+fwd+' days of forward coverage (threshold 180). Schedule a refresh.');
     }
   }
@@ -983,14 +1025,14 @@ function validate(deal, out, quotes, bd){
   if(pfOn && isValidDate(i.supplierIssueDate) && isValidDate(i.pfIssueDate)){
     const supPay = dAdd(i.supplierIssueDate, Number(i.supplierTenorDays||0));
     const gap = dDiff(supPay, i.pfIssueDate);
-    // Threshold is 30 days: the workbook's own reference deal runs 24 days, so a tighter
-    // bound would fire on the golden case. Tighten once the rule is confirmed.
+    // Threshold is 30 days: the workbook's own reference deal runs 24, so a tighter bound
+    // would fire on the golden case. Tighten once the rule is confirmed.
     if(gap<0) W('NOTE.PF_ISSUE','Pro Forma Issue Date is after the Supplier Invoice Maturity Date — the workbook note expects it before.');
     else if(gap>30) W('NOTE.PF_ISSUE','Pro Forma Issue Date is '+gap+' days before the Supplier Invoice Maturity Date — the workbook note suggests roughly 5.');
   }
   if(isValidDate(i.tcIssueDate) && isValidDate(i.bladexSettlementDate) && i.tcIssueDate!==i.bladexSettlementDate)
-    W('NOTE.TC_ISSUE','TradeCo Issue Date differs from the Bladex Settlement Date, so B27 ('+ (out?out.tcTenorDays:'?') +'d) no longer equals Bladex Days ('+i.bladexDays+'d).');
-  if(pfOn && Number(i.pfTenorDays) !== Number(i.bladexDays)+2 && Number(i.pfTenorDays) !== Number(i.bladexDays))
+    W('NOTE.TC_ISSUE','TradeCo Issue Date differs from the Bladex Settlement Date, so B27 ('+(out?out.tcTenorDays:'?')+'d) no longer equals Bladex Days ('+i.bladexDays+'d).');
+  if(pfOn && Number(i.pfTenorDays)!==Number(i.bladexDays)+2 && Number(i.pfTenorDays)!==Number(i.bladexDays))
     W('NOTE.PF_TENOR','Pro Forma tenor is '+i.pfTenorDays+'d. The workbook note suggests Bladex Days + 2 ('+(Number(i.bladexDays)+2)+'d).');
   for(const [k,def,lbl,needed] of [['pfMargin',MARKET_DEFAULTS.margin,'Pro Forma margin',pfOn],['tcMargin',MARKET_DEFAULTS.margin,'TradeCo margin',true],
                             ['bladexMargin',MARKET_DEFAULTS.bladexMargin,'Bladex margin',true],
@@ -998,97 +1040,166 @@ function validate(deal, out, quotes, bd){
     if(needed && !D.of(i[k]||0).eq(D.of(def)))
       W('NOTE.STANDARD_TERMS', lbl+' is '+pct(D.of(i[k]||0))+', not the standing '+pct(D.of(def))+'. Confirm a pricing discussion with '+CLIENT+'/Bladex took place.');
   if(D.of(i.legalFees||0).gt(ZERO))
-    W('NOTE.LEGAL_FEES','Legal/Structuring Fees of '+money(D.of(i.legalFees))+' are deducted from the supplier leg (B51) and therefore land in the TradeCo residual (B53).');
+    W('NOTE.LEGAL_FEES','Legal/Structuring Fees of '+money(D.of(i.legalFees),deal.currency)+' are deducted from the supplier leg (B51) and therefore land in the TradeCo residual (B53).');
 
   return {errors, warnings};
 }
 
 /* ---------------------------- store ---------------------------- */
-const LS_KEY='cantu-pricing-model-v1';
+const LS_KEY='cantu-pricing-model-v2', LS_KEY_V1='cantu-pricing-model-v1';
 const uuid = () => (crypto.randomUUID ? crypto.randomUUID()
   : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return (c==='x'?r:(r&0x3|0x8)).toString(16);}));
 
-function blankInputs(){
-  return { clientId:'', clientName:'', transactionCode:'', tradeIdentifier:'', obligor:'Gripmaster', currency:'USD',
+function blankTradeInputs(){
+  return { pfEnabled:true,
     supplierIssueDate:'2026-06-16', supplierTenorDays:30, supplierAmount:'850000',
-    pfEnabled:true,
     pfIssueDate:'2026-06-22', pfTenorDays:180, pfMargin:MARKET_DEFAULTS.margin, pfAgencyFee:MARKET_DEFAULTS.agencyFee,
     tcIssueDate:'2026-07-16', tcMargin:MARKET_DEFAULTS.margin, tcAgencyFee:MARKET_DEFAULTS.agencyFee,
     bladexSettlementDate:'2026-07-16', bladexDays:180, bladexMargin:MARKET_DEFAULTS.bladexMargin, legalFees:'0' };
 }
-function newDeal(actor){
-  return { id:uuid(), versionNo:1, state:'DRAFT', inputs:blankInputs(),
-    createdBy:actor, createdAt:new Date().toISOString(),
+function newDeal(who){
+  return { id:uuid(), code:'', clientId:'', clientName:'', currency:'USD',
+    jurisdictions:[...DEFAULT_JURISDICTIONS], createdBy:who, createdAt:new Date().toISOString(), cancelled:false };
+}
+function newTrade(dealId, who){
+  return { id:uuid(), dealId, identifier:'', obligor:'Gripmaster', versionNo:1, state:'DRAFT',
+    inputs:blankTradeInputs(), createdBy:who, createdAt:new Date().toISOString(),
     approvedBy:null, approvedAt:null, actualSettlementDate:null,
-    rateQuotes:null, acks:{}, offerFiles:[] };
+    rateQuotes:null, acks:{}, offerFiles:[], cancelled:false };
+}
+/** Deal-level config merged onto the trade's own inputs — what the calc engine sees. */
+function effectiveInputs(deal, trade){
+  return { ...trade.inputs, currency:deal.currency, dayCountBasis:basisFor(deal.currency),
+    jurisdictions:deal.jurisdictions, transactionCode:deal.code, clientName:deal.clientName };
+}
+
+function blankPillars(){ return [{days:30,rate:''},{days:90,rate:''},{days:180,rate:''},{days:360,rate:''}]; }
+function seededSofr(){
+  return { live:{curveCode:'TERM_SOFR', businessDate:todayISO(), source:'MANUAL_OVERRIDE',
+            overrideReason:'Seeded from Cantu Pricing Model 07222026.xlsx',
+            pillars:[{days:30,rate:'0.0364338'},{days:90,rate:'0.0372777'},{days:180,rate:'0.0387550'},{days:360,rate:'0.0403325'}]},
+           pf:{curveCode:'TERM_SOFR_PF', businessDate:todayISO(), source:'MANUAL_OVERRIDE',
+            overrideReason:'Seeded from Cantu Pricing Model 07222026.xlsx',
+            pillars:[{days:30,rate:'0.0364338'},{days:90,rate:'0.0372777'},{days:180,rate:'0.0385550'},{days:360,rate:'0.0403325'}]} };
 }
 function defaultCurves(){
-  const bd=todayISO();
-  return { live:{curveCode:'CME_TERM_SOFR', businessDate:bd, source:'MANUAL_OVERRIDE',
-                 overrideReason:'Seeded from Cantu Pricing Model 07222026.xlsx', pillars:DEFAULT_PILLARS_LIVE.map(p=>({...p}))},
-           pf:{curveCode:'CME_TERM_SOFR_PF', businessDate:bd, source:'MANUAL_OVERRIDE',
-               overrideReason:'Seeded from Cantu Pricing Model 07222026.xlsx', pillars:DEFAULT_PILLARS_PF.map(p=>({...p}))} };
+  const out={TERM_SOFR:seededSofr()};
+  for(const ccy of CURRENCIES){
+    const code=idxFor(ccy).index;
+    if(out[code]) continue;
+    out[code]={ live:{curveCode:code, businessDate:todayISO(), source:'MANUAL_OVERRIDE', overrideReason:'', pillars:blankPillars()},
+                pf:{curveCode:code+'_PF', businessDate:todayISO(), source:'MANUAL_OVERRIDE', overrideReason:'', pillars:blankPillars()} };
+  }
+  return out;
 }
 function defaultClients(){
   return { source:{...MONDAY_SOURCE, syncedAt:null, via:'seeded'}, list:SEED_CLIENTS.map(c=>({...c})) };
 }
+
 let store = load();
 function load(){
   try{ const raw=localStorage.getItem(LS_KEY);
-    if(raw){ const s=JSON.parse(raw);
-      if(s && s.deals){ if(!s.clients || !s.clients.list || !s.clients.list.length) s.clients=defaultClients(); return s; } }
-  }catch(e){}
-  const actor='m.buraglia';
-  const d=newDeal(actor);
-  d.inputs.transactionCode='SC DRC-CANTU-SB01'; d.inputs.tradeIdentifier='DRC-CANTU-SB01';
-  const seed=SEED_CLIENTS.find(c=>/^cantu/i.test(c.name));
-  if(seed){ d.inputs.clientId=seed.id; d.inputs.clientName=seed.name; }
-  return { deals:[d], currentDealId:d.id, curves:defaultCurves(), clients:defaultClients(), audit:[] };
+    if(raw){ const s=JSON.parse(raw); if(s && s.deals && s.trades) return normalise(s); } }catch(e){}
+  try{ const v1=localStorage.getItem(LS_KEY_V1);
+    if(v1){ const m=migrateV1(JSON.parse(v1)); if(m) return m; } }catch(e){}
+  return seedStore();
 }
-const clientList = () => (store.clients && store.clients.list) || [];
-const findClient = id => clientList().find(c=>String(c.id)===String(id)) || null;
-/** The client name used for every client-named label. Falls back while none is selected. */
-function clientLabel(deal){
-  const i = deal && deal.inputs || {};
-  return (i.clientName && i.clientName.trim()) || (findClient(i.clientId)||{}).name || 'Client';
+function normalise(s){
+  if(!s.clients || !s.clients.list || !s.clients.list.length) s.clients=defaultClients();
+  s.curves = {...defaultCurves(), ...(s.curves||{})};
+  for(const d of s.deals){ if(!d.jurisdictions||!d.jurisdictions.length) d.jurisdictions=[...DEFAULT_JURISDICTIONS];
+    if(!RATE_INDICES[d.currency]) d.currency='USD'; }
+  return s;
+}
+/** v1 stored one flat deal per pricing sheet; each becomes a deal carrying a single trade. */
+function migrateV1(v1){
+  if(!v1 || !Array.isArray(v1.deals)) return null;
+  const deals=[], trades=[];
+  for(const old of v1.deals){
+    const d=newDeal(old.createdBy||'migrated');
+    d.id=uuid(); d.code=old.inputs.transactionCode||''; d.clientId=old.inputs.clientId||'';
+    d.clientName=old.inputs.clientName||''; d.currency=RATE_INDICES[old.inputs.currency]?old.inputs.currency:'USD';
+    d.createdAt=old.createdAt||d.createdAt;
+    const t=newTrade(d.id, old.createdBy||'migrated');
+    t.id=old.id; t.identifier=old.inputs.tradeIdentifier||''; t.obligor=old.inputs.obligor||'Gripmaster';
+    t.versionNo=old.versionNo||1; t.state=old.state||'DRAFT'; t.createdAt=old.createdAt||t.createdAt;
+    t.approvedBy=old.approvedBy||null; t.approvedAt=old.approvedAt||null;
+    t.actualSettlementDate=old.actualSettlementDate||null;
+    t.rateQuotes=old.rateQuotes||null; t.acks=old.acks||{}; t.offerFiles=old.offerFiles||[];
+    const {transactionCode, tradeIdentifier, obligor, currency, clientId, clientName, ...rest}=old.inputs;
+    t.inputs={...blankTradeInputs(), ...rest};
+    deals.push(d); trades.push(t);
+  }
+  if(!deals.length) return null;
+  return normalise({ v:2, deals, trades, currentDealId:deals[0].id, currentTradeId:trades[0].id,
+    curves:defaultCurves(), clients:v1.clients||defaultClients(),
+    audit:[...(v1.audit||[]), {id:uuid(), entityType:'store', entityId:'-', action:'UPDATE', field:'schema',
+      oldValue:'v1 (flat deals)', newValue:'v2 (deal → trades)', reason:'Migrated '+deals.length+' record(s)',
+      actor:'system', role:'system', at:new Date().toISOString()}] });
+}
+function seedStore(){
+  const who='m.buraglia';
+  const d=newDeal(who); d.code='SC DRC-CANTU';
+  const seed=SEED_CLIENTS.find(c=>/^cantu/i.test(c.name));
+  if(seed){ d.clientId=seed.id; d.clientName=seed.name; }
+  const t=newTrade(d.id, who); t.identifier='DRC-CANTU-SB01';
+  return { v:2, deals:[d], trades:[t], currentDealId:d.id, currentTradeId:t.id,
+    curves:defaultCurves(), clients:defaultClients(), audit:[] };
 }
 const save = () => { try{ localStorage.setItem(LS_KEY, JSON.stringify(store)); }catch(e){ console.warn('Persist failed', e); } };
-const actor = () => ({ name: (document.getElementById('actorName').value||'unknown').trim(),
-                       role: document.getElementById('actorRole').value });
+const actor = () => ({ name:(document.getElementById('actorName').value||'unknown').trim(),
+                       role:document.getElementById('actorRole').value });
 function audit(entityType, entityId, action, field, oldV, newV, reason){
   store.audit.push({ id:uuid(), entityType, entityId, action, field:field??null,
     oldValue:oldV===undefined?null:oldV, newValue:newV===undefined?null:newV,
     reason:reason||null, actor:actor().name, role:actor().role, at:new Date().toISOString() });
   save();
 }
-const currentDeal = () => store.deals.find(d=>d.id===store.currentDealId) || store.deals[0];
+const currentDeal  = () => store.deals.find(d=>d.id===store.currentDealId) || store.deals[0];
+const tradesOf     = dealId => store.trades.filter(t=>t.dealId===dealId);
+const currentTrade = () => { const d=currentDeal(); const ts=tradesOf(d.id);
+  return ts.find(t=>t.id===store.currentTradeId) || ts[0] || null; };
+const clientList = () => (store.clients && store.clients.list) || [];
+const findClient = id => clientList().find(c=>String(c.id)===String(id)) || null;
+function clientLabel(deal){
+  if(!deal) return 'Client';
+  return (deal.clientName && deal.clientName.trim()) || (findClient(deal.clientId)||{}).name || 'Client';
+}
+const curvesFor = ccy => { const code=idxFor(ccy).index;
+  if(!store.curves[code]) store.curves[code]=defaultCurves()[code]; return store.curves[code]; };
+const curveLoaded = c => !!c && c.pillars.length>0 && c.pillars.every(p=>String(p.rate)!=='' && Number(p.rate)>0);
 
 /* ---------------------------- pricing pipeline ---------------------------- */
-function quoteFrom(curve, tenorDays){
+function quoteFrom(curve, tenorDays, ccy){
   const r=interpolate(curve.pillars, tenorDays);
-  return { curveCode:curve.curveCode, businessDate:curve.businessDate, source:curve.source,
+  return { curveCode:curve.curveCode, currency:ccy, indexName:idxFor(ccy).name,
+    businessDate:curve.businessDate, source:curve.source,
     tenorDays:Number(tenorDays), rate:r.rate.toFixed(12), method:r.method,
     pillars:curve.pillars.map(p=>({...p})), quotedAt:new Date().toISOString() };
 }
-function liveQuotes(deal){
-  const t=Number(deal.inputs.bladexDays);
+function liveQuotes(deal, trade){
+  const t=Number(trade.inputs.bladexDays);
   if(!(t>=1)) return null;
-  return { live:quoteFrom(store.curves.live,t),
-           pf: deal.inputs.pfEnabled===false ? null : quoteFrom(store.curves.pf,t) };
+  const cv=curvesFor(deal.currency);
+  if(!curveLoaded(cv.live)) return null;
+  const pfOn=trade.inputs.pfEnabled!==false;
+  return { live:quoteFrom(cv.live,t,deal.currency),
+           pf: (pfOn && curveLoaded(cv.pf)) ? quoteFrom(cv.pf,t,deal.currency) : null };
 }
-/** Bound snapshot when priced or later; live curve while DRAFT. */
-function effectiveQuotes(deal){ return deal.rateQuotes || liveQuotes(deal); }
+const effectiveQuotes = (deal,trade) => trade.rateQuotes || liveQuotes(deal,trade);
 
-function computeAll(deal){
-  const q=effectiveQuotes(deal);
-  const bd=businessDayCheck(isValidDate(deal.inputs.bladexSettlementDate) && Number(deal.inputs.bladexDays)>=1
-    ? dAdd(deal.inputs.bladexSettlementDate, Number(deal.inputs.bladexDays)) : null);
+function computeAll(deal, trade){
+  if(!trade) return {out:null, quotes:null, bd:businessDayCheck(null,deal.jurisdictions), errors:[], warnings:[], calcError:null};
+  const q=effectiveQuotes(deal,trade);
+  const i=effectiveInputs(deal,trade);
+  const bd=businessDayCheck(isValidDate(i.bladexSettlementDate) && Number(i.bladexDays)>=1
+    ? dAdd(i.bladexSettlementDate, Number(i.bladexDays)) : null, deal.jurisdictions);
   let out=null, calcError=null;
   if(q){
-    try{ out=price(deal.inputs, {pfRate:q.pf?q.pf.rate:null, liveRate:q.live.rate}); }
+    try{ out=price(i, {pfRate:q.pf?q.pf.rate:null, liveRate:q.live.rate}); }
     catch(e){ calcError=e.message; }
   }
-  const v=validate(deal, out, q, bd);
+  const v=validate(deal, trade, out, q, bd);
   return {out, quotes:q, bd, calcError, ...v};
 }
 
@@ -1096,78 +1207,86 @@ function computeAll(deal){
 const TRANSITIONS = { DRAFT:['PRICED','CANCELLED'], PRICED:['APPROVED','DRAFT','CANCELLED'],
   APPROVED:['ISSUED','CANCELLED'], ISSUED:['SETTLED','CANCELLED'], SETTLED:[], CANCELLED:[] };
 const LOCKED = s => ['APPROVED','ISSUED','SETTLED','CANCELLED'].includes(s);
-
-function unacknowledged(deal, warnings){ return warnings.filter(w=>!deal.acks[w.rule]); }
+/** Deal config is frozen once any trade on it is approved — changing it would invalidate them. */
+const dealLocked = deal => tradesOf(deal.id).some(t=>LOCKED(t.state) && t.state!=='CANCELLED');
 
 function doPrice(){
-  const d=currentDeal(), r=computeAll(d);
+  const d=currentDeal(), t=currentTrade(); if(!t) return;
+  const r=computeAll(d,t);
   if(r.calcError) return alert('Calculation error: '+r.calcError);
   if(r.errors.length) return alert('Cannot price — '+r.errors.length+' blocking validation error(s) must be cleared first.');
-  const un=unacknowledged(d, r.warnings);
+  const un=r.warnings.filter(w=>!t.acks[w.rule]);
   if(un.length){
     const reason=prompt(un.length+' warning(s) are unacknowledged:\n\n• '+un.map(w=>w.msg).join('\n• ')+
       '\n\nEnter a reason to acknowledge them and continue (Cancel to abort):');
     if(reason===null) return;
     if(!reason.trim()) return alert('A reason is required to acknowledge warnings.');
-    for(const w of un){ d.acks[w.rule]={reason:reason.trim(), by:actor().name, at:new Date().toISOString()};
-      audit('deal',d.id,'WARNING_ACKNOWLEDGED',w.rule,null,w.msg,reason.trim()); }
+    for(const w of un){ t.acks[w.rule]={reason:reason.trim(), by:actor().name, at:new Date().toISOString()};
+      audit('trade',t.id,'WARNING_ACKNOWLEDGED',w.rule,null,w.msg,reason.trim()); }
   }
-  d.rateQuotes = liveQuotes(d);
-  setState(d,'PRICED','Rate snapshot bound: live '+d.rateQuotes.live.rate+
-    (d.rateQuotes.pf ? ' / pro forma '+d.rateQuotes.pf.rate : ' (no pro forma block on this trade)'));
+  t.rateQuotes = liveQuotes(d,t);
+  setState(t,'PRICED','Rate snapshot bound: '+idxFor(d.currency).name+' live '+t.rateQuotes.live.rate+
+    (t.rateQuotes.pf ? ' / pro forma '+t.rateQuotes.pf.rate : ' (no pro forma block on this trade)'));
 }
 function doApprove(){
-  const d=currentDeal();
-  if(d.state!=='PRICED') return alert('Only a PRICED deal can be approved.');
+  const t=currentTrade(); if(!t) return;
+  if(t.state!=='PRICED') return alert('Only a PRICED trade can be approved.');
   if(actor().role!=='Approver') return alert('Four-eyes: approval requires the Approver role. Switch role in the header.');
-  if(actor().name===d.createdBy) return alert('Four-eyes: '+d.createdBy+' created this deal and cannot approve it.');
-  d.approvedBy=actor().name; d.approvedAt=new Date().toISOString();
-  setState(d,'APPROVED','Approved by '+d.approvedBy+'; inputs now immutable.');
+  if(actor().name===t.createdBy) return alert('Four-eyes: '+t.createdBy+' created this trade and cannot approve it.');
+  t.approvedBy=actor().name; t.approvedAt=new Date().toISOString();
+  setState(t,'APPROVED','Approved by '+t.approvedBy+'; inputs and deal configuration now immutable.');
 }
 function doIssue(){
-  const d=currentDeal();
-  if(d.state!=='APPROVED') return alert('Only an APPROVED deal can be issued.');
+  const d=currentDeal(), t=currentTrade(); if(!t) return;
+  if(t.state!=='APPROVED') return alert('Only an APPROVED trade can be issued.');
   if(!['Ops / Settlement','Approver'].includes(actor().role)) return alert('Issuing the Offer File requires the Ops / Settlement role.');
-  const r=computeAll(d);
-  const payload=offerPayload(d,r);
-  const canonical=JSON.stringify(payload);
-  const rec={id:uuid(), payload, documentSha256:sha256(canonical), issuedAt:new Date().toISOString(), issuedBy:actor().name};
-  d.offerFiles.push(rec);
-  audit('deal',d.id,'DOCUMENT_ISSUED','offer_file',null,rec.documentSha256,null);
-  setState(d,'ISSUED','Offer File issued, sha256 '+rec.documentSha256.slice(0,16)+'…');
+  const payload=offerPayload(d,t,computeAll(d,t));
+  const rec={id:uuid(), payload, documentSha256:sha256(JSON.stringify(payload)),
+    issuedAt:new Date().toISOString(), issuedBy:actor().name};
+  t.offerFiles.push(rec);
+  audit('trade',t.id,'DOCUMENT_ISSUED','offer_file',null,rec.documentSha256,null);
+  setState(t,'ISSUED','Offer File issued, sha256 '+rec.documentSha256.slice(0,16)+'…');
 }
 function doSettle(){
-  const d=currentDeal();
-  if(d.state!=='ISSUED') return alert('Only an ISSUED deal can be settled.');
-  const when=prompt('Actual settlement date (YYYY-MM-DD):', d.inputs.bladexSettlementDate);
+  const t=currentTrade(); if(!t) return;
+  if(t.state!=='ISSUED') return alert('Only an ISSUED trade can be settled.');
+  const when=prompt('Actual settlement date (YYYY-MM-DD):', t.inputs.bladexSettlementDate);
   if(when===null) return;
   if(!isValidDate(when)) return alert('Invalid date.');
-  d.actualSettlementDate=when;
-  const variance=dDiff(when, d.inputs.bladexSettlementDate);
-  setState(d,'SETTLED', variance===0 ? 'Settled on the planned date.' : 'Settled with a variance of '+variance+' day(s) vs the planned settlement date.');
+  t.actualSettlementDate=when;
+  const variance=dDiff(when, t.inputs.bladexSettlementDate);
+  setState(t,'SETTLED', variance===0 ? 'Settled on the planned date.' : 'Settled with a variance of '+variance+' day(s) vs the planned settlement date.');
 }
 function doCancel(){
-  const d=currentDeal();
-  if(!TRANSITIONS[d.state].includes('CANCELLED')) return alert('This deal is already terminal.');
-  const reason=prompt('Reason for cancelling (soft-delete — the deal is retained):');
+  const t=currentTrade(); if(!t) return;
+  if(!TRANSITIONS[t.state].includes('CANCELLED')) return alert('This trade is already terminal.');
+  const reason=prompt('Reason for cancelling this trade (soft-delete — it is retained):');
   if(reason===null) return;
   if(!reason.trim()) return alert('A reason is required.');
-  setState(d,'CANCELLED',reason.trim());
+  t.cancelled=true;
+  setState(t,'CANCELLED',reason.trim());
 }
-function setState(d, next, reason){
-  if(!TRANSITIONS[d.state].includes(next)) return alert('Illegal transition '+d.state+' → '+next);
-  const prev=d.state; d.state=next;
-  audit('deal',d.id,'STATE_CHANGE','state',prev,next,reason||null);
+function setState(t, next, reason){
+  if(!TRANSITIONS[t.state].includes(next)) return alert('Illegal transition '+t.state+' → '+next);
+  const prev=t.state; t.state=next;
+  audit('trade',t.id,'STATE_CHANGE','state',prev,next,reason||null);
   save(); render();
+}
+/** Editing deal config voids the rate snapshot on every PRICED trade of the deal. */
+function revertPricedTrades(deal, why){
+  for(const t of tradesOf(deal.id)){
+    if(t.state==='PRICED'){ t.rateQuotes=null; t.state='DRAFT';
+      audit('trade',t.id,'STATE_CHANGE','state','PRICED','DRAFT',why); }
+  }
 }
 
 /* ---------------------------- offer file ---------------------------- */
 const OFFER_FIELDS = [
   ['A','Relevant Obligor',        'relevantObligor',   'party.legal_name'],
-  ['B','Transaction Code',        'transactionCode',   'Cantu!B4'],
+  ['B','Transaction Code',        'transactionCode',   'Cantu!B4 (deal)'],
   ['C','Settlement Date',         'settlementDate',    'Cantu!B40'],
-  ['D','Identifier',              'identifier',        'Cantu!B5'],
-  ['E','Currency',                'currency',          'USD'],
+  ['D','Identifier',              'identifier',        'Cantu!B5 (trade)'],
+  ['E','Currency',                'currency',          'deal currency'],
   ['F','Supplier Payment',        'supplierPayment',   'Cantu!B51'],
   ['G','TradeCo Payment',         'tradeCoPayment',    'Cantu!B53'],
   ['H','Agency Fee to {client}',  'agencyFeeToCantu',  'Cantu!B52'],
@@ -1176,13 +1295,11 @@ const OFFER_FIELDS = [
   ['K','Maturity Date',           'maturityDate',      'Cantu!B42'],
   ['L','Receiving Account details','receivingAccount', 'boilerplate'],
 ];
-/** Offer File column headers with the client name substituted in. */
-const offerFields = deal => OFFER_FIELDS.map(([col,label,key,src]) =>
-  [col, label.replace(/\{client\}/g, clientLabel(deal)), key, src]);
-function offerPayload(d, r){
-  const i=d.inputs, o=r.out;
-  return { relevantObligor:i.obligor, transactionCode:i.transactionCode,
-    settlementDate:fmtShort(i.bladexSettlementDate), identifier:i.tradeIdentifier, currency:i.currency,
+const offerFields = deal => OFFER_FIELDS.map(([c,l,k,s])=>[c, l.replace(/\{client\}/g, clientLabel(deal)), k, s]);
+function offerPayload(deal, trade, r){
+  const o=r.out;
+  return { relevantObligor:trade.obligor, transactionCode:deal.code,
+    settlementDate:fmtShort(trade.inputs.bladexSettlementDate), identifier:trade.identifier, currency:deal.currency,
     supplierPayment:o?o.payToSupplier.toFixed(2):null, tradeCoPayment:o?o.payToTradeCo.toFixed(2):null,
     agencyFeeToCantu:o?o.payToCantuAgency.toFixed(2):null, totalPurchasePrice:o?o.purchasePrice.toFixed(2):null,
     maturityAmount:o?o.tcTotal.toFixed(2):null, maturityDate:o?fmtLong(o.iaaMaturityDate):null,
@@ -1196,33 +1313,36 @@ const setCalc = (id, text, bad) => { const el=$(id); if(!el) return;
   const f=el.querySelector('.f'); el.textContent=text; if(f) el.prepend(f); el.classList.toggle('bad', !!bad); };
 
 const PCT_FIELDS = new Set(['pfMargin','pfAgencyFee','tcMargin','tcAgencyFee','bladexMargin']);
-const FIELD_IDS = {clientId:'f_client', transactionCode:'f_txcode', tradeIdentifier:'f_tradeid', obligor:'f_obligor', currency:'f_currency',
+const INT_FIELDS = new Set(['supplierTenorDays','pfTenorDays','bladexDays']);
+const TRADE_FIELD_IDS = {
   supplierIssueDate:'f_supIssue', supplierTenorDays:'f_supTenor', supplierAmount:'f_supAmount',
   pfEnabled:'f_pfEnabled', pfIssueDate:'f_pfIssue', pfTenorDays:'f_pfTenor', pfMargin:'f_pfMargin', pfAgencyFee:'f_pfAgency',
   tcIssueDate:'f_tcIssue', tcMargin:'f_tcMargin', tcAgencyFee:'f_tcAgency',
   bladexSettlementDate:'f_bladexSettle', bladexDays:'f_bladexDays', bladexMargin:'f_bladexMargin', legalFees:'f_legalFees'};
+const TRADE_TOP_IDS = { identifier:'f_tradeid', obligor:'f_obligor' };
+const DEAL_FIELD_IDS = { clientId:'d_client', code:'d_code', currency:'d_currency' };
 
-function loadInputsIntoForm(d){
-  renderClientOptions();
-  for(const [field,id] of Object.entries(FIELD_IDS)){
+function loadFormFromStore(){
+  const d=currentDeal(), t=currentTrade();
+  renderClientOptions(); renderCurrencyOptions(); renderJurisdictionBox();
+  for(const [f,id] of Object.entries(DEAL_FIELD_IDS)){ const el=$(id); if(el) el.value=d[f]??''; }
+  if(!t) return;
+  for(const [f,id] of Object.entries(TRADE_TOP_IDS)){ const el=$(id); if(el) el.value=t[f]??''; }
+  for(const [f,id] of Object.entries(TRADE_FIELD_IDS)){
     const el=$(id); if(!el) continue;
-    const raw=d.inputs[field];
-    if(el.type==='checkbox') el.checked = raw !== false;
-    else el.value = PCT_FIELDS.has(field) ? D.of(raw||0).mul(100).toFixed(5) : (raw ?? '');
+    const raw=t.inputs[f];
+    if(el.type==='checkbox') el.checked = raw!==false;
+    else el.value = PCT_FIELDS.has(f) ? D.of(raw||0).mul(100).toFixed(5) : (raw ?? '');
   }
 }
 function readField(field, el){
   if(el.type==='checkbox') return el.checked;
   if(PCT_FIELDS.has(field)) return D.of(el.value||0).div(100).toFixed(12);
-  if(['supplierTenorDays','pfTenorDays','bladexDays'].includes(field)) return Number(el.value||0);
+  if(INT_FIELDS.has(field)) return Number(el.value||0);
   return el.value;
 }
-
-/** Populate the client dropdown, grouped by pipeline status. */
 function renderClientOptions(){
-  const sel=$('f_client'); if(!sel) return;
-  const keep=sel.value;
-  const list=clientList();
+  const sel=$('d_client'); const keep=sel.value; const list=clientList();
   const groups=[['Active',c=>ACTIVE_STATUSES.includes(c.status)],
                 ['Prospect',c=>c.status==='Prospect'],
                 ['Lost / inactive',c=>!ACTIVE_STATUSES.includes(c.status)&&c.status!=='Prospect']];
@@ -1233,187 +1353,251 @@ function renderClientOptions(){
     html+='<optgroup label="'+esc(label)+' ('+rows.length+')">'+
       rows.map(c=>'<option value="'+esc(c.id)+'">'+esc(c.name)+(c.country?' · '+esc(c.country):'')+'</option>').join('')+'</optgroup>';
   }
-  sel.innerHTML=html;
+  sel.innerHTML=html; sel.value=keep;
+}
+function renderCurrencyOptions(){
+  const sel=$('d_currency'); const keep=sel.value;
+  sel.innerHTML=CURRENCIES.map(c=>'<option value="'+c+'">'+c+' — '+esc(idxFor(c).name)+'</option>').join('');
   sel.value=keep;
 }
-
-/** Rewrite every client-named label from its {client} template. */
+function renderJurisdictionBox(){
+  const d=currentDeal(), locked=dealLocked(d);
+  $('jurisdictionBox').innerHTML = ALL_JURISDICTIONS.map(code=>{
+    const c=CALENDARS[code], on=(d.jurisdictions||[]).includes(code);
+    return '<label title="'+esc(c.name)+' · coverage to '+fmtShort(c.coverageThrough)+'">'+
+      '<input type="checkbox" data-jur="'+code+'"'+(on?' checked':'')+(locked?' disabled':'')+'>'+
+      esc(c.name)+' <span class="tiny">('+code+')</span></label>';
+  }).join('');
+}
 function applyClientNaming(name){
   for(const el of document.querySelectorAll('[data-tpl]')) el.textContent = el.dataset.tpl.replace(/\{client\}/g, name);
   $('brandTitle').textContent = name+' Purchase/Sale Facility — Pricing Model';
   document.title = name+' Pricing Model';
 }
 
-function render(){
+/** opts.keepCurveBoxes leaves the curve pillar inputs in place so an in-progress
+ *  edit does not lose focus when the model updates on every keystroke. */
+function render(opts){
   const d=currentDeal(); if(!d) return;
-  const r=computeAll(d);
+  const t=currentTrade();
+  const r=computeAll(d,t);
   applyClientNaming(clientLabel(d));
-  renderHeader(d,r); renderPricing(d,r); renderRates(); renderClients(); renderOffer(d,r);
+  renderPickers(d,t); renderHeader(d,t,r); renderPricing(d,t,r);
+  renderRates(opts && opts.keepCurveBoxes); renderClients(); renderOffer(d,t,r);
   renderDeals(); renderAudit(); renderAbout();
   save();
 }
 
-function renderHeader(d,r){
-  $('stateBadge').textContent=d.state;
-  $('stateBadge').className='badge '+d.state;
-  $('dealCaption').textContent = (d.inputs.transactionCode||'(untitled)')+' · v'+d.versionNo+
-    ' · created by '+d.createdBy+(d.approvedBy?' · approved by '+d.approvedBy:'');
-  const locked=LOCKED(d.state), pfOff=d.inputs.pfEnabled===false;
-  const PF_INPUTS=['f_pfIssue','f_pfTenor','f_pfMargin','f_pfAgency'];
-  for(const id of Object.values(FIELD_IDS)){ const el=$(id); if(!el) continue;
-    el.disabled = locked || (pfOff && PF_INPUTS.includes(id)); }
-  $('btnPrice').disabled = !TRANSITIONS[d.state].includes('PRICED');
-  $('btnApprove').disabled = d.state!=='PRICED';
-  $('btnIssue').disabled = d.state!=='APPROVED';
-  $('btnSettle').disabled = d.state!=='ISSUED';
-  $('btnCancel').disabled = !TRANSITIONS[d.state].includes('CANCELLED');
-  $('btnVersion').disabled = !LOCKED(d.state);
-  // tab pills
-  const errPill = r.errors.length ? '<span class="pill err">'+r.errors.length+'</span>' : '';
-  const warnPill = r.warnings.length ? '<span class="pill warn">'+r.warnings.length+'</span>' : '';
-  const btn=document.querySelector('#tabs button[data-view="pricing"]');
-  btn.innerHTML='Pricing'+errPill+warnPill;
+function renderPickers(d,t){
+  const dp=$('dealPicker');
+  dp.innerHTML=store.deals.map(x=>'<option value="'+x.id+'">'+esc(x.code||'(untitled)')+' — '+esc(clientLabel(x))+
+    ' ('+tradesOf(x.id).length+' trade'+(tradesOf(x.id).length===1?'':'s')+')</option>').join('');
+  dp.value=d.id;
+  const tp=$('tradePicker'); const ts=tradesOf(d.id);
+  tp.innerHTML = ts.length ? ts.map(x=>'<option value="'+x.id+'">'+esc(x.identifier||'(untitled)')+
+    ' · v'+x.versionNo+' · '+x.state+'</option>').join('') : '<option value="">No trades</option>';
+  if(t) tp.value=t.id;
 }
 
-function renderPricing(d,r){
-  const o=r.out, cur=d.inputs.currency, pfOn=d.inputs.pfEnabled!==false;
-  const c=findClient(d.inputs.clientId);
+function renderHeader(d,t,r){
+  $('stateBadge').textContent = t ? t.state : '—';
+  $('stateBadge').className = 'badge '+(t?t.state:'DRAFT');
+  $('dealCaption').textContent = (d.code||'(untitled deal)')+' · '+d.currency+' · '+
+    (t ? 'trade '+(t.identifier||'(untitled)')+' v'+t.versionNo+' · created by '+t.createdBy : 'no trades yet');
+  const dLocked=dealLocked(d);
+  for(const id of Object.values(DEAL_FIELD_IDS)){ const el=$(id); if(el) el.disabled=dLocked; }
+  $('dealScopeNote').textContent = dLocked
+    ? '— locked: a trade on this deal is approved or later'
+    : '— applies to all '+tradesOf(d.id).length+' trade(s) on this deal';
+  const tLocked = !t || LOCKED(t.state), pfOff = t && t.inputs.pfEnabled===false;
+  const PF_INPUTS=['f_pfIssue','f_pfTenor','f_pfMargin','f_pfAgency'];
+  for(const id of [...Object.values(TRADE_FIELD_IDS), ...Object.values(TRADE_TOP_IDS)]){
+    const el=$(id); if(!el) continue;
+    el.disabled = tLocked || (pfOff && PF_INPUTS.includes(id));
+  }
+  $('btnPrice').disabled   = !t || !TRANSITIONS[t.state].includes('PRICED');
+  $('btnApprove').disabled = !t || t.state!=='PRICED';
+  $('btnIssue').disabled   = !t || t.state!=='APPROVED';
+  $('btnSettle').disabled  = !t || t.state!=='ISSUED';
+  $('btnCancel').disabled  = !t || !TRANSITIONS[t.state].includes('CANCELLED');
+  $('btnVersion').disabled = !t || !LOCKED(t.state);
+  $('btnDupTrade').disabled = !t;
+  const errPill = r.errors.length ? '<span class="pill err">'+r.errors.length+'</span>' : '';
+  const warnPill = r.warnings.length ? '<span class="pill warn">'+r.warnings.length+'</span>' : '';
+  document.querySelector('#tabs button[data-view="pricing"]').innerHTML='Pricing'+errPill+warnPill;
+}
+
+function renderPricing(d,t,r){
+  const o=r.out, ccy=d.currency, ix=idxFor(ccy), pfOn = t ? t.inputs.pfEnabled!==false : true;
+  const c=findClient(d.clientId);
   $('clientNote').textContent = c
     ? [c.country, c.region, c.status+' in pipeline', c.deals+' deal'+(c.deals===1?'':'s')].filter(Boolean).join(' · ')
     : 'From the monday.com Global Pipeline. Drives every client-named label in this model.';
+  $('ccyNote').textContent = 'Base rate '+ix.name+' · day count ACT/'+ix.basis+
+    (ix.basis!==360 ? ' — the workbook hardcodes /360; this trade uses /'+ix.basis+'.' : '');
+  const basisNote='÷ '+ix.basis+' (ACT/'+ix.basis+', '+ix.name+')';
+  $('pfFactorNote').textContent=basisNote; $('tcFactorNote').textContent=basisNote; $('iaaFactorNote').textContent=basisNote;
+  $('supAmountWrap').dataset.suffix = ix.symbol.trim() || ccy;
+  $('legalWrap').dataset.suffix = ix.symbol.trim() || ccy;
+  $('supAmountNote').textContent = 'Amount in '+ccy+' from the Supplier Invoice';
   $('card_pf').classList.toggle('off', !pfOn);
   $('pfDisabledNote').style.display = pfOn ? 'none' : '';
+  renderJurisdictionBox();
+
   const banners=[];
+  if(!t) banners.push(['warn','<b>No trades on this deal.</b> Use <em>New trade</em> to add one.']);
   if(r.calcError) banners.push(['err','<b>Calculation error.</b> '+esc(r.calcError)]);
-  if(d.state==='DRAFT') banners.push(['info','<b>Indicative.</b> This deal is a DRAFT priced off the live curve — no rate snapshot is bound yet.']);
-  if(d.rateQuotes) banners.push(['ok','<b>Rate snapshot bound.</b> Live '+pct(D.of(d.rateQuotes.live.rate))+
-    (d.rateQuotes.pf ? ' · Pro forma '+pct(D.of(d.rateQuotes.pf.rate)) : '')+
-    ' · quoted '+new Date(d.rateQuotes.live.quotedAt).toLocaleString()+'. Re-pricing this deal will always reproduce these numbers.']);
-  if(r.quotes){
+  if(t && t.state==='DRAFT') banners.push(['info','<b>Indicative.</b> This trade is a DRAFT priced off the live curve — no rate snapshot is bound yet.']);
+  if(t && t.rateQuotes) banners.push(['ok','<b>Rate snapshot bound.</b> '+esc(ix.name)+' live '+pct(D.of(t.rateQuotes.live.rate))+
+    (t.rateQuotes.pf ? ' · pro forma '+pct(D.of(t.rateQuotes.pf.rate)) : '')+
+    ' · quoted '+new Date(t.rateQuotes.live.quotedAt).toLocaleString()+'. Re-pricing this trade will always reproduce these numbers.']);
+  if(r.quotes && t && !t.rateQuotes){
     const age=dDiff(todayISO(), r.quotes.live.businessDate);
-    if(age>1 && !d.rateQuotes) banners.push(['warn','<b>Stale rates.</b> The live curve business date is '+fmtShort(r.quotes.live.businessDate)+' ('+age+' days old).']);
+    if(age>1) banners.push(['warn','<b>Stale rates.</b> The live '+esc(ix.name)+' curve business date is '+fmtShort(r.quotes.live.businessDate)+' ('+age+' days old).']);
   }
-  if(LOCKED(d.state) && d.state!=='CANCELLED') banners.push(['info','<b>Inputs locked.</b> This deal is '+d.state+'. Use <em>New version</em> to change anything.']);
-  if(d.state==='CANCELLED') banners.push(['err','<b>Cancelled.</b> Retained for audit; no further transitions.']);
-  if(d.actualSettlementDate){
-    const v=dDiff(d.actualSettlementDate, d.inputs.bladexSettlementDate);
-    banners.push([v===0?'ok':'warn','<b>Settled '+fmtShort(d.actualSettlementDate)+'.</b> '+(v===0?'On the planned date.':'Variance of '+v+' day(s) vs plan.')]);
+  if(t && LOCKED(t.state) && t.state!=='CANCELLED') banners.push(['info','<b>Inputs locked.</b> This trade is '+t.state+'. Use <em>New version</em> to change anything.']);
+  if(t && t.state==='CANCELLED') banners.push(['err','<b>Cancelled.</b> Retained for audit; no further transitions.']);
+  if(t && t.actualSettlementDate){
+    const v=dDiff(t.actualSettlementDate, t.inputs.bladexSettlementDate);
+    banners.push([v===0?'ok':'warn','<b>Settled '+fmtShort(t.actualSettlementDate)+'.</b> '+(v===0?'On the planned date.':'Variance of '+v+' day(s) vs plan.')]);
   }
   $('topBanners').innerHTML = banners.map(([k,h])=>'<div class="banner '+k+'"><div>'+h+'</div></div>').join('');
 
+  const OUT_IDS=['o_supPay','o_pfMaturity','o_pfRate','o_pfMarkup','o_pfFactor','o_pfInv1','o_pfInv2','o_pfTotal',
+    'o_tcTenor','o_tcMaturity','o_tcRate','o_tcMarkup','o_tcFactor','o_tcInv1','o_tcInv2','o_tcTotal','o_faceValue',
+    'o_iaaMaturity','o_iaaRate','o_bladexCoF','o_iaaFactor','o_purchasePrice','o_paySupplier','o_payAgency','o_payTradeCo','o_recon'];
   if(o){
     setCalc('o_supPay', fmtShort(o.supplierPaymentDate));
     setCalc('o_pfMaturity', fmtShort(o.pfMaturityDate));
     setCalc('o_pfRate', pct(o.pfRate));
     setCalc('o_pfMarkup', pct(o.pfMarkup));
     setCalc('o_pfFactor', fac(o.pfFactor), !!o.pfFactor && o.pfFactor.gte(ONE));
-    setCalc('o_pfInv1', money(o.pfInvoice1,cur));
-    setCalc('o_pfInv2', money(o.pfInvoice2,cur));
-    setCalc('o_pfTotal', money(o.pfTotal,cur));
+    setCalc('o_pfInv1', money(o.pfInvoice1,ccy));
+    setCalc('o_pfInv2', money(o.pfInvoice2,ccy));
+    setCalc('o_pfTotal', money(o.pfTotal,ccy));
     setCalc('o_tcTenor', o.tcTenorDays+' d', o.tcTenorDays<1);
     setCalc('o_tcMaturity', fmtShort(o.tcMaturityDate));
     setCalc('o_tcRate', pct(o.liveRate));
     setCalc('o_tcMarkup', pct(o.tcMarkup));
     setCalc('o_tcFactor', fac(o.tcFactor), o.tcFactor.gte(ONE));
-    setCalc('o_tcInv1', money(o.tcInvoice1,cur));
-    setCalc('o_tcInv2', money(o.tcInvoice2,cur));
-    setCalc('o_tcTotal', money(o.tcTotal,cur));
-    setCalc('o_faceValue', money(o.faceValue,cur));
+    setCalc('o_tcInv1', money(o.tcInvoice1,ccy));
+    setCalc('o_tcInv2', money(o.tcInvoice2,ccy));
+    setCalc('o_tcTotal', money(o.tcTotal,ccy));
+    setCalc('o_faceValue', money(o.faceValue,ccy));
     setCalc('o_iaaMaturity', fmtShort(o.iaaMaturityDate));
     setCalc('o_iaaRate', pct(o.liveRate));
     setCalc('o_bladexCoF', pct(o.bladexCostOfFunds));
     setCalc('o_iaaFactor', fac(o.iaaFactor), o.iaaFactor.gte(ONE));
-    setCalc('o_purchasePrice', money(o.purchasePrice,cur), o.purchasePrice.lte(ZERO));
-    setCalc('o_paySupplier', money(o.payToSupplier,cur));
-    setCalc('o_payAgency', money(o.payToCantuAgency,cur));
-    setCalc('o_payTradeCo', money(o.payToTradeCo,cur));
+    setCalc('o_purchasePrice', money(o.purchasePrice,ccy), o.purchasePrice.lte(ZERO));
+    setCalc('o_paySupplier', money(o.payToSupplier,ccy));
+    setCalc('o_payAgency', money(o.payToCantuAgency,ccy));
+    setCalc('o_payTradeCo', money(o.payToTradeCo,ccy));
     const bad=o.reconciliation.abs().gt(D.of('0.000001'));
     setCalc('o_recon', (bad?'✗ ':'✓ ')+o.reconciliation.toFixed(10), bad);
-    const mo = n => Math.floor(n/30)+'-month Term SOFR';
-    $('o_pfRateLabel').textContent = pfOn ? mo(Number(d.inputs.pfTenorDays)||0) : 'Term SOFR (not applicable)';
-    $('o_tcRateLabel').textContent = mo(o.tcTenorDays);
-    $('o_iaaRateLabel').textContent = mo(o.tcTenorDays);
-  } else {
-    for(const id of ['o_supPay','o_pfMaturity','o_pfRate','o_pfMarkup','o_pfFactor','o_pfInv1','o_pfInv2','o_pfTotal',
-      'o_tcTenor','o_tcMaturity','o_tcRate','o_tcMarkup','o_tcFactor','o_tcInv1','o_tcInv2','o_tcTotal','o_faceValue',
-      'o_iaaMaturity','o_iaaRate','o_bladexCoF','o_iaaFactor','o_purchasePrice','o_paySupplier','o_payAgency','o_payTradeCo','o_recon'])
-      setCalc(id,'—');
-  }
+  } else { for(const id of OUT_IDS) setCalc(id,'—'); }
+
+  // Rate labels track the currency's index even when no curve is loaded and o is null.
+  const mo = n => Math.floor(n/30)+'-month '+ix.name;
+  const tcTenor = o ? o.tcTenorDays : (t ? Number(t.inputs.bladexDays)||0 : 0);
+  $('o_pfRateLabel').textContent = pfOn ? mo(t?Number(t.inputs.pfTenorDays)||0:0) : ix.name+' (not applicable)';
+  $('o_tcRateLabel').textContent = mo(tcTenor);
+  $('o_iaaRateLabel').textContent = mo(tcTenor);
 
   const tag=$('o_bdCheck');
   tag.textContent = r.bd.verdict;
   tag.className = 'inline-tag '+(r.bd.verdict==='OK'?'ok':'err');
 
-  // validation panel
-  const ackd = (rule) => d.acks[rule];
-  const items = [
-    ...r.errors.map(e=>({...e,kind:'err'})),
-    ...r.warnings.map(w=>({...w,kind:'warn'})),
-  ];
+  const items=[...r.errors.map(e=>({...e,kind:'err'})), ...r.warnings.map(w=>({...w,kind:'warn'}))];
   $('validationBox').innerHTML = items.length===0
     ? '<div class="banner ok" style="margin:6px 0 0"><div>All checks pass.</div></div>'
     : '<ul class="vlist">'+items.map(it=>{
-        const a=it.kind==='warn'?ackd(it.rule):null;
+        const a = it.kind==='warn' && t ? t.acks[it.rule] : null;
         return '<li><span class="dot '+it.kind+'"></span><span class="txt">'+esc(it.msg)+
           '<span class="rule">'+esc(it.rule)+'</span>'+
           (a?'<span class="ack">acknowledged by '+esc(a.by)+' — '+esc(a.reason)+'</span>':'')+'</span></li>';
       }).join('')+'</ul>';
 
-  // quote panel
-  $('quoteBox').innerHTML = !r.quotes ? '<p class="tiny">Enter Bladex Days to quote a rate.</p>' :
+  $('quoteBox').innerHTML = !r.quotes ? '<p class="tiny">No curve quoted — check the currency’s curve and Bladex Days.</p>' :
     ['live','pf'].filter(k=>r.quotes[k]).map(k=>{
       const q=r.quotes[k];
       return '<div style="padding:6px 0;border-bottom:1px dashed var(--line)">'+
         '<div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline">'+
-        '<b>'+esc(q.curveCode)+'</b><span class="num">'+pct(D.of(q.rate))+'</span></div>'+
+        '<b>'+esc(q.curveCode)+'</b><span>'+pct(D.of(q.rate))+'</span></div>'+
         '<div class="tiny">'+q.tenorDays+'d · <span class="inline-tag '+(q.method==='LINEAR_EXTRAP'?'warn':'')+'">'+q.method+'</span> · '+
-        fmtShort(q.businessDate)+' · '+esc(q.source)+(d.rateQuotes?' · <b>frozen</b>':' · live')+'</div></div>';
+        fmtShort(q.businessDate)+' · '+esc(q.source)+(t&&t.rateQuotes?' · <b>frozen</b>':' · live')+'</div></div>';
     }).join('');
 
-  // business-day panel
-  $('bdBox').innerHTML = '<p class="tiny" style="margin:4px 0 8px">Maturity date '+
-    (o?fmtShort(o.iaaMaturityDate):'—')+' (B42)</p><table>'+
-    r.bd.rows.map(x=>'<tr><td>'+esc(x.name)+'</td><td class="n"><span class="inline-tag '+
-      (x.status==='OK'?'ok':x.status==='BEYOND_COVERAGE'?'err':'err')+'">'+esc(x.label)+'</span></td>'+
-      '<td class="n tiny">'+(x.coverageThrough?'to '+fmtShort(x.coverageThrough):'')+'</td></tr>').join('')+'</table>';
+  $('bdBox').innerHTML = '<p class="tiny" style="margin:4px 0 8px">Maturity date '+(o?fmtShort(o.iaaMaturityDate):'—')+' (B42)</p>'+
+    (r.bd.rows.length ? '<table>'+r.bd.rows.map(x=>'<tr><td>'+esc(x.name)+'</td><td class="n"><span class="inline-tag '+
+      (x.status==='OK'?'ok':'err')+'">'+esc(x.label)+'</span></td>'+
+      '<td class="n tiny">'+(x.coverageThrough?'to '+fmtShort(x.coverageThrough):'')+'</td></tr>').join('')+'</table>'
+     : '<p class="tiny">No jurisdictions selected on this deal.</p>');
 
-  // summary
   $('summaryBox').innerHTML='<table>'+[
-    ['Face value (B39)', o?money(o.faceValue,cur):'—'],
-    ['Purchase price (B47)', o?money(o.purchasePrice,cur):'—'],
-    ['Discount', o?money(o.faceValue.sub(o.purchasePrice),cur):'—'],
-    ['Gross yield to Bladex', o?pct(o.iaaFactor.div(ONE.sub(o.iaaFactor)).mul(D.of(360)).div(D.of(o.tcDays||1)),4):'—'],
-    ['TradeCo net fee (B53)', o?money(o.payToTradeCo,cur):'—'],
-    [esc(clientLabel(d))+' agency fee (B52)', o?money(o.payToCantuAgency,cur):'—'],
+    ['Face value (B39)', o?money(o.faceValue,ccy):'—'],
+    ['Purchase price (B47)', o?money(o.purchasePrice,ccy):'—'],
+    ['Discount', o?money(o.faceValue.sub(o.purchasePrice),ccy):'—'],
+    ['Gross yield to Bladex', o?pct(o.iaaFactor.div(ONE.sub(o.iaaFactor)).mul(D.of(ix.basis)).div(D.of(o.tcDays||1)),4):'—'],
+    ['TradeCo net fee (B53)', o?money(o.payToTradeCo,ccy):'—'],
+    [esc(clientLabel(d))+' agency fee (B52)', o?money(o.payToCantuAgency,ccy):'—'],
     ['Tenor', o?o.tcDays+' days':'—'],
+    ['Day count', 'ACT/'+ix.basis],
   ].map(([k,v])=>'<tr><td>'+k+'</td><td class="n">'+v+'</td></tr>').join('')+'</table>';
 }
 
-function renderRates(){
+/** Explicit index chosen on the Reference data tab. Null means "follow the current deal". */
+let curveChoice = null;
+function renderRates(keepCurveBoxes){
   const admin = actor().role==='Rates Admin';
+  const picker=$('curvePicker');
+  const codes=[...new Set(CURRENCIES.map(c=>idxFor(c).index))];
+  if(picker.options.length!==codes.length)
+    picker.innerHTML=codes.map(code=>{
+      const ccys=CURRENCIES.filter(c=>idxFor(c).index===code);
+      return '<option value="'+code+'">'+esc(idxFor(ccys[0]).name)+' — '+ccys.join('/')+'</option>';
+    }).join('');
+  const code = (curveChoice && store.curves[curveChoice]) ? curveChoice : idxFor(currentDeal().currency).index;
+  picker.value=code;
+  const pair=store.curves[code] || (store.curves[code]=defaultCurves()[code]);
+  const ccy=CURRENCIES.find(c=>idxFor(c).index===code)||'USD';
+  $('curveMeta').textContent='Day count ACT/'+idxFor(ccy).basis+' · '+
+    (curveLoaded(pair.live)?'live curve loaded':'LIVE CURVE NOT LOADED')+' · '+
+    (curveLoaded(pair.pf)?'pro forma loaded':'pro forma not loaded');
+
   for(const [key,boxId] of [['live','curveLiveBox'],['pf','curvePfBox']]){
-    const c=store.curves[key];
+    if(keepCurveBoxes && $(boxId).children.length) continue;
+    const c=pair[key];
     $(boxId).innerHTML =
-      '<div class="toolbar" style="margin:8px 0 10px">'+
-        '<div class="field-inline"><label>Business date</label><input type="date" data-curve="'+key+'" data-prop="businessDate" value="'+esc(c.businessDate)+'"'+(admin?'':' disabled')+'></div>'+
-        '<div class="field-inline"><label>Source</label><select data-curve="'+key+'" data-prop="source"'+(admin?'':' disabled')+'>'+
+      '<div class="toolbar" style="margin:0 0 10px">'+
+        '<div class="field-inline"><label>Business date</label><input type="date" data-curve="'+code+'" data-side="'+key+'" data-prop="businessDate" value="'+esc(c.businessDate)+'"'+(admin?'':' disabled')+'></div>'+
+        '<div class="field-inline"><label>Source</label><select data-curve="'+code+'" data-side="'+key+'" data-prop="source"'+(admin?'':' disabled')+'>'+
           ['CME_FEED','MANUAL_OVERRIDE'].map(s=>'<option'+(c.source===s?' selected':'')+'>'+s+'</option>').join('')+'</select></div>'+
       '</div>'+
+      (curveLoaded(c)?'':'<div class="banner warn" style="margin-bottom:10px"><div>Not loaded — every pillar needs a rate before a '+esc(ccy)+' trade can be priced.</div></div>')+
       '<table><thead><tr><th>Pillar</th><th class="n">Tenor (days)</th><th class="n">Rate</th></tr></thead><tbody>'+
-      c.pillars.map((p,idx)=>'<tr><td>'+(p.days/30<12?Math.round(p.days/30)+'m':Math.round(p.days/360)+'y')+'</td>'+
-        '<td class="n"><input type="number" data-curve="'+key+'" data-pillar="'+idx+'" data-prop="days" value="'+p.days+'" step="1" min="1"'+(admin?'':' disabled')+'></td>'+
-        '<td class="n suffix" data-suffix="%"><input type="number" data-curve="'+key+'" data-pillar="'+idx+'" data-prop="rate" value="'+D.of(p.rate).mul(100).toFixed(5)+'" step="0.00001"'+(admin?'':' disabled')+'></td></tr>').join('')+
+      c.pillars.map((p,idx)=>'<tr><td>'+(p.days<360?Math.round(p.days/30)+'m':Math.round(p.days/360)+'y')+'</td>'+
+        '<td class="n"><input type="number" data-curve="'+code+'" data-side="'+key+'" data-pillar="'+idx+'" data-prop="days" value="'+p.days+'" step="1" min="1"'+(admin?'':' disabled')+'></td>'+
+        '<td class="n suffix" data-suffix="%"><input type="number" data-curve="'+code+'" data-side="'+key+'" data-pillar="'+idx+'" data-prop="rate" value="'+(String(p.rate)===''?'':D.of(p.rate).mul(100).toFixed(5))+'" step="0.00001" placeholder="—"'+(admin?'':' disabled')+'></td></tr>').join('')+
       '</tbody></table>'+
       '<div class="field-inline" style="margin-top:10px"><label>Override reason</label>'+
-      '<input type="text" data-curve="'+key+'" data-prop="overrideReason" value="'+esc(c.overrideReason||'')+'" style="flex:1"'+(admin?'':' disabled')+'></div>';
+      '<input type="text" data-curve="'+code+'" data-side="'+key+'" data-prop="overrideReason" value="'+esc(c.overrideReason||'')+'" style="flex:1"'+(admin?'':' disabled')+'></div>';
   }
   $('ratesBanners').innerHTML = admin ? '' :
     '<div class="banner info"><div><b>Read-only.</b> Curves and calendars are maintained by the <b>Rates Admin</b> role. Switch role in the header to edit. Every edit is written to the audit log.</div></div>';
 
-  $('calTable').innerHTML='<thead><tr><th>Jurisdiction</th><th>Code</th><th class="n">Holidays loaded</th><th class="n">Coverage through</th><th class="n">Forward days</th><th>Source</th></tr></thead><tbody>'+
-    APPLICABLE.map(code=>{
+  $('ccyTable').innerHTML='<thead><tr><th>Currency</th><th>Base rate index</th><th class="n">Day count</th><th>Live curve</th><th>Pro forma</th><th>Note</th></tr></thead><tbody>'+
+    CURRENCIES.map(c=>{ const ix=idxFor(c), pair=curvesFor(c);
+      return '<tr><td><b>'+c+'</b></td><td>'+esc(ix.name)+' <span class="tiny mono">'+esc(ix.index)+'</span></td>'+
+        '<td class="n">ACT/'+ix.basis+'</td>'+
+        '<td><span class="inline-tag '+(curveLoaded(pair.live)?'ok':'warn')+'">'+(curveLoaded(pair.live)?'loaded':'not loaded')+'</span></td>'+
+        '<td><span class="inline-tag '+(curveLoaded(pair.pf)?'ok':'warn')+'">'+(curveLoaded(pair.pf)?'loaded':'not loaded')+'</span></td>'+
+        '<td class="tiny">'+esc(ix.conventionNote||'')+'</td></tr>';
+    }).join('')+'</tbody>';
+
+  $('calTable').innerHTML='<thead><tr><th>Jurisdiction</th><th>Code</th><th class="n">Holidays</th><th class="n">Coverage through</th><th class="n">Forward days</th><th>Source</th></tr></thead><tbody>'+
+    ALL_JURISDICTIONS.map(code=>{
       const c=CALENDARS[code], fwd=dDiff(c.coverageThrough, todayISO());
-      return '<tr><td>'+esc(c.name)+'</td><td class="mono">'+code+'</td><td class="n">'+c.days.length+'</td>'+
+      return '<tr><td>'+esc(c.name)+(c.computed?' <span class="inline-tag">computed</span>':'')+'</td><td class="mono">'+code+'</td><td class="n">'+c.days.length+'</td>'+
         '<td class="n">'+fmtShort(c.coverageThrough)+'</td>'+
         '<td class="n"><span class="inline-tag '+(fwd<180?'warn':'ok')+'">'+fwd+'</span></td>'+
         '<td><a href="'+esc(c.url)+'" target="_blank" rel="noopener" class="tiny">'+esc(c.url)+'</a></td></tr>';
@@ -1421,15 +1605,14 @@ function renderRates(){
 }
 
 function renderClients(){
-  const src=(store.clients&&store.clients.source)||{};
-  const list=clientList();
+  const src=(store.clients&&store.clients.source)||{}, list=clientList();
   const active=list.filter(c=>ACTIVE_STATUSES.includes(c.status)).length;
   $('clientSourceBox').innerHTML='<div class="banner info" style="margin-bottom:12px"><div>'+
     '<b>'+list.length+' clients</b> ('+active+' active) from <b>'+esc(src.boardName||'—')+'</b> · board '+esc(src.boardId||'—')+
-    ' · column <code>'+esc(src.clientColumnId||'—')+'</code><br>'+
-    '<span class="tiny">'+(src.syncedAt
-      ? 'Last refreshed '+new Date(src.syncedAt).toLocaleString()+' ('+esc(src.via||'')+')'
-      : 'Seeded with the list captured when this file was built — not yet refreshed from the API.')+'</span></div></div>';
+    ' · column <code>'+esc(src.clientColumnId||'—')+'</code><br><span class="tiny">'+
+    (src.syncedAt ? 'Last refreshed '+new Date(src.syncedAt).toLocaleString()+' ('+esc(src.via||'')+')'
+                  : 'Seeded with the list captured when this file was built — not yet refreshed from the API.')+
+    '</span></div></div>';
   const f=($('clientFilter').value||'').toLowerCase().trim();
   const rows=list.filter(c=>!f || c.name.toLowerCase().includes(f) || (c.country||'').toLowerCase().includes(f))
                  .sort((a,b)=>(STATUS_RANK[a.status]??9)-(STATUS_RANK[b.status]??9) || a.name.localeCompare(b.name));
@@ -1441,7 +1624,6 @@ function renderClients(){
      :'<tr><td colspan="6" class="tiny">No clients match.</td></tr>')+'</tbody>';
 }
 
-/* Pull the client list from monday.com. The token is used for this call only and never stored. */
 async function syncClientsFromMonday(){
   if(actor().role!=='Rates Admin') return alert('Refreshing reference data requires the Rates Admin role.');
   const token=prompt('monday.com API token (used for this request only, never stored):');
@@ -1468,9 +1650,8 @@ async function syncClientsFromMonday(){
       const cv=Object.fromEntries((it.column_values||[]).map(v=>[v.id,v]));
       const link=(cv[MONDAY_SOURCE.clientColumnId]||{}).linked_items||[];
       if(!link.length) continue;
-      const rec={id:String(link[0].id), name:link[0].name,
-        status:(cv.color_mkx6xtq7||{}).text||'', country:(cv.country_mkx6d0kq||{}).text||'',
-        region:(cv.text_mm25mynq||{}).text||'', deals:0};
+      const rec={id:String(link[0].id), name:link[0].name, status:(cv.color_mkx6xtq7||{}).text||'',
+        country:(cv.country_mkx6d0kq||{}).text||'', region:(cv.text_mm25mynq||{}).text||''};
       const prev=byId.get(rec.id);
       if(!prev) byId.set(rec.id,{...rec, deals:1});
       else { prev.deals++;
@@ -1491,42 +1672,59 @@ async function syncClientsFromMonday(){
   }finally{ btn.disabled=false; btn.textContent='Refresh from monday.com'; }
 }
 
-function renderOffer(d,r){
-  const payload=offerPayload(d,r);
-  const issuable = d.state==='ISSUED'||d.state==='SETTLED';
-  $('offerBanners').innerHTML = issuable
-    ? '<div class="banner ok"><div><b>Issued.</b> The record below is the immutable payload stored against this deal.</div></div>'
-    : '<div class="banner warn"><div><b>Preview only.</b> The Offer File becomes an immutable, hashed document when the deal reaches ISSUED. Current state: '+d.state+'.</div></div>';
+function renderOffer(d,t,r){
+  if(!t){ $('offerBanners').innerHTML='<div class="banner warn"><div>No trade selected.</div></div>';
+    $('offerTable').innerHTML=''; $('issuedBox').innerHTML=''; return; }
+  const payload=offerPayload(d,t,r);
+  const issued = t.state==='ISSUED'||t.state==='SETTLED';
+  $('offerBanners').innerHTML = issued
+    ? '<div class="banner ok"><div><b>Issued.</b> The record below is the immutable payload stored against this trade.</div></div>'
+    : '<div class="banner warn"><div><b>Preview only.</b> The Offer File becomes an immutable, hashed document when the trade reaches ISSUED. Current state: '+t.state+'.</div></div>';
+  const MONEY_KEYS=['supplierPayment','tradeCoPayment','agencyFeeToCantu','totalPurchasePrice','maturityAmount'];
   $('offerTable').innerHTML='<thead><tr><th>Col</th><th>Field</th><th>Value</th><th>Source</th></tr></thead><tbody>'+
     offerFields(d).map(([col,label,key,src])=>{
       let v=payload[key];
-      if(['supplierPayment','tradeCoPayment','agencyFeeToCantu','totalPurchasePrice','maturityAmount'].includes(key) && v!=null)
-        v=money(D.of(v), d.inputs.currency);
+      if(MONEY_KEYS.includes(key) && v!=null) v=money(D.of(v), d.currency);
       return '<tr><td class="mono">'+col+'</td><td>'+esc(label)+'</td><td class="n">'+esc(v??'—')+'</td><td class="mono tiny">'+esc(src)+'</td></tr>';
     }).join('')+'</tbody>';
-  $('issuedBox').innerHTML = d.offerFiles.length===0 ? '<p class="tiny">Nothing issued yet.</p>' :
+  $('issuedBox').innerHTML = t.offerFiles.length===0 ? '<p class="tiny">Nothing issued yet.</p>' :
     '<table><thead><tr><th>Issued at</th><th>By</th><th>SHA-256</th></tr></thead><tbody>'+
-    d.offerFiles.map(f=>'<tr><td>'+new Date(f.issuedAt).toLocaleString()+'</td><td>'+esc(f.issuedBy)+'</td><td class="mono tiny">'+f.documentSha256+'</td></tr>').join('')+'</tbody></table>';
+    t.offerFiles.map(f=>'<tr><td>'+new Date(f.issuedAt).toLocaleString()+'</td><td>'+esc(f.issuedBy)+'</td><td class="mono tiny">'+f.documentSha256+'</td></tr>').join('')+'</tbody></table>';
 }
 
 function renderDeals(){
-  $('dealTable').innerHTML='<thead><tr><th>Transaction Code</th><th>Identifier</th><th class="n">v</th><th>State</th>'+
-    '<th class="n">Amount</th><th class="n">Purchase price</th><th>Settlement</th><th>Created by</th><th></th></tr></thead><tbody>'+
-    store.deals.map(d=>{
-      const r=computeAll(d);
-      return '<tr class="'+(d.id===store.currentDealId?'sel':'')+'">'+
-        '<td>'+esc(d.inputs.transactionCode||'(untitled)')+'</td><td>'+esc(d.inputs.tradeIdentifier||'—')+'</td>'+
-        '<td class="n">'+d.versionNo+'</td><td><span class="badge '+d.state+'">'+d.state+'</span></td>'+
-        '<td class="n">'+money(D.of(d.inputs.supplierAmount||0), d.inputs.currency)+'</td>'+
-        '<td class="n">'+(r.out?money(r.out.purchasePrice,d.inputs.currency):'—')+'</td>'+
-        '<td>'+fmtShort(d.inputs.bladexSettlementDate)+'</td><td>'+esc(d.createdBy)+'</td>'+
-        '<td class="n"><button class="btn sm" data-open="'+d.id+'">Open</button></td></tr>';
-    }).join('')+'</tbody>';
+  let html='<thead><tr><th>Deal / trade</th><th>Client · Identifier</th><th>Ccy</th><th>State</th>'+
+    '<th class="n">Amount</th><th class="n">Purchase price</th><th>Settlement</th><th>Jurisdictions</th><th></th></tr></thead><tbody>';
+  for(const d of store.deals){
+    const ts=tradesOf(d.id);
+    html+='<tr class="dealrow'+(d.id===store.currentDealId?' sel':'')+'"><td>'+esc(d.code||'(untitled deal)')+'</td>'+
+      '<td>'+esc(clientLabel(d))+'</td><td>'+esc(d.currency)+'</td>'+
+      '<td class="tiny">'+ts.length+' trade'+(ts.length===1?'':'s')+'</td><td colspan="3"></td>'+
+      '<td class="tiny">'+(d.jurisdictions||[]).join(', ')+'</td>'+
+      '<td class="n"><button class="btn sm" data-open-deal="'+d.id+'">Open</button></td></tr>';
+    for(const t of ts){
+      const r=computeAll(d,t);
+      html+='<tr class="'+(t.id===store.currentTradeId?'sel':'')+'"><td style="padding-left:26px" class="tiny">↳ v'+t.versionNo+'</td>'+
+        '<td>'+esc(t.identifier||'(untitled)')+'</td><td class="tiny">'+esc(t.obligor||'')+'</td>'+
+        '<td><span class="badge '+t.state+'">'+t.state+'</span></td>'+
+        '<td class="n">'+money(D.of(t.inputs.supplierAmount||0), d.currency)+'</td>'+
+        '<td class="n">'+(r.out?money(r.out.purchasePrice,d.currency):'—')+'</td>'+
+        '<td>'+fmtShort(t.inputs.bladexSettlementDate)+'</td>'+
+        '<td class="tiny">'+(r.errors.length?'<span class="inline-tag err">'+r.errors.length+' error(s)</span>':'<span class="inline-tag ok">ok</span>')+'</td>'+
+        '<td class="n"><button class="btn sm" data-open-trade="'+t.id+'">Open</button></td></tr>';
+    }
+  }
+  $('dealTable').innerHTML=html+'</tbody>';
 }
 
 function renderAudit(){
-  const scope=$('auditScope').value;
-  const rows=store.audit.filter(a=>scope==='all'||a.entityId===store.currentDealId).slice().reverse();
+  const scope=$('auditScope').value, t=currentTrade(), d=currentDeal();
+  const tradeIds=new Set(tradesOf(d.id).map(x=>x.id));
+  const rows=store.audit.filter(a=>{
+    if(scope==='all') return true;
+    if(scope==='deal') return a.entityId===d.id || tradeIds.has(a.entityId);
+    return t && a.entityId===t.id;
+  }).slice().reverse();
   $('auditTable').innerHTML='<thead><tr><th>When</th><th>Actor</th><th>Role</th><th>Entity</th><th>Action</th><th>Field</th><th>From</th><th>To</th><th>Reason</th></tr></thead><tbody>'+
     (rows.length?rows.map(a=>'<tr><td class="tiny">'+new Date(a.at).toLocaleString()+'</td><td>'+esc(a.actor)+'</td><td class="tiny">'+esc(a.role)+'</td>'+
       '<td class="tiny">'+esc(a.entityType)+'</td><td class="mono tiny">'+esc(a.action)+'</td><td class="mono tiny">'+esc(a.field??'')+'</td>'+
@@ -1535,8 +1733,9 @@ function renderAudit(){
 }
 
 /* ---------------------------- parity tests ---------------------------- */
-const GOLDEN_INPUTS = { clientId:'18244750063', clientName:'Cantu Store',
-  transactionCode:'GOLDEN', tradeIdentifier:'GOLDEN', obligor:'Gripmaster', currency:'USD', pfEnabled:true,
+const SOFR_LIVE=[{days:30,rate:'0.0364338'},{days:90,rate:'0.0372777'},{days:180,rate:'0.0387550'},{days:360,rate:'0.0403325'}];
+const SOFR_PF  =[{days:30,rate:'0.0364338'},{days:90,rate:'0.0372777'},{days:180,rate:'0.0385550'},{days:360,rate:'0.0403325'}];
+const GOLDEN_INPUTS = { pfEnabled:true, currency:'USD', dayCountBasis:360,
   supplierIssueDate:'2026-06-16', supplierTenorDays:30, supplierAmount:'850000',
   pfIssueDate:'2026-06-22', pfTenorDays:180, pfMargin:'0.03', pfAgencyFee:'0.001',
   tcIssueDate:'2026-07-16', tcMargin:'0.03', tcAgencyFee:'0.001',
@@ -1545,7 +1744,7 @@ const GOLDEN_INPUTS = { clientId:'18244750063', clientName:'Cantu Store',
 function runTests(){
   const results=[];
   const T=(name,got,want,src)=>results.push({name,got:String(got),want:String(want),pass:String(got)===String(want),src});
-  const pfQ=interpolate(DEFAULT_PILLARS_PF,180), liveQ=interpolate(DEFAULT_PILLARS_LIVE,180);
+  const pfQ=interpolate(SOFR_PF,180), liveQ=interpolate(SOFR_LIVE,180);
   const o=price(GOLDEN_INPUTS,{pfRate:pfQ.rate, liveRate:liveQ.rate});
 
   T('Supplier Payment Date', o.supplierPaymentDate,'2026-07-16','Cantu!B9');
@@ -1570,55 +1769,67 @@ function runTests(){
   T('Bladex Cost of Funds', o.bladexCostOfFunds.toFixed(7),'0.0622550','Cantu!B45');
   T('IAA Factor', o.iaaFactor.toFixed(7),'0.0311275','Cantu!B46');
   T('IAA Purchase Price', o.purchasePrice.toFixed(2),'853302.69','Cantu!B47');
-  T('Payment to Cantu Supplier', o.payToSupplier.toFixed(2),'850000.00','Cantu!B51');
-  T('Payment to Cantu (Agency)', o.payToCantuAgency.toFixed(2),'440.36','Cantu!B52');
+  T('Payment to Supplier', o.payToSupplier.toFixed(2),'850000.00','Cantu!B51');
+  T('Payment to Agent (Agency)', o.payToCantuAgency.toFixed(2),'440.36','Cantu!B52');
   T('Payment to TradeCo', o.payToTradeCo.toFixed(2),'2862.33','Cantu!B53');
   T('Legs reconcile to B47', o.reconciliation.toFixed(10),'0.0000000000','B51+B52+B53−B47');
   T('Offer File maturity long form', fmtLong(o.iaaMaturityDate),'Tuesday, January 12, 2027','Offer File!K3');
+  T('BD Dates verdict (US/GB/BR/HK)', businessDayCheck('2027-01-12',DEFAULT_JURISDICTIONS).verdict,'OK','BD Dates!C15 → Cantu!C42');
 
-  // Business-day check on the golden maturity date
-  const bd=businessDayCheck('2027-01-12');
-  T('BD Dates verdict', bd.verdict,'OK',"BD Dates!C15 → Cantu!C42");
+  T('Interp 30d = 1m pillar', interpolate(SOFR_LIVE,30).rate.toFixed(7),'0.0364338',"'SOFR Interpolation'!C9");
+  T('Interp 90d = 3m pillar', interpolate(SOFR_LIVE,90).rate.toFixed(7),'0.0372777',"'SOFR Interpolation'!C9");
+  T('Interp 360d = 1y pillar', interpolate(SOFR_LIVE,360).rate.toFixed(7),'0.0403325',"'SOFR Interpolation'!C9");
+  T('Interp 60d (1m→3m)', interpolate(SOFR_LIVE,60).rate.toFixed(9),'0.036855750',"'SOFR Interpolation'!C9");
+  T('Interp 270d (6m→1y)', interpolate(SOFR_LIVE,270).rate.toFixed(9),'0.039543750',"'SOFR Interpolation'!C9");
+  T('Interp 400d extrapolates', interpolate(SOFR_LIVE,400).method,'LINEAR_EXTRAP',"'SOFR Interpolation'!C9");
 
-  // Interpolation behaviour
-  T('Interp 30d = 1m pillar', interpolate(DEFAULT_PILLARS_LIVE,30).rate.toFixed(7),'0.0364338',"'SOFR Interpolation'!C9");
-  T('Interp 90d = 3m pillar', interpolate(DEFAULT_PILLARS_LIVE,90).rate.toFixed(7),'0.0372777',"'SOFR Interpolation'!C9");
-  T('Interp 360d = 1y pillar', interpolate(DEFAULT_PILLARS_LIVE,360).rate.toFixed(7),'0.0403325',"'SOFR Interpolation'!C9");
-  T('Interp 60d (1m→3m)', interpolate(DEFAULT_PILLARS_LIVE,60).rate.toFixed(9),'0.036855750',"'SOFR Interpolation'!C9");
-  T('Interp 270d (6m→1y)', interpolate(DEFAULT_PILLARS_LIVE,270).rate.toFixed(9),'0.039543750',"'SOFR Interpolation'!C9");
-  T('Interp 400d extrapolates', interpolate(DEFAULT_PILLARS_LIVE,400).method,'LINEAR_EXTRAP',"'SOFR Interpolation'!C9");
-
-  // Decimal precision guards — where float64 would drift.
   T('Decimal 0.1+0.2', D.of('0.1').add('0.2').toFixed(20),'0.30000000000000000000','decimal invariant');
   T('Decimal round-trip /3×3', D.of('1').div(3).mul(3).toFixed(19),'1.0000000000000000000','decimal invariant');
 
-  // Zero-fee and legal-fee variants
   const o2=price({...GOLDEN_INPUTS, legalFees:'5000'},{pfRate:pfQ.rate, liveRate:liveQ.rate});
   T('Legal fees reduce supplier leg', o2.payToSupplier.toFixed(2),'845000.00','Cantu!B51');
   T('Legal fees leave price unchanged', o2.purchasePrice.toFixed(2),'853302.69','Cantu!B47');
   T('Legal fees still reconcile', o2.reconciliation.toFixed(10),'0.0000000000','B51+B52+B53−B47');
 
-  // Optional Pro Forma block: disabling it must null out panel 2 and change nothing downstream.
-  const oNoPf = price({...GOLDEN_INPUTS, pfEnabled:false}, {pfRate:null, liveRate:liveQ.rate});
-  T('Pro Forma off — no pro forma rate needed', String(oNoPf.pfRate),'null','Cantu!B16');
-  T('Pro Forma off — panel 2 total is null', String(oNoPf.pfTotal),'null','Cantu!B23');
-  T('Pro Forma off — panel 2 factor is null', String(oNoPf.pfFactor),'null','Cantu!B20');
+  // Optional Pro Forma block
+  const oNoPf=price({...GOLDEN_INPUTS, pfEnabled:false},{pfRate:null, liveRate:liveQ.rate});
+  T('Pro Forma off — no rate needed', String(oNoPf.pfRate),'null','Cantu!B16');
+  T('Pro Forma off — total is null', String(oNoPf.pfTotal),'null','Cantu!B23');
   for(const [k,cell] of [['tcFactor','Cantu!B33'],['tcTotal','Cantu!B36'],['faceValue','Cantu!B39'],
       ['iaaFactor','Cantu!B46'],['purchasePrice','Cantu!B47'],['payToSupplier','Cantu!B51'],
       ['payToCantuAgency','Cantu!B52'],['payToTradeCo','Cantu!B53']])
     T('Pro Forma off — '+k+' unchanged', oNoPf[k].toFixed(10), o[k].toFixed(10), cell);
-  T('Pro Forma off — maturity unchanged', oNoPf.iaaMaturityDate, o.iaaMaturityDate,'Cantu!B42');
   T('Pro Forma off — still reconciles', oNoPf.reconciliation.toFixed(10),'0.0000000000','B51+B52+B53−B47');
 
-  // Client list seeded from monday.com
+  // Day-count basis travels with the currency
+  T('USD basis is ACT/360', basisFor('USD'),'360','RATE_INDICES');
+  T('GBP basis is ACT/365', basisFor('GBP'),'365','RATE_INDICES');
+  T('USD index is Term SOFR', idxFor('USD').name,'Term SOFR','RATE_INDICES');
+  T('EUR index is EURIBOR', idxFor('EUR').name,'EURIBOR','RATE_INDICES');
+  T('MXN index is TIIE', idxFor('MXN').name,'TIIE','RATE_INDICES');
+  const o365=price({...GOLDEN_INPUTS, currency:'GBP', dayCountBasis:365},{pfRate:pfQ.rate, liveRate:liveQ.rate});
+  const expect365 = D.of('0.0697550').mul(D.of(180)).div(D.of(365));
+  T('ACT/365 factor uses 365', o365.tcFactor.toFixed(10), expect365.toFixed(10),'Cantu!B33 with basis');
+  T('ACT/365 differs from ACT/360', o365.tcFactor.eq(o.tcFactor),'false','basis sensitivity');
+  T('ACT/365 still reconciles', o365.reconciliation.toFixed(10),'0.0000000000','B51+B52+B53−B47');
+  T('ACT/365 supplier leg intact', o365.payToSupplier.toFixed(2),'850000.00','Cantu!B51');
+
+  // Jurisdictions are per deal
+  T('Jurisdiction subset checked', businessDayCheck('2026-12-25',['US']).verdict,'CHECK DATE!','BD Dates');
+  T('Jurisdiction excluded passes', businessDayCheck('2026-11-26',['GB']).verdict,'OK','US Thanksgiving, GB only');
+  T('Jurisdiction included fails', businessDayCheck('2026-11-26',['US','GB']).verdict,'CHECK DATE!','US Thanksgiving');
+  T('No jurisdictions is flagged', businessDayCheck('2027-01-12',[]).verdict,'NO JURISDICTIONS','DEAL.JURISDICTIONS');
+  T('TARGET2 Christmas is closed', businessDayCheck('2026-12-25',['EU']).verdict,'CHECK DATE!','TARGET2');
+  T('TARGET2 Good Friday 2027', CALENDARS.EU.set.has('2027-03-26'),'true','Easter 2027-03-28');
+
   T('Client list loaded', clientList().length>0,'true','monday.com Global Pipeline');
-  T('Client name drives labels', clientLabel({inputs:{clientName:'Acme SA'}}),'Acme SA','Offer File col H');
-  T('Client label falls back', clientLabel({inputs:{}}),'Client','—');
+  T('Client name drives labels', clientLabel({clientName:'Acme SA'}),'Acme SA','Offer File col H');
+  T('Client label falls back', clientLabel({}),'Client','—');
 
   const pass=results.filter(r=>r.pass).length;
   $('testSummary').textContent = pass+' / '+results.length+' passing'+(pass===results.length?' — full parity with the workbook.':' — INVESTIGATE.');
   $('testSummary').style.color = pass===results.length ? 'var(--ok)' : 'var(--err)';
-  $('testTable').innerHTML='<thead><tr><th></th><th>Check</th><th class="n">Computed</th><th class="n">Workbook</th><th>Source cell</th></tr></thead><tbody>'+
+  $('testTable').innerHTML='<thead><tr><th></th><th>Check</th><th class="n">Computed</th><th class="n">Expected</th><th>Source</th></tr></thead><tbody>'+
     results.map(r=>'<tr><td><span class="inline-tag '+(r.pass?'ok':'err')+'">'+(r.pass?'PASS':'FAIL')+'</span></td>'+
       '<td>'+esc(r.name)+'</td><td class="n mono">'+esc(r.got)+'</td><td class="n mono">'+esc(r.want)+'</td>'+
       '<td class="mono tiny">'+esc(r.src)+'</td></tr>').join('')+'</tbody>';
@@ -1627,37 +1838,51 @@ function runTests(){
 function renderAbout(){
   $('aboutBox').innerHTML = `
 <p>A browser implementation of <b>Cantu Pricing Model 07222026.xlsx</b>, built to the <em>Spec – Overview</em> and
-<em>Spec – Data Model</em> tabs. It runs entirely offline from a single file; deals persist in this browser's
+<em>Spec – Data Model</em> tabs. It runs entirely offline from a single file; data persists in this browser's
 localStorage.</p>
+
+<h3 style="margin:18px 0 6px">Deal → trades</h3>
+<p>A <b>deal</b> holds what every trade shares: client, Transaction Code (<code>Cantu!B4</code>), currency and the
+associated jurisdictions. A <b>trade</b> holds its own identifier (<code>Cantu!B5</code>), obligor, invoice blocks,
+lifecycle, rate snapshot and Offer File. Deal configuration is frozen once any trade on it reaches APPROVED, since
+changing it would invalidate a signed-off price; editing it while trades are merely PRICED returns those trades to
+DRAFT and voids their snapshots.</p>
+
+<h3 style="margin:18px 0 6px">Currency and base rate</h3>
+<p>Currency is a deal-level choice and selects both the base-rate index and the day-count basis. The workbook
+hardcodes <code>/360</code>, which is correct for Term SOFR and EURIBOR but not for a 365-basis index, so the basis
+travels with the currency through all four factor formulas.</p>
+<div class="scroll"><table><thead><tr><th>Currency</th><th>Index</th><th class="n">Day count</th></tr></thead><tbody>` +
+CURRENCIES.map(c=>'<tr><td>'+c+'</td><td>'+esc(idxFor(c).name)+'</td><td class="n">ACT/'+idxFor(c).basis+'</td></tr>').join('') + `
+</tbody></table></div>
 
 <h3 style="margin:18px 0 6px">Calculation parity</h3>
 <p>The calc engine is pure — <code>price(inputs, rateQuote)</code>, no I/O, no clock reads — and uses fixed-point
-decimal arithmetic (BigInt, 20 dp) rather than floating point, as the spec requires. Rounding to 2 dp happens only
-at the presentation and document boundaries. Every one of the 26 workbook outputs reproduces exactly; run the
-<b>Parity tests</b> tab.</p>
+decimal arithmetic (BigInt, 20 dp) rather than floating point. Rounding to 2 dp happens only at the presentation and
+document boundaries. Every one of the 26 workbook outputs reproduces exactly; run the <b>Parity tests</b> tab.</p>
 
 <h3 style="margin:18px 0 6px">Cell map</h3>
 <div class="scroll"><table><thead><tr><th>Cell</th><th>Field</th><th>Formula</th></tr></thead><tbody>` +
 [['B9','Supplier Payment Date','B8 + supplier tenor (30 in the workbook)'],
  ['B15','Pro Forma Maturity','B13 + B14'],
- ['B16','Pro Forma Term SOFR',"'SOFR Interpolation Pro Forma'!C9, looked up at B41"],
+ ['B16','Pro Forma base rate','pro forma curve interpolated at B41'],
  ['B19','Pro Forma Mark-up','B17 + B16 + B18'],
- ['B20','Pro Forma Factor','B19 × (B15 − B13) / 360'],
+ ['B20','Pro Forma Factor','B19 × (B15 − B13) / basis'],
  ['B23','Pro Forma Total','B10 / (1 − B20)'],
  ['B22','Financial Cost #2','B23 − B21'],
  ['B27','TradeCo Tenor','B41 + (B40 − B26)'],
  ['B28','TradeCo Maturity','B42'],
- ['B29','TradeCo Term SOFR',"'SOFR Interpolation'!C9, looked up at B41"],
+ ['B29','TradeCo base rate','live curve interpolated at B41'],
  ['B32','TradeCo Mark-up','B30 + B29 + B31'],
- ['B33','TradeCo Factor','B32 × (B28 − B40) / 360'],
+ ['B33','TradeCo Factor','B32 × (B28 − B40) / basis'],
  ['B36','TradeCo Total','B10 / (1 − B33)'],
  ['B39','BoE Face Value','B36'],
  ['B42','Maturity Date','B40 + B41'],
  ['B45','Bladex Cost of Funds','B44 + B43'],
- ['B46','IAA Factor','B45 × (B42 − B40) / 360'],
+ ['B46','IAA Factor','B45 × (B42 − B40) / basis'],
  ['B47','IAA Purchase Price','B39 × (1 − B46)'],
- ['B51','Payment to Cantu Supplier','B39 × (1 − B33) − B49'],
- ['B52','Payment to Cantu (Agency Fee)','B39 × B31 × B41 / 360'],
+ ['B51','Payment to Supplier','B39 × (1 − B33) − B49'],
+ ['B52','Payment to Agent (Agency Fee)','B39 × B31 × B41 / basis'],
  ['B53','Payment to TradeCo','B47 − B51 − B52'],
  ['C42','Date check',"IF('BD Dates'!C15=\"No\",\"OK\",\"CHECK DATE!\")"]]
 .map(([c,f,x])=>'<tr><td class="mono">'+c+'</td><td>'+esc(f)+'</td><td class="mono tiny">'+esc(x)+'</td></tr>').join('') + `
@@ -1667,127 +1892,181 @@ at the presentation and document boundaries. Every one of the 26 workbook output
 <ul style="margin:0;padding-left:20px">
 <li><b>Calendar coverage.</b> The workbook derives coverage from <code>YEAR(MAX(B19:B52))</code>, a range that stops
 at row 52 and so understated Brazil as 2028 when the list actually runs to 25-Dec-2029. This app uses an explicit
-<code>coverage_through</code> per jurisdiction taken from the full list, and <em>hard-blocks</em> a maturity date
-beyond it rather than passing silently — as the Data Model tab requires.</li>
+<code>coverage_through</code> per jurisdiction from the full list, and <em>hard-blocks</em> a maturity date beyond it.</li>
 <li><b>Interpolation beyond the pillars.</b> <code>'SOFR Interpolation'!C9</code> contains an unreachable branch
 (<code>AND(B9&gt;B7,B9&lt;=B6)</code> — days &gt; 360 <em>and</em> ≤ 180), so any tenor under 30 days silently falls
-through to the 6m→1y line. This app brackets the tenor against the pillar set and labels the result
-EXACT_PILLAR / LINEAR_INTERP / LINEAR_EXTRAP. For every tenor at or above the shortest pillar the two agree exactly.</li>
+through to the 6m→1y line. This app brackets the tenor against the pillar set. For every tenor at or above the
+shortest pillar the two agree exactly.</li>
+<li><b>Day count follows the currency</b> rather than being hardcoded to 360.</li>
+<li><b>Jurisdictions are per deal</b> rather than the fixed ten rows of <code>BD Dates!B4:B13</code>. TARGET2 is
+computed from the Easter algorithm rather than transcribed, so it never expires.</li>
 <li><b>Supplier tenor.</b> <code>B9 = B8+30</code> hardcodes a business assumption; it is an editable field here.</li>
 <li><b>Blank identifiers.</b> The workbook prints <code>0</code> on the Offer File when Transaction Code or Trade
-Identifier are empty. Both are required before a deal can be priced.</li>
-<li><b>The client is a field, not a hardcoded name.</b> The workbook is a Cantu-only file. Here the client is picked
-from the monday.com Global Pipeline and every client-named label, the agency-fee leg and Offer File column H follow
-it. Source-cell references such as <code>Cantu!B47</code> are <em>not</em> renamed — they point at a sheet in the
-source workbook and must stay literal for traceability.</li>
-<li><b>The Pro Forma block is optional.</b> Not every trade has a TradeCo pro forma invoice, so panel 2 can be
-switched off per deal. It is a leaf in the dependency graph — panels 3 to 5 and the Offer File never read it — so
-turning it off nulls panel 2 and leaves B27:B53 bit-for-bit identical. The parity tests assert exactly that.</li>
+Identifier are empty. Both are required, and trade identifiers must be unique within a deal.</li>
+<li><b>The client is a field, not a hardcoded name.</b> Source-cell references such as <code>Cantu!B47</code> are
+<em>not</em> renamed — they point at a sheet in the source workbook and must stay literal for traceability.</li>
+<li><b>The Pro Forma block is optional.</b> It is a leaf in the dependency graph, so turning it off leaves
+B27:B53 bit-for-bit identical. The parity tests assert exactly that.</li>
 </ul>
 
 <h3 style="margin:18px 0 6px">Not built here</h3>
 <p>PostgreSQL persistence, OIDC SSO, the CME rate feed, the scheduled calendar-refresh job and server-side PDF
-rendering are all server-side concerns from the spec and are out of scope for a single HTML file. Their local
-stand-ins: localStorage for the deal store, a role selector for SSO claims, Rates-Admin-gated manual curve entry
-for the feed, and browser print-to-PDF plus a pure-JS SHA-256 for document hashing.</p>`;
+rendering are server-side concerns from the spec and out of scope for a single HTML file. Local stand-ins:
+localStorage for the store, a role selector for SSO claims, Rates-Admin-gated manual curve entry for the feed, and
+browser print-to-PDF plus a pure-JS SHA-256 for document hashing.</p>`;
 }
 
 /* ---------------------------- events ---------------------------- */
-document.addEventListener('input', e=>{
-  const el=e.target;
-  if(el.dataset && el.dataset.field){
-    const d=currentDeal(); if(LOCKED(d.state)) return;
-    d.inputs[el.dataset.field]=readField(el.dataset.field, el);
-    if(el.dataset.field==='clientId'){ const c=findClient(el.value); d.inputs.clientName = c ? c.name : ''; }
-    if(d.state==='PRICED'){ d.rateQuotes=null; d.state='DRAFT';
-      audit('deal',d.id,'STATE_CHANGE','state','PRICED','DRAFT','Input edited — rate snapshot voided.'); }
-    render();
+/** Write one curve-field edit into the store. Returns {prop, old, new} or null. */
+function applyCurveEdit(el){
+  if(actor().role!=='Rates Admin') return null;
+  const pair=store.curves[el.dataset.curve]; if(!pair) return null;
+  const c=pair[el.dataset.side]; if(!c) return null;
+  if(el.dataset.pillar!=null){
+    const p=c.pillars[Number(el.dataset.pillar)]; if(!p) return null;
+    const old=p[el.dataset.prop];
+    p[el.dataset.prop] = el.dataset.prop==='days' ? Number(el.value)
+      : (el.value==='' ? '' : D.of(el.value).div(100).toFixed(12));
+    return {target:c.curveCode, prop:'pillar['+el.dataset.pillar+'].'+el.dataset.prop,
+            old:String(old), val:String(p[el.dataset.prop]), reason:c.overrideReason||'manual edit'};
   }
+  const old=c[el.dataset.prop]; c[el.dataset.prop]=el.value;
+  return {target:c.curveCode, prop:el.dataset.prop, old:String(old), val:String(el.value), reason:c.overrideReason||null};
+}
+document.addEventListener('focusin', e=>{
+  const el=e.target; if(!el.dataset) return;
+  const t=currentTrade(), d=currentDeal();
+  if(el.dataset.field && t) el.dataset.prev=String(t.inputs[el.dataset.field]);
+  if(el.dataset.trade && t) el.dataset.prev=String(t[el.dataset.trade]);
+  if(el.dataset.deal) el.dataset.prev=String(d[el.dataset.deal]);
+  if(el.dataset.curve && el.dataset.prevCurve===undefined){
+    const pair=store.curves[el.dataset.curve], c=pair && pair[el.dataset.side];
+    if(c) el.dataset.prevCurve = String(el.dataset.pillar!=null
+      ? c.pillars[Number(el.dataset.pillar)][el.dataset.prop] : c[el.dataset.prop]);
+  }
+});
+document.addEventListener('input', e=>{
+  const el=e.target; if(!el.dataset) return;
+  const d=currentDeal(), t=currentTrade();
+
+  if(el.dataset.deal){
+    if(dealLocked(d)) return;
+    const f=el.dataset.deal;
+    d[f]=el.value;
+    if(f==='clientId'){ const c=findClient(el.value); d.clientName=c?c.name:''; }
+    if(f==='currency') curveChoice=null;   // the curve tab follows the deal again
+    revertPricedTrades(d, 'Deal configuration edited ('+f+') — rate snapshot voided.');
+    render(); return;
+  }
+  if(el.dataset.trade && t){
+    if(LOCKED(t.state)) return;
+    t[el.dataset.trade]=el.value;
+    if(t.state==='PRICED'){ t.rateQuotes=null; t.state='DRAFT';
+      audit('trade',t.id,'STATE_CHANGE','state','PRICED','DRAFT','Input edited — rate snapshot voided.'); }
+    render(); return;
+  }
+  if(el.dataset.field && t){
+    if(LOCKED(t.state)) return;
+    t.inputs[el.dataset.field]=readField(el.dataset.field, el);
+    if(t.state==='PRICED'){ t.rateQuotes=null; t.state='DRAFT';
+      audit('trade',t.id,'STATE_CHANGE','state','PRICED','DRAFT','Input edited — rate snapshot voided.'); }
+    render(); return;
+  }
+  if(el.dataset.curve){ if(applyCurveEdit(el)) render({keepCurveBoxes:true}); }
 });
 document.addEventListener('change', e=>{
-  const el=e.target;
-  if(el.dataset && el.dataset.field){
-    const d=currentDeal();
-    audit('deal',d.id,'UPDATE',el.dataset.field, el.dataset.prev??null, String(d.inputs[el.dataset.field]));
-  }
-  if(el.dataset && el.dataset.curve){
-    if(actor().role!=='Rates Admin'){ render(); return; }
-    const c=store.curves[el.dataset.curve];
-    if(el.dataset.pillar!=null){
-      const p=c.pillars[Number(el.dataset.pillar)];
-      const old=p[el.dataset.prop];
-      p[el.dataset.prop] = el.dataset.prop==='days' ? Number(el.value) : D.of(el.value||0).div(100).toFixed(12);
-      audit('rate_curve',c.curveCode,'RATE_OVERRIDE','pillar['+el.dataset.pillar+'].'+el.dataset.prop,
-        String(old), String(p[el.dataset.prop]), c.overrideReason||'manual edit');
-    } else {
-      const old=c[el.dataset.prop]; c[el.dataset.prop]=el.value;
-      audit('rate_curve',c.curveCode,'UPDATE',el.dataset.prop,String(old),String(el.value), c.overrideReason||null);
-    }
+  const el=e.target; if(!el.dataset) return;
+  const d=currentDeal(), t=currentTrade();
+  if(el.dataset.deal) audit('deal',d.id,'UPDATE',el.dataset.deal, el.dataset.prev??null, String(d[el.dataset.deal]));
+  if(el.dataset.trade && t) audit('trade',t.id,'UPDATE',el.dataset.trade, el.dataset.prev??null, String(t[el.dataset.trade]));
+  if(el.dataset.field && t) audit('trade',t.id,'UPDATE',el.dataset.field, el.dataset.prev??null, String(t.inputs[el.dataset.field]));
+
+  if(el.dataset.jur){
+    if(dealLocked(d)){ renderJurisdictionBox(); return; }
+    const code=el.dataset.jur, cur=new Set(d.jurisdictions||[]);
+    const before=[...cur].join(',');
+    el.checked ? cur.add(code) : cur.delete(code);
+    d.jurisdictions=ALL_JURISDICTIONS.filter(c=>cur.has(c));
+    audit('deal',d.id,'UPDATE','jurisdictions',before,d.jurisdictions.join(','));
+    revertPricedTrades(d,'Jurisdictions changed — rate snapshot voided.');
     render();
   }
+  if(el.dataset.curve){
+    // The input handler already wrote the value; record the audit event on commit.
+    const prevVal = el.dataset.prevCurve;
+    const r=applyCurveEdit(el);
+    if(!r){ render(); return; }
+    const from = prevVal!==undefined ? prevVal : r.old;
+    if(from!==r.val)
+      audit('rate_curve', r.target, el.dataset.pillar!=null?'RATE_OVERRIDE':'UPDATE', r.prop, from, r.val, r.reason);
+    delete el.dataset.prevCurve;
+    render({keepCurveBoxes:true});
+  }
+  if(el.id==='curvePicker'){ curveChoice=el.value; renderRates(); }
   if(el.id==='auditScope') renderAudit();
-  if(el.id==='actorRole'){ render(); }
+  if(el.id==='actorRole') render();
 });
-$('clientFilter').addEventListener('input', renderClients);
-$('clientTable').addEventListener('click', e=>{
-  const b=e.target.closest('button[data-pick-client]'); if(!b) return;
-  const d=currentDeal();
-  if(LOCKED(d.state)) return alert('Inputs are locked — this deal is '+d.state+'.');
-  const c=findClient(b.dataset.pickClient); if(!c) return;
-  const prev=d.inputs.clientName;
-  d.inputs.clientId=c.id; d.inputs.clientName=c.name;
-  audit('deal',d.id,'UPDATE','clientName',prev,c.name);
-  if(d.state==='PRICED'){ d.rateQuotes=null; d.state='DRAFT';
-    audit('deal',d.id,'STATE_CHANGE','state','PRICED','DRAFT','Input edited — rate snapshot voided.'); }
-  loadInputsIntoForm(d); render();
-  document.querySelector('#tabs button[data-view="pricing"]').click();
-});
-$('btnSyncMonday').onclick=syncClientsFromMonday;
-$('btnClientExport').onclick=()=>download('monday-clients.json', JSON.stringify(store.clients,null,2),'application/json');
-$('clientImportFile').onchange=e=>{ const f=e.target.files[0]; if(!f) return;
-  const rd=new FileReader(); rd.onload=()=>{
-    try{
-      const j=JSON.parse(rd.result);
-      const list=Array.isArray(j) ? j : (j.list||[]);
-      if(!list.length || !list[0].name) throw new Error('Expected an array of {id,name,status,country,region} objects');
-      const before=clientList().length;
-      store.clients={source:{...MONDAY_SOURCE, ...(j.source||{}), syncedAt:new Date().toISOString(), via:'JSON import'},
-        list:list.map(c=>({id:String(c.id??c.name), name:c.name, status:c.status||'', country:c.country||'', region:c.region||'', deals:c.deals??0}))};
-      audit('client_list',MONDAY_SOURCE.boardId,'UPDATE','clients',before+' clients',list.length+' clients','Imported from JSON');
-      renderClientOptions(); render();
-      alert('Imported '+list.length+' clients.');
-    }catch(err){ alert('Import failed: '+err.message); }
-    finally{ e.target.value=''; } };
-  rd.readAsText(f); };
-document.addEventListener('focusin', e=>{
-  if(e.target.dataset && e.target.dataset.field) e.target.dataset.prev = String(currentDeal().inputs[e.target.dataset.field]);
-});
+
+$('dealPicker').onchange=e=>{ store.currentDealId=e.target.value;
+  const ts=tradesOf(store.currentDealId); store.currentTradeId=ts.length?ts[0].id:null;
+  loadFormFromStore(); render(); };
+$('tradePicker').onchange=e=>{ store.currentTradeId=e.target.value; loadFormFromStore(); render(); };
+
 document.getElementById('tabs').addEventListener('click', e=>{
   const b=e.target.closest('button[data-view]'); if(!b) return;
   for(const x of document.querySelectorAll('#tabs button')) x.setAttribute('aria-selected', String(x===b));
   for(const v of document.querySelectorAll('.view')) v.classList.toggle('active', v.id==='view-'+b.dataset.view);
   if(b.dataset.view==='tests') runTests();
 });
-document.getElementById('dealTable').addEventListener('click', e=>{
-  const b=e.target.closest('button[data-open]'); if(!b) return;
-  store.currentDealId=b.dataset.open;
-  loadInputsIntoForm(currentDeal()); render();
+$('dealTable').addEventListener('click', e=>{
+  const bd=e.target.closest('button[data-open-deal]'), bt=e.target.closest('button[data-open-trade]');
+  if(bd){ store.currentDealId=bd.dataset.openDeal;
+    const ts=tradesOf(store.currentDealId); store.currentTradeId=ts.length?ts[0].id:null; }
+  else if(bt){ const tr=store.trades.find(x=>x.id===bt.dataset.openTrade); if(!tr) return;
+    store.currentDealId=tr.dealId; store.currentTradeId=tr.id; }
+  else return;
+  loadFormFromStore(); render();
+  document.querySelector('#tabs button[data-view="pricing"]').click();
+});
+$('clientFilter').addEventListener('input', renderClients);
+$('clientTable').addEventListener('click', e=>{
+  const b=e.target.closest('button[data-pick-client]'); if(!b) return;
+  const d=currentDeal();
+  if(dealLocked(d)) return alert('Deal configuration is locked — a trade on this deal is approved or later.');
+  const c=findClient(b.dataset.pickClient); if(!c) return;
+  const prev=d.clientName;
+  d.clientId=c.id; d.clientName=c.name;
+  audit('deal',d.id,'UPDATE','clientName',prev,c.name);
+  revertPricedTrades(d,'Client changed — rate snapshot voided.');
+  loadFormFromStore(); render();
   document.querySelector('#tabs button[data-view="pricing"]').click();
 });
 
 $('btnPrice').onclick=doPrice; $('btnApprove').onclick=doApprove; $('btnIssue').onclick=doIssue;
 $('btnSettle').onclick=doSettle; $('btnCancel').onclick=doCancel;
-$('btnNew').onclick=()=>{ const d=newDeal(actor().name); store.deals.push(d); store.currentDealId=d.id;
-  audit('deal',d.id,'CREATE',null,null,'DRAFT'); loadInputsIntoForm(d); render(); };
-$('btnDuplicate').onclick=()=>{ const src=currentDeal();
-  const d={...newDeal(actor().name), inputs:{...src.inputs}};
-  d.inputs.transactionCode=src.inputs.transactionCode+' (copy)';
-  store.deals.push(d); store.currentDealId=d.id;
-  audit('deal',d.id,'CREATE',null,null,'Duplicated from '+src.inputs.transactionCode); loadInputsIntoForm(d); render(); };
-$('btnVersion').onclick=()=>{ const src=currentDeal();
-  const d={...newDeal(actor().name), inputs:{...src.inputs}, versionNo:src.versionNo+1};
-  store.deals.push(d); store.currentDealId=d.id;
-  audit('deal',d.id,'CREATE',null,null,'Version '+d.versionNo+' of '+src.inputs.transactionCode); loadInputsIntoForm(d); render(); };
+$('btnNewDeal').onclick=()=>{ const d=newDeal(actor().name); store.deals.push(d);
+  const t=newTrade(d.id, actor().name); store.trades.push(t);
+  store.currentDealId=d.id; store.currentTradeId=t.id;
+  audit('deal',d.id,'CREATE',null,null,'new deal'); audit('trade',t.id,'CREATE',null,null,'first trade');
+  loadFormFromStore(); render(); };
+$('btnNewTrade').onclick=()=>{ const d=currentDeal(); const t=newTrade(d.id, actor().name);
+  const n=tradesOf(d.id).length+1;
+  t.identifier=(d.code?d.code+'-':'')+String(n).padStart(2,'0');
+  store.trades.push(t); store.currentTradeId=t.id;
+  audit('trade',t.id,'CREATE',null,null,'Trade '+n+' on deal '+(d.code||d.id));
+  loadFormFromStore(); render(); };
+$('btnDupTrade').onclick=()=>{ const d=currentDeal(), src=currentTrade(); if(!src) return;
+  const t=newTrade(d.id, actor().name);
+  t.inputs={...src.inputs}; t.obligor=src.obligor; t.identifier=(src.identifier||'trade')+'-copy';
+  store.trades.push(t); store.currentTradeId=t.id;
+  audit('trade',t.id,'CREATE',null,null,'Duplicated from '+(src.identifier||src.id));
+  loadFormFromStore(); render(); };
+$('btnVersion').onclick=()=>{ const d=currentDeal(), src=currentTrade(); if(!src) return;
+  const t=newTrade(d.id, actor().name);
+  t.inputs={...src.inputs}; t.obligor=src.obligor; t.identifier=src.identifier; t.versionNo=src.versionNo+1;
+  store.trades.push(t); store.currentTradeId=t.id;
+  audit('trade',t.id,'CREATE',null,null,'Version '+t.versionNo+' of '+(src.identifier||src.id));
+  loadFormFromStore(); render(); };
 $('btnRunTests').onclick=runTests;
 $('themeBtn').onclick=()=>{ const cur=document.documentElement.getAttribute('data-theme');
   const next = cur==='dark' ? 'light' : cur==='light' ? '' : 'dark';
@@ -1799,31 +2078,59 @@ function download(name, text, type){
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 }
 const csvCell = v => /[",\n]/.test(String(v??'')) ? '"'+String(v).replace(/"/g,'""')+'"' : String(v??'');
-$('btnCopyRow').onclick=()=>{ const d=currentDeal(), p=offerPayload(d,computeAll(d)), F=offerFields(d);
+const slug = s => String(s||'deal').replace(/\W+/g,'-');
+$('btnCopyRow').onclick=()=>{ const d=currentDeal(), t=currentTrade(); if(!t) return;
+  const p=offerPayload(d,t,computeAll(d,t)), F=offerFields(d);
   const tsv=F.map(([,l])=>l).join('\t')+'\n'+F.map(([,,k])=>p[k]??'').join('\t');
   navigator.clipboard.writeText(tsv).then(()=>alert('Offer File row copied.'),()=>alert('Clipboard blocked — use Download CSV.')); };
-$('btnCsv').onclick=()=>{ const d=currentDeal(), p=offerPayload(d,computeAll(d)), F=offerFields(d);
-  const csv=F.map(([,l])=>csvCell(l)).join(',')+'\n'+F.map(([,,k])=>csvCell(p[k])).join(',')+'\n';
-  download('offer-file-'+(d.inputs.transactionCode||'deal').replace(/\W+/g,'-')+'.csv', csv, 'text/csv'); };
-$('btnJson').onclick=()=>{ const d=currentDeal(), r=computeAll(d), p=offerPayload(d,r);
-  download('offer-file-'+(d.inputs.transactionCode||'deal').replace(/\W+/g,'-')+'.json',
-    JSON.stringify({offerFile:p, sha256:sha256(JSON.stringify(p)), deal:{id:d.id,version:d.versionNo,state:d.state},
-      rateQuotes:d.rateQuotes||r.quotes}, null, 2), 'application/json'); };
+$('btnCsv').onclick=()=>{ const d=currentDeal(), t=currentTrade(); if(!t) return;
+  const p=offerPayload(d,t,computeAll(d,t)), F=offerFields(d);
+  download('offer-file-'+slug(t.identifier)+'.csv',
+    F.map(([,l])=>csvCell(l)).join(',')+'\n'+F.map(([,,k])=>csvCell(p[k])).join(',')+'\n','text/csv'); };
+$('btnDealCsv').onclick=()=>{ const d=currentDeal(), F=offerFields(d);
+  const rows=tradesOf(d.id).filter(t=>!t.cancelled)
+    .map(t=>F.map(([,,k])=>csvCell(offerPayload(d,t,computeAll(d,t))[k])).join(','));
+  download('offer-file-'+slug(d.code)+'-all-trades.csv',
+    F.map(([,l])=>csvCell(l)).join(',')+'\n'+rows.join('\n')+'\n','text/csv'); };
+$('btnJson').onclick=()=>{ const d=currentDeal(), t=currentTrade(); if(!t) return;
+  const r=computeAll(d,t), p=offerPayload(d,t,r);
+  download('offer-file-'+slug(t.identifier)+'.json', JSON.stringify({offerFile:p, sha256:sha256(JSON.stringify(p)),
+    deal:{id:d.id, code:d.code, client:clientLabel(d), currency:d.currency, jurisdictions:d.jurisdictions},
+    trade:{id:t.id, identifier:t.identifier, version:t.versionNo, state:t.state},
+    rateQuotes:t.rateQuotes||r.quotes}, null, 2), 'application/json'); };
 $('btnPrint').onclick=()=>window.print();
-$('btnExportAll').onclick=()=>download('cantu-pricing-store.json', JSON.stringify(store,null,2),'application/json');
+$('btnExportAll').onclick=()=>download('pricing-store.json', JSON.stringify(store,null,2),'application/json');
 $('importFile').onchange=e=>{ const f=e.target.files[0]; if(!f) return;
   const rd=new FileReader(); rd.onload=()=>{ try{ const s=JSON.parse(rd.result);
-      if(!s.deals) throw new Error('Not a Cantu pricing store');
-      store=s; save(); loadInputsIntoForm(currentDeal()); render(); alert('Imported '+s.deals.length+' deal(s).');
-    }catch(err){ alert('Import failed: '+err.message); } };
+      if(s.deals && s.trades) store=normalise(s);
+      else if(s.deals){ const m=migrateV1(s); if(!m) throw new Error('Unrecognised store'); store=m; }
+      else throw new Error('Not a pricing store');
+      save(); loadFormFromStore(); render();
+      alert('Imported '+store.deals.length+' deal(s) and '+store.trades.length+' trade(s).');
+    }catch(err){ alert('Import failed: '+err.message); } finally{ e.target.value=''; } };
   rd.readAsText(f); };
-$('btnAuditCsv').onclick=()=>{ const scope=$('auditScope').value;
-  const rows=store.audit.filter(a=>scope==='all'||a.entityId===store.currentDealId);
+$('btnSyncMonday').onclick=syncClientsFromMonday;
+$('btnClientExport').onclick=()=>download('monday-clients.json', JSON.stringify(store.clients,null,2),'application/json');
+$('clientImportFile').onchange=e=>{ const f=e.target.files[0]; if(!f) return;
+  const rd=new FileReader(); rd.onload=()=>{ try{
+      const j=JSON.parse(rd.result), list=Array.isArray(j)?j:(j.list||[]);
+      if(!list.length || !list[0].name) throw new Error('Expected an array of {id,name,status,country,region} objects');
+      const before=clientList().length;
+      store.clients={source:{...MONDAY_SOURCE, ...(j.source||{}), syncedAt:new Date().toISOString(), via:'JSON import'},
+        list:list.map(c=>({id:String(c.id??c.name), name:c.name, status:c.status||'', country:c.country||'', region:c.region||'', deals:c.deals??0}))};
+      audit('client_list',MONDAY_SOURCE.boardId,'UPDATE','clients',before+' clients',list.length+' clients','Imported from JSON');
+      renderClientOptions(); render(); alert('Imported '+list.length+' clients.');
+    }catch(err){ alert('Import failed: '+err.message); } finally{ e.target.value=''; } };
+  rd.readAsText(f); };
+$('btnAuditCsv').onclick=()=>{ const scope=$('auditScope').value, t=currentTrade(), d=currentDeal();
+  const tradeIds=new Set(tradesOf(d.id).map(x=>x.id));
+  const rows=store.audit.filter(a=> scope==='all' ? true
+    : scope==='deal' ? (a.entityId===d.id||tradeIds.has(a.entityId)) : (t && a.entityId===t.id));
   const head=['at','actor','role','entityType','entityId','action','field','oldValue','newValue','reason'];
   download('audit-log.csv', head.join(',')+'\n'+rows.map(a=>head.map(h=>csvCell(a[h])).join(',')).join('\n')+'\n','text/csv'); };
 
 /* ---------------------------- boot ---------------------------- */
-loadInputsIntoForm(currentDeal());
+loadFormFromStore();
 render();
 runTests();
 </script>

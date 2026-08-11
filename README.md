@@ -28,6 +28,59 @@ Arithmetic is **fixed-point decimal** (BigInt, 20 dp) rather than floating point
 document-generation boundaries. `price(inputs, rateQuote)` is pure — no I/O, no DB, no clock reads —
 which is what makes the golden-master tests meaningful.
 
+## Deal → trades
+
+A **deal** holds everything its trades share. A **trade** is what gets priced, approved and issued.
+
+| Deal (shared) | Trade (per trade) |
+|---|---|
+| Client — `Cantu!B4` block | Trade Identifier — `Cantu!B5` |
+| Transaction Code — `Cantu!B4` | Relevant Obligor — `Offer File!A3` |
+| Currency → base rate index + day count | The four invoice/pricing blocks |
+| Associated jurisdictions | Lifecycle, rate snapshot, Offer File, audit |
+
+This matches the SharePoint layout, where `Trade 1 - DRC` holds SB01 / SB02 / SB03 under one facility.
+
+Deal configuration is **frozen once any trade on it reaches APPROVED** — changing it would invalidate a
+signed-off price. While trades are only PRICED, editing deal config returns them to DRAFT and voids
+their rate snapshots, with an audit event per trade. Trade identifiers must be unique within a deal.
+
+*Download deal CSV* on the Offer File tab emits one Offer File row per trade, which is what the
+workbook's single-row `Offer File` tab had to be re-copied by hand to produce.
+
+## Currency and base rate
+
+Currency is a deal-level choice. It selects the base-rate index **and the day-count basis** — the
+workbook hardcodes `/360`, which is correct for Term SOFR and EURIBOR but wrong for a 365-basis index.
+The basis travels with the currency through all four factor formulas (`B20`, `B33`, `B46`, `B52`).
+
+| Currency | Index | Day count |
+|---|---|---|
+| USD | Term SOFR | ACT/360 |
+| EUR | EURIBOR | ACT/360 |
+| GBP | Term SONIA | ACT/365 |
+| MXN | TIIE | ACT/360 |
+| COP | IBR | ACT/360 |
+| CHF | SARON | ACT/360 |
+| BRL | CDI | ACT/360 † |
+
+The first five are the currencies on your monday.com Trades board (`dropdown_mkxxanzq`).
+
+† **BRL is indicative only.** CDI is quoted on a 252-business-day compounded basis, not a simple
+ACT/360 discount. The model applies the workbook's simple-discount formula and raises a
+`CCY.CONVENTION` warning; confirm the convention with Bladex before pricing BRL for real.
+
+**Only USD ships with a loaded curve** — the pillars from the workbook. Every other index starts empty
+and a Rates Admin must enter its pillars on the Reference data tab before a trade in that currency can
+be priced. Seeding invented rates for EUR or GBP would be worse than blocking: someone would price off
+them. Pricing is hard-blocked with `RATE.NO_CURVE` until a curve is loaded.
+
+## Jurisdictions
+
+Set per deal, checked against every trade's maturity date. US / GB / BR / HK are transcribed from
+`BD Dates`; **TARGET2 (EU)** is computed from the Easter algorithm — six rules a year — so it covers
+through 2035 and never hits a transcription cliff. Selecting none is a blocking error, not a silent pass.
+
 ## What is implemented
 
 - **Client selection, sourced from monday.com.** The Deal Header carries a client dropdown built from
@@ -108,6 +161,11 @@ These are places where the workbook and the spec disagree, and the spec wins.
    renamed: source-cell references such as `Cantu!B47` or `Cantu!A12:C23`. Those point at a sheet in
    the source workbook and must stay literal, or traceability breaks.
 6. **The Pro Forma block is optional**, where the workbook always computes it.
+7. **Day count follows the currency** rather than being hardcoded to 360. USD is unaffected.
+8. **Jurisdictions are per deal**, replacing the ten fixed rows of `BD Dates!B4:B13` — which capped out
+   at ten and could not vary by facility.
+9. **One workbook file per trade becomes one deal with many trades**, so the shared fields are entered
+   once instead of being re-keyed (and drifting) across SB01 / SB02 / SB03.
 
 ## Not built here
 
@@ -156,6 +214,9 @@ Consequences, and what to check when those tabs are available:
 Everything above is surfaced in-app under the **Spec & traceability** tab.
 
 ## Data handling
+
+An earlier single-level store (`cantu-pricing-model-v1`) is migrated automatically on first load: each
+flat record becomes one deal carrying one trade, and the migration itself is written to the audit log.
 
 Deals live in this browser's `localStorage` only — nothing is transmitted anywhere. Use
 *Deals → Export all data* to move a deal set between machines. Note that browser storage is not a
