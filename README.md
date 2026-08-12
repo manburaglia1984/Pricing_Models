@@ -28,15 +28,28 @@ Arithmetic is **fixed-point decimal** (BigInt, 20 dp) rather than floating point
 document-generation boundaries. `price(inputs, rateQuote)` is pure — no I/O, no DB, no clock reads —
 which is what makes the golden-master tests meaningful.
 
+## Two screens
+
+Configuring a facility and pricing a trade are separate jobs, so they are separate screens.
+
+- **Deals** — the landing tab. Lists every deal, and configures the selected one: client, Transaction
+  Code, currency, whether pro forma invoices apply, and the associated jurisdictions. Its trades are
+  listed beside it; *Price* on any of them opens the trade.
+- **Trade pricing** — shows the deal's configuration read-only, with an *Edit deal configuration*
+  button back to the Deals tab, then the trade's own fields and the pricing panels.
+
+The deal and trade pickers in the header switch context from anywhere.
+
 ## Deal → trades
 
 A **deal** holds everything its trades share. A **trade** is what gets priced, approved and issued.
 
 | Deal (shared) | Trade (per trade) |
 |---|---|
-| Client — `Cantu!B4` block | Trade Identifier — `Cantu!B5` |
+| Client | Trade Identifier — `Cantu!B5` |
 | Transaction Code — `Cantu!B4` | Relevant Obligor — `Offer File!A3` |
-| Currency → base rate index + day count | The four invoice/pricing blocks |
+| Currency → base rate index + day count | The invoice/pricing blocks |
+| Pro forma invoices used, yes/no | Pro forma dates and margins, when used |
 | Associated jurisdictions | Lifecycle, rate snapshot, Offer File, audit |
 
 This matches the SharePoint layout, where `Trade 1 - DRC` holds SB01 / SB02 / SB03 under one facility.
@@ -89,11 +102,12 @@ through 2035 and never hits a transcription cliff. Selecting none is a blocking 
   client-named label in the model: the page title, the two payment legs in panel 5, the settlement
   and confirmed-days notes, the standard-terms warnings and Offer File column H. See
   *Client list* below.
-- **An optional Pro Forma block.** Not every trade has a TradeCo pro forma invoice, so panel 2 has an
-  *Applies to this trade* switch. Turning it off excludes the block from pricing, validation and the
-  rate snapshot, and disables its inputs. Panel 2 is a leaf — panels 3 to 5 and the Offer File never
-  read it — so B27:B53 stay bit-for-bit identical either way. The parity tests assert that on every
-  downstream output.
+- **An optional Pro Forma block, set per deal.** Not every facility uses a TradeCo pro forma invoice,
+  so it is a deal-level switch — every trade on a deal agrees on it. When off, panel 2 is removed from
+  the pricing screen entirely and excluded from pricing, validation and the rate snapshot (no pro forma
+  curve is quoted or bound). Panel 2 is a leaf — panels 3 to 5 and the Offer File never read it — so
+  B27:B53 stay bit-for-bit identical either way. The parity tests assert that on every downstream
+  output. The pro forma dates and margins remain per trade, for deals that do use them.
 - **Five pricing panels** in the same vertical order as the `Cantu` tab (*Spec – Overview §7*),
   carrying the workbook's visual grammar: yellow cells are editable inputs, grey cells are
   computed and show their source cell plus a formula tooltip on hover, and the purple italic

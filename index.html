@@ -173,7 +173,6 @@ code,.mono{font-family:var(--mono);font-size:12px}
   <div class="top-row">
     <div class="field-inline"><label for="dealPicker">Deal</label><select id="dealPicker" style="min-width:230px"></select></div>
     <div class="field-inline"><label for="tradePicker">Trade</label><select id="tradePicker" style="min-width:180px"></select></div>
-    <button class="btn" id="btnNewDeal">New deal</button>
     <button class="btn" id="btnNewTrade">New trade</button>
     <button class="btn" id="btnDupTrade">Duplicate trade</button>
     <button class="btn" id="btnVersion">New version</button>
@@ -186,10 +185,10 @@ code,.mono{font-family:var(--mono);font-size:12px}
     <button class="btn danger" id="btnCancel">Cancel trade</button>
   </div>
   <nav class="tabs" id="tabs">
-    <button data-view="pricing" aria-selected="true">Pricing</button>
-    <button data-view="rates">Reference data</button>
+    <button data-view="deals" aria-selected="true">Deals</button>
+    <button data-view="pricing">Trade pricing</button>
     <button data-view="offer">Offer File</button>
-    <button data-view="deals">Deals &amp; trades</button>
+    <button data-view="rates">Reference data</button>
     <button data-view="audit">Audit log</button>
     <button data-view="tests">Parity tests</button>
     <button data-view="about">Spec &amp; traceability</button>
@@ -198,20 +197,14 @@ code,.mono{font-family:var(--mono);font-size:12px}
 
 <main>
 <!-- ================= PRICING ================= -->
-<section class="view active" id="view-pricing">
+<section class="view" id="view-pricing">
   <div id="topBanners"></div>
   <div class="cols">
     <div>
-      <!-- Deal-level configuration, shared by every trade on the deal -->
+      <!-- Read-only view of the deal this trade belongs to. Edited on the Deals tab. -->
       <div class="card deal tight">
-        <h2>Deal configuration <span class="tiny" style="text-transform:none;letter-spacing:0" id="dealScopeNote"></span><span class="src">shared by all trades</span></h2>
-        <div class="body">
-          <div class="row"><div class="lbl">Client<span class="note" id="clientNote">From the monday.com Global Pipeline. Drives every client-named label in this model.</span></div><div class="cell"><select class="in" id="d_client" data-deal="clientId"></select></div></div>
-          <div class="row"><div class="lbl">Transaction Code<span class="note">Cantu!B4 — identifies the facility. Every trade on this deal carries it.</span></div><div class="cell"><input type="text" class="in" id="d_code" data-deal="code"></div></div>
-          <div class="row"><div class="lbl">Currency<span class="note" id="ccyNote">Selects the base rate index and the day-count basis.</span></div><div class="cell"><select class="in" id="d_currency" data-deal="currency"></select></div></div>
-          <div class="row wide"><div class="lbl">Associated jurisdictions<span class="note">Holiday calendars every trade's maturity date is checked against. Replaces the fixed rows in BD Dates!B4:B13.</span>
-            <div class="jur" id="jurisdictionBox"></div></div></div>
-        </div>
+        <h2>Deal <span class="src"><button class="btn sm" id="btnEditDeal">Edit deal configuration</button></span></h2>
+        <div class="body" id="dealContextBox"></div>
       </div>
 
       <!-- Trade identity -->
@@ -233,12 +226,10 @@ code,.mono{font-family:var(--mono);font-size:12px}
         </div>
       </div>
 
+      <!-- Shown only when the deal is configured to use pro forma invoices. -->
       <div class="card" id="card_pf">
-        <h2>2 — TradeCo Pro Forma Invoices
-          <label class="toggle"><input type="checkbox" id="f_pfEnabled" data-field="pfEnabled" checked><span>Applies to this trade</span></label>
-          <span class="src">Cantu!A12:C23</span></h2>
+        <h2>2 — TradeCo Pro Forma Invoices <span class="src">Cantu!A12:C23</span></h2>
         <div class="body" id="body_pf">
-          <div class="banner info" id="pfDisabledNote" style="display:none;margin:10px 0 4px"><div><b>Not applicable.</b> This trade has no TradeCo Pro Forma invoice. The block is excluded from pricing, validation and the rate snapshot. Nothing downstream changes — panels 3 to 5 and the Offer File never reference it.</div></div>
           <div class="row"><div class="lbl">Issue Date<span class="note">It should be a date before (around 5 days) Supplier Invoice Maturity Date</span></div><div class="cell"><input type="date" class="in" id="f_pfIssue" data-field="pfIssueDate"></div></div>
           <div class="row"><div class="lbl">Tenor (days)<span class="note">It could be "Bladex Settlement Date" + 2</span></div><div class="cell"><input type="number" class="in" id="f_pfTenor" data-field="pfTenorDays" min="1" step="1"></div></div>
           <div class="row"><div class="lbl">Maturity Date</div><div class="cell"><span class="calc" id="o_pfMaturity" title="B15 = B13 + B14"><span class="f">B15</span>—</span></div></div>
@@ -372,18 +363,37 @@ code,.mono{font-family:var(--mono);font-size:12px}
   <div class="card tight"><h2>Issued documents</h2><div class="body" id="issuedBox"></div></div>
 </section>
 
-<!-- ================= DEALS & TRADES ================= -->
-<section class="view" id="view-deals">
+<!-- ================= DEALS (configuration) ================= -->
+<section class="view active" id="view-deals">
   <div class="card">
-    <h2>Deals &amp; trades</h2>
+    <h2>All deals</h2>
     <div class="body">
-      <div class="toolbar">
-        <button class="btn" id="btnExportAll">Export all data (JSON)</button>
-        <label class="btn" style="display:inline-flex;align-items:center">Import JSON<input type="file" id="importFile" accept="application/json" style="display:none"></label>
-        <span class="tiny">Stored in this browser only (localStorage). Nothing is hard-deleted — cancel is a soft-delete.</span>
-      </div>
+          <div class="toolbar">
+            <button class="btn primary" id="btnNewDeal">New deal</button>
+            <button class="btn" id="btnExportAll">Export all data (JSON)</button>
+            <label class="btn" style="display:inline-flex;align-items:center">Import JSON<input type="file" id="importFile" accept="application/json" style="display:none"></label>
+          </div>
+          <p class="tiny" style="margin:0 0 10px">Configure a deal here, then open one of its trades to price it. Stored in this browser only — nothing is hard-deleted, cancel is a soft-delete.</p>
       <div class="scroll"><table id="dealTable"></table></div>
     </div>
+  </div>
+  <div class="grid2">
+      <div class="card deal">
+        <h2>Deal configuration <span class="tiny" style="text-transform:none;letter-spacing:0" id="dealScopeNote"></span></h2>
+        <div class="body">
+          <div class="row"><div class="lbl">Client<span class="note" id="clientNote">From the monday.com Global Pipeline. Drives every client-named label in this model.</span></div><div class="cell"><select class="in" id="d_client" data-deal="clientId"></select></div></div>
+          <div class="row"><div class="lbl">Transaction Code<span class="note">Cantu!B4 — identifies the facility. Every trade on this deal carries it.</span></div><div class="cell"><input type="text" class="in" id="d_code" data-deal="code"></div></div>
+          <div class="row"><div class="lbl">Currency<span class="note" id="ccyNote">Selects the base rate index and the day-count basis.</span></div><div class="cell"><select class="in" id="d_currency" data-deal="currency"></select></div></div>
+          <div class="row"><div class="lbl">TradeCo Pro Forma invoices<span class="note">When off, panel 2 is removed from every trade on this deal and excluded from pricing, validation and the rate snapshot.</span></div>
+            <div class="cell"><label class="toggle" style="justify-content:flex-end;width:100%"><input type="checkbox" id="d_proforma" data-deal="proformaEnabled" checked><span id="proformaLabel">Used on this deal</span></label></div></div>
+          <div class="row wide"><div class="lbl">Associated jurisdictions<span class="note">Holiday calendars every trade's maturity date is checked against. Replaces the fixed rows in BD Dates!B4:B13.</span>
+            <div class="jur" id="jurisdictionBox"></div></div></div>
+        </div>
+      </div>
+      <div class="card tight">
+        <h2>Trades on this deal <span class="src"><button class="btn sm" id="btnNewTradeFromDeals">New trade</button></span></h2>
+        <div class="body" id="dealTradesBox"></div>
+      </div>
   </div>
 </section>
 
@@ -1051,14 +1061,13 @@ const uuid = () => (crypto.randomUUID ? crypto.randomUUID()
   : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return (c==='x'?r:(r&0x3|0x8)).toString(16);}));
 
 function blankTradeInputs(){
-  return { pfEnabled:true,
-    supplierIssueDate:'2026-06-16', supplierTenorDays:30, supplierAmount:'850000',
+  return { supplierIssueDate:'2026-06-16', supplierTenorDays:30, supplierAmount:'850000',
     pfIssueDate:'2026-06-22', pfTenorDays:180, pfMargin:MARKET_DEFAULTS.margin, pfAgencyFee:MARKET_DEFAULTS.agencyFee,
     tcIssueDate:'2026-07-16', tcMargin:MARKET_DEFAULTS.margin, tcAgencyFee:MARKET_DEFAULTS.agencyFee,
     bladexSettlementDate:'2026-07-16', bladexDays:180, bladexMargin:MARKET_DEFAULTS.bladexMargin, legalFees:'0' };
 }
 function newDeal(who){
-  return { id:uuid(), code:'', clientId:'', clientName:'', currency:'USD',
+  return { id:uuid(), code:'', clientId:'', clientName:'', currency:'USD', proformaEnabled:true,
     jurisdictions:[...DEFAULT_JURISDICTIONS], createdBy:who, createdAt:new Date().toISOString(), cancelled:false };
 }
 function newTrade(dealId, who){
@@ -1067,9 +1076,12 @@ function newTrade(dealId, who){
     approvedBy:null, approvedAt:null, actualSettlementDate:null,
     rateQuotes:null, acks:{}, offerFiles:[], cancelled:false };
 }
-/** Deal-level config merged onto the trade's own inputs — what the calc engine sees. */
+/** Deal-level config merged onto the trade's own inputs — what the calc engine sees.
+ *  Whether the Pro Forma block applies is a deal-level choice, so every trade on a deal
+ *  agrees on it; the pro forma dates and margins stay per trade. */
 function effectiveInputs(deal, trade){
   return { ...trade.inputs, currency:deal.currency, dayCountBasis:basisFor(deal.currency),
+    pfEnabled: deal.proformaEnabled !== false,
     jurisdictions:deal.jurisdictions, transactionCode:deal.code, clientName:deal.clientName };
 }
 
@@ -1108,7 +1120,13 @@ function normalise(s){
   if(!s.clients || !s.clients.list || !s.clients.list.length) s.clients=defaultClients();
   s.curves = {...defaultCurves(), ...(s.curves||{})};
   for(const d of s.deals){ if(!d.jurisdictions||!d.jurisdictions.length) d.jurisdictions=[...DEFAULT_JURISDICTIONS];
-    if(!RATE_INDICES[d.currency]) d.currency='USD'; }
+    if(!RATE_INDICES[d.currency]) d.currency='USD';
+    // Pro forma was per-trade before; lift it to the deal from whatever its trades said.
+    if(d.proformaEnabled===undefined)
+      d.proformaEnabled = s.trades.filter(t=>t.dealId===d.id).some(t=>t.inputs.pfEnabled!==false) ||
+                          !s.trades.some(t=>t.dealId===d.id);
+  }
+  for(const t of s.trades) delete t.inputs.pfEnabled;
   return s;
 }
 /** v1 stored one flat deal per pricing sheet; each becomes a deal carrying a single trade. */
@@ -1119,6 +1137,7 @@ function migrateV1(v1){
     const d=newDeal(old.createdBy||'migrated');
     d.id=uuid(); d.code=old.inputs.transactionCode||''; d.clientId=old.inputs.clientId||'';
     d.clientName=old.inputs.clientName||''; d.currency=RATE_INDICES[old.inputs.currency]?old.inputs.currency:'USD';
+    d.proformaEnabled = old.inputs.pfEnabled!==false;
     d.createdAt=old.createdAt||d.createdAt;
     const t=newTrade(d.id, old.createdBy||'migrated');
     t.id=old.id; t.identifier=old.inputs.tradeIdentifier||''; t.obligor=old.inputs.obligor||'Gripmaster';
@@ -1182,7 +1201,7 @@ function liveQuotes(deal, trade){
   if(!(t>=1)) return null;
   const cv=curvesFor(deal.currency);
   if(!curveLoaded(cv.live)) return null;
-  const pfOn=trade.inputs.pfEnabled!==false;
+  const pfOn = deal.proformaEnabled !== false;
   return { live:quoteFrom(cv.live,t,deal.currency),
            pf: (pfOn && curveLoaded(cv.pf)) ? quoteFrom(cv.pf,t,deal.currency) : null };
 }
@@ -1316,16 +1335,17 @@ const PCT_FIELDS = new Set(['pfMargin','pfAgencyFee','tcMargin','tcAgencyFee','b
 const INT_FIELDS = new Set(['supplierTenorDays','pfTenorDays','bladexDays']);
 const TRADE_FIELD_IDS = {
   supplierIssueDate:'f_supIssue', supplierTenorDays:'f_supTenor', supplierAmount:'f_supAmount',
-  pfEnabled:'f_pfEnabled', pfIssueDate:'f_pfIssue', pfTenorDays:'f_pfTenor', pfMargin:'f_pfMargin', pfAgencyFee:'f_pfAgency',
+  pfIssueDate:'f_pfIssue', pfTenorDays:'f_pfTenor', pfMargin:'f_pfMargin', pfAgencyFee:'f_pfAgency',
   tcIssueDate:'f_tcIssue', tcMargin:'f_tcMargin', tcAgencyFee:'f_tcAgency',
   bladexSettlementDate:'f_bladexSettle', bladexDays:'f_bladexDays', bladexMargin:'f_bladexMargin', legalFees:'f_legalFees'};
 const TRADE_TOP_IDS = { identifier:'f_tradeid', obligor:'f_obligor' };
-const DEAL_FIELD_IDS = { clientId:'d_client', code:'d_code', currency:'d_currency' };
+const DEAL_FIELD_IDS = { clientId:'d_client', code:'d_code', currency:'d_currency', proformaEnabled:'d_proforma' };
 
 function loadFormFromStore(){
   const d=currentDeal(), t=currentTrade();
   renderClientOptions(); renderCurrencyOptions(); renderJurisdictionBox();
-  for(const [f,id] of Object.entries(DEAL_FIELD_IDS)){ const el=$(id); if(el) el.value=d[f]??''; }
+  for(const [f,id] of Object.entries(DEAL_FIELD_IDS)){ const el=$(id); if(!el) continue;
+    if(el.type==='checkbox') el.checked = d[f]!==false; else el.value=d[f]??''; }
   if(!t) return;
   for(const [f,id] of Object.entries(TRADE_TOP_IDS)){ const el=$(id); if(el) el.value=t[f]??''; }
   for(const [f,id] of Object.entries(TRADE_FIELD_IDS)){
@@ -1360,6 +1380,17 @@ function renderCurrencyOptions(){
   sel.innerHTML=CURRENCIES.map(c=>'<option value="'+c+'">'+c+' — '+esc(idxFor(c).name)+'</option>').join('');
   sel.value=keep;
 }
+/** The editable deal-configuration form on the Deals tab. */
+function renderDealForm(){
+  const d=currentDeal(), ix=idxFor(d.currency), c=findClient(d.clientId);
+  $('clientNote').textContent = c
+    ? [c.country, c.region, c.status+' in pipeline', c.deals+' deal'+(c.deals===1?'':'s')].filter(Boolean).join(' · ')
+    : 'From the monday.com Global Pipeline. Drives every client-named label in this model.';
+  $('ccyNote').textContent = 'Base rate '+ix.name+' · day count ACT/'+ix.basis+
+    (ix.basis!==360 ? ' — the workbook hardcodes /360; trades on this deal use /'+ix.basis+'.' : '');
+  $('proformaLabel').textContent = d.proformaEnabled!==false ? 'Used on this deal' : 'Not used — panel 2 is hidden';
+  renderJurisdictionBox();
+}
 function renderJurisdictionBox(){
   const d=currentDeal(), locked=dealLocked(d);
   $('jurisdictionBox').innerHTML = ALL_JURISDICTIONS.map(code=>{
@@ -1382,7 +1413,7 @@ function render(opts){
   const t=currentTrade();
   const r=computeAll(d,t);
   applyClientNaming(clientLabel(d));
-  renderPickers(d,t); renderHeader(d,t,r); renderPricing(d,t,r);
+  renderPickers(d,t); renderHeader(d,t,r); renderDealForm(); renderPricing(d,t,r);
   renderRates(opts && opts.keepCurveBoxes); renderClients(); renderOffer(d,t,r);
   renderDeals(); renderAudit(); renderAbout();
   save();
@@ -1409,7 +1440,7 @@ function renderHeader(d,t,r){
   $('dealScopeNote').textContent = dLocked
     ? '— locked: a trade on this deal is approved or later'
     : '— applies to all '+tradesOf(d.id).length+' trade(s) on this deal';
-  const tLocked = !t || LOCKED(t.state), pfOff = t && t.inputs.pfEnabled===false;
+  const tLocked = !t || LOCKED(t.state), pfOff = d.proformaEnabled===false;
   const PF_INPUTS=['f_pfIssue','f_pfTenor','f_pfMargin','f_pfAgency'];
   for(const id of [...Object.values(TRADE_FIELD_IDS), ...Object.values(TRADE_TOP_IDS)]){
     const el=$(id); if(!el) continue;
@@ -1428,21 +1459,26 @@ function renderHeader(d,t,r){
 }
 
 function renderPricing(d,t,r){
-  const o=r.out, ccy=d.currency, ix=idxFor(ccy), pfOn = t ? t.inputs.pfEnabled!==false : true;
-  const c=findClient(d.clientId);
-  $('clientNote').textContent = c
-    ? [c.country, c.region, c.status+' in pipeline', c.deals+' deal'+(c.deals===1?'':'s')].filter(Boolean).join(' · ')
-    : 'From the monday.com Global Pipeline. Drives every client-named label in this model.';
-  $('ccyNote').textContent = 'Base rate '+ix.name+' · day count ACT/'+ix.basis+
-    (ix.basis!==360 ? ' — the workbook hardcodes /360; this trade uses /'+ix.basis+'.' : '');
+  const o=r.out, ccy=d.currency, ix=idxFor(ccy), pfOn = d.proformaEnabled!==false;
   const basisNote='÷ '+ix.basis+' (ACT/'+ix.basis+', '+ix.name+')';
   $('pfFactorNote').textContent=basisNote; $('tcFactorNote').textContent=basisNote; $('iaaFactorNote').textContent=basisNote;
   $('supAmountWrap').dataset.suffix = ix.symbol.trim() || ccy;
   $('legalWrap').dataset.suffix = ix.symbol.trim() || ccy;
   $('supAmountNote').textContent = 'Amount in '+ccy+' from the Supplier Invoice';
-  $('card_pf').classList.toggle('off', !pfOn);
-  $('pfDisabledNote').style.display = pfOn ? 'none' : '';
-  renderJurisdictionBox();
+  // Panel 2 exists only when the deal is configured to use pro forma invoices.
+  $('card_pf').style.display = pfOn ? '' : 'none';
+
+  const cl=findClient(d.clientId);
+  $('dealContextBox').innerHTML='<table>'+[
+    ['Client', esc(clientLabel(d))+(cl&&cl.country?' <span class="tiny">· '+esc(cl.country)+'</span>':'')],
+    ['Transaction Code', esc(d.code||'<span class="tiny">not set</span>')],
+    ['Currency', esc(ccy)+' <span class="tiny">· '+esc(ix.name)+' · ACT/'+ix.basis+'</span>'],
+    ['Pro forma invoices', pfOn ? '<span class="inline-tag ok">used</span>' : '<span class="inline-tag">not used</span>'],
+    ['Jurisdictions', (d.jurisdictions||[]).length
+      ? (d.jurisdictions||[]).map(j=>'<span class="inline-tag">'+esc(j)+'</span>').join(' ')
+      : '<span class="inline-tag err">none selected</span>'],
+    ['Trades on deal', tradesOf(d.id).length],
+  ].map(([k,v])=>'<tr><td>'+k+'</td><td class="n">'+v+'</td></tr>').join('')+'</table>';
 
   const banners=[];
   if(!t) banners.push(['warn','<b>No trades on this deal.</b> Use <em>New trade</em> to add one.']);
@@ -1693,28 +1729,32 @@ function renderOffer(d,t,r){
 }
 
 function renderDeals(){
-  let html='<thead><tr><th>Deal / trade</th><th>Client · Identifier</th><th>Ccy</th><th>State</th>'+
-    '<th class="n">Amount</th><th class="n">Purchase price</th><th>Settlement</th><th>Jurisdictions</th><th></th></tr></thead><tbody>';
-  for(const d of store.deals){
-    const ts=tradesOf(d.id);
-    html+='<tr class="dealrow'+(d.id===store.currentDealId?' sel':'')+'"><td>'+esc(d.code||'(untitled deal)')+'</td>'+
-      '<td>'+esc(clientLabel(d))+'</td><td>'+esc(d.currency)+'</td>'+
-      '<td class="tiny">'+ts.length+' trade'+(ts.length===1?'':'s')+'</td><td colspan="3"></td>'+
-      '<td class="tiny">'+(d.jurisdictions||[]).join(', ')+'</td>'+
-      '<td class="n"><button class="btn sm" data-open-deal="'+d.id+'">Open</button></td></tr>';
-    for(const t of ts){
-      const r=computeAll(d,t);
-      html+='<tr class="'+(t.id===store.currentTradeId?'sel':'')+'"><td style="padding-left:26px" class="tiny">↳ v'+t.versionNo+'</td>'+
-        '<td>'+esc(t.identifier||'(untitled)')+'</td><td class="tiny">'+esc(t.obligor||'')+'</td>'+
-        '<td><span class="badge '+t.state+'">'+t.state+'</span></td>'+
-        '<td class="n">'+money(D.of(t.inputs.supplierAmount||0), d.currency)+'</td>'+
-        '<td class="n">'+(r.out?money(r.out.purchasePrice,d.currency):'—')+'</td>'+
-        '<td>'+fmtShort(t.inputs.bladexSettlementDate)+'</td>'+
-        '<td class="tiny">'+(r.errors.length?'<span class="inline-tag err">'+r.errors.length+' error(s)</span>':'<span class="inline-tag ok">ok</span>')+'</td>'+
-        '<td class="n"><button class="btn sm" data-open-trade="'+t.id+'">Open</button></td></tr>';
-    }
-  }
-  $('dealTable').innerHTML=html+'</tbody>';
+  // Deal list — configuration only. Trades of the selected deal are listed alongside.
+  $('dealTable').innerHTML='<thead><tr><th>Transaction Code</th><th>Client</th><th>Ccy</th><th class="n">Trades</th>'+
+    '<th>Pro forma</th><th>Jurisdictions</th><th></th></tr></thead><tbody>'+
+    (store.deals.length?store.deals.map(d=>{
+      const ts=tradesOf(d.id);
+      return '<tr class="dealrow'+(d.id===store.currentDealId?' sel':'')+'">'+
+        '<td>'+esc(d.code||'(untitled deal)')+'</td><td>'+esc(clientLabel(d))+'</td>'+
+        '<td>'+esc(d.currency)+' <span class="tiny">'+esc(idxFor(d.currency).name)+'</span></td>'+
+        '<td class="n">'+ts.length+'</td>'+
+        '<td>'+(d.proformaEnabled!==false?'<span class="inline-tag ok">yes</span>':'<span class="inline-tag">no</span>')+'</td>'+
+        '<td class="tiny">'+((d.jurisdictions||[]).join(', ')||'<span class="inline-tag err">none</span>')+'</td>'+
+        '<td class="n"><button class="btn sm" data-open-deal="'+d.id+'">'+(d.id===store.currentDealId?'Selected':'Configure')+'</button></td></tr>';
+    }).join('') : '<tr><td colspan="7" class="tiny">No deals yet.</td></tr>')+'</tbody>';
+
+  const d=currentDeal(), ts=tradesOf(d.id);
+  $('dealTradesBox').innerHTML = ts.length===0
+    ? '<p class="tiny">No trades on this deal yet. Use <b>New trade</b> above.</p>'
+    : '<table><thead><tr><th>Identifier</th><th>State</th><th class="n">Purchase price</th><th>Settlement</th><th></th></tr></thead><tbody>'+
+      ts.map(t=>{ const r=computeAll(d,t);
+        return '<tr class="'+(t.id===store.currentTradeId?'sel':'')+'"><td>'+esc(t.identifier||'(untitled)')+
+          ' <span class="tiny">v'+t.versionNo+'</span></td>'+
+          '<td><span class="badge '+t.state+'">'+t.state+'</span></td>'+
+          '<td class="n">'+(r.out?money(r.out.purchasePrice,d.currency):'—')+'</td>'+
+          '<td>'+fmtShort(t.inputs.bladexSettlementDate)+'</td>'+
+          '<td class="n"><button class="btn sm" data-open-trade="'+t.id+'">Price</button></td></tr>';
+      }).join('')+'</tbody></table>';
 }
 
 function renderAudit(){
@@ -1800,6 +1840,15 @@ function runTests(){
       ['payToCantuAgency','Cantu!B52'],['payToTradeCo','Cantu!B53']])
     T('Pro Forma off — '+k+' unchanged', oNoPf[k].toFixed(10), o[k].toFixed(10), cell);
   T('Pro Forma off — still reconciles', oNoPf.reconciliation.toFixed(10),'0.0000000000','B51+B52+B53−B47');
+
+  // Pro forma on/off is a deal-level choice inherited by every trade
+  const dealOn={currency:'USD', proformaEnabled:true, jurisdictions:['US'], code:'X', clientName:'X'};
+  const dealOff={...dealOn, proformaEnabled:false};
+  const stubTrade={inputs:blankTradeInputs()};
+  T('Deal pro forma on → trade on', effectiveInputs(dealOn,stubTrade).pfEnabled,'true','deal.proformaEnabled');
+  T('Deal pro forma off → trade off', effectiveInputs(dealOff,stubTrade).pfEnabled,'false','deal.proformaEnabled');
+  T('Trade inputs carry no pfEnabled', 'pfEnabled' in blankTradeInputs(),'false','moved to the deal');
+  T('Deal basis reaches the trade', effectiveInputs({...dealOn,currency:'GBP'},stubTrade).dayCountBasis,'365','deal.currency');
 
   // Day-count basis travels with the currency
   T('USD basis is ACT/360', basisFor('USD'),'360','RATE_INDICES');
@@ -1905,8 +1954,11 @@ computed from the Easter algorithm rather than transcribed, so it never expires.
 Identifier are empty. Both are required, and trade identifiers must be unique within a deal.</li>
 <li><b>The client is a field, not a hardcoded name.</b> Source-cell references such as <code>Cantu!B47</code> are
 <em>not</em> renamed — they point at a sheet in the source workbook and must stay literal for traceability.</li>
-<li><b>The Pro Forma block is optional.</b> It is a leaf in the dependency graph, so turning it off leaves
-B27:B53 bit-for-bit identical. The parity tests assert exactly that.</li>
+<li><b>The Pro Forma block is optional</b>, switched on or off per <em>deal</em> so every trade on a facility
+agrees. It is a leaf in the dependency graph, so turning it off leaves B27:B53 bit-for-bit identical —
+the parity tests assert exactly that — and panel 2 is removed from the pricing screen entirely.</li>
+<li><b>Configuring and trading are separate screens.</b> The <b>Deals</b> tab is where a facility is set up;
+the <b>Trade pricing</b> tab shows that configuration read-only and prices one trade against it.</li>
 </ul>
 
 <h3 style="margin:18px 0 6px">Not built here</h3>
@@ -1952,7 +2004,7 @@ document.addEventListener('input', e=>{
   if(el.dataset.deal){
     if(dealLocked(d)) return;
     const f=el.dataset.deal;
-    d[f]=el.value;
+    d[f] = el.type==='checkbox' ? el.checked : el.value;
     if(f==='clientId'){ const c=findClient(el.value); d.clientName=c?c.name:''; }
     if(f==='currency') curveChoice=null;   // the curve tab follows the deal again
     revertPricedTrades(d, 'Deal configuration edited ('+f+') — rate snapshot voided.');
@@ -1977,7 +2029,10 @@ document.addEventListener('input', e=>{
 document.addEventListener('change', e=>{
   const el=e.target; if(!el.dataset) return;
   const d=currentDeal(), t=currentTrade();
-  if(el.dataset.deal) audit('deal',d.id,'UPDATE',el.dataset.deal, el.dataset.prev??null, String(d[el.dataset.deal]));
+  if(el.dataset.deal){
+    audit('deal',d.id,'UPDATE',el.dataset.deal, el.dataset.prev??null, String(d[el.dataset.deal]));
+    if(el.dataset.deal==='proformaEnabled') loadFormFromStore();
+  }
   if(el.dataset.trade && t) audit('trade',t.id,'UPDATE',el.dataset.trade, el.dataset.prev??null, String(t[el.dataset.trade]));
   if(el.dataset.field && t) audit('trade',t.id,'UPDATE',el.dataset.field, el.dataset.prev??null, String(t.inputs[el.dataset.field]));
 
@@ -2018,16 +2073,22 @@ document.getElementById('tabs').addEventListener('click', e=>{
   for(const v of document.querySelectorAll('.view')) v.classList.toggle('active', v.id==='view-'+b.dataset.view);
   if(b.dataset.view==='tests') runTests();
 });
+const showTab = v => document.querySelector('#tabs button[data-view="'+v+'"]').click();
+// Selecting a deal stays on the configuration screen; opening a trade goes to pricing.
 $('dealTable').addEventListener('click', e=>{
-  const bd=e.target.closest('button[data-open-deal]'), bt=e.target.closest('button[data-open-trade]');
-  if(bd){ store.currentDealId=bd.dataset.openDeal;
-    const ts=tradesOf(store.currentDealId); store.currentTradeId=ts.length?ts[0].id:null; }
-  else if(bt){ const tr=store.trades.find(x=>x.id===bt.dataset.openTrade); if(!tr) return;
-    store.currentDealId=tr.dealId; store.currentTradeId=tr.id; }
-  else return;
-  loadFormFromStore(); render();
-  document.querySelector('#tabs button[data-view="pricing"]').click();
+  const bd=e.target.closest('button[data-open-deal]'); if(!bd) return;
+  store.currentDealId=bd.dataset.openDeal;
+  const ts=tradesOf(store.currentDealId); store.currentTradeId=ts.length?ts[0].id:null;
+  curveChoice=null; loadFormFromStore(); render();
 });
+$('dealTradesBox').addEventListener('click', e=>{
+  const bt=e.target.closest('button[data-open-trade]'); if(!bt) return;
+  const tr=store.trades.find(x=>x.id===bt.dataset.openTrade); if(!tr) return;
+  store.currentDealId=tr.dealId; store.currentTradeId=tr.id;
+  loadFormFromStore(); render(); showTab('pricing');
+});
+$('btnEditDeal').onclick=()=>showTab('deals');
+$('btnNewTradeFromDeals').onclick=()=>$('btnNewTrade').click();
 $('clientFilter').addEventListener('input', renderClients);
 $('clientTable').addEventListener('click', e=>{
   const b=e.target.closest('button[data-pick-client]'); if(!b) return;
@@ -2045,10 +2106,9 @@ $('clientTable').addEventListener('click', e=>{
 $('btnPrice').onclick=doPrice; $('btnApprove').onclick=doApprove; $('btnIssue').onclick=doIssue;
 $('btnSettle').onclick=doSettle; $('btnCancel').onclick=doCancel;
 $('btnNewDeal').onclick=()=>{ const d=newDeal(actor().name); store.deals.push(d);
-  const t=newTrade(d.id, actor().name); store.trades.push(t);
-  store.currentDealId=d.id; store.currentTradeId=t.id;
-  audit('deal',d.id,'CREATE',null,null,'new deal'); audit('trade',t.id,'CREATE',null,null,'first trade');
-  loadFormFromStore(); render(); };
+  store.currentDealId=d.id; store.currentTradeId=null; curveChoice=null;
+  audit('deal',d.id,'CREATE',null,null,'new deal');
+  loadFormFromStore(); render(); showTab('deals'); };
 $('btnNewTrade').onclick=()=>{ const d=currentDeal(); const t=newTrade(d.id, actor().name);
   const n=tradesOf(d.id).length+1;
   t.identifier=(d.code?d.code+'-':'')+String(n).padStart(2,'0');
