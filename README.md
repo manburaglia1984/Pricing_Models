@@ -30,15 +30,24 @@ which is what makes the golden-master tests meaningful.
 
 ## Two screens
 
-Configuring a facility and pricing a trade are separate jobs, so they are separate screens.
+Configuring a facility and pricing a trade are separate jobs, so they are separate screens. The page
+header carries no deal or trade controls at all — everything to do with a deal is on the Deals tab,
+everything to do with a trade is on the Trades tab.
 
-- **Deals** — the landing tab. Lists every deal, and configures the selected one: client, Transaction
-  Code, currency, whether pro forma invoices apply, and the associated jurisdictions. Its trades are
-  listed beside it; *Price* on any of them opens the trade.
-- **Trade pricing** — shows the deal's configuration read-only, with an *Edit deal configuration*
-  button back to the Deals tab, then the trade's own fields and the pricing panels.
+- **Deals** — the landing tab. Lists every deal with three row actions: **Trades** (open its trades),
+  **Configure** and **Delete**. Below, *Trades on this deal* on the left; the configuration panel opens
+  on the right only when **Configure** is clicked, and closes again from its own Close button.
+- **Trades** — the deal's configuration read-only at the top with an *Edit deal configuration* button,
+  then the trade list and every trade action (New trade, Duplicate, New version, Price, Approve, Issue,
+  Mark settled, Cancel), then the pricing panels.
 
-The deal and trade pickers in the header switch context from anywhere.
+## Deleting deals
+
+**Delete** on a deal row removes the deal and its trades outright, after a confirmation and a mandatory
+reason. It is refused if any trade has reached APPROVED, ISSUED or SETTLED — those are records the
+spec requires be retained; cancel the trades instead, which is a soft-delete that keeps the history.
+Every deletion writes a snapshot of the deal and its trade states to the audit log, so what was removed
+is still answerable. Deleting the last deal leaves the app in a clean empty state rather than breaking.
 
 ## Deal → trades
 
@@ -90,9 +99,34 @@ them. Pricing is hard-blocked with `RATE.NO_CURVE` until a curve is loaded.
 
 ## Jurisdictions
 
-Set per deal, checked against every trade's maturity date. US / GB / BR / HK are transcribed from
-`BD Dates`; **TARGET2 (EU)** is computed from the Easter algorithm — six rules a year — so it covers
-through 2035 and never hits a transcription cliff. Selecting none is a blocking error, not a silent pass.
+**28 jurisdictions**, grouped by region with a filter, selected per deal and checked against every
+trade's maturity date. Selecting none is a blocking error, not a silent pass.
+
+Business days are **derived from rules**, not transcribed tables — fixed dates, nth-weekday, Easter
+offsets, Monday-on-or-after (Colombia's Emiliani law), weekday-in-range (Nordic midsummer), plus each
+market's weekend-observance convention (the Fed's Sunday→Monday, the UK's substitute-day). Calendars
+are generated for **2024–2040**, so there is no transcription cliff and no annual refresh to forget.
+
+The engine is validated against the workbook itself: it reproduces `BD Dates` columns B (US, 44 days),
+C (UK, 32 days) and D (Brazil, 52 days) for 2026–2029 **exactly**, and those three assertions run in
+the parity tests.
+
+| Region | Jurisdictions |
+|---|---|
+| Americas | US, CA, MX, BR, CL, CO, PE, PA |
+| EMEA | GB, IE, FR, DE, ES, IT, NL, BE, PT, CH, AT, SE, NO, DK, FI, PL, ZA, TARGET2 (EU) |
+| APAC | AU, HK |
+
+Two caveats worth reading before go-live:
+
+- Calendars marked **rules** in the Reference data tab are national/bank-holiday defaults derived from
+  the rules above. Only US, GB, BR and TARGET2 are marked **verified** (against the workbook or a
+  fixed six-rule definition). Check the others against the publisher link before relying on them, and
+  note that sub-national holidays — German *Länder*, Swiss cantons, Australian states — are not modelled.
+- **Lunar and Islamic calendars cannot be derived from rules.** Hong Kong therefore ships as a published
+  list covering only to 27-Dec-2027, and hard-blocks beyond that. The same limitation applies to any
+  jurisdiction whose holidays follow the Chinese, Islamic or Hebrew calendar (SG, AE, CN, IN, IL, MY) —
+  these need a published list loaded rather than a rule set, and are not offered until one is.
 
 ## What is implemented
 
@@ -176,8 +210,8 @@ These are places where the workbook and the spec disagree, and the spec wins.
    the source workbook and must stay literal, or traceability breaks.
 6. **The Pro Forma block is optional**, where the workbook always computes it.
 7. **Day count follows the currency** rather than being hardcoded to 360. USD is unaffected.
-8. **Jurisdictions are per deal**, replacing the ten fixed rows of `BD Dates!B4:B13` — which capped out
-   at ten and could not vary by facility.
+8. **Jurisdictions are per deal and rule-derived**, replacing the ten fixed rows of `BD Dates!B4:B13` —
+   which capped out at ten, could not vary by facility, and expired in 2027–2029.
 9. **One workbook file per trade becomes one deal with many trades**, so the shared fields are entered
    once instead of being re-keyed (and drifting) across SB01 / SB02 / SB03.
 

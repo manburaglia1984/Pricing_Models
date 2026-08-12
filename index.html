@@ -170,23 +170,9 @@ code,.mono{font-family:var(--mono);font-size:12px}
     </div>
     <button class="btn sm" id="themeBtn" title="Cycle system / dark / light theme">Theme</button>
   </div>
-  <div class="top-row">
-    <div class="field-inline"><label for="dealPicker">Deal</label><select id="dealPicker" style="min-width:230px"></select></div>
-    <div class="field-inline"><label for="tradePicker">Trade</label><select id="tradePicker" style="min-width:180px"></select></div>
-    <button class="btn" id="btnNewTrade">New trade</button>
-    <button class="btn" id="btnDupTrade">Duplicate trade</button>
-    <button class="btn" id="btnVersion">New version</button>
-  </div>
-  <div class="top-row" style="padding-bottom:10px">
-    <button class="btn primary" id="btnPrice">Price trade</button>
-    <button class="btn" id="btnApprove">Approve</button>
-    <button class="btn" id="btnIssue">Issue Offer File</button>
-    <button class="btn" id="btnSettle">Mark settled</button>
-    <button class="btn danger" id="btnCancel">Cancel trade</button>
-  </div>
   <nav class="tabs" id="tabs">
     <button data-view="deals" aria-selected="true">Deals</button>
-    <button data-view="pricing">Trade pricing</button>
+    <button data-view="pricing">Trades</button>
     <button data-view="offer">Offer File</button>
     <button data-view="rates">Reference data</button>
     <button data-view="audit">Audit log</button>
@@ -205,6 +191,24 @@ code,.mono{font-family:var(--mono);font-size:12px}
       <div class="card deal tight">
         <h2>Deal <span class="src"><button class="btn sm" id="btnEditDeal">Edit deal configuration</button></span></h2>
         <div class="body" id="dealContextBox"></div>
+      </div>
+
+      <!-- Every trade action lives here, not in the page header. -->
+      <div class="card tight">
+        <h2>Trades <span class="src">
+          <button class="btn sm" id="btnNewTrade">New trade</button>
+          <button class="btn sm" id="btnDupTrade">Duplicate</button>
+          <button class="btn sm" id="btnVersion">New version</button></span></h2>
+        <div class="body">
+          <div id="tradeListBox"></div>
+          <div class="toolbar" style="margin:12px 0 0;padding-top:11px;border-top:1px solid var(--line)">
+            <button class="btn primary" id="btnPrice">Price trade</button>
+            <button class="btn" id="btnApprove">Approve</button>
+            <button class="btn" id="btnIssue">Issue Offer File</button>
+            <button class="btn" id="btnSettle">Mark settled</button>
+            <button class="btn danger" id="btnCancel">Cancel trade</button>
+          </div>
+        </div>
       </div>
 
       <!-- Trade identity -->
@@ -377,9 +381,15 @@ code,.mono{font-family:var(--mono);font-size:12px}
       <div class="scroll"><table id="dealTable"></table></div>
     </div>
   </div>
-  <div class="grid2">
-      <div class="card deal">
-        <h2>Deal configuration <span class="tiny" style="text-transform:none;letter-spacing:0" id="dealScopeNote"></span></h2>
+  <div id="dealsSplit">
+      <div class="card tight">
+        <h2>Trades on this deal <span class="tiny" style="text-transform:none;letter-spacing:0" id="dealTradesFor"></span>
+          <span class="src"><button class="btn sm" id="btnNewTradeFromDeals">New trade</button></span></h2>
+        <div class="body" id="dealTradesBox"></div>
+      </div>
+      <div class="card deal" id="dealConfigCard">
+        <h2>Deal configuration <span class="tiny" style="text-transform:none;letter-spacing:0" id="dealScopeNote"></span>
+          <span class="src"><button class="btn sm" id="btnCloseConfig">Close</button></span></h2>
         <div class="body">
           <div class="row"><div class="lbl">Client<span class="note" id="clientNote">From the monday.com Global Pipeline. Drives every client-named label in this model.</span></div><div class="cell"><select class="in" id="d_client" data-deal="clientId"></select></div></div>
           <div class="row"><div class="lbl">Transaction Code<span class="note">Cantu!B4 — identifies the facility. Every trade on this deal carries it.</span></div><div class="cell"><input type="text" class="in" id="d_code" data-deal="code"></div></div>
@@ -387,12 +397,13 @@ code,.mono{font-family:var(--mono);font-size:12px}
           <div class="row"><div class="lbl">TradeCo Pro Forma invoices<span class="note">When off, panel 2 is removed from every trade on this deal and excluded from pricing, validation and the rate snapshot.</span></div>
             <div class="cell"><label class="toggle" style="justify-content:flex-end;width:100%"><input type="checkbox" id="d_proforma" data-deal="proformaEnabled" checked><span id="proformaLabel">Used on this deal</span></label></div></div>
           <div class="row wide"><div class="lbl">Associated jurisdictions<span class="note">Holiday calendars every trade's maturity date is checked against. Replaces the fixed rows in BD Dates!B4:B13.</span>
-            <div class="jur" id="jurisdictionBox"></div></div></div>
+            <div class="toolbar" style="margin:8px 0 4px">
+              <div class="field-inline"><input type="text" id="jurFilter" placeholder="filter by name or code" style="min-width:200px"></div>
+              <span class="tiny" id="jurCount"></span>
+              <button class="btn sm" id="btnJurClear">Clear all</button>
+            </div>
+            <div id="jurisdictionBox"></div></div></div>
         </div>
-      </div>
-      <div class="card tight">
-        <h2>Trades on this deal <span class="src"><button class="btn sm" id="btnNewTradeFromDeals">New trade</button></span></h2>
-        <div class="body" id="dealTradesBox"></div>
       </div>
   </div>
 </section>
@@ -787,8 +798,13 @@ const MARKET_DEFAULTS = { margin:'0.03', agencyFee:'0.001', bladexMargin:'0.0235
 const RECEIVING_ACCOUNT_TEXT = 'See Part A (Receiving Account(s)) of Annex 2 (Accounts) to the IAA Addendum';
 
 /* ---------------------------- calendars ----------------------------
-   US / GB / BR / HK transcribed verbatim from BD Dates columns B:E.
-   EU (TARGET2) is computed — six fixed rules a year, so it needs no transcription. */
+   Business days are derived from rules per jurisdiction rather than transcribed tables,
+   so a calendar never expires. The engine is validated against the workbook: it reproduces
+   BD Dates columns B (US), C (GB) and D (BR) for 2026-2029 exactly — see the parity tests.
+   Rule types: f = fixed date, n = nth weekday, e = Easter offset,
+               mo = Monday on/after a fixed date, wr = weekday within a date range.
+   Observe:    none | sun (Sunday→Monday, the Fed rule) | sub (weekend→next free weekday, UK). */
+const DAY_MS = 86400000;
 function easterSunday(y){
   const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,
         f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,
@@ -796,40 +812,145 @@ function easterSunday(y){
         mo=Math.floor((h+l-7*m+114)/31), da=((h+l-7*m+114)%31)+1;
   return Date.UTC(y,mo-1,da);
 }
-function target2Days(from,to){
-  const out=[];
-  for(let y=from;y<=to;y++){
-    const e=easterSunday(y);
-    out.push(y+'-01-01', dFmt(e-2*86400000), dFmt(e+86400000), y+'-05-01', y+'-12-25', y+'-12-26');
-  }
-  return out.sort();
+function nthWeekday(y,m,w,k){
+  if(k>0){ const first=new Date(Date.UTC(y,m-1,1)).getUTCDay();
+    return Date.UTC(y,m-1, 1+((w-first+7)%7)+(k-1)*7); }
+  const lastDay=new Date(Date.UTC(y,m,0)).getUTCDate();
+  const lastDow=new Date(Date.UTC(y,m-1,lastDay)).getUTCDay();
+  return Date.UTC(y,m-1, lastDay-((lastDow-w+7)%7));
 }
-const CALENDARS = {
-  US:{name:'United States', url:'https://www.federalreserve.gov/aboutthefed/k8.htm', days:[
-    '2026-01-01','2026-01-19','2026-02-16','2026-05-25','2026-06-19','2026-07-04','2026-09-07','2026-10-12','2026-11-11','2026-11-26','2026-12-25',
-    '2027-01-01','2027-01-18','2027-02-15','2027-05-31','2027-06-19','2027-07-05','2027-09-06','2027-10-11','2027-11-11','2027-11-25','2027-12-25',
-    '2028-01-01','2028-01-17','2028-02-21','2028-05-29','2028-06-19','2028-07-04','2028-09-04','2028-10-09','2028-11-11','2028-11-23','2028-12-25',
-    '2029-01-01','2029-01-15','2029-02-19','2029-05-28','2029-06-19','2029-07-04','2029-09-03','2029-10-08','2029-11-12','2029-11-22','2029-12-25']},
-  GB:{name:'United Kingdom', url:'https://www.gov.uk/bank-holidays', days:[
-    '2026-01-01','2026-04-03','2026-04-06','2026-05-04','2026-05-25','2026-08-31','2026-12-25','2026-12-28',
-    '2027-01-01','2027-03-26','2027-03-29','2027-05-03','2027-05-31','2027-08-30','2027-12-27','2027-12-28',
-    '2028-01-03','2028-04-14','2028-04-17','2028-05-01','2028-05-29','2028-08-28','2028-12-25','2028-12-26',
-    '2029-01-01','2029-03-30','2029-04-02','2029-05-07','2029-05-28','2029-08-27','2029-12-25','2029-12-26']},
-  BR:{name:'Brazil', url:'https://www.anbima.com.br/feriados/feriados.asp', days:[
-    '2026-01-01','2026-02-16','2026-02-17','2026-04-03','2026-04-21','2026-05-01','2026-06-04','2026-09-07','2026-10-12','2026-11-02','2026-11-15','2026-11-20','2026-12-25',
-    '2027-01-01','2027-02-08','2027-02-09','2027-03-26','2027-04-21','2027-05-01','2027-05-27','2027-09-07','2027-10-12','2027-11-02','2027-11-15','2027-11-20','2027-12-25',
-    '2028-01-01','2028-02-28','2028-02-29','2028-04-14','2028-04-21','2028-05-01','2028-06-15','2028-09-07','2028-10-12','2028-11-02','2028-11-15','2028-11-20','2028-12-25',
-    '2029-01-01','2029-02-12','2029-02-13','2029-03-30','2029-04-21','2029-05-01','2029-05-31','2029-09-07','2029-10-12','2029-11-02','2029-11-15','2029-11-20','2029-12-25']},
-  HK:{name:'Hong Kong', url:'https://www.gov.hk/en/about/abouthk/holiday/', days:[
+function ruleDate(r,y){
+  switch(r.t){
+    case 'f':  return Date.UTC(y, r.m-1, r.d);
+    case 'n':  return nthWeekday(y, r.m, r.w, r.k);
+    case 'e':  return easterSunday(y) + r.o*DAY_MS;
+    case 'mo': { const t=Date.UTC(y,r.m-1,r.d); return t + ((1-new Date(t).getUTCDay()+7)%7)*DAY_MS; }
+    case 'wr': { for(let d=r.from; d<=r.to; d++){ const t=Date.UTC(y,r.m-1,d);
+                 if(new Date(t).getUTCDay()===r.w) return t; } return null; }
+    default:   return null;
+  }
+}
+function observeDate(t, mode, taken){
+  const dow=new Date(t).getUTCDay();
+  if(mode==='sun') return dow===0 ? t+DAY_MS : t;
+  if(mode==='sub'){ let x=t;
+    while(new Date(x).getUTCDay()===0 || new Date(x).getUTCDay()===6 || taken.has(x)) x+=DAY_MS;
+    return x; }
+  return t;
+}
+function generateHolidays(spec, fromYear, toYear){
+  const out=new Set();
+  for(let y=fromYear; y<=toYear; y++){
+    const taken=new Set();
+    const dated=spec.rules.map(r=>({r, t:ruleDate(r,y)})).filter(x=>x.t!=null).sort((a,b)=>a.t-b.t);
+    for(const {t} of dated){
+      const obs=observeDate(t, spec.observe||'none', taken);
+      taken.add(obs); out.add(dFmt(obs));
+    }
+  }
+  return [...out].sort();
+}
+const GF={t:'e',o:-2}, EM={t:'e',o:1}, ASC={t:'e',o:39}, WM={t:'e',o:50},
+      CC={t:'e',o:60}, MT={t:'e',o:-3};
+const JURISDICTION_RULES = {
+  US:{name:'United States', region:'Americas', observe:'sun', conf:'verified', url:'https://www.federalreserve.gov/aboutthefed/k8.htm', rules:[
+    {t:'f',m:1,d:1},{t:'n',m:1,w:1,k:3},{t:'n',m:2,w:1,k:3},{t:'n',m:5,w:1,k:-1},{t:'f',m:6,d:19},{t:'f',m:7,d:4},
+    {t:'n',m:9,w:1,k:1},{t:'n',m:10,w:1,k:2},{t:'f',m:11,d:11},{t:'n',m:11,w:4,k:4},{t:'f',m:12,d:25}]},
+  CA:{name:'Canada', region:'Americas', observe:'sub', conf:'rules', url:'https://www.bankofcanada.ca/', rules:[
+    {t:'f',m:1,d:1},GF,{t:'wr',m:5,w:1,from:18,to:24},{t:'f',m:7,d:1},{t:'n',m:8,w:1,k:1},
+    {t:'n',m:9,w:1,k:1},{t:'n',m:10,w:1,k:2},{t:'f',m:11,d:11},{t:'f',m:12,d:25},{t:'f',m:12,d:26}]},
+  MX:{name:'Mexico', region:'Americas', observe:'none', conf:'rules', url:'https://www.gob.mx/cnbv', rules:[
+    {t:'f',m:1,d:1},{t:'n',m:2,w:1,k:1},{t:'n',m:3,w:1,k:3},MT,GF,{t:'f',m:5,d:1},{t:'f',m:9,d:16},
+    {t:'f',m:11,d:2},{t:'n',m:11,w:1,k:3},{t:'f',m:12,d:12},{t:'f',m:12,d:25}]},
+  BR:{name:'Brazil', region:'Americas', observe:'none', conf:'verified', url:'https://www.anbima.com.br/feriados/feriados.asp', rules:[
+    {t:'f',m:1,d:1},{t:'e',o:-48},{t:'e',o:-47},GF,{t:'f',m:4,d:21},{t:'f',m:5,d:1},CC,
+    {t:'f',m:9,d:7},{t:'f',m:10,d:12},{t:'f',m:11,d:2},{t:'f',m:11,d:15},{t:'f',m:11,d:20},{t:'f',m:12,d:25}]},
+  CL:{name:'Chile', region:'Americas', observe:'none', conf:'rules', url:'https://www.feriados.cl/', rules:[
+    {t:'f',m:1,d:1},GF,{t:'e',o:-1},{t:'f',m:5,d:1},{t:'f',m:5,d:21},{t:'f',m:6,d:29},{t:'f',m:7,d:16},
+    {t:'f',m:8,d:15},{t:'f',m:9,d:18},{t:'f',m:9,d:19},{t:'f',m:10,d:12},{t:'f',m:10,d:31},{t:'f',m:11,d:1},
+    {t:'f',m:12,d:8},{t:'f',m:12,d:25}]},
+  CO:{name:'Colombia', region:'Americas', observe:'none', conf:'rules', url:'https://www.banrep.gov.co/', rules:[
+    {t:'f',m:1,d:1},{t:'mo',m:1,d:6},{t:'mo',m:3,d:19},MT,GF,{t:'f',m:5,d:1},{t:'e',o:43},{t:'e',o:64},{t:'e',o:71},
+    {t:'mo',m:6,d:29},{t:'f',m:7,d:20},{t:'f',m:8,d:7},{t:'mo',m:8,d:15},{t:'mo',m:10,d:12},{t:'mo',m:11,d:1},
+    {t:'mo',m:11,d:11},{t:'f',m:12,d:8},{t:'f',m:12,d:25}]},
+  PE:{name:'Peru', region:'Americas', observe:'none', conf:'rules', url:'https://www.gob.pe/', rules:[
+    {t:'f',m:1,d:1},MT,GF,{t:'f',m:5,d:1},{t:'f',m:6,d:7},{t:'f',m:6,d:29},{t:'f',m:7,d:23},{t:'f',m:7,d:28},
+    {t:'f',m:7,d:29},{t:'f',m:8,d:6},{t:'f',m:8,d:30},{t:'f',m:10,d:8},{t:'f',m:11,d:1},{t:'f',m:12,d:8},
+    {t:'f',m:12,d:9},{t:'f',m:12,d:25}]},
+  PA:{name:'Panama', region:'Americas', observe:'none', conf:'rules', url:'https://www.mitradel.gob.pa/', rules:[
+    {t:'f',m:1,d:1},{t:'f',m:1,d:9},{t:'e',o:-48},{t:'e',o:-47},GF,{t:'f',m:5,d:1},{t:'f',m:11,d:3},
+    {t:'f',m:11,d:5},{t:'f',m:11,d:10},{t:'f',m:11,d:28},{t:'f',m:12,d:8},{t:'f',m:12,d:25}]},
+  GB:{name:'United Kingdom', region:'EMEA', observe:'sub', conf:'verified', url:'https://www.gov.uk/bank-holidays', rules:[
+    {t:'f',m:1,d:1},GF,EM,{t:'n',m:5,w:1,k:1},{t:'n',m:5,w:1,k:-1},{t:'n',m:8,w:1,k:-1},{t:'f',m:12,d:25},{t:'f',m:12,d:26}]},
+  IE:{name:'Ireland', region:'EMEA', observe:'sub', conf:'rules', url:'https://www.gov.ie/en/publication/bank-holidays/', rules:[
+    {t:'f',m:1,d:1},{t:'n',m:2,w:1,k:1},{t:'f',m:3,d:17},EM,{t:'n',m:5,w:1,k:1},{t:'n',m:6,w:1,k:1},
+    {t:'n',m:8,w:1,k:1},{t:'n',m:10,w:1,k:-1},{t:'f',m:12,d:25},{t:'f',m:12,d:26}]},
+  FR:{name:'France', region:'EMEA', observe:'none', conf:'rules', url:'https://www.banque-france.fr/', rules:[
+    {t:'f',m:1,d:1},EM,{t:'f',m:5,d:1},{t:'f',m:5,d:8},ASC,WM,{t:'f',m:7,d:14},{t:'f',m:8,d:15},
+    {t:'f',m:11,d:1},{t:'f',m:11,d:11},{t:'f',m:12,d:25}]},
+  DE:{name:'Germany', region:'EMEA', observe:'none', conf:'rules', url:'https://www.bundesbank.de/', rules:[
+    {t:'f',m:1,d:1},GF,EM,{t:'f',m:5,d:1},ASC,WM,{t:'f',m:10,d:3},{t:'f',m:12,d:25},{t:'f',m:12,d:26}]},
+  ES:{name:'Spain', region:'EMEA', observe:'none', conf:'rules', url:'https://www.bde.es/', rules:[
+    {t:'f',m:1,d:1},{t:'f',m:1,d:6},GF,{t:'f',m:5,d:1},{t:'f',m:8,d:15},{t:'f',m:10,d:12},{t:'f',m:11,d:1},
+    {t:'f',m:12,d:6},{t:'f',m:12,d:8},{t:'f',m:12,d:25}]},
+  IT:{name:'Italy', region:'EMEA', observe:'none', conf:'rules', url:'https://www.bancaditalia.it/', rules:[
+    {t:'f',m:1,d:1},{t:'f',m:1,d:6},EM,{t:'f',m:4,d:25},{t:'f',m:5,d:1},{t:'f',m:6,d:2},{t:'f',m:8,d:15},
+    {t:'f',m:11,d:1},{t:'f',m:12,d:8},{t:'f',m:12,d:25},{t:'f',m:12,d:26}]},
+  NL:{name:'Netherlands', region:'EMEA', observe:'none', conf:'rules', url:'https://www.dnb.nl/', rules:[
+    {t:'f',m:1,d:1},GF,EM,{t:'f',m:4,d:27},ASC,WM,{t:'f',m:12,d:25},{t:'f',m:12,d:26}]},
+  BE:{name:'Belgium', region:'EMEA', observe:'none', conf:'rules', url:'https://www.nbb.be/', rules:[
+    {t:'f',m:1,d:1},EM,{t:'f',m:5,d:1},ASC,WM,{t:'f',m:7,d:21},{t:'f',m:8,d:15},{t:'f',m:11,d:1},
+    {t:'f',m:11,d:11},{t:'f',m:12,d:25}]},
+  PT:{name:'Portugal', region:'EMEA', observe:'none', conf:'rules', url:'https://www.bportugal.pt/', rules:[
+    {t:'f',m:1,d:1},{t:'e',o:-47},GF,{t:'e',o:0},{t:'f',m:4,d:25},{t:'f',m:5,d:1},CC,{t:'f',m:6,d:10},
+    {t:'f',m:8,d:15},{t:'f',m:10,d:5},{t:'f',m:11,d:1},{t:'f',m:12,d:1},{t:'f',m:12,d:8},{t:'f',m:12,d:25}]},
+  CH:{name:'Switzerland', region:'EMEA', observe:'none', conf:'rules', url:'https://www.six-group.com/', rules:[
+    {t:'f',m:1,d:1},{t:'f',m:1,d:2},GF,EM,{t:'f',m:5,d:1},ASC,WM,{t:'f',m:8,d:1},{t:'f',m:12,d:25},{t:'f',m:12,d:26}]},
+  AT:{name:'Austria', region:'EMEA', observe:'none', conf:'rules', url:'https://www.oenb.at/', rules:[
+    {t:'f',m:1,d:1},{t:'f',m:1,d:6},EM,{t:'f',m:5,d:1},ASC,WM,CC,{t:'f',m:8,d:15},{t:'f',m:10,d:26},
+    {t:'f',m:11,d:1},{t:'f',m:12,d:8},{t:'f',m:12,d:25},{t:'f',m:12,d:26}]},
+  SE:{name:'Sweden', region:'EMEA', observe:'none', conf:'rules', url:'https://www.riksbank.se/', rules:[
+    {t:'f',m:1,d:1},{t:'f',m:1,d:6},GF,EM,{t:'f',m:5,d:1},ASC,{t:'f',m:6,d:6},{t:'wr',m:6,w:5,from:19,to:25},
+    {t:'f',m:12,d:24},{t:'f',m:12,d:25},{t:'f',m:12,d:26},{t:'f',m:12,d:31}]},
+  NO:{name:'Norway', region:'EMEA', observe:'none', conf:'rules', url:'https://www.norges-bank.no/', rules:[
+    {t:'f',m:1,d:1},MT,GF,EM,{t:'f',m:5,d:1},{t:'f',m:5,d:17},ASC,WM,{t:'f',m:12,d:25},{t:'f',m:12,d:26}]},
+  DK:{name:'Denmark', region:'EMEA', observe:'none', conf:'rules', url:'https://www.nationalbanken.dk/', rules:[
+    {t:'f',m:1,d:1},MT,GF,EM,ASC,WM,{t:'f',m:12,d:24},{t:'f',m:12,d:25},{t:'f',m:12,d:26},{t:'f',m:12,d:31}]},
+  FI:{name:'Finland', region:'EMEA', observe:'none', conf:'rules', url:'https://www.suomenpankki.fi/', rules:[
+    {t:'f',m:1,d:1},{t:'f',m:1,d:6},GF,EM,{t:'f',m:5,d:1},ASC,{t:'wr',m:6,w:5,from:19,to:25},
+    {t:'f',m:12,d:6},{t:'f',m:12,d:24},{t:'f',m:12,d:25},{t:'f',m:12,d:26}]},
+  PL:{name:'Poland', region:'EMEA', observe:'none', conf:'rules', url:'https://www.nbp.pl/', rules:[
+    {t:'f',m:1,d:1},{t:'f',m:1,d:6},EM,{t:'f',m:5,d:1},{t:'f',m:5,d:3},CC,{t:'f',m:8,d:15},{t:'f',m:11,d:1},
+    {t:'f',m:11,d:11},{t:'f',m:12,d:25},{t:'f',m:12,d:26}]},
+  ZA:{name:'South Africa', region:'EMEA', observe:'sun', conf:'rules', url:'https://www.gov.za/about-sa/public-holidays', rules:[
+    {t:'f',m:1,d:1},{t:'f',m:3,d:21},GF,EM,{t:'f',m:4,d:27},{t:'f',m:5,d:1},{t:'f',m:6,d:16},{t:'f',m:8,d:9},
+    {t:'f',m:9,d:24},{t:'f',m:12,d:16},{t:'f',m:12,d:25},{t:'f',m:12,d:26}]},
+  EU:{name:'TARGET2 (euro area)', region:'EMEA', observe:'none', conf:'verified', url:'https://www.ecb.europa.eu/paym/target/html/index.en.html', rules:[
+    {t:'f',m:1,d:1},GF,EM,{t:'f',m:5,d:1},{t:'f',m:12,d:25},{t:'f',m:12,d:26}]},
+  AU:{name:'Australia', region:'APAC', observe:'sub', conf:'rules', url:'https://www.rba.gov.au/', rules:[
+    {t:'f',m:1,d:1},{t:'f',m:1,d:26},GF,EM,{t:'f',m:4,d:25},{t:'f',m:12,d:25},{t:'f',m:12,d:26}]},
+};
+/* Lunar and Islamic calendars cannot be derived from these rules — they need a published list. */
+const SOURCED_CALENDARS = {
+  HK:{name:'Hong Kong', region:'APAC', conf:'sourced', url:'https://www.gov.hk/en/about/abouthk/holiday/', days:[
     '2026-01-01','2026-02-17','2026-02-18','2026-02-19','2026-04-03','2026-04-04','2026-04-06','2026-04-07','2026-05-01','2026-05-25','2026-06-19','2026-07-01','2026-09-26','2026-10-01','2026-10-19','2026-12-25','2026-12-26',
     '2027-01-01','2027-02-06','2027-02-08','2027-02-09','2027-03-26','2027-03-27','2027-03-29','2027-04-05','2027-05-01','2027-05-13','2027-06-09','2027-07-01','2027-09-16','2027-10-01','2027-10-08','2027-12-25','2027-12-27']},
-  EU:{name:'TARGET2 (euro area)', url:'https://www.ecb.europa.eu/paym/target/html/index.en.html',
-      computed:true, days:target2Days(2026,2035)},
 };
-for (const k in CALENDARS){
-  const c=CALENDARS[k]; c.code=k; c.set=new Set(c.days); c.coverageThrough=c.days.reduce((a,b)=>a>b?a:b);
+const CAL_FROM=2024, CAL_TO=2040;
+const CALENDARS={};
+for(const [code,spec] of Object.entries(JURISDICTION_RULES)){
+  const days=generateHolidays(spec,CAL_FROM,CAL_TO);
+  CALENDARS[code]={code, name:spec.name, region:spec.region, url:spec.url, conf:spec.conf,
+    derived:true, days, set:new Set(days), coverageThrough:CAL_TO+'-12-31'};
 }
-const ALL_JURISDICTIONS = Object.keys(CALENDARS);
+for(const [code,spec] of Object.entries(SOURCED_CALENDARS)){
+  CALENDARS[code]={code, name:spec.name, region:spec.region, url:spec.url, conf:spec.conf,
+    derived:false, days:spec.days, set:new Set(spec.days),
+    coverageThrough:spec.days.reduce((a,b)=>a>b?a:b)};
+}
+const ALL_JURISDICTIONS = Object.keys(CALENDARS)
+  .sort((a,b)=>CALENDARS[a].region.localeCompare(CALENDARS[b].region) || CALENDARS[a].name.localeCompare(CALENDARS[b].name));
+const REGIONS = ['Americas','EMEA','APAC'];
 const DEFAULT_JURISDICTIONS = ['US','GB','BR','HK'];   // as hardcoded in BD Dates!B4:B13
 
 /* ---------------------------- formatting ---------------------------- */
@@ -1176,7 +1297,8 @@ function audit(entityType, entityId, action, field, oldV, newV, reason){
 }
 const currentDeal  = () => store.deals.find(d=>d.id===store.currentDealId) || store.deals[0];
 const tradesOf     = dealId => store.trades.filter(t=>t.dealId===dealId);
-const currentTrade = () => { const d=currentDeal(); const ts=tradesOf(d.id);
+const currentTrade = () => { const d=currentDeal(); if(!d) return null;
+  const ts=tradesOf(d.id);
   return ts.find(t=>t.id===store.currentTradeId) || ts[0] || null; };
 const clientList = () => (store.clients && store.clients.list) || [];
 const findClient = id => clientList().find(c=>String(c.id)===String(id)) || null;
@@ -1344,6 +1466,7 @@ const DEAL_FIELD_IDS = { clientId:'d_client', code:'d_code', currency:'d_currenc
 function loadFormFromStore(){
   const d=currentDeal(), t=currentTrade();
   renderClientOptions(); renderCurrencyOptions(); renderJurisdictionBox();
+  if(!d) return;
   for(const [f,id] of Object.entries(DEAL_FIELD_IDS)){ const el=$(id); if(!el) continue;
     if(el.type==='checkbox') el.checked = d[f]!==false; else el.value=d[f]??''; }
   if(!t) return;
@@ -1392,13 +1515,27 @@ function renderDealForm(){
   renderJurisdictionBox();
 }
 function renderJurisdictionBox(){
-  const d=currentDeal(), locked=dealLocked(d);
-  $('jurisdictionBox').innerHTML = ALL_JURISDICTIONS.map(code=>{
-    const c=CALENDARS[code], on=(d.jurisdictions||[]).includes(code);
-    return '<label title="'+esc(c.name)+' · coverage to '+fmtShort(c.coverageThrough)+'">'+
-      '<input type="checkbox" data-jur="'+code+'"'+(on?' checked':'')+(locked?' disabled':'')+'>'+
-      esc(c.name)+' <span class="tiny">('+code+')</span></label>';
-  }).join('');
+  const d=currentDeal(); if(!d) return;
+  const locked=dealLocked(d), sel=new Set(d.jurisdictions||[]);
+  const f=($('jurFilter').value||'').toLowerCase().trim();
+  const hidden = f ? [...sel].filter(c=>!(CALENDARS[c]||{name:''}).name.toLowerCase().includes(f) && !c.toLowerCase().includes(f)).length : 0;
+  $('jurCount').textContent = sel.size+' of '+ALL_JURISDICTIONS.length+' selected'+
+    (hidden ? ' · '+hidden+' selected hidden by the filter' : '');
+  let html='';
+  for(const region of REGIONS){
+    const codes=ALL_JURISDICTIONS.filter(c=>CALENDARS[c].region===region &&
+      (!f || CALENDARS[c].name.toLowerCase().includes(f) || c.toLowerCase().includes(f)));
+    if(!codes.length) continue;
+    html+='<div class="tiny" style="margin:8px 0 3px;font-weight:600">'+region+'</div><div class="jur">'+
+      codes.map(code=>{ const c=CALENDARS[code];
+        return '<label title="'+esc(c.name)+' · '+(c.derived?'derived from rules':'published list')+
+          ' · coverage to '+fmtShort(c.coverageThrough)+'">'+
+          '<input type="checkbox" data-jur="'+code+'"'+(sel.has(code)?' checked':'')+(locked?' disabled':'')+'>'+
+          esc(c.name)+' <span class="tiny">('+code+')</span>'+
+          (c.conf==='sourced'?' <span class="inline-tag warn">to '+fmtShort(c.coverageThrough)+'</span>':'')+'</label>';
+      }).join('')+'</div>';
+  }
+  $('jurisdictionBox').innerHTML = html || '<p class="tiny">No jurisdictions match.</p>';
 }
 function applyClientNaming(name){
   for(const el of document.querySelectorAll('[data-tpl]')) el.textContent = el.dataset.tpl.replace(/\{client\}/g, name);
@@ -1409,25 +1546,26 @@ function applyClientNaming(name){
 /** opts.keepCurveBoxes leaves the curve pillar inputs in place so an in-progress
  *  edit does not lose focus when the model updates on every keystroke. */
 function render(opts){
-  const d=currentDeal(); if(!d) return;
+  const d=currentDeal();
+  if(!d){                                   // every deal deleted — keep the Deals screen usable
+    applyClientNaming('Client');
+    $('stateBadge').textContent='—'; $('stateBadge').className='badge DRAFT';
+    $('dealCaption').textContent='No deals';
+    configuringDealId=null;
+    renderDeals(); renderClients(); renderAudit(); renderAbout();
+    $('topBanners').innerHTML='<div class="banner warn"><div><b>No deals.</b> Create one on the Deals tab.</div></div>';
+    $('dealContextBox').innerHTML=''; $('tradeListBox').innerHTML='';
+    for(const id of ['btnPrice','btnApprove','btnIssue','btnSettle','btnCancel','btnNewTrade','btnDupTrade','btnVersion'])
+      $(id).disabled=true;
+    save(); return;
+  }
   const t=currentTrade();
   const r=computeAll(d,t);
   applyClientNaming(clientLabel(d));
-  renderPickers(d,t); renderHeader(d,t,r); renderDealForm(); renderPricing(d,t,r);
+  renderHeader(d,t,r); renderDealForm(); renderTradeList(d,t); renderPricing(d,t,r);
   renderRates(opts && opts.keepCurveBoxes); renderClients(); renderOffer(d,t,r);
   renderDeals(); renderAudit(); renderAbout();
   save();
-}
-
-function renderPickers(d,t){
-  const dp=$('dealPicker');
-  dp.innerHTML=store.deals.map(x=>'<option value="'+x.id+'">'+esc(x.code||'(untitled)')+' — '+esc(clientLabel(x))+
-    ' ('+tradesOf(x.id).length+' trade'+(tradesOf(x.id).length===1?'':'s')+')</option>').join('');
-  dp.value=d.id;
-  const tp=$('tradePicker'); const ts=tradesOf(d.id);
-  tp.innerHTML = ts.length ? ts.map(x=>'<option value="'+x.id+'">'+esc(x.identifier||'(untitled)')+
-    ' · v'+x.versionNo+' · '+x.state+'</option>').join('') : '<option value="">No trades</option>';
-  if(t) tp.value=t.id;
 }
 
 function renderHeader(d,t,r){
@@ -1455,7 +1593,7 @@ function renderHeader(d,t,r){
   $('btnDupTrade').disabled = !t;
   const errPill = r.errors.length ? '<span class="pill err">'+r.errors.length+'</span>' : '';
   const warnPill = r.warnings.length ? '<span class="pill warn">'+r.warnings.length+'</span>' : '';
-  document.querySelector('#tabs button[data-view="pricing"]').innerHTML='Pricing'+errPill+warnPill;
+  document.querySelector('#tabs button[data-view="pricing"]').innerHTML='Trades'+errPill+warnPill;
 }
 
 function renderPricing(d,t,r){
@@ -1728,41 +1866,100 @@ function renderOffer(d,t,r){
     t.offerFiles.map(f=>'<tr><td>'+new Date(f.issuedAt).toLocaleString()+'</td><td>'+esc(f.issuedBy)+'</td><td class="mono tiny">'+f.documentSha256+'</td></tr>').join('')+'</tbody></table>';
 }
 
+/** Which deal's configuration panel is open, or null when the panel is hidden. */
+let configuringDealId = null;
+
 function renderDeals(){
-  // Deal list — configuration only. Trades of the selected deal are listed alongside.
+  const cur=currentDeal();
   $('dealTable').innerHTML='<thead><tr><th>Transaction Code</th><th>Client</th><th>Ccy</th><th class="n">Trades</th>'+
     '<th>Pro forma</th><th>Jurisdictions</th><th></th></tr></thead><tbody>'+
     (store.deals.length?store.deals.map(d=>{
-      const ts=tradesOf(d.id);
-      return '<tr class="dealrow'+(d.id===store.currentDealId?' sel':'')+'">'+
+      const ts=tradesOf(d.id), js=d.jurisdictions||[];
+      return '<tr class="dealrow'+(cur&&d.id===cur.id?' sel':'')+'">'+
         '<td>'+esc(d.code||'(untitled deal)')+'</td><td>'+esc(clientLabel(d))+'</td>'+
         '<td>'+esc(d.currency)+' <span class="tiny">'+esc(idxFor(d.currency).name)+'</span></td>'+
         '<td class="n">'+ts.length+'</td>'+
         '<td>'+(d.proformaEnabled!==false?'<span class="inline-tag ok">yes</span>':'<span class="inline-tag">no</span>')+'</td>'+
-        '<td class="tiny">'+((d.jurisdictions||[]).join(', ')||'<span class="inline-tag err">none</span>')+'</td>'+
-        '<td class="n"><button class="btn sm" data-open-deal="'+d.id+'">'+(d.id===store.currentDealId?'Selected':'Configure')+'</button></td></tr>';
-    }).join('') : '<tr><td colspan="7" class="tiny">No deals yet.</td></tr>')+'</tbody>';
+        '<td class="tiny">'+(js.length? esc(js.slice(0,4).join(', '))+(js.length>4?' +'+(js.length-4):'')
+                                      : '<span class="inline-tag err">none</span>')+'</td>'+
+        '<td class="n" style="white-space:nowrap">'+
+          '<button class="btn sm" data-select-deal="'+d.id+'">Trades</button> '+
+          '<button class="btn sm" data-config-deal="'+d.id+'">Configure</button> '+
+          '<button class="btn sm danger" data-delete-deal="'+d.id+'">Delete</button></td></tr>';
+    }).join('') : '<tr><td colspan="7" class="tiny">No deals. Use <b>New deal</b> to create one.</td></tr>')+'</tbody>';
 
-  const d=currentDeal(), ts=tradesOf(d.id);
-  $('dealTradesBox').innerHTML = ts.length===0
+  const showConfig = !!configuringDealId && store.deals.some(d=>d.id===configuringDealId);
+  $('dealConfigCard').style.display = showConfig ? '' : 'none';
+  $('dealsSplit').className = showConfig ? 'grid2' : '';
+
+  $('dealTradesFor').textContent = cur ? '— '+(cur.code||'(untitled deal)') : '';
+  $('btnNewTradeFromDeals').disabled = !cur;
+  const ts=cur?tradesOf(cur.id):[];
+  $('dealTradesBox').innerHTML = !cur
+    ? '<p class="tiny">No deal selected.</p>'
+    : ts.length===0
     ? '<p class="tiny">No trades on this deal yet. Use <b>New trade</b> above.</p>'
     : '<table><thead><tr><th>Identifier</th><th>State</th><th class="n">Purchase price</th><th>Settlement</th><th></th></tr></thead><tbody>'+
-      ts.map(t=>{ const r=computeAll(d,t);
+      ts.map(t=>{ const r=computeAll(cur,t);
         return '<tr class="'+(t.id===store.currentTradeId?'sel':'')+'"><td>'+esc(t.identifier||'(untitled)')+
           ' <span class="tiny">v'+t.versionNo+'</span></td>'+
           '<td><span class="badge '+t.state+'">'+t.state+'</span></td>'+
-          '<td class="n">'+(r.out?money(r.out.purchasePrice,d.currency):'—')+'</td>'+
+          '<td class="n">'+(r.out?money(r.out.purchasePrice,cur.currency):'—')+'</td>'+
           '<td>'+fmtShort(t.inputs.bladexSettlementDate)+'</td>'+
-          '<td class="n"><button class="btn sm" data-open-trade="'+t.id+'">Price</button></td></tr>';
+          '<td class="n"><button class="btn sm" data-open-trade="'+t.id+'">Open</button></td></tr>';
       }).join('')+'</tbody></table>';
+}
+
+/** The trade list shown on the Trades tab, where every trade action lives. */
+function renderTradeList(d,t){
+  const ts=d?tradesOf(d.id):[];
+  $('tradeListBox').innerHTML = ts.length===0
+    ? '<p class="tiny">No trades on this deal. Use <b>New trade</b>.</p>'
+    : '<table><thead><tr><th>Identifier</th><th>State</th><th class="n">Purchase price</th><th>Settlement</th><th></th></tr></thead><tbody>'+
+      ts.map(x=>{ const r=computeAll(d,x);
+        return '<tr class="'+(t&&x.id===t.id?'sel':'')+'"><td>'+esc(x.identifier||'(untitled)')+
+          ' <span class="tiny">v'+x.versionNo+'</span></td>'+
+          '<td><span class="badge '+x.state+'">'+x.state+'</span></td>'+
+          '<td class="n">'+(r.out?money(r.out.purchasePrice,d.currency):'—')+'</td>'+
+          '<td>'+fmtShort(x.inputs.bladexSettlementDate)+'</td>'+
+          '<td class="n">'+(t&&x.id===t.id?'<span class="inline-tag ok">open</span>'
+            :'<button class="btn sm" data-pick-trade="'+x.id+'">Open</button>')+'</td></tr>';
+      }).join('')+'</tbody></table>';
+}
+
+/** Delete a deal outright. Refused once any trade has been approved — those are records. */
+function deleteDeal(id){
+  const d=store.deals.find(x=>x.id===id); if(!d) return;
+  const ts=tradesOf(id);
+  const kept=ts.filter(t=>['APPROVED','ISSUED','SETTLED'].includes(t.state));
+  if(kept.length) return alert('Cannot delete "'+(d.code||'this deal')+'".\n\n'+kept.length+
+    ' trade(s) have been approved or issued and must be retained for audit:\n• '+
+    kept.map(t=>(t.identifier||'(untitled)')+' — '+t.state).join('\n• ')+
+    '\n\nCancel those trades if the deal is dead; the record stays.');
+  if(!confirm('Delete deal "'+(d.code||'(untitled)')+'" ('+clientLabel(d)+') and its '+ts.length+
+    ' trade(s)?\n\nThis cannot be undone. A snapshot is written to the audit log.')) return;
+  const reason=prompt('Reason for deletion (recorded in the audit log):');
+  if(reason===null) return;
+  if(!reason.trim()) return alert('A reason is required.');
+  audit('deal',id,'DELETE',null, JSON.stringify({code:d.code, client:clientLabel(d), currency:d.currency,
+    jurisdictions:d.jurisdictions, trades:ts.map(t=>({identifier:t.identifier, state:t.state}))}), null, reason.trim());
+  store.trades=store.trades.filter(t=>t.dealId!==id);
+  store.deals=store.deals.filter(x=>x.id!==id);
+  if(configuringDealId===id) configuringDealId=null;
+  if(store.currentDealId===id){
+    store.currentDealId = store.deals.length ? store.deals[0].id : null;
+    const nts = store.currentDealId ? tradesOf(store.currentDealId) : [];
+    store.currentTradeId = nts.length ? nts[0].id : null;
+  }
+  curveChoice=null; loadFormFromStore(); render();
 }
 
 function renderAudit(){
   const scope=$('auditScope').value, t=currentTrade(), d=currentDeal();
-  const tradeIds=new Set(tradesOf(d.id).map(x=>x.id));
+  const tradeIds=new Set(d?tradesOf(d.id).map(x=>x.id):[]);
   const rows=store.audit.filter(a=>{
     if(scope==='all') return true;
-    if(scope==='deal') return a.entityId===d.id || tradeIds.has(a.entityId);
+    if(scope==='deal') return d && (a.entityId===d.id || tradeIds.has(a.entityId));
     return t && a.entityId===t.id;
   }).slice().reverse();
   $('auditTable').innerHTML='<thead><tr><th>When</th><th>Actor</th><th>Role</th><th>Entity</th><th>Action</th><th>Field</th><th>From</th><th>To</th><th>Reason</th></tr></thead><tbody>'+
@@ -1862,6 +2059,35 @@ function runTests(){
   T('ACT/365 differs from ACT/360', o365.tcFactor.eq(o.tcFactor),'false','basis sensitivity');
   T('ACT/365 still reconciles', o365.reconciliation.toFixed(10),'0.0000000000','B51+B52+B53−B47');
   T('ACT/365 supplier leg intact', o365.payToSupplier.toFixed(2),'850000.00','Cantu!B51');
+
+  // The calendar engine must reproduce the workbook's transcribed lists exactly.
+  // These three arrays are BD Dates columns B, C and D verbatim.
+  const WB_CAL = {
+    US:['2026-01-01','2026-01-19','2026-02-16','2026-05-25','2026-06-19','2026-07-04','2026-09-07','2026-10-12','2026-11-11','2026-11-26','2026-12-25',
+        '2027-01-01','2027-01-18','2027-02-15','2027-05-31','2027-06-19','2027-07-05','2027-09-06','2027-10-11','2027-11-11','2027-11-25','2027-12-25',
+        '2028-01-01','2028-01-17','2028-02-21','2028-05-29','2028-06-19','2028-07-04','2028-09-04','2028-10-09','2028-11-11','2028-11-23','2028-12-25',
+        '2029-01-01','2029-01-15','2029-02-19','2029-05-28','2029-06-19','2029-07-04','2029-09-03','2029-10-08','2029-11-12','2029-11-22','2029-12-25'],
+    GB:['2026-01-01','2026-04-03','2026-04-06','2026-05-04','2026-05-25','2026-08-31','2026-12-25','2026-12-28',
+        '2027-01-01','2027-03-26','2027-03-29','2027-05-03','2027-05-31','2027-08-30','2027-12-27','2027-12-28',
+        '2028-01-03','2028-04-14','2028-04-17','2028-05-01','2028-05-29','2028-08-28','2028-12-25','2028-12-26',
+        '2029-01-01','2029-03-30','2029-04-02','2029-05-07','2029-05-28','2029-08-27','2029-12-25','2029-12-26'],
+    BR:['2026-01-01','2026-02-16','2026-02-17','2026-04-03','2026-04-21','2026-05-01','2026-06-04','2026-09-07','2026-10-12','2026-11-02','2026-11-15','2026-11-20','2026-12-25',
+        '2027-01-01','2027-02-08','2027-02-09','2027-03-26','2027-04-21','2027-05-01','2027-05-27','2027-09-07','2027-10-12','2027-11-02','2027-11-15','2027-11-20','2027-12-25',
+        '2028-01-01','2028-02-28','2028-02-29','2028-04-14','2028-04-21','2028-05-01','2028-06-15','2028-09-07','2028-10-12','2028-11-02','2028-11-15','2028-11-20','2028-12-25',
+        '2029-01-01','2029-02-12','2029-02-13','2029-03-30','2029-04-21','2029-05-01','2029-05-31','2029-09-07','2029-10-12','2029-11-02','2029-11-15','2029-11-20','2029-12-25'],
+  };
+  for(const [code,want] of Object.entries(WB_CAL)){
+    const got=generateHolidays(JURISDICTION_RULES[code],2026,2029);
+    T('Calendar rules reproduce '+code+' ('+want.length+' days)',
+      got.length===want.length && want.every(d=>got.includes(d)),'true','BD Dates column vs rule engine');
+  }
+  T('Easter 2027', dFmt(easterSunday(2027)),'2027-03-28','Easter algorithm');
+  T('Easter 2030', dFmt(easterSunday(2030)),'2030-04-21','Easter algorithm');
+  T('UK substitute: Christmas 2027 Sat', generateHolidays(JURISDICTION_RULES.GB,2027,2027).includes('2027-12-27'),'true','weekend→next free weekday');
+  T('US Fed: Sunday Nov 11 2029 → Mon', generateHolidays(JURISDICTION_RULES.US,2029,2029).includes('2029-11-12'),'true','Sunday→Monday');
+  T('Colombia Emiliani shifts to Monday', generateHolidays(JURISDICTION_RULES.CO,2026,2026).includes('2026-01-12'),'true','Monday on/after Jan 6');
+  T('Derived calendars run to '+CAL_TO, CALENDARS.US.coverageThrough, CAL_TO+'-12-31','no coverage cliff');
+  T('Jurisdictions available', ALL_JURISDICTIONS.length>=28,'true','global coverage');
 
   // Jurisdictions are per deal
   T('Jurisdiction subset checked', businessDayCheck('2026-12-25',['US']).verdict,'CHECK DATE!','BD Dates');
@@ -2062,11 +2288,6 @@ document.addEventListener('change', e=>{
   if(el.id==='actorRole') render();
 });
 
-$('dealPicker').onchange=e=>{ store.currentDealId=e.target.value;
-  const ts=tradesOf(store.currentDealId); store.currentTradeId=ts.length?ts[0].id:null;
-  loadFormFromStore(); render(); };
-$('tradePicker').onchange=e=>{ store.currentTradeId=e.target.value; loadFormFromStore(); render(); };
-
 document.getElementById('tabs').addEventListener('click', e=>{
   const b=e.target.closest('button[data-view]'); if(!b) return;
   for(const x of document.querySelectorAll('#tabs button')) x.setAttribute('aria-selected', String(x===b));
@@ -2074,21 +2295,41 @@ document.getElementById('tabs').addEventListener('click', e=>{
   if(b.dataset.view==='tests') runTests();
 });
 const showTab = v => document.querySelector('#tabs button[data-view="'+v+'"]').click();
-// Selecting a deal stays on the configuration screen; opening a trade goes to pricing.
-$('dealTable').addEventListener('click', e=>{
-  const bd=e.target.closest('button[data-open-deal]'); if(!bd) return;
-  store.currentDealId=bd.dataset.openDeal;
-  const ts=tradesOf(store.currentDealId); store.currentTradeId=ts.length?ts[0].id:null;
+function selectDeal(id){
+  store.currentDealId=id;
+  const ts=tradesOf(id); store.currentTradeId=ts.length?ts[0].id:null;
   curveChoice=null; loadFormFromStore(); render();
-});
-$('dealTradesBox').addEventListener('click', e=>{
-  const bt=e.target.closest('button[data-open-trade]'); if(!bt) return;
-  const tr=store.trades.find(x=>x.id===bt.dataset.openTrade); if(!tr) return;
+}
+function openTrade(id){
+  const tr=store.trades.find(x=>x.id===id); if(!tr) return;
   store.currentDealId=tr.dealId; store.currentTradeId=tr.id;
   loadFormFromStore(); render(); showTab('pricing');
+}
+$('dealTable').addEventListener('click', e=>{
+  const sel=e.target.closest('button[data-select-deal]');
+  const cfg=e.target.closest('button[data-config-deal]');
+  const del=e.target.closest('button[data-delete-deal]');
+  if(del) return deleteDeal(del.dataset.deleteDeal);
+  if(cfg){ configuringDealId=cfg.dataset.configDeal; selectDeal(cfg.dataset.configDeal); return; }
+  if(sel){ selectDeal(sel.dataset.selectDeal); showTab('pricing'); }
 });
-$('btnEditDeal').onclick=()=>showTab('deals');
-$('btnNewTradeFromDeals').onclick=()=>$('btnNewTrade').click();
+$('dealTradesBox').addEventListener('click', e=>{
+  const bt=e.target.closest('button[data-open-trade]'); if(bt) openTrade(bt.dataset.openTrade);
+});
+$('tradeListBox').addEventListener('click', e=>{
+  const bt=e.target.closest('button[data-pick-trade]'); if(!bt) return;
+  store.currentTradeId=bt.dataset.pickTrade; loadFormFromStore(); render();
+});
+$('btnEditDeal').onclick=()=>{ const d=currentDeal(); if(d) configuringDealId=d.id; render(); showTab('deals'); };
+$('btnCloseConfig').onclick=()=>{ configuringDealId=null; render(); };
+$('btnNewTradeFromDeals').onclick=()=>{ $('btnNewTrade').click(); showTab('pricing'); };
+$('jurFilter').addEventListener('input', renderJurisdictionBox);
+$('btnJurClear').onclick=()=>{ const d=currentDeal(); if(!d || dealLocked(d)) return;
+  const before=(d.jurisdictions||[]).join(',');
+  d.jurisdictions=[];
+  audit('deal',d.id,'UPDATE','jurisdictions',before,'');
+  revertPricedTrades(d,'Jurisdictions cleared — rate snapshot voided.');
+  render(); };
 $('clientFilter').addEventListener('input', renderClients);
 $('clientTable').addEventListener('click', e=>{
   const b=e.target.closest('button[data-pick-client]'); if(!b) return;
@@ -2107,6 +2348,7 @@ $('btnPrice').onclick=doPrice; $('btnApprove').onclick=doApprove; $('btnIssue').
 $('btnSettle').onclick=doSettle; $('btnCancel').onclick=doCancel;
 $('btnNewDeal').onclick=()=>{ const d=newDeal(actor().name); store.deals.push(d);
   store.currentDealId=d.id; store.currentTradeId=null; curveChoice=null;
+  configuringDealId=d.id;                     // a new deal opens straight into configuration
   audit('deal',d.id,'CREATE',null,null,'new deal');
   loadFormFromStore(); render(); showTab('deals'); };
 $('btnNewTrade').onclick=()=>{ const d=currentDeal(); const t=newTrade(d.id, actor().name);
