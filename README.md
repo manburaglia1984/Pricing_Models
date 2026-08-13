@@ -138,6 +138,15 @@ The Reference data tab's **Base rate curves** card manages the history:
   percentages; blank cells are left untouched, so partial rows are fine. Rows with no date or no rates at
   all are skipped and reported rather than half-loaded. *Download CSV template* gives the exact shape;
   *Export history* round-trips everything.
+- **The upload reads the file Excel actually produces, not just the template.** A template that has been
+  opened and saved comes back with its dates rewritten to the machine's locale, so the parser accepts
+  `2026-06-22`, `6/22/2026`, `22/06/2026`, `22-Jun-2026`, `Jun 22, 2026`, `20260622` and bare Excel
+  serials, along with `;`- or tab-separated files, a UTF-8 BOM, quoted fields, `3,64338` decimal commas,
+  a trailing `%`, and header spellings such as `Business Date`, `1M` or `1Y`. **Day/month order is settled
+  from the column as a whole** — one unambiguous row like `6/22/2026` fixes the reading for `6/7/2026`
+  further down. A file that argues both ways (`22/06` next to `06/22`) is refused outright rather than
+  guessed at, and a column that is ambiguous end to end is read month-first and says so in the
+  confirmation. Rejected rows are now named with the reason instead of a bare "no usable rows".
 - The history table shows each curve's rates, source and **which trades read it, and in which role**
   ("trade date" or "pro forma"), so you can see what a curve is load-bearing for before deleting it.
   Rows missing pillars say which.

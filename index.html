@@ -383,7 +383,7 @@ code,.mono{font-family:var(--mono);font-size:12px}
         <button class="btn" id="btnCurveTemplate">Download CSV template</button>
         <button class="btn" id="btnCurveExport">Export history (JSON)</button>
       </div>
-      <p class="tiny" style="margin:8px 0 0">CSV columns: <code>date,1m,3m,6m,12m</code>; extra columns are ignored. A row replaces any existing curve for that date. There is one curve per index — the pro forma block simply reads it at its own issue date.</p>
+      <p class="tiny" style="margin:8px 0 0">CSV columns: <code>date,1m,3m,6m,12m</code>; extra columns are ignored. Dates may be <code>2026-06-22</code>, <code>6/22/2026</code>, <code>22/06/2026</code> or <code>22-Jun-2026</code> — whatever Excel left behind — and semicolon files with comma decimals are read too. A row replaces any existing curve for that date. There is one curve per index — the pro forma block simply reads it at its own issue date.</p>
     </div>
   </div>
 
@@ -2765,7 +2765,80 @@ $('importFile').onchange=e=>{ const f=e.target.files[0]; if(!f) return;
     }catch(err){ alert('Import failed: '+err.message); } finally{ e.target.value=''; } };
   rd.readAsText(f); };
 /* ---------------------------- curve history ---------------------------- */
-const TENOR_COLS = [['1m',30],['3m',90],['6m',180],['12m',360],['1y',360]];
+/* Uploaded files nearly always make a round trip through Excel before they get here, which
+   rewrites dates into the machine's locale, renames headers and sometimes swaps the delimiter.
+   The lookups below are keyed by the header with spaces, underscores, hyphens and dots removed. */
+const TENOR_COLS = {'1m':30,'1mo':30,'1month':30,'30d':30,'30days':30,
+  '3m':90,'3mo':90,'3month':90,'90d':90,'90days':90,
+  '6m':180,'6mo':180,'6month':180,'180d':180,'180days':180,
+  '12m':360,'12mo':360,'12month':360,'1y':360,'1yr':360,'1year':360,'360d':360,'360days':360};
+const DATE_COLS = ['date','businessdate','curvedate','valuedate','effectivedate','asof','asofdate'];
+const MONTH_ABBR = {jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+const normHead = h => String(h==null?'':h).replace(/^\uFEFF/,'').trim()
+  .replace(/^"|"$/g,'').toLowerCase().replace(/[\s_\-.]+/g,'');
+/** y/m/d → ISO, or null when the calendar rejects it (30 Feb, month 13, a bad month name). */
+function isoFromParts(y, m, d){
+  if(!(y>0) || !(m>=1 && m<=12) || !(d>=1 && d<=31)) return null;
+  if(y<100) y += y<70 ? 2000 : 1900;
+  const iso = String(y).padStart(4,'0')+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+  return isValidDate(iso) && dFmt(dParse(iso))===iso ? iso : null;   // Date.UTC rolls 31 Apr over
+}
+/** One date cell → an ISO string, [d,m,year] while the day/month order is still open, or null. */
+function readDateCell(raw){
+  const s = String(raw==null?'':raw).replace(/^\uFEFF/,'').trim().replace(/^"|"$/g,'').replace(/\s+/g,' ');
+  if(!s) return null;
+  let m;
+  if((m=/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/.exec(s)))              // 2026-06-22, 2026/6/22
+    return isoFromParts(+m[1], +m[2], +m[3]);
+  if((m=/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2}|\d{4})$/.exec(s)))        // 6/22/2026 or 22/06/2026
+    return [+m[1], +m[2], +m[3]];
+  if((m=/^(\d{1,2})[- ]([a-z]{3,9})[,-]? ?(\d{2}|\d{4})$/i.exec(s)))   // 22-Jun-2026, 22 June 26
+    return isoFromParts(+m[3], MONTH_ABBR[m[2].slice(0,3).toLowerCase()], +m[1]);
+  if((m=/^([a-z]{3,9})[- ] ?(\d{1,2})[,-]? ?(\d{2}|\d{4})$/i.exec(s))) // Jun 22, 2026
+    return isoFromParts(+m[3], MONTH_ABBR[m[1].slice(0,3).toLowerCase()], +m[2]);
+  if(/^\d{8}$/.test(s))                                               // 20260622
+    return isoFromParts(+s.slice(0,4), +s.slice(4,6), +s.slice(6,8));
+  if(/^\d{5}$/.test(s) && +s>=20000 && +s<=60000)                     // Excel serial, 1954–2064
+    return dAdd('1899-12-30', +s);
+  return null;
+}
+/** Settle day-first vs month-first for the column as a whole: 6/22 proves the order for 6/7 too. */
+function resolveDateOrder(pairs){
+  const dayFirst = pairs.filter(p=>p[0]>12 && p[1]<=12).length,   // a row above 12 on both sides is
+        monthFirst = pairs.filter(p=>p[1]>12 && p[0]<=12).length; // junk, not evidence either way
+
+  if(dayFirst && monthFirst) throw new Error('The date column mixes day-first and month-first rows '
+    +'(e.g. 22/06/2026 alongside 06/22/2026) — re-save the dates as YYYY-MM-DD.');
+  return {dayFirst: dayFirst>0, assumed: !dayFirst && !monthFirst && pairs.length>0};
+}
+/** Split one line, honouring "quoted, fields" and doubled "" escapes. */
+function splitCsvLine(line, delim){
+  const out=[]; let cur='', quoted=false;
+  for(let i=0;i<line.length;i++){
+    const ch=line[i];
+    if(quoted){
+      if(ch!=='"') cur+=ch;
+      else if(line[i+1]==='"'){ cur+='"'; i++; }
+      else quoted=false;
+    }
+    else if(ch==='"') quoted=true;
+    else if(ch===delim){ out.push(cur.trim()); cur=''; }
+    else cur+=ch;
+  }
+  out.push(cur.trim());
+  return out;
+}
+/** Comma, semicolon, tab or pipe — whichever carves the header into the most columns. */
+const sniffDelim = header => [',',';','\t','|']
+  .map(d=>[d, splitCsvLine(header,d).length]).sort((a,b)=>b[1]-a[1])[0][0];
+/** A rate may arrive as 3.64338, "3.64338 %", 3,64338 (European) or 1,234.5. Always a percentage. */
+function readRate(raw){
+  let s = String(raw==null?'':raw).trim().replace(/^"|"$/g,'').replace(/[%\s]/g,'');
+  if(/^-?\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)) s = s.replace(/\./g,'').replace(',','.');  // 1.234,5
+  else if(/^-?\d*,\d+$/.test(s)) s = s.replace(',','.');                                // 3,64338
+  else s = s.replace(/,/g,'');                                                          // 1,234.5
+  return s;
+}
 /** Add or replace one dated curve. Rates arrive as percentages. */
 function putCurve(ccy, businessDate, pctByTenor, source, reason, silent){
   const list = curvesFor(ccy);
@@ -2818,47 +2891,70 @@ function deleteCurve(date){
   audit('rate_curve', idxFor(ccy).index,'DELETE','curve@'+date, gone.pillars.map(p=>p.rate).join('/'), null, null);
   render();
 }
-/** CSV: date,side,1m,3m,6m,12m — or the JSON shape produced by Export. */
+/** CSV: date,1m,3m,6m,12m — or the JSON shape produced by Export. Delimiter, quoting, header
+    spelling and date format are all sniffed rather than demanded, because the file has usually
+    been through Excel and no longer looks like the template that was downloaded. */
 function importCurveText(text, fileName){
   const code=$('curvePicker').value, ccy=CURRENCIES.find(c=>idxFor(c).index===code)||'USD';
-  let added=0, skipped=[];
-  if(/^\s*[[{]/.test(text)){
-    const j=JSON.parse(text);
+  let added=0, skipped=[], note='';
+  const body = String(text||'').replace(/^\uFEFF/,'').trim();
+  if(/^[[{]/.test(body)){
+    const j=JSON.parse(body);
     const byIndex = j && j.curves ? j.curves : j;
     for(const [idxCode,sides] of Object.entries(byIndex)){
       const target=CURRENCIES.find(c=>idxFor(c).index===idxCode);
       if(!target){ skipped.push('unknown index '+idxCode); continue; }
       const list = Array.isArray(sides) ? sides : [...(sides.live||[]), ...(sides.pf||[])];
       for(const c of list){
-        const pct={}; for(const p of c.pillars) pct[Number(p.days)] = String(p.rate)===''?'':D.of(p.rate).mul(100).toFixed(6);
-        putCurve(target, c.businessDate, pct, c.source, c.overrideReason, true); added++;
+        const date = isValidDate(c.businessDate) ? c.businessDate : readDateCell(c.businessDate);
+        if(typeof date!=='string'){ skipped.push(String(c.businessDate||'(blank date)')+' — unreadable date'); continue; }
+        const pct={}; for(const p of c.pillars||[]) pct[Number(p.days)] = String(p.rate)===''?'':D.of(p.rate).mul(100).toFixed(6);
+        putCurve(target, date, pct, c.source, c.overrideReason, true); added++;
       }
     }
   } else {
-    const lines=text.split(/\r?\n/).filter(l=>l.trim());
+    const lines=body.split(/\r?\n/).filter(l=>l.trim() && !/^[,;\t|]+$/.test(l.trim()));
     if(!lines.length) throw new Error('Empty file');
-    const head=lines[0].split(',').map(x=>x.trim().toLowerCase().replace(/^"|"$/g,''));
-    const col=n=>head.indexOf(n);
-    const iDate = col('date')>=0?col('date'):col('business_date');
-    if(iDate<0) throw new Error('No "date" column — expected date,1m,3m,6m,12m');
-    const tenorAt={}; for(const [name,days] of TENOR_COLS){ const i=col(name); if(i>=0 && tenorAt[days]===undefined) tenorAt[days]=i; }
+    const delim=sniffDelim(lines[0]);
+    const head=splitCsvLine(lines[0], delim).map(normHead);
+    const iDate=head.findIndex(h=>DATE_COLS.includes(h));
+    if(iDate<0) throw new Error('No "date" column — expected a header row of date,1m,3m,6m,12m.\n'
+      +'Found: '+(head.filter(h=>h).join(', ')||'(no header)'));
+    const tenorAt={};
+    head.forEach((h,i)=>{ const days=TENOR_COLS[h]; if(days && tenorAt[days]===undefined) tenorAt[days]=i; });
     if(!STD_TENORS.some(d=>tenorAt[d]!==undefined))
-      throw new Error('No rate columns found — expected at least one of 1m, 3m, 6m, 12m');
-    for(const line of lines.slice(1)){
-      const cells=line.split(',').map(x=>x.trim().replace(/^"|"$/g,''));
-      const date=cells[iDate];
-      if(!isValidDate(date)){ skipped.push(date||'(blank date)'); continue; }
+      throw new Error('No rate columns found — expected at least one of 1m, 3m, 6m, 12m.\n'
+        +'Found: '+head.filter(h=>h).join(', '));
+    if(lines.length<2) throw new Error('The file has a header row but no data rows.');
+    /* Read every row before writing any: the day/month order of 6/7/2026 can only be
+       settled by looking at the column as a whole. */
+    const rows=lines.slice(1).map(line=>{
+      const cells=splitCsvLine(line, delim);
+      return {cells, date: readDateCell(cells[iDate]), raw: String(cells[iDate]||'').trim()};
+    });
+    const order=resolveDateOrder(rows.filter(r=>Array.isArray(r.date)).map(r=>r.date));
+    for(const r of rows){
+      let date=r.date;
+      if(Array.isArray(date)) date = order.dayFirst ? isoFromParts(date[2],date[1],date[0])
+                                                    : isoFromParts(date[2],date[0],date[1]);
+      if(!date){ skipped.push((r.raw||'(blank date)')+' — unreadable date'); continue; }
       const pct={}; let given=0;
-      for(const d of STD_TENORS){ const v=(cells[tenorAt[d]]||'').replace('%','');
-        if(v!=='' && Number(v)>0){ pct[d]=v; given++; } }
-      if(!given){ skipped.push(date+' (no rates)'); continue; }
+      for(const d of STD_TENORS){
+        if(tenorAt[d]===undefined) continue;
+        const v=readRate(r.cells[tenorAt[d]]);
+        if(v!=='' && Number(v)>0){ pct[d]=v; given++; }
+      }
+      if(!given){ skipped.push(date+' — no positive rate in any tenor column'); continue; }
       putCurve(ccy, date, pct, 'MANUAL_OVERRIDE', 'Uploaded from '+fileName, true); added++;
     }
+    if(order.assumed) note='\n\nEvery date could be read either way round (e.g. 6/7/2026), so they '
+      +'were taken as month-first. Check the table and re-save as YYYY-MM-DD if that is wrong.';
   }
-  if(!added) throw new Error('No usable rows found');
+  if(!added) throw new Error('No usable rows found.'
+    +(skipped.length?'\n\n'+skipped.slice(0,8).join('\n')+(skipped.length>8?'\n…and '+(skipped.length-8)+' more':''):''));
   audit('rate_curve', idxFor(ccy).index, 'CREATE', 'history_upload', null, added+' curve(s)', 'Uploaded from '+fileName);
   render();
-  alert('Loaded '+added+' curve(s).'+(skipped.length?'\n\nSkipped '+skipped.length+':\n• '+skipped.slice(0,8).join('\n• '):''));
+  alert('Loaded '+added+' curve(s).'+(skipped.length?'\n\nSkipped '+skipped.length+':\n• '+skipped.slice(0,8).join('\n• '):'')+note);
 }
 /** Jump from a trade that needs a rate straight to the curve entry for its trade date. */
 function requestCurveFor(ccy, dateISO){
