@@ -1966,15 +1966,18 @@ function renderRates(){
   $('curveAddBox').innerHTML = !admin
     ? ''
     : '<div class="card tight" style="margin:0 0 14px;background:var(--panel-2)"><div class="body">'+
-      '<div class="toolbar" style="margin:0">'+
+      '<div class="toolbar" style="margin:0 0 8px">'+
         '<div class="field-inline"><label>Business date</label>'+
           '<input type="date" id="cd_date" value="'+esc(curveDraft.date)+'"></div>'+
         [30,90,180,360].map(d=>'<div class="field-inline suffix" data-suffix="%" style="position:relative">'+
           '<label>'+(d<360?d/30+'m':'1y')+'</label>'+
-          '<input type="number" step="0.00001" id="cd_'+d+'" style="min-width:96px" placeholder="—"></div>').join('')+
-        '<div class="field-inline" style="flex:1"><label>Reason</label>'+
-          '<input type="text" id="cd_reason" placeholder="source or note" style="flex:1"></div>'+
+          '<input type="number" step="0.00001" id="cd_'+d+'" style="min-width:92px" placeholder="—"></div>').join('')+
+      '</div>'+
+      '<div class="toolbar" style="margin:0">'+
+        '<div class="field-inline" style="flex:1 1 260px"><label>Reason</label>'+
+          '<input type="text" id="cd_reason" placeholder="source or note" style="flex:1 1 180px"></div>'+
         '<button class="btn primary" id="btnCurveAdd">Add / update</button>'+
+        '<span class="tiny">Fill only the tenors you have — blanks are left untouched.</span>'+
       '</div></div></div>';
 
   const usedBy={};
