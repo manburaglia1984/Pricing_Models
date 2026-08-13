@@ -252,12 +252,14 @@ code,.mono{font-family:var(--mono);font-size:12px}
       </div>
 
       <div class="card">
-        <h2>1 — Supplier Invoice <span class="src">Cantu!A7:C10</span></h2>
+        <h2>1 — Supplier Invoices <span class="src">Cantu!A7:C10</span></h2>
         <div class="body">
-          <div class="row"><div class="lbl">Issue Date<span class="note">Supplier Invoice Issue Date</span></div><div class="cell"><input type="date" class="in" id="f_supIssue" data-field="supplierIssueDate"></div></div>
-          <div class="row"><div class="lbl">Tenor (days)<span class="note">Hardcoded as +30 in the workbook (B9); editable here</span></div><div class="cell"><input type="number" class="in" id="f_supTenor" data-field="supplierTenorDays" min="1" step="1"></div></div>
-          <div class="row"><div class="lbl">Payment Date<span class="note">Supplier Invoice Maturity Date</span></div><div class="cell"><span class="calc" id="o_supPay" title="B9 = B8 + supplier tenor"><span class="f">B9</span>—</span></div></div>
-          <div class="row"><div class="lbl">Supplier Invoice Amount<span class="note" id="supAmountNote">Amount from the Supplier Invoice</span></div><div class="cell suffix" id="supAmountWrap" data-suffix="$"><input type="number" class="in" id="f_supAmount" data-field="supplierAmount" step="0.01" min="0"></div></div>
+          <div class="scroll"><table id="supInvTable"></table></div>
+          <div class="toolbar" style="margin:10px 0 4px">
+            <button class="btn" id="btnSupInvAdd">+ Add supplier invoice</button>
+            <span class="tiny">Every block prices off the total. A row's Payment Date is its own Issue Date + tenor.</span>
+          </div>
+          <div id="supInvTotals"></div>
         </div>
       </div>
 
@@ -1080,10 +1082,31 @@ function interpolate(pillars, tenorDays){
  *  output is null and no pro forma rate is required. Panel 2 is a leaf: panels 3-5 and the
  *  Offer File read only the supplier amount, the TradeCo inputs, the Bladex inputs and the
  *  live curve, so disabling it leaves B27:B53 bit-for-bit identical. */
+/** A trade may carry several supplier invoices. They reduce to the four figures the model
+ *  prices off: the total amount (B10), the earliest issue date, the latest payment date (B9)
+ *  and how many invoices there are. A trade saved before invoices were a list is read through
+ *  the same function via its flat fields, so the engine keeps one contract and the golden
+ *  master still exercises it. Blank rows contribute zero rather than being dropped — the count
+ *  is what the trade holds, and validation is what says a row is incomplete. */
+function supplierTotals(i){
+  const rows = Array.isArray(i.supplierInvoices) && i.supplierInvoices.length
+    ? i.supplierInvoices
+    : [{issueDate:i.supplierIssueDate, tenorDays:i.supplierTenorDays, amount:i.supplierAmount}];
+  let amount=ZERO, firstIssueDate=null, lastPaymentDate=null;
+  for(const v of rows){
+    amount = amount.add(D.of(v.amount||0));
+    if(!isValidDate(v.issueDate)) continue;
+    if(!firstIssueDate || v.issueDate < firstIssueDate) firstIssueDate = v.issueDate;
+    const pay = dAdd(v.issueDate, Number(v.tenorDays||0));
+    if(!lastPaymentDate || pay > lastPaymentDate) lastPaymentDate = pay;
+  }
+  return {count:rows.length, amount, firstIssueDate, lastPaymentDate, rows};
+}
 function price(i, q){
   const BASIS = D.of(i.dayCountBasis || 360);
-  const supplierAmount = D.of(i.supplierAmount);
-  const supplierPaymentDate = dAdd(i.supplierIssueDate, Number(i.supplierTenorDays));
+  const sup = supplierTotals(i);
+  const supplierAmount = sup.amount;                                                     // B10
+  const supplierPaymentDate = sup.lastPaymentDate;                                       // B9
 
   const pfOn = i.pfEnabled !== false;
   let pfMaturityDate=null, pfRate=null, pfMarkup=null, pfDays=null, pfFactor=null,
@@ -1122,6 +1145,7 @@ function price(i, q){
   const payToTradeCo = purchasePrice.sub(payToSupplier).sub(payToCantuAgency);           // B53
 
   return { supplierPaymentDate, supplierAmount, pfOn, dayCountBasis:Number(i.dayCountBasis||360),
+    supplierInvoiceCount:sup.count, supplierFirstIssueDate:sup.firstIssueDate,
     pfMaturityDate, pfRate, pfMarkup, pfFactor, pfDays, pfInvoice1, pfInvoice2, pfTotal,
     tcTenorDays, tcMaturityDate, liveRate, tcMarkup, tcFactor, tcDays, tcInvoice1, tcInvoice2, tcTotal,
     faceValue, iaaMaturityDate, bladexCostOfFunds, iaaFactor, purchasePrice,
@@ -1173,12 +1197,32 @@ function validate(deal, trade, out, quotes, bd){
       '" at version '+trade.versionNo+'.');
   if(!String(trade.obligor||'').trim()) E('TRADE.OBLIGOR','Relevant Obligor is required (Offer File!A3).');
 
-  for(const [k,lbl,needed] of [['supplierIssueDate','Supplier Invoice Issue Date',true],['pfIssueDate','Pro Forma Issue Date',pfOn],
+  for(const [k,lbl,needed] of [['pfIssueDate','Pro Forma Issue Date',pfOn],
                         ['tcIssueDate','TradeCo Invoice Issue Date',true],['bladexSettlementDate',FUNDER+' Settlement Date',true]])
     if(needed && !isValidDate(i[k])) E('DATE.REQUIRED', lbl+' is required.');
 
-  if(!(D.of(i.supplierAmount||0).gt(ZERO))) E('AMT.POSITIVE','Supplier Invoice Amount must be greater than zero (Cantu!B10).');
-  if(Number(i.supplierTenorDays)<1) E('TENOR.SUPPLIER','Supplier tenor must be at least 1 day.');
+  // ---- supplier invoices ----
+  const invoices = i.supplierInvoices || [];
+  if(!invoices.length)
+    E('SUP.NONE','At least one supplier invoice is required — their total is Cantu!B10, which every block prices off.');
+  invoices.forEach((v,n)=>{
+    const who = 'Supplier invoice '+(n+1)+(String(v.name||'').trim()?' ('+String(v.name).trim()+')':'');
+    if(!isValidDate(v.issueDate)) E('DATE.REQUIRED', who+': Issue Date is required.');
+    if(Number(v.tenorDays)<1) E('TENOR.SUPPLIER', who+': tenor must be at least 1 day.');
+    if(!(D.of(v.amount||0).gt(ZERO))) E('AMT.POSITIVE', who+': amount must be greater than zero (Cantu!B10).');
+    // Name and jurisdiction do not change a number, so they are flagged rather than blocking:
+    // a trade migrated from the single-invoice model has neither and must still price.
+    if(!String(v.name||'').trim()) W('NOTE.SUP_NAME','Supplier invoice '+(n+1)+' has no Supplier Name.');
+    if(!String(v.jurisdiction||'').trim())
+      W('NOTE.SUP_JURISDICTION', who+' has no Supplier Jurisdiction.');
+    else if(!(deal.jurisdictions||[]).includes(v.jurisdiction))
+      W('NOTE.SUP_JURISDICTION', who+' is in '+((CALENDARS[v.jurisdiction]||{}).name||v.jurisdiction)+
+        ", which is not one of the deal's associated jurisdictions, so its dates are checked against no calendar.");
+  });
+  if(invoices.length>1 && out)
+    W('NOTE.SUP_MULTI', invoices.length+' supplier invoices totalling '+money(out.supplierAmount,deal.currency)+
+      ' are priced as one position: B10 is their sum, B8 the earliest issue date and B9 the latest payment date ('+
+      fmtShort(out.supplierPaymentDate)+').');
   if(pfOn && Number(i.pfTenorDays)<1) E('TENOR.PF','Pro Forma tenor must be at least 1 day (Cantu!B14).');
   if(Number(i.bladexDays)<1) E('TENOR.BLADEX',FUNDER+' Days must be at least 1 (Cantu!B41).');
 
@@ -1246,8 +1290,8 @@ function validate(deal, trade, out, quotes, bd){
   }
 
   // Workbook column-C business notes, as soft checks.
-  if(pfOn && isValidDate(i.supplierIssueDate) && isValidDate(i.pfIssueDate)){
-    const supPay = dAdd(i.supplierIssueDate, Number(i.supplierTenorDays||0));
+  const supPay = supplierTotals(i).lastPaymentDate;
+  if(pfOn && isValidDate(supPay) && isValidDate(i.pfIssueDate)){
     const gap = dDiff(supPay, i.pfIssueDate);
     // Threshold is 30 days: the workbook's own reference deal runs 24, so a tighter bound
     // would fire on the golden case. Tighten once the rule is confirmed.
@@ -1274,8 +1318,13 @@ const LS_KEY='cantu-pricing-model-v2', LS_KEY_V1='cantu-pricing-model-v1';
 const uuid = () => (crypto.randomUUID ? crypto.randomUUID()
   : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return (c==='x'?r:(r&0x3|0x8)).toString(16);}));
 
+/** One row of panel 1. Name and jurisdiction are new; the rest are the workbook's B8/B9/B10. */
+function newSupplierInvoice(seed){
+  return {id:uuid(), name:'', jurisdiction:'', issueDate:'', tenorDays:30, amount:'', ...(seed||{})};
+}
 function blankTradeInputs(){
-  return { supplierIssueDate:'2026-06-16', supplierTenorDays:30, supplierAmount:'850000',
+  return { supplierInvoices:[newSupplierInvoice({name:'Cantu Supplier', jurisdiction:'BR',
+             issueDate:'2026-06-16', tenorDays:30, amount:'850000'})],
     pfIssueDate:'2026-06-22', pfTenorDays:180, pfMargin:MARKET_DEFAULTS.margin, pfAgencyFee:MARKET_DEFAULTS.agencyFee,
     tcIssueDate:'2026-07-16', tcMargin:MARKET_DEFAULTS.margin, tcAgencyFee:MARKET_DEFAULTS.agencyFee,
     bladexSettlementDate:'2026-07-16', bladexDays:180, bladexMargin:MARKET_DEFAULTS.bladexMargin, legalFees:'0' };
@@ -1361,6 +1410,18 @@ function normalise(s){
   }
   for(const t of s.trades){
     delete t.inputs.pfEnabled;
+    // Panel 1 held exactly one invoice before; those flat fields become the first row.
+    if(!Array.isArray(t.inputs.supplierInvoices))
+      t.inputs.supplierInvoices = [newSupplierInvoice({
+        issueDate: t.inputs.supplierIssueDate || '',
+        tenorDays: Number(t.inputs.supplierTenorDays || 30),
+        amount: String(t.inputs.supplierAmount ?? '')})];
+    delete t.inputs.supplierIssueDate; delete t.inputs.supplierTenorDays; delete t.inputs.supplierAmount;
+    for(const v of t.inputs.supplierInvoices){
+      if(!v.id) v.id = uuid();
+      if(v.name===undefined) v.name='';
+      if(v.jurisdiction===undefined) v.jurisdiction='';
+    }
     if(!t.tradeDate) t.tradeDate = t.inputs.bladexSettlementDate || todayISO();
     if(!t.funder) t.funder = 'Bladex';
   }
@@ -1666,9 +1727,8 @@ const setCalc = (id, text, bad) => { const el=$(id); if(!el) return;
   const f=el.querySelector('.f'); el.textContent=text; if(f) el.prepend(f); el.classList.toggle('bad', !!bad); };
 
 const PCT_FIELDS = new Set(['pfMargin','pfAgencyFee','tcMargin','tcAgencyFee','bladexMargin']);
-const INT_FIELDS = new Set(['supplierTenorDays','pfTenorDays','bladexDays']);
+const INT_FIELDS = new Set(['pfTenorDays','bladexDays']);
 const TRADE_FIELD_IDS = {
-  supplierIssueDate:'f_supIssue', supplierTenorDays:'f_supTenor', supplierAmount:'f_supAmount',
   pfIssueDate:'f_pfIssue', pfTenorDays:'f_pfTenor', pfMargin:'f_pfMargin', pfAgencyFee:'f_pfAgency',
   tcIssueDate:'f_tcIssue', tcMargin:'f_tcMargin', tcAgencyFee:'f_tcAgency',
   bladexSettlementDate:'f_bladexSettle', bladexDays:'f_bladexDays', bladexMargin:'f_bladexMargin', legalFees:'f_legalFees'};
@@ -1832,15 +1892,71 @@ function renderHeader(d,t,r){
     (t?' · version '+t.versionNo+' · created by '+esc(t.createdBy):'')+'</small>';
 }
 
+/* Panel 1 is a list, so it is rebuilt rather than bound field-by-field. The rebuild is skipped
+   while a cell holds focus — otherwise the render that every keystroke triggers would tear the
+   input out from under the caret — and the derived cells are refreshed in place instead. */
+function renderSupplierInvoices(d,t){
+  const box=$('supInvTable'); if(!box) return;
+  const locked=!t || LOCKED(t.state), rows=(t&&t.inputs.supplierInvoices)||[];
+  const ccy=d.currency, sym=idxFor(ccy).symbol.trim()||ccy;
+  const jurCell=v=>{
+    if(locked) return esc((CALENDARS[v.jurisdiction]||{}).name || v.jurisdiction || '—');
+    return '<select class="in" data-sup-id="'+esc(v.id)+'" data-sup-field="jurisdiction" style="min-width:150px">'+
+      '<option value="">— none —</option>'+
+      REGIONS.map(region=>{
+        const codes=ALL_JURISDICTIONS.filter(c=>CALENDARS[c].region===region);
+        if(!codes.length) return '';
+        return '<optgroup label="'+esc(region)+'">'+codes.map(c=>'<option value="'+c+'"'+
+          (c===v.jurisdiction?' selected':'')+'>'+esc(CALENDARS[c].name)+' ('+c+')</option>').join('')+'</optgroup>';
+      }).join('')+'</select>';
+  };
+  const txt=(v,field,type,extra)=>locked
+    ? esc(field==='amount' ? money(D.of(v.amount||0),ccy) : (v[field]===''||v[field]==null ? '—' : String(v[field])))
+    : '<input type="'+type+'" class="in" data-sup-id="'+esc(v.id)+'" data-sup-field="'+field+'" value="'+
+      esc(v[field]??'')+'"'+(extra||'')+'>';
+  box.innerHTML='<thead><tr><th>Supplier Name</th><th>Jurisdiction</th><th>Issue Date</th>'+
+    '<th class="n">Tenor (d)</th><th class="n" style="white-space:nowrap">Payment Date</th><th class="n">Amount ('+esc(sym)+')</th><th></th></tr></thead><tbody>'+
+    (rows.length ? rows.map(v=>
+      '<tr><td>'+txt(v,'name','text',' placeholder="Supplier legal name" style="min-width:170px"')+'</td>'+
+      '<td>'+jurCell(v)+'</td>'+
+      '<td>'+txt(v,'issueDate','date',' style="min-width:140px"')+'</td>'+
+      '<td class="n">'+txt(v,'tenorDays','number',' min="1" step="1" style="min-width:78px;text-align:right"')+'</td>'+
+      '<td class="n" style="white-space:nowrap"><span class="calc" data-sup-pay="'+esc(v.id)+'" title="Issue Date + tenor">—</span></td>'+
+      '<td class="n">'+txt(v,'amount','number',' min="0" step="0.01" style="min-width:120px;text-align:right"')+'</td>'+
+      '<td class="n">'+(locked?'':'<button class="btn sm danger" data-sup-remove="'+esc(v.id)+'">Remove</button>')+'</td></tr>').join('')
+     : '<tr><td colspan="7" class="tiny">No supplier invoices — add at least one; their total is what every block prices off.</td></tr>')+
+    '</tbody>';
+  const add=$('btnSupInvAdd'); if(add) add.disabled=locked;
+}
+/** Derived cells only: safe to run on every keystroke, including while panel 1 has focus. */
+function refreshSupplierCalcs(d,t,o){
+  const rows=(t&&t.inputs.supplierInvoices)||[], ccy=d.currency;
+  for(const v of rows){
+    const el=document.querySelector('[data-sup-pay="'+CSS.escape(String(v.id))+'"]');
+    if(el) el.textContent = isValidDate(v.issueDate) ? fmtShort(dAdd(v.issueDate, Number(v.tenorDays||0))) : '—';
+  }
+  const sup=supplierTotals(t?t.inputs:{});
+  const line=(label,note,cell,tag,strong,head)=>'<div class="row'+(head?' head':'')+'"><div class="lbl">'+label+
+    (note?'<span class="note">'+note+'</span>':'')+'</div><div class="cell"><span class="calc'+(strong?' strong':'')+'">'+
+    (tag?'<span class="f">'+tag+'</span>':'')+cell+'</span></div></div>';
+  $('supInvTotals').innerHTML =
+    line('Supplier invoices','How many invoices this trade carries', String(sup.count), null) +
+    line('Earliest Issue Date','Minimum Issue Date across all supplier invoices',
+      isValidDate(sup.firstIssueDate)?fmtShort(sup.firstIssueDate):'—','B8') +
+    line('Latest Payment Date','Maximum Payment Date across all supplier invoices',
+      isValidDate(sup.lastPaymentDate)?fmtShort(sup.lastPaymentDate):'—','B9') +
+    line('<b>Total Supplier Invoice Amount</b>','Sum of every invoice — the figure panels 2 to 5 price off',
+      money(o?o.supplierAmount:sup.amount, ccy),'B10', true, true);
+}
 function renderPricing(d,t,r){
   const o=r.out, ccy=d.currency, ix=idxFor(ccy), pfOn = d.proformaEnabled!==false;
   const basisNote='÷ '+ix.basis+' (ACT/'+ix.basis+', '+ix.name+')';
   $('pfFactorNote').textContent=basisNote; $('tcFactorNote').textContent=basisNote; $('iaaFactorNote').textContent=basisNote;
-  $('supAmountWrap').dataset.suffix = ix.symbol.trim() || ccy;
   $('legalWrap').dataset.suffix = ix.symbol.trim() || ccy;
-  $('supAmountNote').textContent = 'Amount in '+ccy+' from the Supplier Invoice';
   // Panel 2 exists only when the deal is configured to use pro forma invoices.
   $('card_pf').style.display = pfOn ? '' : 'none';
+  if(!$('supInvTable').contains(document.activeElement)) renderSupplierInvoices(d,t);
+  refreshSupplierCalcs(d,t,r.out);
 
   const cl=findClient(d.clientId);
   $('dealContextBox').innerHTML='<table>'+[
@@ -1884,11 +2000,10 @@ function renderPricing(d,t,r){
   }
   $('topBanners').innerHTML = banners.map(([k,h])=>'<div class="banner '+k+'"><div>'+h+'</div></div>').join('');
 
-  const OUT_IDS=['o_supPay','o_pfMaturity','o_pfRate','o_pfMarkup','o_pfFactor','o_pfInv1','o_pfInv2','o_pfTotal',
+  const OUT_IDS=['o_pfMaturity','o_pfRate','o_pfMarkup','o_pfFactor','o_pfInv1','o_pfInv2','o_pfTotal',
     'o_tcTenor','o_tcMaturity','o_tcRate','o_tcMarkup','o_tcFactor','o_tcInv1','o_tcInv2','o_tcTotal','o_faceValue',
     'o_iaaMaturity','o_iaaRate','o_bladexCoF','o_iaaFactor','o_purchasePrice','o_paySupplier','o_payAgency','o_payTradeCo','o_recon'];
   if(o){
-    setCalc('o_supPay', fmtShort(o.supplierPaymentDate));
     setCalc('o_pfMaturity', fmtShort(o.pfMaturityDate));
     setCalc('o_pfRate', pct(o.pfRate));
     setCalc('o_pfMarkup', pct(o.pfMarkup));
@@ -2359,6 +2474,36 @@ function runTests(){
   T('Legal fees leave price unchanged', o2.purchasePrice.toFixed(2),'853302.69','Cantu!B47');
   T('Legal fees still reconcile', o2.reconciliation.toFixed(10),'0.0000000000','B51+B52+B53−B47');
 
+  // Several supplier invoices price as one position: B10 is their sum, B9 the latest payment.
+  const MANY={...GOLDEN_INPUTS, supplierInvoices:[
+    {id:'a', name:'Cantu Supplier',  jurisdiction:'BR', issueDate:'2026-06-16', tenorDays:30, amount:'500000'},
+    {id:'b', name:'Segunda Ltda',    jurisdiction:'BR', issueDate:'2026-06-02', tenorDays:75, amount:'250000'},
+    {id:'c', name:'Terceira SA',     jurisdiction:'US', issueDate:'2026-06-20', tenorDays:20, amount:'100000'}]};
+  const oMany=price(MANY,{pfRate:pfQ.rate, liveRate:liveQ.rate});
+  T('Invoices sum to B10', oMany.supplierAmount.toFixed(2),'850000.00','Σ supplier invoices');
+  T('Invoice count reported', oMany.supplierInvoiceCount,'3','panel 1 totals');
+  T('Earliest issue date wins B8', oMany.supplierFirstIssueDate,'2026-06-02','min(issue date)');
+  T('Latest payment date wins B9', oMany.supplierPaymentDate,'2026-08-16','max(issue + tenor)');
+  for(const [k,cell] of [['pfTotal','Cantu!B23'],['tcTotal','Cantu!B36'],['faceValue','Cantu!B39'],
+      ['purchasePrice','Cantu!B47'],['payToSupplier','Cantu!B51'],['payToTradeCo','Cantu!B53']])
+    T('Three invoices price as one — '+k, oMany[k].toFixed(10), o[k].toFixed(10), cell);
+  T('Blank invoice row adds nothing',
+    price({...MANY, supplierInvoices:[...MANY.supplierInvoices, newSupplierInvoice()]},
+      {pfRate:pfQ.rate, liveRate:liveQ.rate}).supplierAmount.toFixed(2),'850000.00','Σ supplier invoices');
+  T('Blank row still counts as a row',
+    price({...MANY, supplierInvoices:[...MANY.supplierInvoices, newSupplierInvoice()]},
+      {pfRate:pfQ.rate, liveRate:liveQ.rate}).supplierInvoiceCount,'4','panel 1 totals');
+  // A trade stored before panel 1 held a list is read through the same reducer.
+  const legacy=supplierTotals({supplierIssueDate:'2026-06-16', supplierTenorDays:30, supplierAmount:'850000'});
+  T('Legacy single invoice still reduces', legacy.amount.toFixed(2)+'/'+legacy.lastPaymentDate+'/'+legacy.count,
+    '850000.00/2026-07-16/1','pre-list trade');
+  T('Migration lifts the flat fields into a row',
+    (()=>{ const st=normalise({v:2, deals:[], trades:[{inputs:{supplierIssueDate:'2026-06-16',
+             supplierTenorDays:30, supplierAmount:'850000'}}], curves:{}, clients:defaultClients(), audit:[]});
+           const inv=st.trades[0].inputs.supplierInvoices;
+           return inv.length+'/'+inv[0].issueDate+'/'+inv[0].amount+'/'+('supplierAmount' in st.trades[0].inputs);
+    })(),'1/2026-06-16/850000/false','normalise()');
+
   // Optional Pro Forma block
   const oNoPf=price({...GOLDEN_INPUTS, pfEnabled:false},{pfRate:null, liveRate:liveQ.rate});
   T('Pro Forma off — no rate needed', String(oNoPf.pfRate),'null','Cantu!B16');
@@ -2522,7 +2667,8 @@ localStorage.</p>
 
 <h3 style="margin:18px 0 6px">Deal → trades</h3>
 <p>A <b>deal</b> holds what every trade shares: client, Transaction Code (<code>Cantu!B4</code>), currency and the
-associated jurisdictions. A <b>trade</b> holds its own identifier (<code>Cantu!B5</code>), obligor, invoice blocks,
+associated jurisdictions. A <b>trade</b> holds its own identifier (<code>Cantu!B5</code>), obligor, supplier invoices,
+its other invoice blocks,
 lifecycle, rate snapshot and Offer File. Deal configuration is frozen once any trade on it reaches APPROVED, since
 changing it would invalidate a signed-off price; editing it while trades are merely PRICED returns those trades to
 DRAFT and voids their snapshots.</p>
@@ -2542,7 +2688,9 @@ document boundaries. Every one of the 26 workbook outputs reproduces exactly; ru
 
 <h3 style="margin:18px 0 6px">Cell map</h3>
 <div class="scroll"><table><thead><tr><th>Cell</th><th>Field</th><th>Formula</th></tr></thead><tbody>` +
-[['B9','Supplier Payment Date','B8 + supplier tenor (30 in the workbook)'],
+[['B8','Earliest Supplier Issue Date','min(issue date) across the supplier invoices'],
+ ['B9','Latest Supplier Payment Date','max(issue date + tenor) across the supplier invoices'],
+ ['B10','Total Supplier Invoice Amount','Σ of every supplier invoice — what panels 2 to 5 price off'],
  ['B15','Pro Forma Maturity','B13 + B14'],
  ['B16','Pro Forma base rate','pro forma curve interpolated at B41'],
  ['B19','Pro Forma Mark-up','B17 + B16 + B18'],
@@ -2607,6 +2755,13 @@ document.addEventListener('focusin', e=>{
   if(el.dataset.trade && t) el.dataset.prev=String(t[el.dataset.trade]);
   if(el.dataset.deal) el.dataset.prev=String(d[el.dataset.deal]);
 });
+/** Editing any priced input drops the trade back to DRAFT: a snapshot taken against different
+    numbers is not a quote for these ones. */
+function voidPricedSnapshot(t){
+  if(t.state!=='PRICED') return;
+  t.rateQuotes=null; t.state='DRAFT';
+  audit('trade',t.id,'STATE_CHANGE','state','PRICED','DRAFT','Input edited — rate snapshot voided.');
+}
 document.addEventListener('input', e=>{
   const el=e.target; if(!el.dataset) return;
   const d=currentDeal(), t=currentTrade();
@@ -2623,15 +2778,20 @@ document.addEventListener('input', e=>{
   if(el.dataset.trade && t){
     if(LOCKED(t.state)) return;
     t[el.dataset.trade]=el.value;
-    if(t.state==='PRICED'){ t.rateQuotes=null; t.state='DRAFT';
-      audit('trade',t.id,'STATE_CHANGE','state','PRICED','DRAFT','Input edited — rate snapshot voided.'); }
+    voidPricedSnapshot(t);
+    render(); return;
+  }
+  if(el.dataset.supField && t){
+    if(LOCKED(t.state)) return;
+    const v=(t.inputs.supplierInvoices||[]).find(x=>String(x.id)===el.dataset.supId); if(!v) return;
+    v[el.dataset.supField] = el.dataset.supField==='tenorDays' ? Number(el.value||0) : el.value;
+    voidPricedSnapshot(t);
     render(); return;
   }
   if(el.dataset.field && t){
     if(LOCKED(t.state)) return;
     t.inputs[el.dataset.field]=readField(el.dataset.field, el);
-    if(t.state==='PRICED'){ t.rateQuotes=null; t.state='DRAFT';
-      audit('trade',t.id,'STATE_CHANGE','state','PRICED','DRAFT','Input edited — rate snapshot voided.'); }
+    voidPricedSnapshot(t);
     render(); return;
   }
 });
@@ -2644,6 +2804,15 @@ document.addEventListener('change', e=>{
   }
   if(el.dataset.trade && t) audit('trade',t.id,'UPDATE',el.dataset.trade, el.dataset.prev??null, String(t[el.dataset.trade]));
   if(el.dataset.field && t) audit('trade',t.id,'UPDATE',el.dataset.field, el.dataset.prev??null, String(t.inputs[el.dataset.field]));
+  if(el.dataset.supField && t && !LOCKED(t.state)){
+    const v=(t.inputs.supplierInvoices||[]).find(x=>String(x.id)===el.dataset.supId);
+    if(v){
+      if(el.tagName==='SELECT'){ v[el.dataset.supField]=el.value; voidPricedSnapshot(t); render(); }
+      const n=(t.inputs.supplierInvoices||[]).findIndex(x=>String(x.id)===el.dataset.supId)+1;
+      audit('trade',t.id,'UPDATE','supplierInvoice#'+n+'.'+el.dataset.supField, el.dataset.prev??null,
+        String(v[el.dataset.supField]));
+    }
+  }
 
   if(el.id==='jurAdd' && el.value){ setJurisdictions(el.value, true); }
   if(el.id==='curvePicker'){ curveChoice=el.value; renderRates(); }
@@ -2656,6 +2825,35 @@ document.getElementById('tabs').addEventListener('click', e=>{
   for(const x of document.querySelectorAll('#tabs button')) x.setAttribute('aria-selected', String(x===b));
   for(const v of document.querySelectorAll('.view')) v.classList.toggle('active', v.id==='view-'+b.dataset.view);
   if(b.dataset.view==='tests') runTests();
+});
+$('btnSupInvAdd').onclick=()=>{
+  const t=currentTrade(); if(!t) return;
+  if(LOCKED(t.state)) return alert('This trade is '+t.state+' — its inputs are locked.');
+  (t.inputs.supplierInvoices ||= []).push(newSupplierInvoice());
+  voidPricedSnapshot(t);
+  audit('trade',t.id,'CREATE','supplierInvoice',null,'invoice #'+t.inputs.supplierInvoices.length);
+  render();
+};
+$('supInvTable').addEventListener('click', e=>{
+  const b=e.target.closest('button[data-sup-remove]'); if(!b) return;
+  const t=currentTrade(); if(!t) return;
+  if(LOCKED(t.state)) return alert('This trade is '+t.state+' — its inputs are locked.');
+  const list=t.inputs.supplierInvoices||[], n=list.findIndex(x=>String(x.id)===b.dataset.supRemove);
+  if(n<0) return;
+  if(list.length===1) return alert('A trade needs at least one supplier invoice. Edit this one instead.');
+  const v=list[n];
+  const filled=[v.name,v.issueDate,v.amount].some(x=>String(x||'').trim());
+  if(filled && !confirm('Remove supplier invoice '+(n+1)+(v.name?' ('+v.name+')':'')+'?\n\n'+
+    'The total every block prices off will fall by '+money(D.of(v.amount||0), currentDeal().currency)+'.')) return;
+  list.splice(n,1);
+  voidPricedSnapshot(t);
+  audit('trade',t.id,'DELETE','supplierInvoice#'+(n+1),
+    [v.name,v.jurisdiction,v.issueDate,v.tenorDays+'d',v.amount].filter(Boolean).join(' · '), null);
+  render();
+});
+/* Rebuild once focus actually leaves panel 1, for the same reason the curve table does. */
+$('supInvTable').addEventListener('focusout', ()=>{
+  setTimeout(()=>{ if(!$('supInvTable').contains(document.activeElement)) render(); }, 0);
 });
 $('tradeTabs').addEventListener('click', e=>{
   const b=e.target.closest('button[data-tpane]'); if(b) showTradePane(b.dataset.tpane);

@@ -12,7 +12,7 @@ single self-contained file that works offline and can be emailed or dropped on a
 
 The calc engine reproduces **all 26 output cells** of the `Cantu` tab exactly, plus the
 `Offer File`, `SOFR Interpolation` and `BD Dates` derivations. Open the **Parity tests** tab and
-press *Run tests* — 39 assertions, each labelled with its source cell.
+press *Run tests* — 130 assertions, each labelled with its source cell.
 
 | | Workbook | This app |
 |---|---|---|
@@ -66,6 +66,7 @@ A **deal** holds everything its trades share. A **trade** is what gets priced, a
 | Deal (shared) | Trade (per trade) |
 |---|---|
 | Client | Trade Identifier — `Cantu!B5` |
+| | **Supplier invoices** — one or many, summed to `Cantu!B10` |
 | Transaction Code — `Cantu!B4` | **Trade Date** — selects the base rate curve |
 | | **Funder** — names the Settlement Date, Margin and Cost of Funds fields |
 | | Relevant Obligor — `Offer File!A3` |
@@ -105,6 +106,40 @@ The unlock lasts for the session only; reloading restores the guard.
 
 *Download deal CSV* in the workspace's Offer File pane emits one Offer File row per trade, which is what
 the workbook's single-row `Offer File` tab had to be re-copied by hand to produce.
+
+## Supplier invoices
+
+Panel 1 holds **a list of supplier invoices, not one**. Each row carries a Supplier Name, a Supplier
+Jurisdiction, an Issue Date, a tenor and an amount, and derives its own Payment Date (issue + tenor).
+
+The trade prices off the **totals**, which are what the workbook's single-invoice cells become:
+
+| Total | Is | Workbook cell |
+|---|---|---|
+| Total Supplier Invoice Amount | Σ of every invoice amount | `B10` — every downstream block reads this |
+| Earliest Issue Date | `min` of the invoice issue dates | `B8` |
+| Latest Payment Date | `max` of the invoice payment dates | `B9` |
+| Supplier invoices | how many rows the trade carries | — |
+
+Nothing downstream changed: `B10` is the only supplier figure panels 2–5 and the Offer File ever read,
+so three invoices totalling 850,000 price identically to one of 850,000 — asserted in the parity tests.
+The date totals are deliberately the outer envelope; what the individual dates should drive is still open,
+so they are reported rather than acted on.
+
+Name and jurisdiction are **flagged, not enforced**: a blank name or jurisdiction raises
+`NOTE.SUP_NAME` / `NOTE.SUP_JURISDICTION` but still prices, because a trade migrated from the
+single-invoice model has neither and must not be blocked by the upgrade. A jurisdiction outside the
+deal's associated jurisdictions is called out too — its calendar is not being checked. Issue date, tenor
+and a positive amount stay hard errors, per invoice, naming the row that fails. Removing the last
+invoice is refused; removing a filled one asks first and writes the old values to the audit log.
+
+A trade saved before this change is migrated on load: its flat `supplierIssueDate` / `supplierTenorDays`
+/ `supplierAmount` become the first row and the old keys are dropped, so there is one source of truth.
+The pricing engine reads both shapes through one reducer, `supplierTotals`, which is what keeps the
+golden master honest.
+
+**Still one payment leg.** `B51` remains a single Supplier Payment and the Offer File a single row —
+splitting the payment per supplier is a separate change, not implied by this one.
 
 ## Base rate management
 
