@@ -1105,9 +1105,12 @@ function validate(deal, trade, out, quotes, bd){
 
   // ---- trade-level ----
   if(!String(trade.identifier||'').trim()) E('TRADE.ID','Trade Identifier is required (Cantu!B5 — blank prints as 0 on the Offer File).');
-  else if(tradesOf(deal.id).some(t=>t.id!==trade.id && !t.cancelled &&
+  // Unique on (identifier, version): successive versions of one trade share an identifier
+  // by design, and a cancelled trade releases its identifier for reuse.
+  else if(tradesOf(deal.id).some(t=>t.id!==trade.id && !t.cancelled && t.versionNo===trade.versionNo &&
           String(t.identifier||'').trim().toLowerCase()===String(trade.identifier).trim().toLowerCase()))
-    E('TRADE.ID_UNIQUE','Another trade on this deal already uses the identifier "'+trade.identifier+'".');
+    E('TRADE.ID_UNIQUE','Another trade on this deal already uses the identifier "'+trade.identifier+
+      '" at version '+trade.versionNo+'.');
   if(!String(trade.obligor||'').trim()) E('TRADE.OBLIGOR','Relevant Obligor is required (Offer File!A3).');
 
   for(const [k,lbl,needed] of [['supplierIssueDate','Supplier Invoice Issue Date',true],['pfIssueDate','Pro Forma Issue Date',pfOn],
@@ -1204,6 +1207,22 @@ function newTrade(dealId, who){
     approvedBy:null, approvedAt:null, actualSettlementDate:null,
     rateQuotes:null, acks:{}, offerFiles:[], cancelled:false };
 }
+/** The lowest unused sequence number on a deal, so cancelling or deleting a trade
+ *  frees its number rather than leaving a gap. Cancelled trades release their
+ *  identifier — the uniqueness rule exempts them too. */
+function nextTradeIdentifier(deal){
+  const prefix = deal.code ? deal.code+'-' : '';
+  const re = new RegExp('^'+prefix.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'(\\d+)$');
+  const used = new Set();
+  for(const t of tradesOf(deal.id)){
+    if(t.cancelled) continue;
+    const m = re.exec(String(t.identifier||'').trim());
+    if(m) used.add(parseInt(m[1],10));
+  }
+  let n=1; while(used.has(n)) n++;
+  return prefix + String(n).padStart(2,'0');
+}
+
 /** Deal-level config merged onto the trade's own inputs — what the calc engine sees.
  *  Whether the Pro Forma block applies is a deal-level choice, so every trade on a deal
  *  agrees on it; the pro forma dates and margins stay per trade. */
@@ -1304,6 +1323,10 @@ function audit(entityType, entityId, action, field, oldV, newV, reason){
 }
 const currentDeal  = () => store.deals.find(d=>d.id===store.currentDealId) || store.deals[0];
 const tradesOf     = dealId => store.trades.filter(t=>t.dealId===dealId);
+/** Display order: by identifier (numeric-aware, so -02 precedes -10), then version. */
+const sortedTrades = dealId => tradesOf(dealId).slice().sort((a,b)=>
+  String(a.identifier||'').localeCompare(String(b.identifier||''), undefined, {numeric:true, sensitivity:'base'})
+  || a.versionNo-b.versionNo);
 const currentTrade = () => { const d=currentDeal(); if(!d) return null;
   const ts=tradesOf(d.id);
   return ts.find(t=>t.id===store.currentTradeId) || ts[0] || null; };
@@ -1967,7 +1990,7 @@ function renderDeals(){
 
   $('dealTradesFor').textContent = cur ? '— '+(cur.code||'(untitled deal)') : '';
   $('btnNewTradeFromDeals').disabled = !cur;
-  const ts=cur?tradesOf(cur.id):[];
+  const ts=cur?sortedTrades(cur.id):[];
   $('dealTradesBox').innerHTML = !cur
     ? '<p class="tiny">No deal selected.</p>'
     : ts.length===0
@@ -1979,13 +2002,15 @@ function renderDeals(){
           '<td><span class="badge '+t.state+'">'+t.state+'</span></td>'+
           '<td class="n">'+(r.out?money(r.out.purchasePrice,cur.currency):'—')+'</td>'+
           '<td>'+fmtShort(t.inputs.bladexSettlementDate)+'</td>'+
-          '<td class="n"><button class="btn sm" data-open-trade="'+t.id+'">Open</button></td></tr>';
+          '<td class="n" style="white-space:nowrap">'+
+            '<button class="btn sm" data-open-trade="'+t.id+'">Open</button> '+
+            '<button class="btn sm danger" data-delete-trade="'+t.id+'">Delete</button></td></tr>';
       }).join('')+'</tbody></table>';
 }
 
 /** The trade list shown on the Trades tab, where every trade action lives. */
 function renderTradeList(d,t){
-  const ts=d?tradesOf(d.id):[];
+  const ts=d?sortedTrades(d.id):[];
   $('tradeListBox').innerHTML = ts.length===0
     ? '<p class="tiny">No trades on this deal. Use <b>New trade</b>.</p>'
     : '<table><thead><tr><th>Identifier</th><th>State</th><th class="n">Purchase price</th><th>Settlement</th><th></th></tr></thead><tbody>'+
@@ -1998,6 +2023,29 @@ function renderTradeList(d,t){
           '<td class="n">'+(t&&x.id===t.id?'<span class="inline-tag ok">open</span>'
             :'<button class="btn sm" data-pick-trade="'+x.id+'">Open</button>')+'</td></tr>';
       }).join('')+'</tbody></table>';
+}
+
+/** Delete one trade. Refused once signed off or dispatched — cancel those instead,
+ *  which keeps the record and still releases the identifier for reuse. */
+function deleteTrade(id){
+  const t=store.trades.find(x=>x.id===id); if(!t) return;
+  const d=store.deals.find(x=>x.id===t.dealId);
+  if(['APPROVED','ISSUED','SETTLED'].includes(t.state))
+    return alert('Cannot delete "'+(t.identifier||'this trade')+'" — it is '+t.state+
+      ' and must be retained for audit.\n\nCancel it instead: the trade stays on the record, and its '+
+      'identifier becomes available again for a new trade.');
+  if(!confirm('Delete trade "'+(t.identifier||'(untitled)')+'" (v'+t.versionNo+', '+t.state+')?\n\n'+
+    'This cannot be undone. A snapshot is written to the audit log.')) return;
+  const reason=prompt('Reason for deletion (recorded in the audit log):');
+  if(reason===null) return;
+  if(!reason.trim()) return alert('A reason is required.');
+  audit('trade',id,'DELETE',null, JSON.stringify({identifier:t.identifier, version:t.versionNo,
+    state:t.state, dealCode:d?d.code:null}), null, reason.trim());
+  store.trades=store.trades.filter(x=>x.id!==id);
+  if(store.currentTradeId===id){
+    const ts=d?tradesOf(d.id):[]; store.currentTradeId=ts.length?ts[0].id:null;
+  }
+  loadFormFromStore(); render();
 }
 
 /** Delete a deal outright. Refused once any trade has been approved — those are records. */
@@ -2380,6 +2428,8 @@ $('dealTable').addEventListener('click', e=>{
   if(row) selectDeal(row.dataset.rowDeal);
 });
 $('dealTradesBox').addEventListener('click', e=>{
+  const del=e.target.closest('button[data-delete-trade]');
+  if(del) return deleteTrade(del.dataset.deleteTrade);
   const bt=e.target.closest('button[data-open-trade]'); if(bt) openTrade(bt.dataset.openTrade);
 });
 $('tradeListBox').addEventListener('click', e=>{
@@ -2432,14 +2482,13 @@ $('btnNewDeal').onclick=()=>{ const d=newDeal(actor().name); store.deals.push(d)
   audit('deal',d.id,'CREATE',null,null,'new deal');
   loadFormFromStore(); render(); showTab('deals'); };
 $('btnNewTrade').onclick=()=>{ const d=currentDeal(); const t=newTrade(d.id, actor().name);
-  const n=tradesOf(d.id).length+1;
-  t.identifier=(d.code?d.code+'-':'')+String(n).padStart(2,'0');
+  t.identifier=nextTradeIdentifier(d);
   store.trades.push(t); store.currentTradeId=t.id;
-  audit('trade',t.id,'CREATE',null,null,'Trade '+n+' on deal '+(d.code||d.id));
+  audit('trade',t.id,'CREATE',null,null,'Trade '+t.identifier+' on deal '+(d.code||d.id));
   loadFormFromStore(); render(); };
 $('btnDupTrade').onclick=()=>{ const d=currentDeal(), src=currentTrade(); if(!src) return;
   const t=newTrade(d.id, actor().name);
-  t.inputs={...src.inputs}; t.obligor=src.obligor; t.identifier=(src.identifier||'trade')+'-copy';
+  t.inputs={...src.inputs}; t.obligor=src.obligor; t.identifier=nextTradeIdentifier(d);
   store.trades.push(t); store.currentTradeId=t.id;
   audit('trade',t.id,'CREATE',null,null,'Duplicated from '+(src.identifier||src.id));
   loadFormFromStore(); render(); };

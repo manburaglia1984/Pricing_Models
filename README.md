@@ -64,7 +64,19 @@ A **deal** holds everything its trades share. A **trade** is what gets priced, a
 
 This matches the SharePoint layout, where `Trade 1 - DRC` holds SB01 / SB02 / SB03 under one facility.
 
-Trade identifiers must be unique within a deal.
+### Trade identifiers
+
+New trades are numbered `<Transaction Code>-NN`, taking the **lowest unused number** rather than a
+running count — so deleting or cancelling a trade frees its number and the sequence never gains a gap.
+Delete `…-02` from `01, 02, 03` and the next trade you add is `…-02` again.
+
+Identifiers are unique on **(identifier, version)**, which means successive versions of one trade
+correctly share an identifier, and a cancelled trade releases its identifier for reuse while staying
+on the record. Trade lists sort by identifier numerically, so `-02` precedes `-10`.
+
+**Delete** on a trade row removes it after a confirmation and a mandatory reason, with a snapshot to
+the audit log. It is refused for APPROVED, ISSUED and SETTLED trades — cancel those instead, which
+keeps the record *and* frees the identifier.
 
 **Editing a deal's configuration** behaves differently depending on what its trades have reached:
 
