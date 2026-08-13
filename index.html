@@ -104,11 +104,14 @@ input:disabled,select:disabled{opacity:.6;cursor:not-allowed}
 .inline-tag.ok{color:var(--ok);border-color:var(--ok);background:var(--ok-bg)}
 .inline-tag.warn{color:var(--warn);border-color:var(--warn);background:var(--warn-bg)}
 .inline-tag.err{color:var(--err);border-color:var(--err);background:var(--err-bg)}
-.jur{display:flex;flex-wrap:wrap;gap:7px;padding:6px 0 2px}
-.jur label{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border:1px solid var(--line-2);border-radius:999px;font-size:12.5px;cursor:pointer;background:var(--panel-2)}
-.jur label:has(input:checked){border-color:var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:560}
-.jur label:has(input:disabled){opacity:.55;cursor:not-allowed}
-.jur input{width:auto;margin:0;accent-color:var(--accent)}
+.taglist{display:flex;flex-wrap:wrap;gap:6px;padding:4px 0 2px}
+.taglist .tag{display:inline-flex;align-items:center;gap:5px;padding:3px 6px 3px 11px;border:1px solid var(--accent);
+  background:var(--accent-soft);color:var(--accent);border-radius:999px;font-size:12.5px;font-weight:560}
+.taglist .tag small{font-weight:400;opacity:.75}
+.taglist .tag button{border:0;background:none;color:inherit;font:inherit;font-size:15px;line-height:1;padding:0 2px;cursor:pointer;opacity:.65}
+.taglist .tag button:hover{opacity:1}
+.taglist .tag button:disabled{display:none}
+.taglist .empty{font-size:12.5px;color:var(--err)}
 .toggle{display:inline-flex;align-items:center;gap:6px;text-transform:none;letter-spacing:0;font-size:11.5px;font-weight:520;color:var(--ink-2);cursor:pointer;user-select:none}
 .toggle input{width:auto;margin:0;accent-color:var(--accent);cursor:pointer}
 .card.off>h2{opacity:.75}
@@ -136,8 +139,10 @@ th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-
 td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
 tbody tr:hover{background:var(--panel-2)}
 tr.sel{background:var(--accent-soft)}
+tr.dealrow{cursor:pointer}
 tr.dealrow td{background:var(--panel-2);font-weight:600}
 tr.dealrow:hover td{background:var(--accent-soft)}
+tr.dealrow.sel td{background:var(--accent-soft);box-shadow:inset 3px 0 0 var(--accent)}
 .scroll{overflow-x:auto}
 code,.mono{font-family:var(--mono);font-size:12px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
@@ -398,11 +403,11 @@ code,.mono{font-family:var(--mono);font-size:12px}
             <div class="cell"><label class="toggle" style="justify-content:flex-end;width:100%"><input type="checkbox" id="d_proforma" data-deal="proformaEnabled" checked><span id="proformaLabel">Used on this deal</span></label></div></div>
           <div class="row wide"><div class="lbl">Associated jurisdictions<span class="note">Holiday calendars every trade's maturity date is checked against. Replaces the fixed rows in BD Dates!B4:B13.</span>
             <div class="toolbar" style="margin:8px 0 4px">
-              <div class="field-inline"><input type="text" id="jurFilter" placeholder="filter by name or code" style="min-width:200px"></div>
+              <select id="jurAdd" style="min-width:270px;text-align:left"></select>
               <span class="tiny" id="jurCount"></span>
               <button class="btn sm" id="btnJurClear">Clear all</button>
             </div>
-            <div id="jurisdictionBox"></div></div></div>
+            <div class="taglist" id="jurisdictionBox"></div></div></div>
         </div>
       </div>
   </div>
@@ -948,9 +953,10 @@ for(const [code,spec] of Object.entries(SOURCED_CALENDARS)){
     derived:false, days:spec.days, set:new Set(spec.days),
     coverageThrough:spec.days.reduce((a,b)=>a>b?a:b)};
 }
-const ALL_JURISDICTIONS = Object.keys(CALENDARS)
-  .sort((a,b)=>CALENDARS[a].region.localeCompare(CALENDARS[b].region) || CALENDARS[a].name.localeCompare(CALENDARS[b].name));
 const REGIONS = ['Americas','EMEA','APAC'];
+const ALL_JURISDICTIONS = Object.keys(CALENDARS)
+  .sort((a,b)=> REGIONS.indexOf(CALENDARS[a].region) - REGIONS.indexOf(CALENDARS[b].region)
+             || CALENDARS[a].name.localeCompare(CALENDARS[b].name));
 const DEFAULT_JURISDICTIONS = ['US','GB','BR','HK'];   // as hardcoded in BD Dates!B4:B13
 
 /* ---------------------------- formatting ---------------------------- */
@@ -1514,28 +1520,36 @@ function renderDealForm(){
   $('proformaLabel').textContent = d.proformaEnabled!==false ? 'Used on this deal' : 'Not used — panel 2 is hidden';
   renderJurisdictionBox();
 }
+/** Jurisdictions: a dropdown to add, and the chosen ones as removable chips. */
 function renderJurisdictionBox(){
   const d=currentDeal(); if(!d) return;
-  const locked=dealLocked(d), sel=new Set(d.jurisdictions||[]);
-  const f=($('jurFilter').value||'').toLowerCase().trim();
-  const hidden = f ? [...sel].filter(c=>!(CALENDARS[c]||{name:''}).name.toLowerCase().includes(f) && !c.toLowerCase().includes(f)).length : 0;
-  $('jurCount').textContent = sel.size+' of '+ALL_JURISDICTIONS.length+' selected'+
-    (hidden ? ' · '+hidden+' selected hidden by the filter' : '');
-  let html='';
-  for(const region of REGIONS){
-    const codes=ALL_JURISDICTIONS.filter(c=>CALENDARS[c].region===region &&
-      (!f || CALENDARS[c].name.toLowerCase().includes(f) || c.toLowerCase().includes(f)));
-    if(!codes.length) continue;
-    html+='<div class="tiny" style="margin:8px 0 3px;font-weight:600">'+region+'</div><div class="jur">'+
-      codes.map(code=>{ const c=CALENDARS[code];
-        return '<label title="'+esc(c.name)+' · '+(c.derived?'derived from rules':'published list')+
-          ' · coverage to '+fmtShort(c.coverageThrough)+'">'+
-          '<input type="checkbox" data-jur="'+code+'"'+(sel.has(code)?' checked':'')+(locked?' disabled':'')+'>'+
-          esc(c.name)+' <span class="tiny">('+code+')</span>'+
-          (c.conf==='sourced'?' <span class="inline-tag warn">to '+fmtShort(c.coverageThrough)+'</span>':'')+'</label>';
-      }).join('')+'</div>';
-  }
-  $('jurisdictionBox').innerHTML = html || '<p class="tiny">No jurisdictions match.</p>';
+  const locked=dealLocked(d), sel=(d.jurisdictions||[]).slice();
+  const selSet=new Set(sel);
+  $('jurCount').textContent = sel.length+' of '+ALL_JURISDICTIONS.length+' selected';
+
+  const add=$('jurAdd');
+  const remaining=ALL_JURISDICTIONS.filter(c=>!selSet.has(c));
+  add.disabled = locked || !remaining.length;
+  add.innerHTML='<option value="">'+(remaining.length?'+ Add jurisdiction…':'All jurisdictions added')+'</option>'+
+    REGIONS.map(region=>{
+      const codes=remaining.filter(c=>CALENDARS[c].region===region);
+      if(!codes.length) return '';
+      return '<optgroup label="'+esc(region)+'">'+codes.map(code=>{ const c=CALENDARS[code];
+        return '<option value="'+code+'">'+esc(c.name)+' ('+code+')'+
+          (c.conf==='sourced' ? ' — published list to '+fmtShort(c.coverageThrough) : '')+'</option>';
+      }).join('')+'</optgroup>';
+    }).join('');
+  add.value='';
+
+  $('btnJurClear').disabled = locked || !sel.length;
+  $('jurisdictionBox').innerHTML = sel.length===0
+    ? '<span class="empty">None selected — the maturity date will not be checked against any calendar.</span>'
+    : sel.map(code=>{ const c=CALENDARS[code]||{name:code, coverageThrough:'', derived:false};
+        return '<span class="tag" title="'+esc(c.name)+' · '+(c.derived?'derived from rules':'published list')+
+          ' · coverage to '+fmtShort(c.coverageThrough)+'">'+esc(c.name)+' <small>'+code+'</small>'+
+          '<button type="button" data-jur-remove="'+code+'" aria-label="Remove '+esc(c.name)+'"'+
+          (locked?' disabled':'')+'>&times;</button></span>';
+      }).join('');
 }
 function applyClientNaming(name){
   for(const el of document.querySelectorAll('[data-tpl]')) el.textContent = el.dataset.tpl.replace(/\{client\}/g, name);
@@ -1551,7 +1565,7 @@ function render(opts){
     applyClientNaming('Client');
     $('stateBadge').textContent='—'; $('stateBadge').className='badge DRAFT';
     $('dealCaption').textContent='No deals';
-    configuringDealId=null;
+    configOpen=false;
     renderDeals(); renderClients(); renderAudit(); renderAbout();
     $('topBanners').innerHTML='<div class="banner warn"><div><b>No deals.</b> Create one on the Deals tab.</div></div>';
     $('dealContextBox').innerHTML=''; $('tradeListBox').innerHTML='';
@@ -1866,8 +1880,8 @@ function renderOffer(d,t,r){
     t.offerFiles.map(f=>'<tr><td>'+new Date(f.issuedAt).toLocaleString()+'</td><td>'+esc(f.issuedBy)+'</td><td class="mono tiny">'+f.documentSha256+'</td></tr>').join('')+'</tbody></table>';
 }
 
-/** Which deal's configuration panel is open, or null when the panel is hidden. */
-let configuringDealId = null;
+/** Whether the configuration panel is open. It always shows the currently selected deal. */
+let configOpen = false;
 
 function renderDeals(){
   const cur=currentDeal();
@@ -1875,7 +1889,7 @@ function renderDeals(){
     '<th>Pro forma</th><th>Jurisdictions</th><th></th></tr></thead><tbody>'+
     (store.deals.length?store.deals.map(d=>{
       const ts=tradesOf(d.id), js=d.jurisdictions||[];
-      return '<tr class="dealrow'+(cur&&d.id===cur.id?' sel':'')+'">'+
+      return '<tr class="dealrow'+(cur&&d.id===cur.id?' sel':'')+'" data-row-deal="'+d.id+'" title="Click to show this deal’s trades">'+
         '<td>'+esc(d.code||'(untitled deal)')+'</td><td>'+esc(clientLabel(d))+'</td>'+
         '<td>'+esc(d.currency)+' <span class="tiny">'+esc(idxFor(d.currency).name)+'</span></td>'+
         '<td class="n">'+ts.length+'</td>'+
@@ -1883,12 +1897,11 @@ function renderDeals(){
         '<td class="tiny">'+(js.length? esc(js.slice(0,4).join(', '))+(js.length>4?' +'+(js.length-4):'')
                                       : '<span class="inline-tag err">none</span>')+'</td>'+
         '<td class="n" style="white-space:nowrap">'+
-          '<button class="btn sm" data-select-deal="'+d.id+'">Trades</button> '+
           '<button class="btn sm" data-config-deal="'+d.id+'">Configure</button> '+
           '<button class="btn sm danger" data-delete-deal="'+d.id+'">Delete</button></td></tr>';
     }).join('') : '<tr><td colspan="7" class="tiny">No deals. Use <b>New deal</b> to create one.</td></tr>')+'</tbody>';
 
-  const showConfig = !!configuringDealId && store.deals.some(d=>d.id===configuringDealId);
+  const showConfig = configOpen && !!cur;
   $('dealConfigCard').style.display = showConfig ? '' : 'none';
   $('dealsSplit').className = showConfig ? 'grid2' : '';
 
@@ -1945,7 +1958,8 @@ function deleteDeal(id){
     jurisdictions:d.jurisdictions, trades:ts.map(t=>({identifier:t.identifier, state:t.state}))}), null, reason.trim());
   store.trades=store.trades.filter(t=>t.dealId!==id);
   store.deals=store.deals.filter(x=>x.id!==id);
-  if(configuringDealId===id) configuringDealId=null;
+  configOpen=false;
+
   if(store.currentDealId===id){
     store.currentDealId = store.deals.length ? store.deals[0].id : null;
     const nts = store.currentDealId ? tradesOf(store.currentDealId) : [];
@@ -2262,16 +2276,7 @@ document.addEventListener('change', e=>{
   if(el.dataset.trade && t) audit('trade',t.id,'UPDATE',el.dataset.trade, el.dataset.prev??null, String(t[el.dataset.trade]));
   if(el.dataset.field && t) audit('trade',t.id,'UPDATE',el.dataset.field, el.dataset.prev??null, String(t.inputs[el.dataset.field]));
 
-  if(el.dataset.jur){
-    if(dealLocked(d)){ renderJurisdictionBox(); return; }
-    const code=el.dataset.jur, cur=new Set(d.jurisdictions||[]);
-    const before=[...cur].join(',');
-    el.checked ? cur.add(code) : cur.delete(code);
-    d.jurisdictions=ALL_JURISDICTIONS.filter(c=>cur.has(c));
-    audit('deal',d.id,'UPDATE','jurisdictions',before,d.jurisdictions.join(','));
-    revertPricedTrades(d,'Jurisdictions changed — rate snapshot voided.');
-    render();
-  }
+  if(el.id==='jurAdd' && el.value){ setJurisdictions(el.value, true); }
   if(el.dataset.curve){
     // The input handler already wrote the value; record the audit event on commit.
     const prevVal = el.dataset.prevCurve;
@@ -2305,13 +2310,14 @@ function openTrade(id){
   store.currentDealId=tr.dealId; store.currentTradeId=tr.id;
   loadFormFromStore(); render(); showTab('pricing');
 }
+// Clicking a deal row selects it and refreshes "Trades on this deal"; buttons take precedence.
 $('dealTable').addEventListener('click', e=>{
-  const sel=e.target.closest('button[data-select-deal]');
-  const cfg=e.target.closest('button[data-config-deal]');
   const del=e.target.closest('button[data-delete-deal]');
   if(del) return deleteDeal(del.dataset.deleteDeal);
-  if(cfg){ configuringDealId=cfg.dataset.configDeal; selectDeal(cfg.dataset.configDeal); return; }
-  if(sel){ selectDeal(sel.dataset.selectDeal); showTab('pricing'); }
+  const cfg=e.target.closest('button[data-config-deal]');
+  if(cfg){ configOpen=true; selectDeal(cfg.dataset.configDeal); return; }
+  const row=e.target.closest('tr[data-row-deal]');
+  if(row) selectDeal(row.dataset.rowDeal);
 });
 $('dealTradesBox').addEventListener('click', e=>{
   const bt=e.target.closest('button[data-open-trade]'); if(bt) openTrade(bt.dataset.openTrade);
@@ -2320,10 +2326,23 @@ $('tradeListBox').addEventListener('click', e=>{
   const bt=e.target.closest('button[data-pick-trade]'); if(!bt) return;
   store.currentTradeId=bt.dataset.pickTrade; loadFormFromStore(); render();
 });
-$('btnEditDeal').onclick=()=>{ const d=currentDeal(); if(d) configuringDealId=d.id; render(); showTab('deals'); };
-$('btnCloseConfig').onclick=()=>{ configuringDealId=null; render(); };
+$('btnEditDeal').onclick=()=>{ configOpen=true; render(); showTab('deals'); };
+$('btnCloseConfig').onclick=()=>{ configOpen=false; render(); };
 $('btnNewTradeFromDeals').onclick=()=>{ $('btnNewTrade').click(); showTab('pricing'); };
-$('jurFilter').addEventListener('input', renderJurisdictionBox);
+/** Add or remove one jurisdiction on the current deal. */
+function setJurisdictions(code, on){
+  const d=currentDeal(); if(!d || dealLocked(d)) return;
+  const cur=new Set(d.jurisdictions||[]);
+  const before=[...cur].join(',');
+  on ? cur.add(code) : cur.delete(code);
+  d.jurisdictions=ALL_JURISDICTIONS.filter(c=>cur.has(c));
+  audit('deal',d.id,'UPDATE','jurisdictions',before,d.jurisdictions.join(','));
+  revertPricedTrades(d,'Jurisdictions changed — rate snapshot voided.');
+  render();
+}
+$('jurisdictionBox').addEventListener('click', e=>{
+  const b=e.target.closest('button[data-jur-remove]'); if(b) setJurisdictions(b.dataset.jurRemove, false);
+});
 $('btnJurClear').onclick=()=>{ const d=currentDeal(); if(!d || dealLocked(d)) return;
   const before=(d.jurisdictions||[]).join(',');
   d.jurisdictions=[];
@@ -2348,7 +2367,7 @@ $('btnPrice').onclick=doPrice; $('btnApprove').onclick=doApprove; $('btnIssue').
 $('btnSettle').onclick=doSettle; $('btnCancel').onclick=doCancel;
 $('btnNewDeal').onclick=()=>{ const d=newDeal(actor().name); store.deals.push(d);
   store.currentDealId=d.id; store.currentTradeId=null; curveChoice=null;
-  configuringDealId=d.id;                     // a new deal opens straight into configuration
+  configOpen=true;                             // a new deal opens straight into configuration
   audit('deal',d.id,'CREATE',null,null,'new deal');
   loadFormFromStore(); render(); showTab('deals'); };
 $('btnNewTrade').onclick=()=>{ const d=currentDeal(); const t=newTrade(d.id, actor().name);

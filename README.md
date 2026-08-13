@@ -34,9 +34,10 @@ Configuring a facility and pricing a trade are separate jobs, so they are separa
 header carries no deal or trade controls at all — everything to do with a deal is on the Deals tab,
 everything to do with a trade is on the Trades tab.
 
-- **Deals** — the landing tab. Lists every deal with three row actions: **Trades** (open its trades),
-  **Configure** and **Delete**. Below, *Trades on this deal* on the left; the configuration panel opens
-  on the right only when **Configure** is clicked, and closes again from its own Close button.
+- **Deals** — the landing tab. **Click any deal row** to select it; *Trades on this deal* below updates
+  to that deal's trades. Two row actions remain: **Configure** and **Delete**. The configuration panel
+  opens on the right only when **Configure** is clicked, closes from its own Close button, and always
+  shows whichever deal is currently selected.
 - **Trades** — the deal's configuration read-only at the top with an *Edit deal configuration* button,
   then the trade list and every trade action (New trade, Duplicate, New version, Price, Approve, Issue,
   Mark settled, Cancel), then the pricing panels.
@@ -99,8 +100,9 @@ them. Pricing is hard-blocked with `RATE.NO_CURVE` until a curve is loaded.
 
 ## Jurisdictions
 
-**28 jurisdictions**, grouped by region with a filter, selected per deal and checked against every
-trade's maturity date. Selecting none is a blocking error, not a silent pass.
+**28 jurisdictions**, selected per deal and checked against every trade's maturity date. The picker is a
+region-grouped dropdown that adds one at a time, with the chosen jurisdictions shown as removable chips —
+rather than a wall of 28 checkboxes. Selecting none is a blocking error, not a silent pass.
 
 Business days are **derived from rules**, not transcribed tables — fixed dates, nth-weekday, Easter
 offsets, Monday-on-or-after (Colombia's Emiliani law), weekday-in-range (Nordic midsummer), plus each
