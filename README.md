@@ -134,15 +134,21 @@ The Reference data tab's **Base rate curves** card manages the history:
 - **Add / update** — key in a dated curve, or **a single data point**: fill only the tenors you have and
   the rest are left exactly as they were. Adding just a 6m fixing for a date that already carries a curve
   updates the 6m and nothing else. A new date can hold one point on its own.
-- **Upload history (CSV/JSON)** — bulk-load past curves. CSV columns `date,1m,3m,6m,12m`, rates as
-  percentages; blank cells are left untouched, so partial rows are fine. Rows with no date or no rates at
+- **Upload history (CSV/JSON)** — bulk-load past curves. CSV columns are `date` plus the pillars the
+  selected index publishes (`date,1m,3m,6m,12m` for Term SOFR, `date,28d,91d,182d` for TIIE), rates as
+  percentages; blank cells are left untouched, so partial rows are fine. A recognised tenor column that
+  the selected index does not publish is ignored and named in the confirmation rather than stored where
+  no column could show it — if a whole file is off-grid the upload is refused and says which index it
+  looks like it belongs to. JSON restore stays permissive for round-trip fidelity, and any off-grid
+  pillar it carries gets its own column in the table, marked *off-grid*, so nothing loaded under an
+  older tenor list becomes invisible. Rows with no date or no rates at
   all are skipped and reported rather than half-loaded. *Download CSV template* gives the exact shape;
   *Export history* round-trips everything.
 - **The upload reads the file Excel actually produces, not just the template.** A template that has been
   opened and saved comes back with its dates rewritten to the machine's locale, so the parser accepts
   `2026-06-22`, `6/22/2026`, `22/06/2026`, `22-Jun-2026`, `Jun 22, 2026`, `20260622` and bare Excel
   serials, along with `;`- or tab-separated files, a UTF-8 BOM, quoted fields, `3,64338` decimal commas,
-  a trailing `%`, and header spellings such as `Business Date`, `1M` or `1Y`. **Day/month order is settled
+  a trailing `%`, and header spellings such as `Business Date`, `1M`, `1Y`, `O/N`, `overnight` or `91d`. **Day/month order is settled
   from the column as a whole** — one unambiguous row like `6/22/2026` fixes the reading for `6/7/2026`
   further down. A file that argues both ways (`22/06` next to `06/22`) is refused outright rather than
   guessed at, and a column that is ambiguous end to end is read month-first and says so in the
@@ -172,15 +178,31 @@ Currency is a deal-level choice. It selects the base-rate index **and the day-co
 workbook hardcodes `/360`, which is correct for Term SOFR and EURIBOR but wrong for a 365-basis index.
 The basis travels with the currency through all four factor formulas (`B20`, `B33`, `B46`, `B52`).
 
-| Currency | Index | Day count |
-|---|---|---|
-| USD | Term SOFR | ACT/360 |
-| EUR | EURIBOR | ACT/360 |
-| GBP | Term SONIA | ACT/365 |
-| MXN | TIIE | ACT/360 |
-| COP | IBR | ACT/360 |
-| CHF | SARON | ACT/360 |
-| BRL | CDI | ACT/360 † |
+| Currency | Index | Day count | Published pillars |
+|---|---|---|---|
+| USD | Term SOFR | ACT/360 | 1m, 3m, 6m, 12m |
+| EUR | EURIBOR | ACT/360 | 1w, 1m, 3m, 6m, 12m |
+| GBP | Term SONIA | ACT/365 | 1m, 3m, 6m, 12m |
+| MXN | TIIE | ACT/360 | 28d, 91d, 182d |
+| COP | IBR | ACT/360 | O/N, 1m, 3m, 6m |
+| CHF | SARON | ACT/360 | O/N, 1m, 3m, 6m, 12m ‡ |
+| BRL | CDI | ACT/360 † | O/N, 1m, 3m, 6m, 12m ‡ |
+
+**Each index carries its own pillar grid**, not the workbook's fixed 1m/3m/6m/12m. Only Term SOFR and
+Term SONIA quote that set: EURIBOR adds a 1-week fixing, Banxico publishes TIIE at 28, 91 and 182 days
+with no 1-year point at all, and IBR stops at 6m. The entry form, the history table, the CSV template
+and the CSV importer all follow the selected index's grid, so a TIIE curve is entered and uploaded as
+`28d, 91d, 182d` and a gap in a curve means a fixing is genuinely missing rather than a column that
+never existed. `RATE.PARTIAL_CURVE` names the pillars that index actually publishes.
+
+Interpolation is unchanged and grid-agnostic — it reads whatever pillars are present and reports
+`EXACT_PILLAR`, `LINEAR_INTERP`, `LINEAR_EXTRAP` or `SINGLE_PILLAR` — so a 300-day MXN tenor is
+extrapolated beyond TIIE's 182-day top pillar and flagged as off-curve rather than quietly quoted. The
+grids live in one table, `RATE_INDICES` in `index.html`; changing a list there changes the entry form,
+the table, the template and the importer together, and touches no pricing code.
+
+‡ SARON and CDI are overnight fixings; their term pillars are the compounded SARON rates
+(`SAR1MC … SAR12MC`) and the DI-futures-implied CDI terms respectively.
 
 The first five are the currencies on your monday.com Trades board (`dropdown_mkxxanzq`).
 

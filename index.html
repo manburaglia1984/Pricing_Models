@@ -372,7 +372,7 @@ code,.mono{font-family:var(--mono);font-size:12px}
         <button class="btn" id="btnCurveTemplate">Download CSV template</button>
         <button class="btn" id="btnCurveExport">Export history (JSON)</button>
       </div>
-      <p class="tiny" style="margin:8px 0 0">CSV columns: <code>date,1m,3m,6m,12m</code>; extra columns are ignored. Dates may be <code>2026-06-22</code>, <code>6/22/2026</code>, <code>22/06/2026</code> or <code>22-Jun-2026</code> — whatever Excel left behind — and semicolon files with comma decimals are read too. A row replaces any existing curve for that date. There is one curve per index — the pro forma block simply reads it at its own issue date.</p>
+      <p class="tiny" style="margin:8px 0 0">CSV columns are <code>date</code> plus the pillars the selected index publishes — <code>1m,3m,6m,12m</code> for Term SOFR, <code>28d,91d,182d</code> for TIIE, and so on; the template above always matches. Columns belonging to another index are ignored and named in the confirmation. Dates may be <code>2026-06-22</code>, <code>6/22/2026</code>, <code>22/06/2026</code> or <code>22-Jun-2026</code> — whatever Excel left behind — and semicolon files with comma decimals are read too. A row replaces any existing curve for that date. There is one curve per index — the pro forma block simply reads it at its own issue date.</p>
     </div>
   </div>
 
@@ -543,16 +543,30 @@ const todayISO = () => dFmt(Date.now());
    Currency is a deal-level choice. It selects the base-rate index AND the day-count
    basis: the workbook hardcodes /360, which is right for Term SOFR and EURIBOR but
    wrong for a 365-basis index such as Term SONIA. */
+/* `tenors` is the grid of pillars each index actually publishes, in days. Only Term SOFR and
+   Term SONIA quote the 1m/3m/6m/12m set the workbook assumed: EURIBOR adds a 1-week fixing,
+   TIIE is a 28/91/182-day convention with no 1-year, IBR runs overnight to 6m, and SARON and
+   CDI are overnight rates with compounded terms above them. A curve carries its own index's
+   pillars and nothing else, so a gap means a fixing is genuinely missing rather than a column
+   that never existed. Interpolation reads whatever pillars are present, so changing a list
+   here changes the entry grid and the CSV shape without touching the pricing engine. */
 const RATE_INDICES = {
-  USD:{index:'TERM_SOFR',  name:'Term SOFR',  basis:360, symbol:'$'},
-  EUR:{index:'EURIBOR',    name:'EURIBOR',    basis:360, symbol:'€'},
-  GBP:{index:'TERM_SONIA', name:'Term SONIA', basis:365, symbol:'£'},
-  MXN:{index:'TIIE',       name:'TIIE',       basis:360, symbol:'MX$'},
-  COP:{index:'IBR',        name:'IBR',        basis:360, symbol:'COL$'},
-  CHF:{index:'SARON',      name:'SARON',      basis:360, symbol:'CHF '},
-  BRL:{index:'CDI',        name:'CDI',        basis:360, symbol:'R$',
-       conventionNote:'CDI is quoted on a 252-business-day compounded basis. This model applies the workbook’s simple ACT/360 discount, so a BRL price is indicative only — confirm the convention with Bladex before use.'},
+  USD:{index:'TERM_SOFR',  name:'Term SOFR',  basis:360, symbol:'$',     tenors:[30,90,180,360]},
+  EUR:{index:'EURIBOR',    name:'EURIBOR',    basis:360, symbol:'€',     tenors:[7,30,90,180,360]},
+  GBP:{index:'TERM_SONIA', name:'Term SONIA', basis:365, symbol:'£',     tenors:[30,90,180,360]},
+  MXN:{index:'TIIE',       name:'TIIE',       basis:360, symbol:'MX$',   tenors:[28,91,182],
+       conventionNote:'Banxico publishes TIIE at 28, 91 and 182 days. There is no 1-year fixing, so a tenor beyond 182 days is extrapolated and flagged as such.'},
+  COP:{index:'IBR',        name:'IBR',        basis:360, symbol:'COL$',  tenors:[1,30,90,180],
+       conventionNote:'Banco de la República publishes IBR overnight and at 1, 3 and 6 months. Nothing is quoted beyond 6 months.'},
+  CHF:{index:'SARON',      name:'SARON',      basis:360, symbol:'CHF ',  tenors:[1,30,90,180,360],
+       conventionNote:'SARON itself is the overnight fixing; the 1m–12m pillars are the compounded SARON terms (SAR1MC … SAR12MC).'},
+  BRL:{index:'CDI',        name:'CDI',        basis:360, symbol:'R$',    tenors:[1,30,90,180,360],
+       conventionNote:'CDI is an overnight rate quoted on a 252-business-day compounded basis, with the term pillars implied from DI futures. This model applies the workbook’s simple ACT/360 discount, so a BRL price is indicative only — confirm the convention with Bladex before use.'},
 };
+/* Tenors are held in days so they sort and interpolate; these are the names desks use for them. */
+const TENOR_LABELS = {1:'O/N', 7:'1w', 14:'2w', 28:'28d', 30:'1m', 60:'2m', 90:'3m', 91:'91d',
+  180:'6m', 182:'182d', 270:'9m', 360:'12m'};
+const tenorLabel = d => TENOR_LABELS[Number(d)] || Number(d)+'d';
 const CURRENCIES = Object.keys(RATE_INDICES);
 const idxFor   = ccy => RATE_INDICES[ccy] || RATE_INDICES.USD;
 const basisFor = ccy => idxFor(ccy).basis;
@@ -1224,9 +1238,9 @@ function validate(deal, trade, out, quotes, bd){
       if(q.method==='LINEAR_EXTRAP') W('RATE.EXTRAP', label+' rate is extrapolated beyond the observable pillars — off-curve pricing.');
       if(q.method==='SINGLE_PILLAR') W('RATE.SINGLE_PILLAR', label+' dated '+fmtShort(q.businessDate)+
         ' holds one pillar only, so the '+q.tenorDays+'-day rate is read flat off it rather than interpolated. Add the surrounding tenors.');
-      const gaps=missingTenors({pillars:q.pillars});
+      const gaps=missingTenors({pillars:q.pillars}, q.currency);
       if(gaps.length && q.method!=='SINGLE_PILLAR') W('RATE.PARTIAL_CURVE', label+' dated '+fmtShort(q.businessDate)+
-        ' is missing the '+gaps.map(d=>d<360?d/30+'m':'1y').join(', ')+' pillar(s) — interpolation uses only what is present.');
+        ' is missing the '+gaps.map(tenorLabel).join(', ')+' pillar(s) — interpolation uses only what is present.');
       if(q.source==='MANUAL_OVERRIDE') W('RATE.OVERRIDE', label+' is a manual entry, not a feed value.');
     }
   }
@@ -1438,13 +1452,22 @@ function renderFunderList(){
 }
 const curvesFor = ccy => { const code=idxFor(ccy).index;
   if(!Array.isArray(store.curves[code])) store.curves[code]=[]; return store.curves[code]; };
-const STD_TENORS = [30,90,180,360];
+/** The pillars this currency's index publishes. */
+const tenorsFor = ccy => idxFor(ccy).tenors || [30,90,180,360];
+/** Columns for one index's entry table: its published pillars, plus any other tenor a stored
+    curve actually carries, so a rate loaded under an older grid never becomes invisible. */
+function tenorColumns(ccy){
+  const set=new Set(tenorsFor(ccy));
+  for(const c of curvesFor(ccy)) for(const p of (c.pillars||[]))
+    if(String(p.rate)!=='') set.add(Number(p.days));
+  return [...set].sort((a,b)=>a-b);
+}
 const pillarsSet = c => (c && Array.isArray(c.pillars) ? c.pillars : [])
   .filter(p=>String(p.rate)!=='' && Number(p.rate)>0);
 /** Usable with a single data point — partial curves are allowed and flagged, not rejected. */
 const curveUsable = c => pillarsSet(c).length>0;
-const missingTenors = c => { const have=new Set(pillarsSet(c).map(p=>Number(p.days)));
-  return STD_TENORS.filter(d=>!have.has(d)); };
+const missingTenors = (c, ccy) => { const have=new Set(pillarsSet(c).map(p=>Number(p.days)));
+  return tenorsFor(ccy).filter(d=>!have.has(d)); };
 const curveHistory = ccy => curvesFor(ccy).slice()
   .sort((a,b)=>a.businessDate.localeCompare(b.businessDate));
 /** The curve in force on a date: the latest complete one published on or before it. */
@@ -1964,8 +1987,9 @@ function renderRates(){
   const ccy=CURRENCIES.find(c=>idxFor(c).index===code)||'USD';
   const hist=curveHistory(ccy);
   const latest=hist.length?hist[hist.length-1].businessDate:null;
-  $('curveMeta').textContent='Day count ACT/'+idxFor(ccy).basis+' · '+hist.length+' curve(s) · '+
-    (latest?'latest '+fmtShort(latest):'no history yet');
+  const grid=tenorsFor(ccy), cols=tenorColumns(ccy);
+  $('curveMeta').textContent='Day count ACT/'+idxFor(ccy).basis+' · pillars '+grid.map(tenorLabel).join(', ')+
+    ' · '+hist.length+' curve(s) · '+(latest?'latest '+fmtShort(latest):'no history yet');
 
   // add / replace one dated curve
   $('curveAddBox').innerHTML = !admin
@@ -1974,8 +1998,8 @@ function renderRates(){
       '<div class="toolbar" style="margin:0 0 8px">'+
         '<div class="field-inline"><label>Business date</label>'+
           '<input type="date" id="cd_date" value="'+esc(curveDraft.date)+'"></div>'+
-        [30,90,180,360].map(d=>'<div class="field-inline suffix" data-suffix="%" style="position:relative">'+
-          '<label>'+(d<360?d/30+'m':'1y')+'</label>'+
+        grid.map(d=>'<div class="field-inline suffix" data-suffix="%" style="position:relative">'+
+          '<label>'+tenorLabel(d)+'</label>'+
           '<input type="number" step="0.00001" id="cd_'+d+'" style="min-width:92px" placeholder="—"></div>').join('')+
       '</div>'+
       '<div class="toolbar" style="margin:0">'+
@@ -2003,23 +2027,24 @@ function renderRates(){
           ' data-curve-date="'+esc(c.businessDate)+'" data-curve-tenor="'+d+'" value="'+v+'"></td>'
         : '<td class="n">'+(v!==''?v+'%':'<span class="inline-tag warn">—</span>')+'</td>';
     };
-    $('curveTable').innerHTML='<thead><tr><th>Business date</th><th class="n">1m</th><th class="n">3m</th>'+
-      '<th class="n">6m</th><th class="n">1y</th><th>Source / note</th><th>Used by trades</th><th></th></tr></thead><tbody>'+
+    $('curveTable').innerHTML='<thead><tr><th>Business date</th>'+
+      cols.map(d=>'<th class="n">'+tenorLabel(d)+(grid.includes(d)?'':' <span class="note">off-grid</span>')+'</th>').join('')+
+      '<th>Source / note</th><th>Used by trades</th><th></th></tr></thead><tbody>'+
       (rows.length ? rows.map(c=>{
         const used=[...new Set(usedBy[c.businessDate]||[])];
-        const gaps=missingTenors(c);
+        const gaps=missingTenors(c, ccy);
         return '<tr><td>'+(admin
             ? '<input type="date" data-curve-date="'+esc(c.businessDate)+'" data-curve-prop="businessDate" value="'+esc(c.businessDate)+'" style="min-width:140px">'
             : '<b>'+fmtShort(c.businessDate)+'</b>')+
-          (gaps.length?'<span class="note">missing '+gaps.map(d=>d<360?d/30+'m':'1y').join(', ')+'</span>':'')+'</td>'+
-          cell(c,30)+cell(c,90)+cell(c,180)+cell(c,360)+
+          (gaps.length?'<span class="note">missing '+gaps.map(tenorLabel).join(', ')+'</span>':'')+'</td>'+
+          cols.map(d=>cell(c,d)).join('')+
           '<td class="tiny">'+(admin
             ? '<input type="text" data-curve-date="'+esc(c.businessDate)+'" data-curve-prop="overrideReason" value="'+esc(c.overrideReason||'')+'" placeholder="source or note" style="min-width:150px">'
             : esc(c.source||'')+(c.overrideReason?'<br>'+esc(c.overrideReason):''))+'</td>'+
           '<td class="tiny">'+(used.length?esc(used.join(', ')):'—')+'</td>'+
           '<td class="n">'+(admin?'<button class="btn sm danger" data-del-curve="'+esc(c.businessDate)+'">Delete</button>':'')+'</td></tr>';
       }).join('')
-       : '<tr><td colspan="8" class="tiny">No '+esc(idxFor(ccy).name)+' history yet. Upload a CSV or add a curve above.</td></tr>')+
+       : '<tr><td colspan="'+(cols.length+4)+'" class="tiny">No '+esc(idxFor(ccy).name)+' history yet. Upload a CSV or add a curve above.</td></tr>')+
       '</tbody>';
   }
 
@@ -2029,10 +2054,11 @@ function renderRates(){
   const curveCell=c=>{ const h=curveHistory(c).filter(curveUsable);
     return h.length ? '<span class="inline-tag ok">'+h.length+' to '+fmtShort(h[h.length-1].businessDate)+'</span>'
                     : '<span class="inline-tag warn">none</span>'; };
-  $('ccyTable').innerHTML='<thead><tr><th>Currency</th><th>Base rate index</th><th class="n">Day count</th><th>Curve history</th><th>Note</th></tr></thead><tbody>'+
+  $('ccyTable').innerHTML='<thead><tr><th>Currency</th><th>Base rate index</th><th class="n">Day count</th><th>Published pillars</th><th>Curve history</th><th>Note</th></tr></thead><tbody>'+
     CURRENCIES.map(c=>{ const ix=idxFor(c);
       return '<tr><td><b>'+c+'</b></td><td>'+esc(ix.name)+' <span class="tiny mono">'+esc(ix.index)+'</span></td>'+
         '<td class="n">ACT/'+ix.basis+'</td>'+
+        '<td class="mono tiny">'+tenorsFor(c).map(tenorLabel).join(' · ')+'</td>'+
         '<td>'+curveCell(c)+'</td>'+
         '<td class="tiny">'+esc(ix.conventionNote||'')+'</td></tr>';
     }).join('')+'</tbody>';
@@ -2429,7 +2455,7 @@ function runTests(){
              return curveAsOf('USD','2026-07-05').businessDate; })(),'2026-07-01','partial curves are allowed');
     T('Rateless curve is skipped',
       (()=>{ store.curves.TERM_SOFR.push({businessDate:'2026-08-01', source:'MANUAL_OVERRIDE', overrideReason:'',
-               pillars:STD_TENORS.map(d=>({days:d,rate:''}))});
+               pillars:tenorsFor('USD').map(d=>({days:d,rate:''}))});
              return curveAsOf('USD','2026-08-05').businessDate; })(),'2026-07-01','no data points at all');
     store.curves.TERM_SOFR=saved;
   }
@@ -2447,7 +2473,7 @@ function runTests(){
     T('Single pillar rate is that point', interpolate(one,90).rate.toFixed(4),'0.0400','flat read');
     const partial={pillars:[{days:90,rate:'0.037'},{days:180,rate:'0.039'}]};
     T('Partial curve is usable', curveUsable(partial),'true','one point is enough');
-    T('Missing tenors reported', missingTenors(partial).join(','),'30,360','RATE.PARTIAL_CURVE');
+    T('Missing tenors reported', missingTenors(partial,'USD').join(','),'30,360','RATE.PARTIAL_CURVE');
     T('Partial curve interpolates on what it has', interpolate(partial.pillars,135).method,'LINEAR_INTERP','between 3m and 6m');
     T('Empty curve is unusable', curveUsable({pillars:[{days:180,rate:''}]}),'false','no data points');
   }
@@ -2773,9 +2799,14 @@ $('importFile').onchange=e=>{ const f=e.target.files[0]; if(!f) return;
 /* Uploaded files nearly always make a round trip through Excel before they get here, which
    rewrites dates into the machine's locale, renames headers and sometimes swaps the delimiter.
    The lookups below are keyed by the header with spaces, underscores, hyphens and dots removed. */
-const TENOR_COLS = {'1m':30,'1mo':30,'1month':30,'30d':30,'30days':30,
-  '3m':90,'3mo':90,'3month':90,'90d':90,'90days':90,
-  '6m':180,'6mo':180,'6month':180,'180d':180,'180days':180,
+const TENOR_COLS = {'on':1,'o/n':1,'overnight':1,'1d':1,'1day':1,
+  '1w':7,'1week':7,'7d':7,'7days':7, '2w':14,'2week':14,'14d':14,'14days':14,
+  '28d':28,'28days':28,
+  '1m':30,'1mo':30,'1month':30,'30d':30,'30days':30,
+  '2m':60,'2mo':60,'2month':60,'60d':60,'60days':60,
+  '3m':90,'3mo':90,'3month':90,'90d':90,'90days':90, '91d':91,'91days':91,
+  '6m':180,'6mo':180,'6month':180,'180d':180,'180days':180, '182d':182,'182days':182,
+  '9m':270,'9mo':270,'9month':270,'270d':270,'270days':270,
   '12m':360,'12mo':360,'12month':360,'1y':360,'1yr':360,'1year':360,'360d':360,'360days':360};
 const DATE_COLS = ['date','businessdate','curvedate','valuedate','effectivedate','asof','asofdate'];
 const MONTH_ABBR = {jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
@@ -2851,7 +2882,7 @@ function putCurve(ccy, businessDate, pctByTenor, source, reason, silent){
   const isNew = !rec;
   if(isNew){
     rec = {businessDate, source:source||'MANUAL_OVERRIDE', overrideReason:reason||'',
-           pillars:STD_TENORS.map(d=>({days:d, rate:''}))};
+           pillars:tenorsFor(ccy).map(d=>({days:d, rate:''}))};
     list.push(rec);
   }
   const before = rec.pillars.map(p=>p.days+':'+(p.rate||'—')).join(' ');
@@ -2862,7 +2893,7 @@ function putCurve(ccy, businessDate, pctByTenor, source, reason, silent){
     let p=rec.pillars.find(x=>Number(x.days)===d);
     if(!p){ p={days:d, rate:''}; rec.pillars.push(p); }
     p.rate = D.of(v).div(100).toFixed(12);
-    touched.push(d<360?d/30+'m':'1y');
+    touched.push(tenorLabel(d));
   }
   rec.pillars.sort((a,b)=>a.days-b.days);
   if(source) rec.source=source;
@@ -2878,7 +2909,7 @@ function addCurveFromForm(){
   const date=$('cd_date').value;
   if(!isValidDate(date)) return alert('A business date is required.');
   const pct={}; let given=0;
-  for(const d of STD_TENORS){ const v=$('cd_'+d).value.trim();
+  for(const d of tenorsFor(ccy)){ const v=$('cd_'+d).value.trim();
     if(v!=='' && Number(v)>0){ pct[d]=v; given++; } }
   if(!given) return alert('Enter at least one rate. Blank pillars are left as they are, so you can add a single data point.');
   putCurve(ccy, date, pct, 'MANUAL_OVERRIDE', $('cd_reason').value.trim());
@@ -2922,14 +2953,21 @@ function importCurveText(text, fileName){
     if(!lines.length) throw new Error('Empty file');
     const delim=sniffDelim(lines[0]);
     const head=splitCsvLine(lines[0], delim).map(normHead);
+    const grid=tenorsFor(ccy), gridNames=grid.map(tenorLabel).join(', ');
     const iDate=head.findIndex(h=>DATE_COLS.includes(h));
-    if(iDate<0) throw new Error('No "date" column — expected a header row of date,1m,3m,6m,12m.\n'
+    if(iDate<0) throw new Error('No "date" column — expected a header row of date, '+gridNames+'.\n'
       +'Found: '+(head.filter(h=>h).join(', ')||'(no header)'));
-    const tenorAt={};
-    head.forEach((h,i)=>{ const days=TENOR_COLS[h]; if(days && tenorAt[days]===undefined) tenorAt[days]=i; });
-    if(!STD_TENORS.some(d=>tenorAt[d]!==undefined))
-      throw new Error('No rate columns found — expected at least one of 1m, 3m, 6m, 12m.\n'
-        +'Found: '+head.filter(h=>h).join(', '));
+    /* A column is read only if this index publishes that pillar: loading a 1y into TIIE would
+       store a rate that no column of its table can show and that nothing quotes. */
+    const tenorAt={}, offGrid=[];
+    head.forEach((h,i)=>{ const days=TENOR_COLS[h]; if(!days) return;
+      if(!grid.includes(days)){ if(!offGrid.includes(h)) offGrid.push(h); return; }
+      if(tenorAt[days]===undefined) tenorAt[days]=i; });
+    if(!grid.some(d=>tenorAt[d]!==undefined))
+      throw new Error('No rate columns found for '+idxFor(ccy).name+' — it publishes '+gridNames+'.\n'
+        +'Found: '+head.filter(h=>h).join(', ')
+        +(offGrid.length?'\n\nColumns '+offGrid.join(', ')+' are not '+idxFor(ccy).name
+          +' pillars. Pick the right index above, or re-head the file.':''));
     if(lines.length<2) throw new Error('The file has a header row but no data rows.');
     /* Read every row before writing any: the day/month order of 6/7/2026 can only be
        settled by looking at the column as a whole. */
@@ -2944,16 +2982,18 @@ function importCurveText(text, fileName){
                                                     : isoFromParts(date[2],date[0],date[1]);
       if(!date){ skipped.push((r.raw||'(blank date)')+' — unreadable date'); continue; }
       const pct={}; let given=0;
-      for(const d of STD_TENORS){
+      for(const d of grid){
         if(tenorAt[d]===undefined) continue;
         const v=readRate(r.cells[tenorAt[d]]);
         if(v!=='' && Number(v)>0){ pct[d]=v; given++; }
       }
-      if(!given){ skipped.push(date+' — no positive rate in any tenor column'); continue; }
+      if(!given){ skipped.push(date+' — no positive rate in any '+idxFor(ccy).name+' tenor column'); continue; }
       putCurve(ccy, date, pct, 'MANUAL_OVERRIDE', 'Uploaded from '+fileName, true); added++;
     }
     if(order.assumed) note='\n\nEvery date could be read either way round (e.g. 6/7/2026), so they '
       +'were taken as month-first. Check the table and re-save as YYYY-MM-DD if that is wrong.';
+    if(offGrid.length) note+='\n\nIgnored '+offGrid.join(', ')+' — '+idxFor(ccy).name+' publishes '
+      +gridNames+' only.';
   }
   if(!added) throw new Error('No usable rows found.'
     +(skipped.length?'\n\n'+skipped.slice(0,8).join('\n')+(skipped.length>8?'\n…and '+(skipped.length-8)+' more':''):''));
@@ -3014,12 +3054,21 @@ $('curveTable').addEventListener('change', e=>{
   const raw=el.value.trim();
   p.rate = (raw==='' || !(Number(raw)>0)) ? '' : D.of(raw).div(100).toFixed(12);
   if(prev!==p.rate)
-    audit('rate_curve',tag,'RATE_OVERRIDE','curve@'+rec.businessDate+'.'+(d<360?d/30+'m':'1y'),
+    audit('rate_curve',tag,'RATE_OVERRIDE','curve@'+rec.businessDate+'.'+tenorLabel(d),
       prev||'—', p.rate||'—', rec.overrideReason||'manual edit');
   render();
 });
-$('btnCurveTemplate').onclick=()=>download('base-rate-curve-template.csv',
-  'date,1m,3m,6m,12m\n2026-06-22,3.64338,3.72777,3.85550,4.03325\n2026-07-16,3.64338,3.72777,3.87550,4.03325\n','text/csv');
+/* The template carries the pillars the selected index publishes, so a TIIE download comes back
+   28d,91d,182d. Its numbers are the workbook's illustrative SOFR shape read at those tenors —
+   a shape to type over, never a quote. */
+$('btnCurveTemplate').onclick=()=>{
+  const code=$('curvePicker').value, ccy=CURRENCIES.find(c=>idxFor(c).index===code)||'USD';
+  const grid=tenorsFor(ccy);
+  const shape=[{days:30,rate:'3.64338'},{days:90,rate:'3.72777'},{days:180,rate:'3.85550'},{days:360,rate:'4.03325'}];
+  const row=date=>date+','+grid.map(d=>interpolate(shape,d).rate.toFixed(5)).join(',');
+  download('base-rate-curve-template-'+code.toLowerCase()+'.csv',
+    'date,'+grid.map(tenorLabel).join(',')+'\n'+row('2026-06-22')+'\n'+row('2026-07-16')+'\n','text/csv');
+};
 $('btnCurveExport').onclick=()=>download('base-rate-curves.json',
   JSON.stringify({exportedAt:new Date().toISOString(), curves:store.curves}, null, 2),'application/json');
 $('curveImportFile').onchange=e=>{ const f=e.target.files[0]; if(!f) return;
