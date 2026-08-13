@@ -155,6 +155,17 @@ tr.dealrow{cursor:pointer}
 tr.dealrow td{background:var(--panel-2);font-weight:600}
 tr.dealrow:hover td{background:var(--accent-soft)}
 tr.dealrow.sel td{background:var(--accent-soft);box-shadow:inset 3px 0 0 var(--accent)}
+/* Panel 1's totals sit in a row rather than four stacked label/value lines: the four figures are
+   short, and the table above them is what needs the vertical space. */
+.suptotals{display:flex;flex-wrap:wrap;gap:9px;margin-top:12px}
+.suptotals .t{flex:1 1 160px;min-width:0;display:flex;flex-direction:column;gap:3px;
+  padding:8px 11px;border:1px solid var(--line);border-radius:9px;background:var(--panel-2)}
+.suptotals .k{display:flex;align-items:center;gap:6px;font-size:10.5px;text-transform:uppercase;
+  letter-spacing:.05em;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.suptotals .k .f{position:static;font:600 9.5px/1.6 var(--mono);color:var(--ink-3)}
+.suptotals .v{font:680 15px/1.3 var(--mono);color:var(--ink);font-variant-numeric:tabular-nums}
+.suptotals .t.strong{border-color:var(--accent);background:var(--accent-soft)}
+.suptotals .t.strong .v,.suptotals .t.strong .k,.suptotals .t.strong .k .f{color:var(--accent)}
 .scroll{overflow-x:auto}
 /* Reference tables that would otherwise run for a screen and a half. The header row sticks
    so the columns stay named while scrolling; its border has to be a shadow because a
@@ -257,8 +268,11 @@ code,.mono{font-family:var(--mono);font-size:12px}
           <div class="scroll"><table id="supInvTable"></table></div>
           <div class="toolbar" style="margin:10px 0 4px">
             <button class="btn" id="btnSupInvAdd">+ Add supplier invoice</button>
+            <label class="btn" style="display:inline-flex;align-items:center">Upload invoices (CSV)<input type="file" id="supInvImportFile" accept=".csv,text/csv" style="display:none"></label>
+            <button class="btn" id="btnSupInvTemplate">CSV template</button>
             <span class="tiny">Every block prices off the total. A row's Payment Date is its own Issue Date + tenor.</span>
           </div>
+          <p class="tiny" id="supInvHelp" style="margin:2px 0 0">CSV columns: <code>invoice number, supplier name, jurisdiction, issue date, tenor days, amount</code>. Give a <code>payment date</code> instead of a tenor and the tenor is worked out from it. Jurisdiction takes a code (<code>BR</code>) or a name (<code>Brazil</code>); dates and delimiters are read as loosely as on the curve upload.</p>
           <div id="supInvTotals"></div>
         </div>
       </div>
@@ -1213,6 +1227,18 @@ function validate(deal, trade, out, quotes, bd){
     // Name and jurisdiction do not change a number, so they are flagged rather than blocking:
     // a trade migrated from the single-invoice model has neither and must still price.
     if(!String(v.name||'').trim()) W('NOTE.SUP_NAME','Supplier invoice '+(n+1)+' has no Supplier Name.');
+    if(!String(v.invoiceNumber||'').trim()) W('NOTE.SUP_NUMBER','Supplier invoice '+(n+1)+' has no Invoice Number.');
+    else {
+      // Two rows quoting one invoice number for one supplier is how the same invoice gets funded
+      // twice. Flagged rather than blocked: a genuine invoice can legitimately arrive in tranches.
+      const dup=invoices.findIndex(x=>x!==v &&
+        String(x.invoiceNumber||'').trim().toLowerCase()===String(v.invoiceNumber).trim().toLowerCase() &&
+        String(x.name||'').trim().toLowerCase()===String(v.name||'').trim().toLowerCase());
+      if(dup>=0 && dup<n) W('NOTE.SUP_DUPLICATE','Supplier invoices '+(dup+1)+' and '+(n+1)+
+        ' both quote invoice number "'+String(v.invoiceNumber).trim()+'"'+
+        (String(v.name||'').trim()?' from '+String(v.name).trim():'')+
+        ' — confirm this is not the same invoice counted twice.');
+    }
     if(!String(v.jurisdiction||'').trim())
       W('NOTE.SUP_JURISDICTION', who+' has no Supplier Jurisdiction.');
     else if(!(deal.jurisdictions||[]).includes(v.jurisdiction))
@@ -1320,11 +1346,11 @@ const uuid = () => (crypto.randomUUID ? crypto.randomUUID()
 
 /** One row of panel 1. Name and jurisdiction are new; the rest are the workbook's B8/B9/B10. */
 function newSupplierInvoice(seed){
-  return {id:uuid(), name:'', jurisdiction:'', issueDate:'', tenorDays:30, amount:'', ...(seed||{})};
+  return {id:uuid(), invoiceNumber:'', name:'', jurisdiction:'', issueDate:'', tenorDays:30, amount:'', ...(seed||{})};
 }
 function blankTradeInputs(){
-  return { supplierInvoices:[newSupplierInvoice({name:'Cantu Supplier', jurisdiction:'BR',
-             issueDate:'2026-06-16', tenorDays:30, amount:'850000'})],
+  return { supplierInvoices:[newSupplierInvoice({invoiceNumber:'INV-0001', name:'Cantu Supplier',
+             jurisdiction:'BR', issueDate:'2026-06-16', tenorDays:30, amount:'850000'})],
     pfIssueDate:'2026-06-22', pfTenorDays:180, pfMargin:MARKET_DEFAULTS.margin, pfAgencyFee:MARKET_DEFAULTS.agencyFee,
     tcIssueDate:'2026-07-16', tcMargin:MARKET_DEFAULTS.margin, tcAgencyFee:MARKET_DEFAULTS.agencyFee,
     bladexSettlementDate:'2026-07-16', bladexDays:180, bladexMargin:MARKET_DEFAULTS.bladexMargin, legalFees:'0' };
@@ -1419,6 +1445,7 @@ function normalise(s){
     delete t.inputs.supplierIssueDate; delete t.inputs.supplierTenorDays; delete t.inputs.supplierAmount;
     for(const v of t.inputs.supplierInvoices){
       if(!v.id) v.id = uuid();
+      if(v.invoiceNumber===undefined) v.invoiceNumber='';
       if(v.name===undefined) v.name='';
       if(v.jurisdiction===undefined) v.jurisdiction='';
     }
@@ -1901,7 +1928,7 @@ function renderSupplierInvoices(d,t){
   const ccy=d.currency, sym=idxFor(ccy).symbol.trim()||ccy;
   const jurCell=v=>{
     if(locked) return esc((CALENDARS[v.jurisdiction]||{}).name || v.jurisdiction || '—');
-    return '<select class="in" data-sup-id="'+esc(v.id)+'" data-sup-field="jurisdiction" style="min-width:150px">'+
+    return '<select class="in" data-sup-id="'+esc(v.id)+'" data-sup-field="jurisdiction" style="min-width:128px">'+
       '<option value="">— none —</option>'+
       REGIONS.map(region=>{
         const codes=ALL_JURISDICTIONS.filter(c=>CALENDARS[c].region===region);
@@ -1914,19 +1941,112 @@ function renderSupplierInvoices(d,t){
     ? esc(field==='amount' ? money(D.of(v.amount||0),ccy) : (v[field]===''||v[field]==null ? '—' : String(v[field])))
     : '<input type="'+type+'" class="in" data-sup-id="'+esc(v.id)+'" data-sup-field="'+field+'" value="'+
       esc(v[field]??'')+'"'+(extra||'')+'>';
-  box.innerHTML='<thead><tr><th>Supplier Name</th><th>Jurisdiction</th><th>Issue Date</th>'+
+  box.innerHTML='<thead><tr><th>Invoice No.</th><th>Supplier Name</th><th>Jurisdiction</th><th>Issue Date</th>'+
     '<th class="n">Tenor (d)</th><th class="n" style="white-space:nowrap">Payment Date</th><th class="n">Amount ('+esc(sym)+')</th><th></th></tr></thead><tbody>'+
     (rows.length ? rows.map(v=>
-      '<tr><td>'+txt(v,'name','text',' placeholder="Supplier legal name" style="min-width:170px"')+'</td>'+
+      '<tr><td>'+txt(v,'invoiceNumber','text',' placeholder="INV-0001" style="min-width:98px"')+'</td>'+
+      '<td>'+txt(v,'name','text',' placeholder="Supplier legal name" style="min-width:148px"')+'</td>'+
       '<td>'+jurCell(v)+'</td>'+
       '<td>'+txt(v,'issueDate','date',' style="min-width:140px"')+'</td>'+
       '<td class="n">'+txt(v,'tenorDays','number',' min="1" step="1" style="min-width:78px;text-align:right"')+'</td>'+
       '<td class="n" style="white-space:nowrap"><span class="calc" data-sup-pay="'+esc(v.id)+'" title="Issue Date + tenor">—</span></td>'+
-      '<td class="n">'+txt(v,'amount','number',' min="0" step="0.01" style="min-width:120px;text-align:right"')+'</td>'+
-      '<td class="n">'+(locked?'':'<button class="btn sm danger" data-sup-remove="'+esc(v.id)+'">Remove</button>')+'</td></tr>').join('')
-     : '<tr><td colspan="7" class="tiny">No supplier invoices — add at least one; their total is what every block prices off.</td></tr>')+
+      '<td class="n">'+txt(v,'amount','number',' min="0" step="0.01" style="min-width:108px;text-align:right"')+'</td>'+
+      '<td class="n">'+(locked?'':'<button class="btn sm danger" data-sup-remove="'+esc(v.id)+'" title="Remove this invoice" aria-label="Remove invoice">&times;</button>')+'</td></tr>').join('')
+     : '<tr><td colspan="8" class="tiny">No supplier invoices — add one, or upload a CSV; their total is what every block prices off.</td></tr>')+
     '</tbody>';
-  const add=$('btnSupInvAdd'); if(add) add.disabled=locked;
+  for(const id of ['btnSupInvAdd','btnSupInvTemplate']){ const el=$(id); if(el) el.disabled=locked; }
+  const up=$('supInvImportFile'); if(up) up.disabled=locked;
+  const upLabel=up&&up.closest('label'); if(upLabel) upLabel.style.display=locked?'none':'inline-flex';
+}
+/* ---- supplier invoice CSV ----------------------------------------------------------------
+   Same reader as the curve upload — delimiter sniffing, quoted fields, Excel-mangled dates —
+   over the columns an invoice extract actually carries. Header spellings are matched after
+   normHead() strips spaces, underscores, hyphens and dots. */
+const SUP_COLS = {
+  invoiceNumber:['invoiceno','invoicenumber','invoice','invoice#','number','no','num','docno',
+                 'documentno','documentnumber','ref','reference','invoiceref'],
+  name:['suppliername','supplier','name','vendor','vendorname','beneficiary','payee','counterparty'],
+  jurisdiction:['jurisdiction','supplierjurisdiction','country','countrycode','countryofsupplier','jur','domicile'],
+  issueDate:['issuedate','invoicedate','date','issue','issued','documentdate'],
+  tenorDays:['tenordays','tenor','days','term','termdays','creditdays'],
+  paymentDate:['paymentdate','duedate','maturitydate','payment','due','maturity','paymentdue'],
+  amount:['amount','invoiceamount','value','total','totalamount','faceamount','amt','gross','grossamount'],
+};
+/** A jurisdiction cell may hold a code (BR) or a calendar name (Brazil). Anything else is reported. */
+function readJurisdiction(raw){
+  const s=String(raw||'').trim();
+  if(!s) return {code:''};
+  if(CALENDARS[s.toUpperCase()]) return {code:s.toUpperCase()};
+  const hit=ALL_JURISDICTIONS.find(c=>CALENDARS[c].name.toLowerCase()===s.toLowerCase());
+  return hit ? {code:hit} : {code:'', unknown:s};
+}
+/** Money, however the exporting system wrote it: 850000, "850,000.00", 850.000,00, R$ 850 000.
+    With one separator type the last group decides — exactly three digits reads as thousands. */
+function readAmount(raw){
+  let s=String(raw??'').trim().replace(/^"|"$/g,'').replace(/[^\d.,\-]/g,'');
+  if(!s) return '';
+  const lastDot=s.lastIndexOf('.'), lastComma=s.lastIndexOf(',');
+  if(lastDot>=0 && lastComma>=0){
+    const dec = lastDot>lastComma ? '.' : ',', thou = dec==='.' ? ',' : '.';
+    s = s.split(thou).join('').replace(dec,'.');
+  } else if(lastComma>=0){
+    s = (s.split(',').length-1===1 && s.length-lastComma-1!==3) ? s.replace(',','.') : s.split(',').join('');
+  } else if(lastDot>=0 && !(s.split('.').length-1===1 && s.length-lastDot-1!==3)){
+    s = s.split('.').join('');
+  }
+  return s;
+}
+function parseSupplierInvoicesCsv(text){
+  const body=String(text||'').replace(/^\uFEFF/,'').trim();
+  const lines=body.split(/\r?\n/).filter(l=>l.trim() && !/^[,;\t|]+$/.test(l.trim()));
+  if(!lines.length) throw new Error('Empty file');
+  const delim=sniffDelim(lines[0]);
+  const head=splitCsvLine(lines[0], delim).map(normHead);
+  const at={};
+  for(const [field,names] of Object.entries(SUP_COLS)){
+    const i=head.findIndex(h=>names.includes(h));
+    if(i>=0) at[field]=i;
+  }
+  const shape='Expected a header row of invoice number, supplier name, jurisdiction, issue date, '+
+    'tenor days, amount.\nFound: '+(head.filter(h=>h).join(', ')||'(no header)');
+  if(at.amount===undefined) throw new Error('No amount column. '+shape);
+  if(at.issueDate===undefined) throw new Error('No issue date column. '+shape);
+  if(lines.length<2) throw new Error('The file has a header row but no data rows.');
+  const rows=lines.slice(1).map(l=>splitCsvLine(l, delim));
+  // The day/month order is settled across both date columns at once, as on the curve upload.
+  const pairs=[];
+  for(const cells of rows) for(const f of ['issueDate','paymentDate']){
+    if(at[f]===undefined) continue;
+    const d=readDateCell(cells[at[f]]);
+    if(Array.isArray(d)) pairs.push(d);
+  }
+  const order=resolveDateOrder(pairs);
+  const settle=v=>Array.isArray(v)
+    ? (order.dayFirst ? isoFromParts(v[2],v[1],v[0]) : isoFromParts(v[2],v[0],v[1])) : v;
+
+  const invoices=[], skipped=[], unknownJur=[];
+  rows.forEach((cells,n)=>{
+    const cell=f=>at[f]===undefined ? '' : String(cells[at[f]]??'').trim();
+    const label='Row '+(n+2);
+    const issue=settle(readDateCell(cell('issueDate')));
+    const amount=readAmount(cell('amount'));
+    if(!cell('issueDate') && !cell('amount') && !cell('invoiceNumber') && !cell('name')) return;  // spacer line
+    if(typeof issue!=='string'){ skipped.push(label+' — unreadable issue date "'+cell('issueDate')+'"'); return; }
+    if(!(Number(amount)>0)){ skipped.push(label+' — amount is not a positive number ("'+cell('amount')+'")'); return; }
+    let tenor = cell('tenorDays')!=='' ? Number(readAmount(cell('tenorDays'))) : NaN;
+    if(!(tenor>=1)){
+      const pay=settle(readDateCell(cell('paymentDate')));
+      if(typeof pay==='string') tenor=dDiff(pay, issue);
+    }
+    if(!(tenor>=1)){ skipped.push(label+' — no tenor, and no payment date after the issue date'); return; }
+    const jur=readJurisdiction(cell('jurisdiction'));
+    if(jur.unknown && !unknownJur.includes(jur.unknown)) unknownJur.push(jur.unknown);
+    invoices.push(newSupplierInvoice({invoiceNumber:cell('invoiceNumber'), name:cell('name'),
+      jurisdiction:jur.code, issueDate:issue, tenorDays:Math.round(tenor), amount}));
+  });
+  if(!invoices.length) throw new Error('No usable rows found.'+
+    (skipped.length ? '\n\n'+skipped.slice(0,8).join('\n')+(skipped.length>8?'\n…and '+(skipped.length-8)+' more':'') : ''));
+  return {invoices, skipped, unknownJur, assumedOrder:order.assumed};
 }
 /** Derived cells only: safe to run on every keystroke, including while panel 1 has focus. */
 function refreshSupplierCalcs(d,t,o){
@@ -1936,17 +2056,18 @@ function refreshSupplierCalcs(d,t,o){
     if(el) el.textContent = isValidDate(v.issueDate) ? fmtShort(dAdd(v.issueDate, Number(v.tenorDays||0))) : '—';
   }
   const sup=supplierTotals(t?t.inputs:{});
-  const line=(label,note,cell,tag,strong,head)=>'<div class="row'+(head?' head':'')+'"><div class="lbl">'+label+
-    (note?'<span class="note">'+note+'</span>':'')+'</div><div class="cell"><span class="calc'+(strong?' strong':'')+'">'+
-    (tag?'<span class="f">'+tag+'</span>':'')+cell+'</span></div></div>';
-  $('supInvTotals').innerHTML =
-    line('Supplier invoices','How many invoices this trade carries', String(sup.count), null) +
-    line('Earliest Issue Date','Minimum Issue Date across all supplier invoices',
-      isValidDate(sup.firstIssueDate)?fmtShort(sup.firstIssueDate):'—','B8') +
-    line('Latest Payment Date','Maximum Payment Date across all supplier invoices',
-      isValidDate(sup.lastPaymentDate)?fmtShort(sup.lastPaymentDate):'—','B9') +
-    line('<b>Total Supplier Invoice Amount</b>','Sum of every invoice — the figure panels 2 to 5 price off',
-      money(o?o.supplierAmount:sup.amount, ccy),'B10', true, true);
+  const tile=(tag,label,value,title,strong)=>'<div class="t'+(strong?' strong':'')+'" title="'+esc(title)+'">'+
+    '<span class="k">'+(tag?'<span class="f">'+tag+'</span>':'')+esc(label)+'</span>'+
+    '<span class="v">'+esc(value)+'</span></div>';
+  $('supInvTotals').innerHTML = '<div class="suptotals">'+
+    tile(null,'Invoices', String(sup.count), 'How many supplier invoices this trade carries') +
+    tile('B8','Earliest issue', isValidDate(sup.firstIssueDate)?fmtShort(sup.firstIssueDate):'—',
+      'Minimum Issue Date across all supplier invoices') +
+    tile('B9','Latest payment', isValidDate(sup.lastPaymentDate)?fmtShort(sup.lastPaymentDate):'—',
+      'Maximum Payment Date across all supplier invoices') +
+    tile('B10','Total amount', money(o?o.supplierAmount:sup.amount, ccy),
+      'Sum of every supplier invoice — the figure panels 2 to 5 price off', true) +
+    '</div>';
 }
 function renderPricing(d,t,r){
   const o=r.out, ccy=d.currency, ix=idxFor(ccy), pfOn = d.proformaEnabled!==false;
@@ -2504,6 +2625,31 @@ function runTests(){
            return inv.length+'/'+inv[0].issueDate+'/'+inv[0].amount+'/'+('supplierAmount' in st.trades[0].inputs);
     })(),'1/2026-06-16/850000/false','normalise()');
 
+  // Supplier invoice CSV: amounts however the exporting system wrote them
+  for(const [raw,want] of [['850000','850000'],['850,000.00','850000.00'],['850.000,00','850000.00'],
+      ['R$ 850 000','850000'],['1,234','1234'],['850,00','850.00'],['1234.5','1234.5']])
+    T('Amount "'+raw+'"', readAmount(raw), want, 'supplier CSV');
+  T('Jurisdiction by code', readJurisdiction('br').code,'BR','supplier CSV');
+  T('Jurisdiction by name', readJurisdiction('Brazil').code,'BR','supplier CSV');
+  T('Jurisdiction unknown is reported', readJurisdiction('Atlantis').unknown,'Atlantis','supplier CSV');
+  const csv=parseSupplierInvoicesCsv(
+    'Invoice No.;Supplier;Country;Invoice Date;Due Date;Total Amount\n'+
+    'FT-991;Fornecedor Um;BR;16/06/2026;16/07/2026;850.000,00\n'+
+    'FT-992;Fornecedor Dois;Brazil;02/06/2026;16/08/2026;250.000,50\n');
+  T('CSV reads both rows', csv.invoices.length,'2','supplier CSV');
+  T('CSV derives tenor from the due date', csv.invoices.map(v=>v.tenorDays).join(','),'30,75','no tenor column');
+  T('CSV keeps the invoice number', csv.invoices[0].invoiceNumber,'FT-991','supplier CSV');
+  T('CSV resolves a jurisdiction name', csv.invoices[1].jurisdiction,'BR','supplier CSV');
+  T('CSV sums to the expected total',
+    supplierTotals({supplierInvoices:csv.invoices}).amount.toFixed(2),'1100000.50','Cantu!B10');
+  T('CSV rows envelope the dates',
+    supplierTotals({supplierInvoices:csv.invoices}).firstIssueDate+'→'+
+    supplierTotals({supplierInvoices:csv.invoices}).lastPaymentDate,'2026-06-02→2026-08-16','B8/B9');
+  T('CSV skips an unusable row and says why',
+    parseSupplierInvoicesCsv('invoice number,supplier name,issue date,tenor days,amount\n'+
+      'X1,Bad,not-a-date,30,1000\nX2,Good,2026-06-16,30,7000\n').skipped.length,'1','supplier CSV');
+  T('New invoice rows carry a number field','invoiceNumber' in newSupplierInvoice(),'true','panel 1');
+
   // Optional Pro Forma block
   const oNoPf=price({...GOLDEN_INPUTS, pfEnabled:false},{pfRate:null, liveRate:liveQ.rate});
   T('Pro Forma off — no rate needed', String(oNoPf.pfRate),'null','Cantu!B16');
@@ -2848,9 +2994,52 @@ $('supInvTable').addEventListener('click', e=>{
   list.splice(n,1);
   voidPricedSnapshot(t);
   audit('trade',t.id,'DELETE','supplierInvoice#'+(n+1),
-    [v.name,v.jurisdiction,v.issueDate,v.tenorDays+'d',v.amount].filter(Boolean).join(' · '), null);
+    [v.invoiceNumber,v.name,v.jurisdiction,v.issueDate,v.tenorDays+'d',v.amount].filter(Boolean).join(' · '), null);
   render();
 });
+$('btnSupInvTemplate').onclick=()=>download('supplier-invoices-template.csv',
+  'invoice number,supplier name,jurisdiction,issue date,tenor days,amount\n'+
+  'INV-0001,Cantu Supplier,BR,2026-06-16,30,850000\n'+
+  'INV-0002,Segunda Fornecedora Ltda,Brazil,2026-06-02,75,250000\n','text/csv');
+$('supInvImportFile').onchange=e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const t=currentTrade(), d=currentDeal();
+  if(!t){ e.target.value=''; return; }
+  if(LOCKED(t.state)){ e.target.value=''; return alert('This trade is '+t.state+' — its inputs are locked.'); }
+  const rd=new FileReader();
+  rd.onload=()=>{
+    try{
+      const res=parseSupplierInvoicesCsv(String(rd.result));
+      const existing=t.inputs.supplierInvoices||[];
+      /* Rows still untouched are replaced without asking; anything typed or previously loaded is
+         the user's, so which way the file lands is their call. Cancel appends rather than aborts,
+         because appending loses nothing — an unwanted row can be removed. */
+      const filled=existing.filter(v=>[v.invoiceNumber,v.name,v.issueDate,v.amount].some(x=>String(x||'').trim()));
+      const replace = !filled.length || confirm(
+        'This trade already holds '+filled.length+' supplier invoice(s).\n\n'+
+        'OK — replace them with the '+res.invoices.length+' in '+f.name+'\n'+
+        'Cancel — keep them and add the '+res.invoices.length+' below');
+      const before=existing.length;
+      t.inputs.supplierInvoices = replace ? res.invoices : [...existing, ...res.invoices];
+      voidPricedSnapshot(t);
+      audit('trade', t.id, replace?'UPDATE':'CREATE', 'supplierInvoices',
+        before+' invoice(s)', t.inputs.supplierInvoices.length+' invoice(s)',
+        (replace?'Replaced with ':'Added ')+res.invoices.length+' invoice(s) from '+f.name);
+      render();
+      const total=supplierTotals(t.inputs);
+      alert('Loaded '+res.invoices.length+' invoice(s) from '+f.name+'.\n'+
+        (replace?'':'Added to the '+before+' already on the trade.\n')+
+        'Panel 1 now totals '+money(total.amount, d.currency)+' across '+total.count+' invoice(s).'+
+        (res.assumedOrder?'\n\nEvery date could be read either way round (e.g. 6/7/2026), so they were '+
+          'taken as month-first. Check the rows and re-save as YYYY-MM-DD if that is wrong.':'')+
+        (res.unknownJur.length?'\n\nJurisdiction left blank on rows naming '+res.unknownJur.slice(0,5).join(', ')+
+          ' — no holiday calendar goes by that. Pick one from the dropdown.':'')+
+        (res.skipped.length?'\n\nSkipped '+res.skipped.length+':\n• '+res.skipped.slice(0,8).join('\n• '):''));
+    }catch(err){ alert('Upload failed: '+err.message); }
+    finally{ e.target.value=''; }
+  };
+  rd.readAsText(f);
+};
 /* Rebuild once focus actually leaves panel 1, for the same reason the curve table does. */
 $('supInvTable').addEventListener('focusout', ()=>{
   setTimeout(()=>{ if(!$('supInvTable').contains(document.activeElement)) render(); }, 0);

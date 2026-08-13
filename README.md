@@ -12,7 +12,7 @@ single self-contained file that works offline and can be emailed or dropped on a
 
 The calc engine reproduces **all 26 output cells** of the `Cantu` tab exactly, plus the
 `Offer File`, `SOFR Interpolation` and `BD Dates` derivations. Open the **Parity tests** tab and
-press *Run tests* — 130 assertions, each labelled with its source cell.
+press *Run tests* — 148 assertions, each labelled with its source cell.
 
 | | Workbook | This app |
 |---|---|---|
@@ -109,8 +109,10 @@ the workbook's single-row `Offer File` tab had to be re-copied by hand to produc
 
 ## Supplier invoices
 
-Panel 1 holds **a list of supplier invoices, not one**. Each row carries a Supplier Name, a Supplier
-Jurisdiction, an Issue Date, a tenor and an amount, and derives its own Payment Date (issue + tenor).
+Panel 1 holds **a list of supplier invoices, not one**. Each row carries an Invoice Number, a Supplier
+Name, a Supplier Jurisdiction, an Issue Date, a tenor and an amount, and derives its own Payment Date
+(issue + tenor). The four totals sit in a strip under the table rather than stacked beside it, so the
+list gets the vertical space.
 
 The trade prices off the **totals**, which are what the workbook's single-invoice cells become:
 
@@ -126,9 +128,33 @@ so three invoices totalling 850,000 price identically to one of 850,000 — asse
 The date totals are deliberately the outer envelope; what the individual dates should drive is still open,
 so they are reported rather than acted on.
 
+**Upload invoices (CSV)** loads a batch through the same reader as the curve upload — delimiter
+sniffing, quoted fields, BOMs, and Excel-mangled dates resolved across the whole file. Columns are
+matched by header, not position:
+
+| Column | Header spellings accepted |
+|---|---|
+| Invoice Number | `invoice number`, `invoice no`, `invoice #`, `number`, `ref`, `document number` |
+| Supplier Name | `supplier name`, `supplier`, `vendor`, `beneficiary`, `payee`, `counterparty` |
+| Jurisdiction | `jurisdiction`, `country`, `country code`, `domicile` — takes a code (`BR`) or a calendar name (`Brazil`) |
+| Issue Date | `issue date`, `invoice date`, `date`, `document date` |
+| Tenor | `tenor days`, `tenor`, `days`, `term` |
+| Payment Date | `payment date`, `due date`, `maturity date` — **used to derive the tenor when there is no tenor column** |
+| Amount | `amount`, `invoice amount`, `value`, `total`, `gross` |
+
+Only Issue Date and Amount are mandatory. Amounts are read however the exporting system wrote them —
+`850000`, `"850,000.00"`, `850.000,00`, `R$ 850 000` — with the last separator group deciding: exactly
+three digits after it reads as a thousands separator, anything else as a decimal. A row with an
+unreadable date, a non-positive amount, or neither tenor nor payment date is skipped and named in the
+confirmation; a jurisdiction that matches no calendar is left blank and reported rather than invented.
+If the trade already holds invoices you are asked whether the file replaces them or is added to them —
+untouched blank rows are replaced without asking. *CSV template* emits the exact shape.
+
 Name and jurisdiction are **flagged, not enforced**: a blank name or jurisdiction raises
-`NOTE.SUP_NAME` / `NOTE.SUP_JURISDICTION` but still prices, because a trade migrated from the
-single-invoice model has neither and must not be blocked by the upgrade. A jurisdiction outside the
+`NOTE.SUP_NAME` / `NOTE.SUP_NUMBER` / `NOTE.SUP_JURISDICTION` but still prices, because a trade
+migrated from the single-invoice model has none of them and must not be blocked by the upgrade. Two
+rows quoting **the same invoice number for the same supplier** raise `NOTE.SUP_DUPLICATE` — that is how
+one invoice gets funded twice — but it stays a warning, since a genuine invoice can arrive in tranches. A jurisdiction outside the
 deal's associated jurisdictions is called out too — its calendar is not being checked. Issue date, tenor
 and a positive amount stay hard errors, per invoice, naming the row that fails. Removing the last
 invoice is refused; removing a filled one asks first and writes the old values to the audit log.
