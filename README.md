@@ -108,27 +108,41 @@ the workbook's single-row `Offer File` tab had to be re-copied by hand to produc
 
 ## Base rate management
 
-Curves are a **dated history per index and side**, not a single "current" snapshot. A trade prices off
-the **latest curve published on or before its Trade Date** — so a trade struck last month keeps pricing
-off last month's curve however many newer ones arrive, and re-pricing it later reproduces the same rate.
+**One dated curve history per index** — there is no separate "pro forma" curve. The workbook's two
+interpolation tabs were never two curves; they were the same index read at two different dates, which its
+own notes say outright: `B16` is annotated *"Issuance Date Pro Forma"* and `B29` *"Prior Funding"*. A
+spreadsheet needed two tabs because it cannot hold a history. With one, the split disappears:
 
-The Reference data tab's **Base rate curves** card manages that history:
+| Block | Reads the curve as at |
+|---|---|
+| Panel 2 — TradeCo Pro Forma | the **Pro Forma Issue Date** (`Cantu!B13`) |
+| Panel 3 — TradeCo Invoices, and Panel 4 — IAA | the **Trade Date** |
 
-- **Upload history (CSV/JSON)** — bulk-load past curves. CSV columns `date,side,1m,3m,6m,12m`, with `side`
-  either `live` or `pf` (defaults to `live`) and rates as percentages. A row replaces any existing curve
-  for that date and side. Incomplete or undated rows are skipped and reported rather than half-loaded.
-  *Download CSV template* gives the exact shape; *Export history (JSON)* round-trips everything.
+A curve applies from its business date until the next one supersedes it, so a trade prices off the
+**latest curve published on or before** the date in question. A trade struck last month keeps last
+month's rate however many newer curves arrive, and re-pricing it later reproduces the same number.
+
+This still reproduces the workbook exactly: its two tabs become two dated curves — 22-Jun-2026 with a 6m
+of 3.85550%, and 16-Jul-2026 with 3.87550% — and the golden master lands on the same $853,302.69.
+
+The Reference data tab's **Base rate curves** card manages the history:
+
+- **Upload history (CSV/JSON)** — bulk-load past curves. CSV columns `date,1m,3m,6m,12m`, rates as
+  percentages; a row replaces any existing curve for that date. Incomplete or undated rows are skipped
+  and reported rather than half-loaded. *Download CSV template* gives the exact shape; *Export history*
+  round-trips everything.
 - **Add curve** — key in one dated curve directly. All four pillars are required.
-- The history table shows every curve with its rates, source and **which trades price off it**, so you
-  can see what a curve is load-bearing for before deleting it.
+- The history table shows each curve's rates, source and **which trades read it, and in which role**
+  ("trade date" or "pro forma"), so you can see what a curve is load-bearing for before deleting it.
 
-**The model asks for what it is missing.** If no curve exists on or before a trade's Trade Date, pricing
-is blocked (`RATE.NO_CURVE`). If the newest curve predates the Trade Date, the trade still prices off it
-but raises `RATE.NOT_CURRENT` naming the gap in days. Both surface a banner in the trade workspace with a
-button that jumps straight to the curve entry, pre-filled with that index and trade date.
+**The model asks for what it is missing.** No curve on or before a date blocks pricing (`RATE.NO_CURVE`,
+`RATE.NO_CURVE_PF`); a curve that merely predates it prices but warns (`RATE.NOT_CURRENT`,
+`RATE.NOT_CURRENT_PF`) naming the gap in days. Each surfaces its own banner in the trade workspace with a
+button that jumps to the curve entry pre-filled with **that** index and date — so a missing pro forma
+rate sends you to the pro forma issue date, not the trade date.
 
-Only the single curve the workbook carries is seeded — dated 16-Jul-2026, its Bladex settlement date.
-No historical market data is invented: everything else has to be uploaded.
+Only the two curves the workbook carries are seeded. No historical market data is invented: everything
+else has to be uploaded.
 
 ## Currency and base rate
 

@@ -263,7 +263,7 @@ code,.mono{font-family:var(--mono);font-size:12px}
           <div class="row"><div class="lbl">Issue Date<span class="note">It should be a date before (around 5 days) Supplier Invoice Maturity Date</span></div><div class="cell"><input type="date" class="in" id="f_pfIssue" data-field="pfIssueDate"></div></div>
           <div class="row"><div class="lbl">Tenor (days)<span class="note">It could be "Bladex Settlement Date" + 2</span></div><div class="cell"><input type="number" class="in" id="f_pfTenor" data-field="pfTenorDays" min="1" step="1"></div></div>
           <div class="row"><div class="lbl">Maturity Date</div><div class="cell"><span class="calc" id="o_pfMaturity" title="B15 = B13 + B14"><span class="f">B15</span>—</span></div></div>
-          <div class="row"><div class="lbl"><span id="o_pfRateLabel">Base rate</span><span class="note">Issuance Date Pro Forma — interpolated from the pro forma curve at Bladex Days</span></div><div class="cell"><span class="calc" id="o_pfRate" title="B16 = pro forma curve interpolated at B41"><span class="f">B16</span>—</span></div></div>
+          <div class="row"><div class="lbl"><span id="o_pfRateLabel">Base rate</span><span class="note">Issuance Date Pro Forma — the curve as at the Pro Forma Issue Date, interpolated at Funder Days</span></div><div class="cell"><span class="calc" id="o_pfRate" title="B16 = pro forma curve interpolated at B41"><span class="f">B16</span>—</span></div></div>
           <div class="row"><div class="lbl"><span data-tpl="Margin ({funder} Margin + TradeCo Fee)">Margin</span><span class="note" data-tpl="Should be always the same unless pricing discussion with {client}/{funder}">Should be always the same unless pricing discussion with the client and funder</span></div><div class="cell suffix" data-suffix="%"><input type="number" class="in" id="f_pfMargin" data-field="pfMargin" step="0.00001"></div></div>
           <div class="row"><div class="lbl">Agency Fee</div><div class="cell suffix" data-suffix="%"><input type="number" class="in" id="f_pfAgency" data-field="pfAgencyFee" step="0.00001"></div></div>
           <div class="row"><div class="lbl">TradeCo Mark-up</div><div class="cell"><span class="calc" id="o_pfMarkup" title="B19 = B17 + B16 + B18"><span class="f">B19</span>—</span></div></div>
@@ -280,7 +280,7 @@ code,.mono{font-family:var(--mono);font-size:12px}
           <div class="row"><div class="lbl">Issue Date<span class="note">It should be a date before (around 5 days) Supplier Invoice Maturity Date</span></div><div class="cell"><input type="date" class="in" id="f_tcIssue" data-field="tcIssueDate"></div></div>
           <div class="row"><div class="lbl">Tenor (days)</div><div class="cell"><span class="calc" id="o_tcTenor" title="B27 = B41 + (B40 − B26)"><span class="f">B27</span>—</span></div></div>
           <div class="row"><div class="lbl">Maturity Date</div><div class="cell"><span class="calc" id="o_tcMaturity" title="B28 = B42 = B40 + B41"><span class="f">B28</span>—</span></div></div>
-          <div class="row"><div class="lbl"><span id="o_tcRateLabel">Base rate</span><span class="note">Prior Funding: interpolated base rate — live curve at Bladex Days</span></div><div class="cell"><span class="calc" id="o_tcRate" title="B29 = live curve interpolated at B41"><span class="f">B29</span>—</span></div></div>
+          <div class="row"><div class="lbl"><span id="o_tcRateLabel">Base rate</span><span class="note">Prior Funding — the curve as at the Trade Date, interpolated at Funder Days</span></div><div class="cell"><span class="calc" id="o_tcRate" title="B29 = live curve interpolated at B41"><span class="f">B29</span>—</span></div></div>
           <div class="row"><div class="lbl"><span data-tpl="Margin ({funder} Margin + TradeCo Fee)">Margin</span><span class="note" data-tpl="Should be always the same unless pricing discussion with {client}/{funder}">Should be always the same unless pricing discussion with the client and funder</span></div><div class="cell suffix" data-suffix="%"><input type="number" class="in" id="f_tcMargin" data-field="tcMargin" step="0.00001"></div></div>
           <div class="row"><div class="lbl">Agency Fee<span class="note">Also drives the agency-fee payment leg (B52)</span></div><div class="cell suffix" data-suffix="%"><input type="number" class="in" id="f_tcAgency" data-field="tcAgencyFee" step="0.00001"></div></div>
           <div class="row"><div class="lbl">TradeCo Mark-up</div><div class="cell"><span class="calc" id="o_tcMarkup" title="B32 = B30 + B29 + B31"><span class="f">B32</span>—</span></div></div>
@@ -383,7 +383,7 @@ code,.mono{font-family:var(--mono);font-size:12px}
         <button class="btn" id="btnCurveTemplate">Download CSV template</button>
         <button class="btn" id="btnCurveExport">Export history (JSON)</button>
       </div>
-      <p class="tiny" style="margin:8px 0 0">CSV columns: <code>date,side,1m,3m,6m,12m</code> — <code>side</code> is <code>live</code> or <code>pf</code> and defaults to <code>live</code>; extra columns are ignored. A row replaces any existing curve for that date and side.</p>
+      <p class="tiny" style="margin:8px 0 0">CSV columns: <code>date,1m,3m,6m,12m</code>; extra columns are ignored. A row replaces any existing curve for that date. There is one curve per index — the pro forma block simply reads it at its own issue date.</p>
     </div>
   </div>
 
@@ -1168,8 +1168,8 @@ function validate(deal, trade, out, quotes, bd){
     W('NOTE.TRADE_DATE','Trade Date is after the '+FUNDER+' Settlement Date — a trade is normally struck on or before settlement.');
 
   // The curve in force on the trade date, not simply "the curve that is loaded".
-  const liveCurve=curveAsOf(deal.currency,'live',trade.tradeDate);
-  const pfCurve=pfOn?curveAsOf(deal.currency,'pf',trade.tradeDate):null;
+  const liveCurve=curveAsOf(deal.currency, trade.tradeDate);
+  const pfCurve=pfOn?curveAsOf(deal.currency, i.pfIssueDate):null;
   if(isValidDate(trade.tradeDate)){
     if(!liveCurve) E('RATE.NO_CURVE','No '+ix.name+' curve published on or before the Trade Date ('+
       fmtShort(trade.tradeDate)+'). A Rates Admin must upload or key in the '+deal.currency+' curve for that date.');
@@ -1177,8 +1177,13 @@ function validate(deal, trade, out, quotes, bd){
       W('RATE.NOT_CURRENT','Using the '+ix.name+' curve dated '+fmtShort(liveCurve.businessDate)+', '+
         dDiff(trade.tradeDate, liveCurve.businessDate)+' day(s) before the Trade Date. Upload the curve for '+
         fmtShort(trade.tradeDate)+' to price on current data.');
-    if(pfOn && !pfCurve) E('RATE.NO_CURVE_PF','No pro forma '+ix.name+' curve published on or before the Trade Date ('+
-      fmtShort(trade.tradeDate)+').');
+  }
+  if(pfOn && isValidDate(i.pfIssueDate)){
+    if(!pfCurve) E('RATE.NO_CURVE_PF','No '+ix.name+' curve published on or before the Pro Forma Issue Date ('+
+      fmtShort(i.pfIssueDate)+') — panel 2 prices off the rate as at its own issue date.');
+    else if(pfCurve.businessDate!==i.pfIssueDate)
+      W('RATE.NOT_CURRENT_PF','Panel 2 uses the '+ix.name+' curve dated '+fmtShort(pfCurve.businessDate)+', '+
+        dDiff(i.pfIssueDate, pfCurve.businessDate)+' day(s) before the Pro Forma Issue Date.');
   }
 
   if(out){
@@ -1206,7 +1211,7 @@ function validate(deal, trade, out, quotes, bd){
   }
 
   if(quotes){
-    for(const [key,label] of [['live','Live curve'],['pf','Pro forma curve']]){
+    for(const [key,label] of [['live','Trade-date curve'],['pf','Pro forma curve']]){
       if(key==='pf' && !pfOn) continue;
       const q=quotes[key]; if(!q) continue;
       if(q.method==='LINEAR_EXTRAP') W('RATE.EXTRAP', label+' rate is extrapolated beyond the observable pillars — off-curve pricing.');
@@ -1285,22 +1290,25 @@ function effectiveInputs(deal, trade){
     jurisdictions:deal.jurisdictions, transactionCode:deal.code, clientName:deal.clientName };
 }
 
-/* Curves are a dated history per index and side, not a single live snapshot: a trade
-   prices off the latest curve published on or before its Trade Date. Seeded with the one
-   curve the workbook carries; everything else has to be uploaded or keyed in. */
+/* One dated curve history per index. There is no separate "pro forma" curve: the workbook's
+   two interpolation tabs were the same index read at two different dates — its own notes say
+   "Issuance Date Pro Forma" (B16) and "Prior Funding" (B29). So the TradeCo block reads the
+   curve as at the Trade Date and the Pro Forma block reads it as at the Pro Forma Issue Date. */
 // The workbook prices as at its Bladex settlement date; the file name is just when it was saved.
-const WORKBOOK_CURVE_DATE='2026-07-16';
+const WORKBOOK_CURVE_DATE='2026-07-16';        // Bladex settlement — the TradeCo/IAA rate date
+const WORKBOOK_PF_CURVE_DATE='2026-06-22';     // Pro Forma issue date — Cantu!B13
 function seededSofr(){
-  return { live:[{businessDate:WORKBOOK_CURVE_DATE, source:'MANUAL_OVERRIDE',
-            overrideReason:'Seeded from Cantu Pricing Model 07222026.xlsx',
-            pillars:[{days:30,rate:'0.0364338'},{days:90,rate:'0.0372777'},{days:180,rate:'0.0387550'},{days:360,rate:'0.0403325'}]}],
-           pf:[{businessDate:WORKBOOK_CURVE_DATE, source:'MANUAL_OVERRIDE',
-            overrideReason:'Seeded from Cantu Pricing Model 07222026.xlsx',
-            pillars:[{days:30,rate:'0.0364338'},{days:90,rate:'0.0372777'},{days:180,rate:'0.0385550'},{days:360,rate:'0.0403325'}]}] };
+  // The workbook's two tabs, restored to what they actually are: one index on two dates.
+  const from='Seeded from Cantu Pricing Model 07222026.xlsx';
+  return [
+    {businessDate:WORKBOOK_PF_CURVE_DATE, source:'MANUAL_OVERRIDE', overrideReason:from+" ('SOFR Interpolation Pro Forma')",
+     pillars:[{days:30,rate:'0.0364338'},{days:90,rate:'0.0372777'},{days:180,rate:'0.0385550'},{days:360,rate:'0.0403325'}]},
+    {businessDate:WORKBOOK_CURVE_DATE, source:'MANUAL_OVERRIDE', overrideReason:from+" ('SOFR Interpolation')",
+     pillars:[{days:30,rate:'0.0364338'},{days:90,rate:'0.0372777'},{days:180,rate:'0.0387550'},{days:360,rate:'0.0403325'}]}];
 }
 function defaultCurves(){
   const out={TERM_SOFR:seededSofr()};
-  for(const ccy of CURRENCIES){ const code=idxFor(ccy).index; if(!out[code]) out[code]={live:[],pf:[]}; }
+  for(const ccy of CURRENCIES){ const code=idxFor(ccy).index; if(!out[code]) out[code]=[]; }
   return out;
 }
 function defaultClients(){
@@ -1330,17 +1338,22 @@ function normalise(s){
     if(!t.tradeDate) t.tradeDate = t.inputs.bladexSettlementDate || todayISO();
     if(!t.funder) t.funder = 'Bladex';
   }
-  // Curves were a single snapshot per index; they are a dated history now.
+  // Curves were a snapshot, then a live/pro-forma pair. Both collapse to one dated history.
   for(const code in s.curves){
-    const pair=s.curves[code];
+    const held=s.curves[code];
+    if(Array.isArray(held)) continue;
+    const merged=[], seen=new Set();
     for(const side of ['live','pf']){
-      if(Array.isArray(pair[side])) continue;
-      const c=pair[side];
-      pair[side] = (c && curveComplete(c))
-        ? [{businessDate:c.businessDate||WORKBOOK_CURVE_DATE, source:c.source||'MANUAL_OVERRIDE',
-            overrideReason:c.overrideReason||'', pillars:c.pillars}]
-        : [];
+      const v=held[side];
+      const list = Array.isArray(v) ? v : (v && curveComplete(v)
+        ? [{businessDate:v.businessDate||WORKBOOK_CURVE_DATE, source:v.source||'MANUAL_OVERRIDE',
+            overrideReason:v.overrideReason||'', pillars:v.pillars}] : []);
+      for(const c of list){
+        if(seen.has(c.businessDate)) continue;   // live wins a same-date collision
+        seen.add(c.businessDate); merged.push(c);
+      }
     }
+    s.curves[code]=merged.sort((a,b)=>a.businessDate.localeCompare(b.businessDate));
   }
   return s;
 }
@@ -1412,36 +1425,38 @@ function renderFunderList(){
   const el=$('funderList'); if(el) el.innerHTML=names.map(n=>'<option value="'+esc(n)+'">').join('');
 }
 const curvesFor = ccy => { const code=idxFor(ccy).index;
-  if(!store.curves[code]) store.curves[code]={live:[],pf:[]}; return store.curves[code]; };
+  if(!Array.isArray(store.curves[code])) store.curves[code]=[]; return store.curves[code]; };
 const curveComplete = c => !!c && Array.isArray(c.pillars) && c.pillars.length>0 &&
   c.pillars.every(p=>String(p.rate)!=='' && Number(p.rate)>0);
-const curveHistory = (ccy, side) => (curvesFor(ccy)[side]||[]).slice()
+const curveHistory = ccy => curvesFor(ccy).slice()
   .sort((a,b)=>a.businessDate.localeCompare(b.businessDate));
 /** The curve in force on a date: the latest complete one published on or before it. */
-function curveAsOf(ccy, side, dateISO){
+function curveAsOf(ccy, dateISO){
   if(!isValidDate(dateISO)) return null;
-  const h=curveHistory(ccy,side).filter(c=>c.businessDate<=dateISO && curveComplete(c));
+  const h=curveHistory(ccy).filter(c=>c.businessDate<=dateISO && curveComplete(c));
   return h.length ? h[h.length-1] : null;
 }
 
 /* ---------------------------- pricing pipeline ---------------------------- */
-function quoteFrom(curve, tenorDays, ccy, side){
+function quoteFrom(curve, tenorDays, ccy, role, asOf){
   const r=interpolate(curve.pillars, tenorDays);
-  return { curveCode:idxFor(ccy).index+(side==='pf'?'_PF':''), currency:ccy, indexName:idxFor(ccy).name,
+  return { curveCode:idxFor(ccy).index, currency:ccy, indexName:idxFor(ccy).name, role, asOf,
     businessDate:curve.businessDate, source:curve.source,
     tenorDays:Number(tenorDays), rate:r.rate.toFixed(12), method:r.method,
     pillars:curve.pillars.map(p=>({...p})), quotedAt:new Date().toISOString() };
 }
-/** Quotes resolved as at the trade date, not "whatever curve is loaded now". */
+/** One index, read at two dates: the Trade Date for the TradeCo and IAA blocks, and the
+ *  Pro Forma Issue Date for panel 2 — matching the workbook's own B16 / B29 notes. */
 function liveQuotes(deal, trade){
   const t=Number(trade.inputs.bladexDays);
   if(!(t>=1)) return null;
-  const live=curveAsOf(deal.currency,'live',trade.tradeDate);
+  const live=curveAsOf(deal.currency, trade.tradeDate);
   if(!live) return null;
   const pfOn = deal.proformaEnabled !== false;
-  const pf = pfOn ? curveAsOf(deal.currency,'pf',trade.tradeDate) : null;
-  return { live:quoteFrom(live,t,deal.currency,'live'),
-           pf: pf ? quoteFrom(pf,t,deal.currency,'pf') : null };
+  const pfDate = trade.inputs.pfIssueDate;
+  const pf = pfOn ? curveAsOf(deal.currency, pfDate) : null;
+  return { live:quoteFrom(live,t,deal.currency,'Trade Date',trade.tradeDate),
+           pf: pf ? quoteFrom(pf,t,deal.currency,'Pro Forma Issue Date',pfDate) : null };
 }
 const effectiveQuotes = (deal,trade) => trade.rateQuotes || liveQuotes(deal,trade);
 
@@ -1812,12 +1827,16 @@ function renderPricing(d,t,r){
   }
   if(t && LOCKED(t.state) && t.state!=='CANCELLED') banners.push(['info','<b>Inputs locked.</b> This trade is '+t.state+'. Use <em>New version</em> to change anything.']);
   // The model asks for the data point it is missing rather than quietly using an older one.
-  const noCurve=r.errors.find(e=>e.rule==='RATE.NO_CURVE');
-  const notCurrent=r.warnings.find(w=>w.rule==='RATE.NOT_CURRENT');
-  if(t && (noCurve||notCurrent)) banners.push([noCurve?'err':'warn',
-    '<b>Base rate '+(noCurve?'missing':'not current')+'.</b> '+esc((noCurve||notCurrent).msg)+
-    ' <button class="btn sm" id="btnRequestCurve" style="margin-left:8px">Add the '+
-    esc(ix.name)+' curve for '+fmtShort(t.tradeDate)+'</button>']);
+  const rateGaps=[
+    {hit:r.errors.find(e=>e.rule==='RATE.NO_CURVE'),      bad:true,  date:t&&t.tradeDate},
+    {hit:r.errors.find(e=>e.rule==='RATE.NO_CURVE_PF'),   bad:true,  date:t&&t.inputs.pfIssueDate},
+    {hit:r.warnings.find(w=>w.rule==='RATE.NOT_CURRENT'), bad:false, date:t&&t.tradeDate},
+    {hit:r.warnings.find(w=>w.rule==='RATE.NOT_CURRENT_PF'), bad:false, date:t&&t.inputs.pfIssueDate},
+  ].filter(g=>g.hit && isValidDate(g.date));
+  for(const g of rateGaps) banners.push([g.bad?'err':'warn',
+    '<b>Base rate '+(g.bad?'missing':'not current')+'.</b> '+esc(g.hit.msg)+
+    ' <button class="btn sm" data-request-curve="'+esc(g.date)+'" style="margin-left:8px">Add the '+
+    esc(ix.name)+' curve for '+fmtShort(g.date)+'</button>']);
   if(t && t.state==='CANCELLED') banners.push(['err','<b>Cancelled.</b> Retained for audit; no further transitions.']);
   if(t && t.actualSettlementDate){
     const v=dDiff(t.actualSettlementDate, t.inputs.bladexSettlementDate);
@@ -1885,8 +1904,9 @@ function renderPricing(d,t,r){
       return '<div style="padding:6px 0;border-bottom:1px dashed var(--line)">'+
         '<div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline">'+
         '<b>'+esc(q.curveCode)+'</b><span>'+pct(D.of(q.rate))+'</span></div>'+
-        '<div class="tiny">'+q.tenorDays+'d · <span class="inline-tag '+(q.method==='LINEAR_EXTRAP'?'warn':'')+'">'+q.method+'</span> · '+
-        fmtShort(q.businessDate)+' · '+esc(q.source)+(t&&t.rateQuotes?' · <b>frozen</b>':' · live')+'</div></div>';
+        '<div class="tiny">as at '+esc(q.role||'')+' '+fmtShort(q.asOf)+' → curve '+fmtShort(q.businessDate)+
+        '<br>'+q.tenorDays+'d · <span class="inline-tag '+(q.method==='LINEAR_EXTRAP'?'warn':'')+'">'+q.method+'</span> · '+
+        esc(q.source)+(t&&t.rateQuotes?' · <b>frozen</b>':' · live')+'</div></div>';
     }).join('');
 
   $('bdBox').innerHTML = '<p class="tiny" style="margin:4px 0 8px">Maturity date '+(o?fmtShort(o.iaaMaturityDate):'—')+' (B42)</p>'+
@@ -1909,7 +1929,7 @@ function renderPricing(d,t,r){
 
 /** Explicit index chosen on the Reference data tab. Null means "follow the current deal". */
 let curveChoice = null;
-let curveDraft = {date:'', side:'live', reason:''};
+let curveDraft = {date:'', reason:''};
 function renderRates(){
   const admin = actor().role==='Rates Admin';
   const picker=$('curvePicker');
@@ -1925,10 +1945,9 @@ function renderRates(){
   picker.value=code;
   if(!store.curves[code]) store.curves[code]={live:[],pf:[]};
   const ccy=CURRENCIES.find(c=>idxFor(c).index===code)||'USD';
-  const live=curveHistory(ccy,'live'), pf=curveHistory(ccy,'pf');
-  const latest=[...live,...pf].map(c=>c.businessDate).sort().pop();
-  $('curveMeta').textContent='Day count ACT/'+idxFor(ccy).basis+' · '+
-    live.length+' live curve(s), '+pf.length+' pro forma · '+
+  const hist=curveHistory(ccy);
+  const latest=hist.length?hist[hist.length-1].businessDate:null;
+  $('curveMeta').textContent='Day count ACT/'+idxFor(ccy).basis+' · '+hist.length+' curve(s) · '+
     (latest?'latest '+fmtShort(latest):'no history yet');
 
   // add / replace one dated curve
@@ -1938,9 +1957,6 @@ function renderRates(){
       '<div class="toolbar" style="margin:0">'+
         '<div class="field-inline"><label>Business date</label>'+
           '<input type="date" id="cd_date" value="'+esc(curveDraft.date)+'"></div>'+
-        '<div class="field-inline"><label>Side</label><select id="cd_side">'+
-          ['live','pf'].map(x=>'<option value="'+x+'"'+(curveDraft.side===x?' selected':'')+'>'+
-            (x==='live'?'Live':'Pro forma')+'</option>').join('')+'</select></div>'+
         [30,90,180,360].map(d=>'<div class="field-inline suffix" data-suffix="%" style="position:relative">'+
           '<label>'+(d<360?d/30+'m':'1y')+'</label>'+
           '<input type="number" step="0.00001" id="cd_'+d+'" style="min-width:96px" placeholder="—"></div>').join('')+
@@ -1949,43 +1965,40 @@ function renderRates(){
         '<button class="btn primary" id="btnCurveAdd">Add curve</button>'+
       '</div></div></div>';
 
-  const rows=[...live.map(c=>({c,side:'live'})), ...pf.map(c=>({c,side:'pf'}))]
-    .sort((a,b)=> b.c.businessDate.localeCompare(a.c.businessDate) || a.side.localeCompare(b.side));
   const usedBy={};
   for(const t of store.trades){
     const d=store.deals.find(x=>x.id===t.dealId); if(!d || idxFor(d.currency).index!==code) continue;
-    for(const side of ['live','pf']){
-      const c=curveAsOf(d.currency,side,t.tradeDate); if(!c) continue;
-      (usedBy[side+'|'+c.businessDate] ||= []).push(t.identifier||'(untitled)');
-    }
+    const tag=(c,role)=>{ if(c) (usedBy[c.businessDate] ||= []).push((t.identifier||'(untitled)')+' · '+role); };
+    tag(curveAsOf(d.currency, t.tradeDate), 'trade date');
+    if(d.proformaEnabled!==false) tag(curveAsOf(d.currency, t.inputs.pfIssueDate), 'pro forma');
   }
-  $('curveTable').innerHTML='<thead><tr><th>Business date</th><th>Side</th><th class="n">1m</th><th class="n">3m</th>'+
+  const rows=hist.slice().reverse();
+  $('curveTable').innerHTML='<thead><tr><th>Business date</th><th class="n">1m</th><th class="n">3m</th>'+
     '<th class="n">6m</th><th class="n">1y</th><th>Source</th><th>Used by trades</th><th></th></tr></thead><tbody>'+
-    (rows.length ? rows.map(({c,side})=>{
+    (rows.length ? rows.map(c=>{
       const at=d=>{ const p=c.pillars.find(x=>Number(x.days)===d);
         return p && String(p.rate)!=='' ? D.of(p.rate).mul(100).toFixed(5)+'%' : '<span class="inline-tag err">—</span>'; };
-      const used=usedBy[side+'|'+c.businessDate]||[];
+      const used=[...new Set(usedBy[c.businessDate]||[])];
       return '<tr><td><b>'+fmtShort(c.businessDate)+'</b></td>'+
-        '<td><span class="inline-tag">'+(side==='live'?'live':'pro forma')+'</span></td>'+
         '<td class="n">'+at(30)+'</td><td class="n">'+at(90)+'</td><td class="n">'+at(180)+'</td><td class="n">'+at(360)+'</td>'+
         '<td class="tiny">'+esc(c.source||'')+(c.overrideReason?'<br>'+esc(c.overrideReason):'')+'</td>'+
-        '<td class="tiny">'+(used.length?esc([...new Set(used)].join(', ')):'—')+'</td>'+
-        '<td class="n">'+(admin?'<button class="btn sm danger" data-del-curve="'+side+'|'+esc(c.businessDate)+'">Delete</button>':'')+'</td></tr>';
+        '<td class="tiny">'+(used.length?esc(used.join(', ')):'—')+'</td>'+
+        '<td class="n">'+(admin?'<button class="btn sm danger" data-del-curve="'+esc(c.businessDate)+'">Delete</button>':'')+'</td></tr>';
     }).join('')
-     : '<tr><td colspan="9" class="tiny">No '+esc(idxFor(ccy).name)+' history yet. Upload a CSV or add a curve above.</td></tr>')+
+     : '<tr><td colspan="8" class="tiny">No '+esc(idxFor(ccy).name)+' history yet. Upload a CSV or add a curve above.</td></tr>')+
     '</tbody>';
 
   $('ratesBanners').innerHTML = admin ? '' :
     '<div class="banner info"><div><b>Read-only.</b> Curves and calendars are maintained by the <b>Rates Admin</b> role. Switch role in the header to edit. Every edit is written to the audit log.</div></div>';
 
-  const curveCell=(c,side)=>{ const h=curveHistory(c,side).filter(curveComplete);
+  const curveCell=c=>{ const h=curveHistory(c).filter(curveComplete);
     return h.length ? '<span class="inline-tag ok">'+h.length+' to '+fmtShort(h[h.length-1].businessDate)+'</span>'
                     : '<span class="inline-tag warn">none</span>'; };
-  $('ccyTable').innerHTML='<thead><tr><th>Currency</th><th>Base rate index</th><th class="n">Day count</th><th>Live history</th><th>Pro forma</th><th>Note</th></tr></thead><tbody>'+
+  $('ccyTable').innerHTML='<thead><tr><th>Currency</th><th>Base rate index</th><th class="n">Day count</th><th>Curve history</th><th>Note</th></tr></thead><tbody>'+
     CURRENCIES.map(c=>{ const ix=idxFor(c);
       return '<tr><td><b>'+c+'</b></td><td>'+esc(ix.name)+' <span class="tiny mono">'+esc(ix.index)+'</span></td>'+
         '<td class="n">ACT/'+ix.basis+'</td>'+
-        '<td>'+curveCell(c,'live')+'</td><td>'+curveCell(c,'pf')+'</td>'+
+        '<td>'+curveCell(c)+'</td>'+
         '<td class="tiny">'+esc(ix.conventionNote||'')+'</td></tr>';
     }).join('')+'</tbody>';
 
@@ -2369,19 +2382,32 @@ function runTests(){
     const saved=store.curves.TERM_SOFR;
     const mk=(bd,six)=>({businessDate:bd, source:'MANUAL_OVERRIDE', overrideReason:'',
       pillars:[{days:30,rate:'0.03'},{days:90,rate:'0.035'},{days:180,rate:six},{days:360,rate:'0.045'}]});
-    store.curves.TERM_SOFR={ live:[mk('2026-03-10','0.030'), mk('2026-06-01','0.040'), mk('2026-01-05','0.020')], pf:[] };
-    T('Curve as of exact date', curveAsOf('USD','live','2026-06-01').businessDate,'2026-06-01','curveAsOf');
-    T('Curve as of a later date', curveAsOf('USD','live','2026-09-30').businessDate,'2026-06-01','latest on or before');
-    T('Curve as of a gap date', curveAsOf('USD','live','2026-05-31').businessDate,'2026-03-10','latest on or before');
-    T('Curve before the history', String(curveAsOf('USD','live','2025-12-31')),'null','nothing published yet');
-    T('Curve picks that date’s rate', curveAsOf('USD','live','2026-05-31').pillars[2].rate,'0.030','not the newest curve');
+    store.curves.TERM_SOFR=[mk('2026-03-10','0.030'), mk('2026-06-01','0.040'), mk('2026-01-05','0.020')];
+    T('Curve as of exact date', curveAsOf('USD','2026-06-01').businessDate,'2026-06-01','curveAsOf');
+    T('Curve as of a later date', curveAsOf('USD','2026-09-30').businessDate,'2026-06-01','latest on or before');
+    T('Curve as of a gap date', curveAsOf('USD','2026-05-31').businessDate,'2026-03-10','latest on or before');
+    T('Curve before the history', String(curveAsOf('USD','2025-12-31')),'null','nothing published yet');
+    T('Curve picks that date’s rate', curveAsOf('USD','2026-05-31').pillars[2].rate,'0.030','not the newest curve');
     T('Incomplete curves are skipped',
-      (()=>{ store.curves.TERM_SOFR.live.push(mk('2026-07-01',''));
-             return curveAsOf('USD','live','2026-07-05').businessDate; })(),'2026-06-01','every pillar must have a rate');
+      (()=>{ store.curves.TERM_SOFR.push(mk('2026-07-01',''));
+             return curveAsOf('USD','2026-07-05').businessDate; })(),'2026-06-01','every pillar must have a rate');
     store.curves.TERM_SOFR=saved;
   }
-  T('Seeded curve matches the workbook',
-    D.of(curveAsOf('USD','live',WORKBOOK_CURVE_DATE).pillars[2].rate).toFixed(7),'0.0387550','Cantu 6m Term SOFR');
+  // One index read at two dates reproduces the workbook's two interpolation tabs.
+  T('Curve at Pro Forma Issue Date',
+    D.of(curveAsOf('USD',WORKBOOK_PF_CURVE_DATE).pillars[2].rate).toFixed(7),'0.0385550',"'SOFR Interpolation Pro Forma'");
+  T('Curve at Trade Date',
+    D.of(curveAsOf('USD',WORKBOOK_CURVE_DATE).pillars[2].rate).toFixed(7),'0.0387550',"'SOFR Interpolation'");
+  T('One history, no side split', Array.isArray(store.curves.TERM_SOFR),'true','curves[index] is a flat list');
+  {
+    const deal={currency:'USD', proformaEnabled:true};
+    const trade={tradeDate:WORKBOOK_CURVE_DATE, inputs:{...blankTradeInputs(), pfIssueDate:WORKBOOK_PF_CURVE_DATE, bladexDays:180}};
+    const q=liveQuotes(deal,trade);
+    T('Trade Date drives the TradeCo rate', D.of(q.live.rate).toFixed(7),'0.0387550','Cantu!B29');
+    T('Pro Forma Issue Date drives panel 2', D.of(q.pf.rate).toFixed(7),'0.0385550','Cantu!B16');
+    const q2=liveQuotes(deal,{...trade, inputs:{...trade.inputs, pfIssueDate:WORKBOOK_CURVE_DATE}});
+    T('Moving the PF issue date moves its rate', D.of(q2.pf.rate).toFixed(7),'0.0387550','panel 2 follows its own date');
+  }
   T('Funder label falls back', funderLabel({}),'Funder','trade.funder');
   T('Funder label used', funderLabel({funder:'Bladex'}),'Bladex','trade.funder');
 
@@ -2682,15 +2708,15 @@ $('importFile').onchange=e=>{ const f=e.target.files[0]; if(!f) return;
 /* ---------------------------- curve history ---------------------------- */
 const TENOR_COLS = [['1m',30],['3m',90],['6m',180],['12m',360],['1y',360]];
 /** Add or replace one dated curve. Rates arrive as percentages. */
-function putCurve(ccy, side, businessDate, pctByTenor, source, reason, silent){
-  const list = curvesFor(ccy)[side];
+function putCurve(ccy, businessDate, pctByTenor, source, reason, silent){
+  const list = curvesFor(ccy);
   const pillars = [30,90,180,360].map(d=>({days:d,
     rate: pctByTenor[d]===undefined || pctByTenor[d]==='' ? '' : D.of(pctByTenor[d]).div(100).toFixed(12)}));
   const idx = list.findIndex(c=>c.businessDate===businessDate);
   const rec = {businessDate, source:source||'MANUAL_OVERRIDE', overrideReason:reason||'', pillars};
   const replaced = idx>=0;
   if(replaced) list[idx]=rec; else list.push(rec);
-  if(!silent) audit('rate_curve', idxFor(ccy).index+(side==='pf'?'_PF':''),
+  if(!silent) audit('rate_curve', idxFor(ccy).index,
     replaced?'RATE_OVERRIDE':'CREATE', 'curve@'+businessDate,
     replaced?'replaced':null, pillars.map(p=>p.rate).join('/'), reason||null);
   return rec;
@@ -2698,27 +2724,25 @@ function putCurve(ccy, side, businessDate, pctByTenor, source, reason, silent){
 function addCurveFromForm(){
   if(actor().role!=='Rates Admin') return alert('Adding a curve requires the Rates Admin role.');
   const code=$('curvePicker').value, ccy=CURRENCIES.find(c=>idxFor(c).index===code)||'USD';
-  const date=$('cd_date').value, side=$('cd_side').value;
+  const date=$('cd_date').value;
   if(!isValidDate(date)) return alert('A business date is required.');
   const pct={}; let missing=[];
   for(const d of [30,90,180,360]){ const v=$('cd_'+d).value.trim();
     if(v==='' || !(Number(v)>0)) missing.push(d<360?d/30+'m':'1y'); pct[d]=v; }
   if(missing.length) return alert('Every pillar needs a rate. Missing: '+missing.join(', '));
-  putCurve(ccy, side, date, pct, 'MANUAL_OVERRIDE', $('cd_reason').value.trim());
-  curveDraft={date:'', side, reason:''};
+  putCurve(ccy, date, pct, 'MANUAL_OVERRIDE', $('cd_reason').value.trim());
+  curveDraft={date:'', reason:''};
   render();
 }
-function deleteCurve(key){
+function deleteCurve(date){
   if(actor().role!=='Rates Admin') return alert('Deleting a curve requires the Rates Admin role.');
-  const [side,date]=key.split('|');
   const code=$('curvePicker').value, ccy=CURRENCIES.find(c=>idxFor(c).index===code)||'USD';
-  const list=curvesFor(ccy)[side], i=list.findIndex(c=>c.businessDate===date);
+  const list=curvesFor(ccy), i=list.findIndex(c=>c.businessDate===date);
   if(i<0) return;
-  if(!confirm('Delete the '+(side==='live'?'live':'pro forma')+' '+idxFor(ccy).name+
-    ' curve dated '+fmtShort(date)+'?\n\nTrades whose Trade Date falls on or after it will fall back to the previous curve.')) return;
+  if(!confirm('Delete the '+idxFor(ccy).name+' curve dated '+fmtShort(date)+
+    '?\n\nTrades that resolve to it will fall back to the previous curve.')) return;
   const gone=list.splice(i,1)[0];
-  audit('rate_curve', idxFor(ccy).index+(side==='pf'?'_PF':''),'DELETE','curve@'+date,
-    gone.pillars.map(p=>p.rate).join('/'), null, null);
+  audit('rate_curve', idxFor(ccy).index,'DELETE','curve@'+date, gone.pillars.map(p=>p.rate).join('/'), null, null);
   render();
 }
 /** CSV: date,side,1m,3m,6m,12m — or the JSON shape produced by Export. */
@@ -2731,9 +2755,10 @@ function importCurveText(text, fileName){
     for(const [idxCode,sides] of Object.entries(byIndex)){
       const target=CURRENCIES.find(c=>idxFor(c).index===idxCode);
       if(!target){ skipped.push('unknown index '+idxCode); continue; }
-      for(const side of ['live','pf']) for(const c of (sides[side]||[])){
+      const list = Array.isArray(sides) ? sides : [...(sides.live||[]), ...(sides.pf||[])];
+      for(const c of list){
         const pct={}; for(const p of c.pillars) pct[Number(p.days)] = String(p.rate)===''?'':D.of(p.rate).mul(100).toFixed(6);
-        putCurve(target, side, c.businessDate, pct, c.source, c.overrideReason, true); added++;
+        putCurve(target, c.businessDate, pct, c.source, c.overrideReason, true); added++;
       }
     }
   } else {
@@ -2742,8 +2767,7 @@ function importCurveText(text, fileName){
     const head=lines[0].split(',').map(x=>x.trim().toLowerCase().replace(/^"|"$/g,''));
     const col=n=>head.indexOf(n);
     const iDate = col('date')>=0?col('date'):col('business_date');
-    if(iDate<0) throw new Error('No "date" column — expected date,side,1m,3m,6m,12m');
-    const iSide=col('side');
+    if(iDate<0) throw new Error('No "date" column — expected date,1m,3m,6m,12m');
     const tenorAt={}; for(const [name,days] of TENOR_COLS){ const i=col(name); if(i>=0 && tenorAt[days]===undefined) tenorAt[days]=i; }
     const missingCols=[30,90,180,360].filter(d=>tenorAt[d]===undefined);
     if(missingCols.length) throw new Error('Missing rate column(s) for '+missingCols.map(d=>d<360?d/30+'m':'1y').join(', '));
@@ -2751,12 +2775,11 @@ function importCurveText(text, fileName){
       const cells=line.split(',').map(x=>x.trim().replace(/^"|"$/g,''));
       const date=cells[iDate];
       if(!isValidDate(date)){ skipped.push(date||'(blank date)'); continue; }
-      const side=(iSide>=0 && /^pf|pro/i.test(cells[iSide]||'')) ? 'pf' : 'live';
       const pct={}; let bad=false;
       for(const d of [30,90,180,360]){ const v=(cells[tenorAt[d]]||'').replace('%','');
         if(v==='' || !(Number(v)>0)) bad=true; pct[d]=v; }
       if(bad){ skipped.push(date+' (incomplete)'); continue; }
-      putCurve(ccy, side, date, pct, 'MANUAL_OVERRIDE', 'Uploaded from '+fileName, true); added++;
+      putCurve(ccy, date, pct, 'MANUAL_OVERRIDE', 'Uploaded from '+fileName, true); added++;
     }
   }
   if(!added) throw new Error('No usable rows found');
@@ -2767,23 +2790,23 @@ function importCurveText(text, fileName){
 /** Jump from a trade that needs a rate straight to the curve entry for its trade date. */
 function requestCurveFor(ccy, dateISO){
   curveChoice = idxFor(ccy).index;
-  curveDraft = {date: isValidDate(dateISO)?dateISO:'', side:'live', reason:''};
+  curveDraft = {date: isValidDate(dateISO)?dateISO:'', reason:''};
   closeTradeModal();
   showTab('rates');
   if(actor().role!=='Rates Admin')
     alert('Switch to the Rates Admin role in the header to enter the '+idxFor(ccy).name+' curve.');
 }
 $('topBanners').addEventListener('click', e=>{
-  if(!e.target.closest('#btnRequestCurve')) return;
-  const d=currentDeal(), t=currentTrade(); if(d&&t) requestCurveFor(d.currency, t.tradeDate);
+  const b=e.target.closest('button[data-request-curve]'); if(!b) return;
+  const d=currentDeal(); if(d) requestCurveFor(d.currency, b.dataset.requestCurve);
 });
-$('curvePicker').addEventListener('change', ()=>{ curveDraft={date:'',side:'live',reason:''}; });
+$('curvePicker').addEventListener('change', ()=>{ curveDraft={date:'',reason:''}; });
 $('curveAddBox').addEventListener('click', e=>{ if(e.target.closest('#btnCurveAdd')) addCurveFromForm(); });
 $('curveTable').addEventListener('click', e=>{
   const b=e.target.closest('button[data-del-curve]'); if(b) deleteCurve(b.dataset.delCurve);
 });
 $('btnCurveTemplate').onclick=()=>download('base-rate-curve-template.csv',
-  'date,side,1m,3m,6m,12m\n2026-07-22,live,3.64338,3.72777,3.87550,4.03325\n2026-07-22,pf,3.64338,3.72777,3.85550,4.03325\n','text/csv');
+  'date,1m,3m,6m,12m\n2026-06-22,3.64338,3.72777,3.85550,4.03325\n2026-07-16,3.64338,3.72777,3.87550,4.03325\n','text/csv');
 $('btnCurveExport').onclick=()=>download('base-rate-curves.json',
   JSON.stringify({exportedAt:new Date().toISOString(), curves:store.curves}, null, 2),'application/json');
 $('curveImportFile').onchange=e=>{ const f=e.target.files[0]; if(!f) return;
