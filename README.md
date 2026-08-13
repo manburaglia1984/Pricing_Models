@@ -64,9 +64,21 @@ A **deal** holds everything its trades share. A **trade** is what gets priced, a
 
 This matches the SharePoint layout, where `Trade 1 - DRC` holds SB01 / SB02 / SB03 under one facility.
 
-Deal configuration is **frozen once any trade on it reaches APPROVED** — changing it would invalidate a
-signed-off price. While trades are only PRICED, editing deal config returns them to DRAFT and voids
-their rate snapshots, with an audit event per trade. Trade identifiers must be unique within a deal.
+Trade identifiers must be unique within a deal.
+
+**Editing a deal's configuration** behaves differently depending on what its trades have reached:
+
+| Trades are | Configuration is |
+|---|---|
+| DRAFT only | editable straight away |
+| PRICED | editable straight away; editing returns them to DRAFT and voids their rate snapshots |
+| APPROVED / ISSUED / SETTLED | guarded — a banner names the blocking trades and offers **Unlock for editing** |
+
+Unlocking asks for confirmation and a reason, both audited. Approved trades return to DRAFT and lose
+their approval; **issued and settled trades are left alone** — their dispatched Offer File keeps the
+terms it was issued with, and the Offer File tab shows that stored payload rather than a recomputation,
+flagging "Deal amended since issue" when the current configuration would produce a different record.
+The unlock lasts for the session only; reloading restores the guard.
 
 *Download deal CSV* on the Offer File tab emits one Offer File row per trade, which is what the
 workbook's single-row `Offer File` tab had to be re-copied by hand to produce.

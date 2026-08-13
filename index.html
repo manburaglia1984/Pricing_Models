@@ -396,6 +396,7 @@ code,.mono{font-family:var(--mono);font-size:12px}
         <h2>Deal configuration <span class="tiny" style="text-transform:none;letter-spacing:0" id="dealScopeNote"></span>
           <span class="src"><button class="btn sm" id="btnCloseConfig">Close</button></span></h2>
         <div class="body">
+          <div id="dealLockBox"></div>
           <div class="row"><div class="lbl">Client<span class="note" id="clientNote">From the monday.com Global Pipeline. Drives every client-named label in this model.</span></div><div class="cell"><select class="in" id="d_client" data-deal="clientId"></select></div></div>
           <div class="row"><div class="lbl">Transaction Code<span class="note">Cantu!B4 — identifies the facility. Every trade on this deal carries it.</span></div><div class="cell"><input type="text" class="in" id="d_code" data-deal="code"></div></div>
           <div class="row"><div class="lbl">Currency<span class="note" id="ccyNote">Selects the base rate index and the day-count basis.</span></div><div class="cell"><select class="in" id="d_currency" data-deal="currency"></select></div></div>
@@ -1355,7 +1356,13 @@ const TRANSITIONS = { DRAFT:['PRICED','CANCELLED'], PRICED:['APPROVED','DRAFT','
   APPROVED:['ISSUED','CANCELLED'], ISSUED:['SETTLED','CANCELLED'], SETTLED:[], CANCELLED:[] };
 const LOCKED = s => ['APPROVED','ISSUED','SETTLED','CANCELLED'].includes(s);
 /** Deal config is frozen once any trade on it is approved — changing it would invalidate them. */
-const dealLocked = deal => tradesOf(deal.id).some(t=>LOCKED(t.state) && t.state!=='CANCELLED');
+/** Trades that make editing the deal consequential: signed off or dispatched.
+ *  A merely PRICED trade is not one — nothing has been agreed, so editing the deal
+ *  just voids its snapshot and returns it to DRAFT (see revertPricedTrades). */
+const dealBlockers = deal => tradesOf(deal.id).filter(t=>['APPROVED','ISSUED','SETTLED'].includes(t.state));
+/** Deliberately unlocked deals, for this session only — reloading restores the guard. */
+const unlockedDeals = new Set();
+const dealEditable = deal => !!deal && (dealBlockers(deal).length===0 || unlockedDeals.has(deal.id));
 
 function doPrice(){
   const d=currentDeal(), t=currentTrade(); if(!t) return;
@@ -1381,7 +1388,7 @@ function doApprove(){
   if(actor().role!=='Approver') return alert('Four-eyes: approval requires the Approver role. Switch role in the header.');
   if(actor().name===t.createdBy) return alert('Four-eyes: '+t.createdBy+' created this trade and cannot approve it.');
   t.approvedBy=actor().name; t.approvedAt=new Date().toISOString();
-  setState(t,'APPROVED','Approved by '+t.approvedBy+'; inputs and deal configuration now immutable.');
+  setState(t,'APPROVED','Approved by '+t.approvedBy+'; trade inputs locked and deal configuration guarded.');
 }
 function doIssue(){
   const d=currentDeal(), t=currentTrade(); if(!t) return;
@@ -1426,6 +1433,34 @@ function revertPricedTrades(deal, why){
       audit('trade',t.id,'STATE_CHANGE','state','PRICED','DRAFT',why); }
   }
 }
+/** Open a locked deal's configuration for editing, after spelling out the consequences. */
+function unlockDealConfig(){
+  const d=currentDeal(); if(!d) return;
+  const blockers=dealBlockers(d);
+  if(!blockers.length) return;
+  const revert=blockers.filter(t=>['PRICED','APPROVED'].includes(t.state));
+  const issued=blockers.filter(t=>['ISSUED','SETTLED'].includes(t.state));
+  let msg='Unlock the configuration of "'+(d.code||'this deal')+'"?\n';
+  if(revert.length) msg+='\nThese trades return to DRAFT and lose their rate snapshot'+
+    (revert.some(t=>t.state==='APPROVED')?' and approval':'')+':\n• '+
+    revert.map(t=>(t.identifier||'untitled')+' — '+t.state).join('\n• ')+'\n';
+  if(issued.length) msg+='\nThese trades are already issued and are left untouched — their dispatched '+
+    'Offer File keeps the terms it was issued with:\n• '+
+    issued.map(t=>(t.identifier||'untitled')+' — '+t.state).join('\n• ')+'\n';
+  msg+='\nEvery change is recorded in the audit log.';
+  if(!confirm(msg)) return;
+  const reason=prompt('Reason for unlocking (recorded in the audit log):');
+  if(reason===null) return;
+  if(!reason.trim()) return alert('A reason is required.');
+  for(const t of revert){
+    const prev=t.state;
+    t.state='DRAFT'; t.rateQuotes=null; t.approvedBy=null; t.approvedAt=null;
+    audit('trade',t.id,'STATE_CHANGE','state',prev,'DRAFT','Deal configuration unlocked: '+reason.trim());
+  }
+  unlockedDeals.add(d.id);
+  audit('deal',d.id,'UPDATE','configLocked','true','false',reason.trim());
+  loadFormFromStore(); render();
+}
 
 /* ---------------------------- offer file ---------------------------- */
 const OFFER_FIELDS = [
@@ -1443,6 +1478,13 @@ const OFFER_FIELDS = [
   ['L','Receiving Account details','receivingAccount', 'boilerplate'],
 ];
 const offerFields = deal => OFFER_FIELDS.map(([c,l,k,s])=>[c, l.replace(/\{client\}/g, clientLabel(deal)), k, s]);
+/** An issued trade shows the payload it was issued with; anything earlier shows a live preview.
+ *  Without this, amending the deal would retro-change a document already dispatched. */
+function payloadFor(deal, trade, r){
+  const issued=['ISSUED','SETTLED'].includes(trade.state);
+  if(issued && trade.offerFiles.length) return trade.offerFiles[trade.offerFiles.length-1].payload;
+  return offerPayload(deal, trade, r || computeAll(deal,trade));
+}
 function offerPayload(deal, trade, r){
   const o=r.out;
   return { relevantObligor:trade.obligor, transactionCode:deal.code,
@@ -1511,7 +1553,21 @@ function renderCurrencyOptions(){
 }
 /** The editable deal-configuration form on the Deals tab. */
 function renderDealForm(){
-  const d=currentDeal(), ix=idxFor(d.currency), c=findClient(d.clientId);
+  const d=currentDeal(); if(!d) return;
+  const ix=idxFor(d.currency), c=findClient(d.clientId);
+  const blockers=dealBlockers(d), unlocked=unlockedDeals.has(d.id);
+  const issued=blockers.filter(t=>['ISSUED','SETTLED'].includes(t.state));
+  $('dealLockBox').innerHTML =
+    blockers.length===0 ? ''
+    : unlocked
+      ? '<div class="banner warn"><div><b>Unlocked for editing.</b> '+
+        (issued.length ? issued.length+' issued trade(s) keep the terms on their dispatched Offer File; ' : '')+
+        'any change is written to the audit log. Re-locks on reload.</div></div>'
+      : '<div class="banner info"><div><b>Configuration is locked.</b> '+blockers.length+
+        ' trade(s) on this deal are signed off or dispatched ('+
+        blockers.map(t=>esc(t.identifier||'untitled')+' — '+t.state).join(', ')+
+        '), so changing the facility would move ground under a price that has already been agreed.<br>'+
+        '<button class="btn sm" id="btnUnlockDeal" style="margin-top:7px">Unlock for editing</button></div></div>';
   $('clientNote').textContent = c
     ? [c.country, c.region, c.status+' in pipeline', c.deals+' deal'+(c.deals===1?'':'s')].filter(Boolean).join(' · ')
     : 'From the monday.com Global Pipeline. Drives every client-named label in this model.';
@@ -1523,7 +1579,7 @@ function renderDealForm(){
 /** Jurisdictions: a dropdown to add, and the chosen ones as removable chips. */
 function renderJurisdictionBox(){
   const d=currentDeal(); if(!d) return;
-  const locked=dealLocked(d), sel=(d.jurisdictions||[]).slice();
+  const locked=!dealEditable(d), sel=(d.jurisdictions||[]).slice();
   const selSet=new Set(sel);
   $('jurCount').textContent = sel.length+' of '+ALL_JURISDICTIONS.length+' selected';
 
@@ -1587,7 +1643,7 @@ function renderHeader(d,t,r){
   $('stateBadge').className = 'badge '+(t?t.state:'DRAFT');
   $('dealCaption').textContent = (d.code||'(untitled deal)')+' · '+d.currency+' · '+
     (t ? 'trade '+(t.identifier||'(untitled)')+' v'+t.versionNo+' · created by '+t.createdBy : 'no trades yet');
-  const dLocked=dealLocked(d);
+  const dLocked=!dealEditable(d);
   for(const id of Object.values(DEAL_FIELD_IDS)){ const el=$(id); if(el) el.disabled=dLocked; }
   $('dealScopeNote').textContent = dLocked
     ? '— locked: a trade on this deal is approved or later'
@@ -1863,10 +1919,14 @@ async function syncClientsFromMonday(){
 function renderOffer(d,t,r){
   if(!t){ $('offerBanners').innerHTML='<div class="banner warn"><div>No trade selected.</div></div>';
     $('offerTable').innerHTML=''; $('issuedBox').innerHTML=''; return; }
-  const payload=offerPayload(d,t,r);
   const issued = t.state==='ISSUED'||t.state==='SETTLED';
+  const payload = payloadFor(d,t,r);
+  const amended = issued && t.offerFiles.length &&
+    JSON.stringify(payload)!==JSON.stringify(offerPayload(d,t,r));
   $('offerBanners').innerHTML = issued
-    ? '<div class="banner ok"><div><b>Issued.</b> The record below is the immutable payload stored against this trade.</div></div>'
+    ? '<div class="banner ok"><div><b>Issued.</b> The record below is the immutable payload stored against this trade — not a recomputation.</div></div>'+
+      (amended ? '<div class="banner warn"><div><b>Deal amended since issue.</b> The current configuration would produce a different record. '+
+        'The issued document above stands as dispatched; re-issue on a new trade version if the amendment must reach the counterparty.</div></div>' : '')
     : '<div class="banner warn"><div><b>Preview only.</b> The Offer File becomes an immutable, hashed document when the trade reaches ISSUED. Current state: '+t.state+'.</div></div>';
   const MONEY_KEYS=['supplierPayment','tradeCoPayment','agencyFeeToCantu','totalPurchasePrice','maturityAmount'];
   $('offerTable').innerHTML='<thead><tr><th>Col</th><th>Field</th><th>Value</th><th>Source</th></tr></thead><tbody>'+
@@ -2242,7 +2302,7 @@ document.addEventListener('input', e=>{
   const d=currentDeal(), t=currentTrade();
 
   if(el.dataset.deal){
-    if(dealLocked(d)) return;
+    if(!dealEditable(d)) return;
     const f=el.dataset.deal;
     d[f] = el.type==='checkbox' ? el.checked : el.value;
     if(f==='clientId'){ const c=findClient(el.value); d.clientName=c?c.name:''; }
@@ -2328,10 +2388,11 @@ $('tradeListBox').addEventListener('click', e=>{
 });
 $('btnEditDeal').onclick=()=>{ configOpen=true; render(); showTab('deals'); };
 $('btnCloseConfig').onclick=()=>{ configOpen=false; render(); };
+$('dealLockBox').addEventListener('click', e=>{ if(e.target.closest('#btnUnlockDeal')) unlockDealConfig(); });
 $('btnNewTradeFromDeals').onclick=()=>{ $('btnNewTrade').click(); showTab('pricing'); };
 /** Add or remove one jurisdiction on the current deal. */
 function setJurisdictions(code, on){
-  const d=currentDeal(); if(!d || dealLocked(d)) return;
+  const d=currentDeal(); if(!dealEditable(d)) return;
   const cur=new Set(d.jurisdictions||[]);
   const before=[...cur].join(',');
   on ? cur.add(code) : cur.delete(code);
@@ -2343,7 +2404,7 @@ function setJurisdictions(code, on){
 $('jurisdictionBox').addEventListener('click', e=>{
   const b=e.target.closest('button[data-jur-remove]'); if(b) setJurisdictions(b.dataset.jurRemove, false);
 });
-$('btnJurClear').onclick=()=>{ const d=currentDeal(); if(!d || dealLocked(d)) return;
+$('btnJurClear').onclick=()=>{ const d=currentDeal(); if(!dealEditable(d)) return;
   const before=(d.jurisdictions||[]).join(',');
   d.jurisdictions=[];
   audit('deal',d.id,'UPDATE','jurisdictions',before,'');
@@ -2353,7 +2414,7 @@ $('clientFilter').addEventListener('input', renderClients);
 $('clientTable').addEventListener('click', e=>{
   const b=e.target.closest('button[data-pick-client]'); if(!b) return;
   const d=currentDeal();
-  if(dealLocked(d)) return alert('Deal configuration is locked — a trade on this deal is approved or later.');
+  if(!dealEditable(d)) return alert('Deal configuration is locked. Use "Unlock for editing" on the Deals tab first.');
   const c=findClient(b.dataset.pickClient); if(!c) return;
   const prev=d.clientName;
   d.clientId=c.id; d.clientName=c.name;
@@ -2401,20 +2462,20 @@ function download(name, text, type){
 const csvCell = v => /[",\n]/.test(String(v??'')) ? '"'+String(v).replace(/"/g,'""')+'"' : String(v??'');
 const slug = s => String(s||'deal').replace(/\W+/g,'-');
 $('btnCopyRow').onclick=()=>{ const d=currentDeal(), t=currentTrade(); if(!t) return;
-  const p=offerPayload(d,t,computeAll(d,t)), F=offerFields(d);
+  const p=payloadFor(d,t), F=offerFields(d);
   const tsv=F.map(([,l])=>l).join('\t')+'\n'+F.map(([,,k])=>p[k]??'').join('\t');
   navigator.clipboard.writeText(tsv).then(()=>alert('Offer File row copied.'),()=>alert('Clipboard blocked — use Download CSV.')); };
 $('btnCsv').onclick=()=>{ const d=currentDeal(), t=currentTrade(); if(!t) return;
-  const p=offerPayload(d,t,computeAll(d,t)), F=offerFields(d);
+  const p=payloadFor(d,t), F=offerFields(d);
   download('offer-file-'+slug(t.identifier)+'.csv',
     F.map(([,l])=>csvCell(l)).join(',')+'\n'+F.map(([,,k])=>csvCell(p[k])).join(',')+'\n','text/csv'); };
 $('btnDealCsv').onclick=()=>{ const d=currentDeal(), F=offerFields(d);
   const rows=tradesOf(d.id).filter(t=>!t.cancelled)
-    .map(t=>F.map(([,,k])=>csvCell(offerPayload(d,t,computeAll(d,t))[k])).join(','));
+    .map(t=>F.map(([,,k])=>csvCell(payloadFor(d,t)[k])).join(','));
   download('offer-file-'+slug(d.code)+'-all-trades.csv',
     F.map(([,l])=>csvCell(l)).join(',')+'\n'+rows.join('\n')+'\n','text/csv'); };
 $('btnJson').onclick=()=>{ const d=currentDeal(), t=currentTrade(); if(!t) return;
-  const r=computeAll(d,t), p=offerPayload(d,t,r);
+  const r=computeAll(d,t), p=payloadFor(d,t,r);
   download('offer-file-'+slug(t.identifier)+'.json', JSON.stringify({offerFile:p, sha256:sha256(JSON.stringify(p)),
     deal:{id:d.id, code:d.code, client:clientLabel(d), currency:d.currency, jurisdictions:d.jurisdictions},
     trade:{id:t.id, identifier:t.identifier, version:t.versionNo, state:t.state},
