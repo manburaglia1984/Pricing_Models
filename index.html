@@ -156,6 +156,11 @@ tr.dealrow td{background:var(--panel-2);font-weight:600}
 tr.dealrow:hover td{background:var(--accent-soft)}
 tr.dealrow.sel td{background:var(--accent-soft);box-shadow:inset 3px 0 0 var(--accent)}
 .scroll{overflow-x:auto}
+/* Reference tables that would otherwise run for a screen and a half. The header row sticks
+   so the columns stay named while scrolling; its border has to be a shadow because a
+   sticky cell's own border scrolls away with the rows. */
+.scroll.capped{max-height:280px;overflow-y:auto}
+.scroll.capped th{position:sticky;top:0;z-index:1;border-bottom:0;box-shadow:inset 0 -1px 0 var(--line)}
 code,.mono{font-family:var(--mono);font-size:12px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 @media (max-width:820px){.grid2{grid-template-columns:1fr}}
@@ -353,22 +358,6 @@ code,.mono{font-family:var(--mono);font-size:12px}
 <section class="view" id="view-rates">
   <div id="ratesBanners"></div>
   <div class="card">
-    <h2>Clients <span class="src">monday.com · Global Pipeline</span></h2>
-    <div class="body">
-      <div id="clientSourceBox"></div>
-      <div class="toolbar">
-        <button class="btn" id="btnSyncMonday">Refresh from monday.com</button>
-        <label class="btn" style="display:inline-flex;align-items:center">Import JSON<input type="file" id="clientImportFile" accept="application/json" style="display:none"></label>
-        <button class="btn" id="btnClientExport">Export JSON</button>
-        <div class="field-inline" style="margin-left:auto"><label for="clientFilter">Filter</label>
-          <input type="text" id="clientFilter" placeholder="name or country" style="min-width:170px"></div>
-      </div>
-      <p class="tiny" style="margin:0 0 10px">A refresh asks for a monday.com API token, uses it for that one request and never stores it — not in this file, not in localStorage. Because the token grants full account access, prefer <b>Import JSON</b> or a server-side sync for shared copies. Browsers block the direct call from a <code>file://</code> page; serve this file over http(s) for it to work.</p>
-      <div class="scroll" style="max-height:380px"><table id="clientTable"></table></div>
-    </div>
-  </div>
-
-  <div class="card">
     <h2>Base rate curves <span class="src">'SOFR Interpolation' generalised per currency</span></h2>
     <div class="body">
       <div class="toolbar">
@@ -389,14 +378,30 @@ code,.mono{font-family:var(--mono);font-size:12px}
 
   <div class="card">
     <h2>Currencies &amp; base rates</h2>
-    <div class="body"><div class="scroll"><table id="ccyTable"></table></div></div>
+    <div class="body"><div class="scroll capped"><table id="ccyTable"></table></div></div>
+  </div>
+
+  <div class="card">
+    <h2>Clients <span class="src">monday.com · Global Pipeline</span></h2>
+    <div class="body">
+      <div id="clientSourceBox"></div>
+      <div class="toolbar">
+        <button class="btn" id="btnSyncMonday">Refresh from monday.com</button>
+        <label class="btn" style="display:inline-flex;align-items:center">Import JSON<input type="file" id="clientImportFile" accept="application/json" style="display:none"></label>
+        <button class="btn" id="btnClientExport">Export JSON</button>
+        <div class="field-inline" style="margin-left:auto"><label for="clientFilter">Filter</label>
+          <input type="text" id="clientFilter" placeholder="name or country" style="min-width:170px"></div>
+      </div>
+      <p class="tiny" style="margin:0 0 10px">A refresh asks for a monday.com API token, uses it for that one request and never stores it — not in this file, not in localStorage. Because the token grants full account access, prefer <b>Import JSON</b> or a server-side sync for shared copies. Browsers block the direct call from a <code>file://</code> page; serve this file over http(s) for it to work.</p>
+      <div class="scroll capped" style="max-height:380px"><table id="clientTable"></table></div>
+    </div>
   </div>
 
   <div class="card">
     <h2>Holiday calendars <span class="src">BD Dates!B19:K200</span></h2>
     <div class="body">
       <p class="tiny" style="margin:8px 0 12px">Coverage is the last known-good date per jurisdiction. A maturity date beyond coverage hard-blocks pricing — it is never silently passed. Which of these apply is set per deal, above. Source URLs are the official publishers; replace them with the verbatim URLs recorded as cell notes on <code>BD Dates!B19:E19</code> if those differ.</p>
-      <div class="scroll"><table id="calTable"></table></div>
+      <div class="scroll capped"><table id="calTable"></table></div>
     </div>
   </div>
 </section>
