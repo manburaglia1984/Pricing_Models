@@ -133,14 +133,15 @@ them. Pricing is hard-blocked with `RATE.NO_CURVE` until a curve is loaded.
 
 ## Jurisdictions
 
-**28 jurisdictions**, selected per deal and checked against every trade's maturity date. The picker is a
-region-grouped dropdown that adds one at a time, with the chosen jurisdictions shown as removable chips —
-rather than a wall of 28 checkboxes. Selecting none is a blocking error, not a silent pass.
+**29 jurisdictions**, selected per deal and checked against every trade's maturity date. The picker is a
+region-grouped dropdown that adds one at a time, with the chosen jurisdictions shown as removable chips.
+Selecting none is a blocking error, not a silent pass.
 
 Business days are **derived from rules**, not transcribed tables — fixed dates, nth-weekday, Easter
-offsets, Monday-on-or-after (Colombia's Emiliani law), weekday-in-range (Nordic midsummer), plus each
-market's weekend-observance convention (the Fed's Sunday→Monday, the UK's substitute-day). Calendars
-are generated for **2024–2040**, so there is no transcription cliff and no annual refresh to forget.
+offsets, Monday-on-or-after (Colombia's Emiliani law), nearest-Monday (the Dominican Ley 139-97),
+weekday-in-range (Nordic midsummer), plus each market's weekend-observance convention (the Fed's
+Sunday→Monday, the UK's substitute-day). Calendars are generated for **2024–2040**, so there is no
+transcription cliff and no annual refresh to forget.
 
 The engine is validated against the workbook itself: it reproduces `BD Dates` columns B (US, 44 days),
 C (UK, 32 days) and D (Brazil, 52 days) for 2026–2029 **exactly**, and those three assertions run in
@@ -148,7 +149,7 @@ the parity tests.
 
 | Region | Jurisdictions |
 |---|---|
-| Americas | US, CA, MX, BR, CL, CO, PE, PA |
+| Americas | US, CA, MX, BR, CL, CO, PE, PA, DO |
 | EMEA | GB, IE, FR, DE, ES, IT, NL, BE, PT, CH, AT, SE, NO, DK, FI, PL, ZA, TARGET2 (EU) |
 | APAC | AU, HK |
 
@@ -158,6 +159,10 @@ Two caveats worth reading before go-live:
   the rules above. Only US, GB, BR and TARGET2 are marked **verified** (against the workbook or a
   fixed six-rule definition). Check the others against the publisher link before relying on them, and
   note that sub-national holidays — German *Länder*, Swiss cantons, Australian states — are not modelled.
+- **Dominican Republic** carries one modelling gap, flagged in the Reference data tab: Restoration Day
+  (16 Aug) is observed on the date itself in presidential-inauguration years — 2028, 2032, 2036, 2040 —
+  rather than shifted to the nearest Monday. The rules always shift it, so check those four years against
+  the Banco Central calendar.
 - **Lunar and Islamic calendars cannot be derived from rules.** Hong Kong therefore ships as a published
   list covering only to 27-Dec-2027, and hard-blocks beyond that. The same limitation applies to any
   jurisdiction whose holidays follow the Chinese, Islamic or Hebrew calendar (SG, AE, CN, IN, IL, MY) —
