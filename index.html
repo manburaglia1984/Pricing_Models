@@ -104,6 +104,18 @@ input:disabled,select:disabled{opacity:.6;cursor:not-allowed}
 .inline-tag.ok{color:var(--ok);border-color:var(--ok);background:var(--ok-bg)}
 .inline-tag.warn{color:var(--warn);border-color:var(--warn);background:var(--warn-bg)}
 .inline-tag.err{color:var(--err);border-color:var(--err);background:var(--err-bg)}
+/* Trade workspace — a trade is a drill-down from its deal, not a peer tab. */
+.modal{position:fixed;inset:0;z-index:60;display:none}
+.modal.open{display:block}
+.modal .backdrop{position:absolute;inset:0;background:rgba(8,12,18,.55)}
+.modal .sheet{position:absolute;inset:22px;background:var(--bg);border:1px solid var(--line-2);
+  border-radius:14px;box-shadow:0 24px 70px rgba(0,0,0,.4);display:flex;flex-direction:column;overflow:hidden}
+.modal .sheet>header{background:var(--panel);border-bottom:1px solid var(--line);flex:0 0 auto}
+.modal .sheet>.content{flex:1 1 auto;overflow-y:auto;overflow-x:hidden;padding:16px 18px 44px}
+.modal .tpane{display:none} .modal .tpane.active{display:block}
+.modal h1{font-size:15px;font-weight:650;letter-spacing:-.02em}
+.modal h1 small{display:block;font-weight:400;font-size:11.5px;color:var(--ink-3);letter-spacing:0}
+@media (max-width:760px){.modal .sheet{inset:0;border-radius:0} .modal .sheet>.content{padding:12px 12px 40px}}
 .taglist{display:flex;flex-wrap:wrap;gap:6px;padding:4px 0 2px}
 .taglist .tag{display:inline-flex;align-items:center;gap:5px;padding:3px 6px 3px 11px;border:1px solid var(--accent);
   background:var(--accent-soft);color:var(--accent);border-radius:999px;font-size:12.5px;font-weight:560}
@@ -163,7 +175,6 @@ code,.mono{font-family:var(--mono);font-size:12px}
 <header class="top">
   <div class="top-row">
     <div class="brand"><span id="brandTitle">Purchase/Sale Facility — Pricing Model</span><small id="dealCaption">No deal loaded</small></div>
-    <span class="badge DRAFT" id="stateBadge">DRAFT</span>
     <div class="spacer"></div>
     <div class="field-inline">
       <label for="actorName">Acting as</label>
@@ -177,8 +188,6 @@ code,.mono{font-family:var(--mono);font-size:12px}
   </div>
   <nav class="tabs" id="tabs">
     <button data-view="deals" aria-selected="true">Deals</button>
-    <button data-view="pricing">Trades</button>
-    <button data-view="offer">Offer File</button>
     <button data-view="rates">Reference data</button>
     <button data-view="audit">Audit log</button>
     <button data-view="tests">Parity tests</button>
@@ -188,32 +197,42 @@ code,.mono{font-family:var(--mono);font-size:12px}
 
 <main>
 <!-- ================= PRICING ================= -->
-<section class="view" id="view-pricing">
+<!-- ============ TRADE WORKSPACE (opened from a deal's trade list) ============ -->
+<div class="modal" id="tradeModal" role="dialog" aria-modal="true" aria-labelledby="tradeModalTitle">
+  <div class="backdrop" data-close-modal></div>
+  <div class="sheet">
+    <header>
+      <div class="top-row">
+        <h1 id="tradeModalTitle">Trade<small id="tradeModalSub"></small></h1>
+        <span class="badge DRAFT" id="stateBadge">DRAFT</span>
+        <div class="spacer"></div>
+        <button class="btn sm" id="btnEditDeal">Edit deal configuration</button>
+        <button class="btn sm" id="btnDupTrade">Duplicate</button>
+        <button class="btn sm" id="btnVersion">New version</button>
+        <button class="btn" data-close-modal>Close</button>
+      </div>
+      <div class="top-row" style="padding-bottom:9px">
+        <button class="btn primary" id="btnPrice">Price trade</button>
+        <button class="btn" id="btnApprove">Approve</button>
+        <button class="btn" id="btnIssue">Issue Offer File</button>
+        <button class="btn" id="btnSettle">Mark settled</button>
+        <button class="btn danger" id="btnCancel">Cancel trade</button>
+      </div>
+      <nav class="tabs" id="tradeTabs">
+        <button data-tpane="pricing" aria-selected="true">Pricing</button>
+        <button data-tpane="offer">Offer File</button>
+      </nav>
+    </header>
+    <div class="content">
+
+<div class="tpane active" id="tpane-pricing">
   <div id="topBanners"></div>
   <div class="cols">
     <div>
       <!-- Read-only view of the deal this trade belongs to. Edited on the Deals tab. -->
       <div class="card deal tight">
-        <h2>Deal <span class="src"><button class="btn sm" id="btnEditDeal">Edit deal configuration</button></span></h2>
+        <h2>Deal</h2>
         <div class="body" id="dealContextBox"></div>
-      </div>
-
-      <!-- Every trade action lives here, not in the page header. -->
-      <div class="card tight">
-        <h2>Trades <span class="src">
-          <button class="btn sm" id="btnNewTrade">New trade</button>
-          <button class="btn sm" id="btnDupTrade">Duplicate</button>
-          <button class="btn sm" id="btnVersion">New version</button></span></h2>
-        <div class="body">
-          <div id="tradeListBox"></div>
-          <div class="toolbar" style="margin:12px 0 0;padding-top:11px;border-top:1px solid var(--line)">
-            <button class="btn primary" id="btnPrice">Price trade</button>
-            <button class="btn" id="btnApprove">Approve</button>
-            <button class="btn" id="btnIssue">Issue Offer File</button>
-            <button class="btn" id="btnSettle">Mark settled</button>
-            <button class="btn danger" id="btnCancel">Cancel trade</button>
-          </div>
-        </div>
       </div>
 
       <!-- Trade identity -->
@@ -304,7 +323,29 @@ code,.mono{font-family:var(--mono);font-size:12px}
       <div class="card tight"><h2>Trade summary</h2><div class="body" id="summaryBox"></div></div>
     </div>
   </div>
-</section>
+</div><!-- /#tpane-pricing -->
+
+<div class="tpane" id="tpane-offer">
+  <div id="offerBanners"></div>
+  <div class="card">
+    <h2>IAA Offer File <span class="src">Offer File!A2:L3</span></h2>
+    <div class="body">
+      <div class="toolbar">
+        <button class="btn" id="btnCopyRow">Copy row (TSV)</button>
+        <button class="btn" id="btnCsv">Download CSV</button>
+        <button class="btn" id="btnDealCsv">Download deal CSV (all trades)</button>
+        <button class="btn" id="btnJson">Download JSON</button>
+        <button class="btn" id="btnPrint">Print / PDF</button>
+      </div>
+      <div class="scroll"><table id="offerTable"></table></div>
+    </div>
+  </div>
+  <div class="card tight"><h2>Issued documents</h2><div class="body" id="issuedBox"></div></div>
+</div><!-- /#tpane-offer -->
+
+    </div><!-- /.content -->
+  </div><!-- /.sheet -->
+</div><!-- /#tradeModal -->
 
 <!-- ================= REFERENCE DATA ================= -->
 <section class="view" id="view-rates">
@@ -351,25 +392,6 @@ code,.mono{font-family:var(--mono);font-size:12px}
       <div class="scroll"><table id="calTable"></table></div>
     </div>
   </div>
-</section>
-
-<!-- ================= OFFER FILE ================= -->
-<section class="view" id="view-offer">
-  <div id="offerBanners"></div>
-  <div class="card">
-    <h2>IAA Offer File <span class="src">Offer File!A2:L3</span></h2>
-    <div class="body">
-      <div class="toolbar">
-        <button class="btn" id="btnCopyRow">Copy row (TSV)</button>
-        <button class="btn" id="btnCsv">Download CSV</button>
-        <button class="btn" id="btnDealCsv">Download deal CSV (all trades)</button>
-        <button class="btn" id="btnJson">Download JSON</button>
-        <button class="btn" id="btnPrint">Print / PDF</button>
-      </div>
-      <div class="scroll"><table id="offerTable"></table></div>
-    </div>
-  </div>
-  <div class="card tight"><h2>Issued documents</h2><div class="body" id="issuedBox"></div></div>
 </section>
 
 <!-- ================= DEALS (configuration) ================= -->
@@ -1647,15 +1669,15 @@ function render(opts){
     configOpen=false;
     renderDeals(); renderClients(); renderAudit(); renderAbout();
     $('topBanners').innerHTML='<div class="banner warn"><div><b>No deals.</b> Create one on the Deals tab.</div></div>';
-    $('dealContextBox').innerHTML=''; $('tradeListBox').innerHTML='';
-    for(const id of ['btnPrice','btnApprove','btnIssue','btnSettle','btnCancel','btnNewTrade','btnDupTrade','btnVersion'])
-      $(id).disabled=true;
+    $('dealContextBox').innerHTML=''; closeTradeModal_silent();
+    for(const id of ['btnPrice','btnApprove','btnIssue','btnSettle','btnCancel','btnNewTradeFromDeals','btnDupTrade','btnVersion'])
+      { const el=$(id); if(el) el.disabled=true; }
     save(); return;
   }
   const t=currentTrade();
   const r=computeAll(d,t);
   applyClientNaming(clientLabel(d));
-  renderHeader(d,t,r); renderDealForm(); renderTradeList(d,t); renderPricing(d,t,r);
+  renderHeader(d,t,r); renderDealForm(); renderPricing(d,t,r);
   renderRates(opts && opts.keepCurveBoxes); renderClients(); renderOffer(d,t,r);
   renderDeals(); renderAudit(); renderAbout();
   save();
@@ -1686,7 +1708,10 @@ function renderHeader(d,t,r){
   $('btnDupTrade').disabled = !t;
   const errPill = r.errors.length ? '<span class="pill err">'+r.errors.length+'</span>' : '';
   const warnPill = r.warnings.length ? '<span class="pill warn">'+r.warnings.length+'</span>' : '';
-  document.querySelector('#tabs button[data-view="pricing"]').innerHTML='Trades'+errPill+warnPill;
+  document.querySelector('#tradeTabs button[data-tpane="pricing"]').innerHTML='Pricing'+errPill+warnPill;
+  $('tradeModalTitle').innerHTML=esc(t?(t.identifier||'(untitled trade)'):'Trade')+
+    '<small>'+esc(d.code||'(untitled deal)')+' · '+esc(clientLabel(d))+' · '+esc(d.currency)+
+    (t?' · version '+t.versionNo+' · created by '+esc(t.createdBy):'')+'</small>';
 }
 
 function renderPricing(d,t,r){
@@ -2008,21 +2033,26 @@ function renderDeals(){
       }).join('')+'</tbody></table>';
 }
 
-/** The trade list shown on the Trades tab, where every trade action lives. */
-function renderTradeList(d,t){
-  const ts=d?sortedTrades(d.id):[];
-  $('tradeListBox').innerHTML = ts.length===0
-    ? '<p class="tiny">No trades on this deal. Use <b>New trade</b>.</p>'
-    : '<table><thead><tr><th>Identifier</th><th>State</th><th class="n">Purchase price</th><th>Settlement</th><th></th></tr></thead><tbody>'+
-      ts.map(x=>{ const r=computeAll(d,x);
-        return '<tr class="'+(t&&x.id===t.id?'sel':'')+'"><td>'+esc(x.identifier||'(untitled)')+
-          ' <span class="tiny">v'+x.versionNo+'</span></td>'+
-          '<td><span class="badge '+x.state+'">'+x.state+'</span></td>'+
-          '<td class="n">'+(r.out?money(r.out.purchasePrice,d.currency):'—')+'</td>'+
-          '<td>'+fmtShort(x.inputs.bladexSettlementDate)+'</td>'+
-          '<td class="n">'+(t&&x.id===t.id?'<span class="inline-tag ok">open</span>'
-            :'<button class="btn sm" data-pick-trade="'+x.id+'">Open</button>')+'</td></tr>';
-      }).join('')+'</tbody></table>';
+/* ---------------------------- trade workspace ---------------------------- */
+let modalOpen=false;
+function openTradeModal(){
+  const d=currentDeal(), t=currentTrade(); if(!d||!t) return;
+  modalOpen=true;
+  $('tradeModal').classList.add('open');
+  document.body.style.overflow='hidden';
+  showTradePane('pricing');
+  render();
+}
+function closeTradeModal(){ closeTradeModal_silent(); render(); }
+/** Close without re-rendering — for callers already inside a render pass. */
+function closeTradeModal_silent(){
+  modalOpen=false;
+  $('tradeModal').classList.remove('open');
+  document.body.style.overflow='';
+}
+function showTradePane(name){
+  for(const b of document.querySelectorAll('#tradeTabs button')) b.setAttribute('aria-selected', String(b.dataset.tpane===name));
+  for(const v of document.querySelectorAll('#tradeModal .tpane')) v.classList.toggle('active', v.id==='tpane-'+name);
 }
 
 /** Delete one trade. Refused once signed off or dispatched — cancel those instead,
@@ -2305,8 +2335,9 @@ Identifier are empty. Both are required, and trade identifiers must be unique wi
 <li><b>The Pro Forma block is optional</b>, switched on or off per <em>deal</em> so every trade on a facility
 agrees. It is a leaf in the dependency graph, so turning it off leaves B27:B53 bit-for-bit identical —
 the parity tests assert exactly that — and panel 2 is removed from the pricing screen entirely.</li>
-<li><b>Configuring and trading are separate screens.</b> The <b>Deals</b> tab is where a facility is set up;
-the <b>Trade pricing</b> tab shows that configuration read-only and prices one trade against it.</li>
+<li><b>Configuring and trading are separate screens.</b> The <b>Deals</b> tab is where a facility is set up,
+and opening one of its trades raises a workspace showing that configuration read-only, the trade's pricing
+panels and its Offer File — a trade is a drill-down from its deal, not a tab of its own.</li>
 </ul>
 
 <h3 style="margin:18px 0 6px">Not built here</h3>
@@ -2407,6 +2438,13 @@ document.getElementById('tabs').addEventListener('click', e=>{
   for(const v of document.querySelectorAll('.view')) v.classList.toggle('active', v.id==='view-'+b.dataset.view);
   if(b.dataset.view==='tests') runTests();
 });
+$('tradeTabs').addEventListener('click', e=>{
+  const b=e.target.closest('button[data-tpane]'); if(b) showTradePane(b.dataset.tpane);
+});
+$('tradeModal').addEventListener('click', e=>{
+  if(e.target.closest('[data-close-modal]')) closeTradeModal();
+});
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && modalOpen) closeTradeModal(); });
 const showTab = v => document.querySelector('#tabs button[data-view="'+v+'"]').click();
 function selectDeal(id){
   store.currentDealId=id;
@@ -2416,7 +2454,7 @@ function selectDeal(id){
 function openTrade(id){
   const tr=store.trades.find(x=>x.id===id); if(!tr) return;
   store.currentDealId=tr.dealId; store.currentTradeId=tr.id;
-  loadFormFromStore(); render(); showTab('pricing');
+  loadFormFromStore(); openTradeModal();
 }
 // Clicking a deal row selects it and refreshes "Trades on this deal"; buttons take precedence.
 $('dealTable').addEventListener('click', e=>{
@@ -2432,14 +2470,10 @@ $('dealTradesBox').addEventListener('click', e=>{
   if(del) return deleteTrade(del.dataset.deleteTrade);
   const bt=e.target.closest('button[data-open-trade]'); if(bt) openTrade(bt.dataset.openTrade);
 });
-$('tradeListBox').addEventListener('click', e=>{
-  const bt=e.target.closest('button[data-pick-trade]'); if(!bt) return;
-  store.currentTradeId=bt.dataset.pickTrade; loadFormFromStore(); render();
-});
-$('btnEditDeal').onclick=()=>{ configOpen=true; render(); showTab('deals'); };
+$('btnEditDeal').onclick=()=>{ configOpen=true; closeTradeModal(); showTab('deals'); };
 $('btnCloseConfig').onclick=()=>{ configOpen=false; render(); };
 $('dealLockBox').addEventListener('click', e=>{ if(e.target.closest('#btnUnlockDeal')) unlockDealConfig(); });
-$('btnNewTradeFromDeals').onclick=()=>{ $('btnNewTrade').click(); showTab('pricing'); };
+$('btnNewTradeFromDeals').onclick=()=>{ if(createTrade()) openTradeModal(); };
 /** Add or remove one jurisdiction on the current deal. */
 function setJurisdictions(code, on){
   const d=currentDeal(); if(!dealEditable(d)) return;
@@ -2470,8 +2504,7 @@ $('clientTable').addEventListener('click', e=>{
   d.clientId=c.id; d.clientName=c.name;
   audit('deal',d.id,'UPDATE','clientName',prev,c.name);
   revertPricedTrades(d,'Client changed — rate snapshot voided.');
-  loadFormFromStore(); render();
-  document.querySelector('#tabs button[data-view="pricing"]').click();
+  loadFormFromStore(); render(); showTab('deals');
 });
 
 $('btnPrice').onclick=doPrice; $('btnApprove').onclick=doApprove; $('btnIssue').onclick=doIssue;
@@ -2481,11 +2514,14 @@ $('btnNewDeal').onclick=()=>{ const d=newDeal(actor().name); store.deals.push(d)
   configOpen=true;                             // a new deal opens straight into configuration
   audit('deal',d.id,'CREATE',null,null,'new deal');
   loadFormFromStore(); render(); showTab('deals'); };
-$('btnNewTrade').onclick=()=>{ const d=currentDeal(); const t=newTrade(d.id, actor().name);
+function createTrade(){
+  const d=currentDeal(); if(!d) return false;
+  const t=newTrade(d.id, actor().name);
   t.identifier=nextTradeIdentifier(d);
   store.trades.push(t); store.currentTradeId=t.id;
   audit('trade',t.id,'CREATE',null,null,'Trade '+t.identifier+' on deal '+(d.code||d.id));
-  loadFormFromStore(); render(); };
+  loadFormFromStore(); return true;
+}
 $('btnDupTrade').onclick=()=>{ const d=currentDeal(), src=currentTrade(); if(!src) return;
   const t=newTrade(d.id, actor().name);
   t.inputs={...src.inputs}; t.obligor=src.obligor; t.identifier=nextTradeIdentifier(d);

@@ -28,19 +28,28 @@ Arithmetic is **fixed-point decimal** (BigInt, 20 dp) rather than floating point
 document-generation boundaries. `price(inputs, rateQuote)` is pure — no I/O, no DB, no clock reads —
 which is what makes the golden-master tests meaningful.
 
-## Two screens
+## Navigation
 
-Configuring a facility and pricing a trade are separate jobs, so they are separate screens. The page
-header carries no deal or trade controls at all — everything to do with a deal is on the Deals tab,
-everything to do with a trade is on the Trades tab.
+A trade belongs to a deal, so it is a drill-down from one rather than a tab of its own. Top-level tabs
+are **Deals**, **Reference data**, **Audit log**, **Parity tests** and **Spec & traceability**; the page
+header carries no deal or trade controls at all.
 
-- **Deals** — the landing tab. **Click any deal row** to select it; *Trades on this deal* below updates
-  to that deal's trades. Two row actions remain: **Configure** and **Delete**. The configuration panel
-  opens on the right only when **Configure** is clicked, closes from its own Close button, and always
-  shows whichever deal is currently selected.
-- **Trades** — the deal's configuration read-only at the top with an *Edit deal configuration* button,
-  then the trade list and every trade action (New trade, Duplicate, New version, Price, Approve, Issue,
-  Mark settled, Cancel), then the pricing panels.
+**Deals** is the landing tab. Click any deal row to select it and *Trades on this deal* below updates to
+that deal's trades. Row actions are **Configure** and **Delete**; the configuration panel opens on the
+right only when Configure is clicked, closes from its own button, and always shows whichever deal is
+selected.
+
+**Open** on a trade raises the **trade workspace** — a full overlay carrying everything specific to that
+trade:
+
+- a header with the trade identifier, its deal, the state badge, and every trade action (Price, Approve,
+  Issue, Mark settled, Cancel, Duplicate, New version, Edit deal configuration);
+- a **Pricing** pane — the deal's configuration read-only, the trade's own fields, the five panels and the
+  validation / rate-quote / business-day / summary rail;
+- an **Offer File** pane, since the Offer File describes one trade and belongs with it.
+
+Close it with the Close button, `Esc`, or a click on the backdrop. It is an in-page overlay rather than a
+real browser window: a popup would be blocked by default and could not share state with the page.
 
 ## Deleting deals
 
@@ -92,8 +101,8 @@ terms it was issued with, and the Offer File tab shows that stored payload rathe
 flagging "Deal amended since issue" when the current configuration would produce a different record.
 The unlock lasts for the session only; reloading restores the guard.
 
-*Download deal CSV* on the Offer File tab emits one Offer File row per trade, which is what the
-workbook's single-row `Offer File` tab had to be re-copied by hand to produce.
+*Download deal CSV* in the workspace's Offer File pane emits one Offer File row per trade, which is what
+the workbook's single-row `Offer File` tab had to be re-copied by hand to produce.
 
 ## Currency and base rate
 
