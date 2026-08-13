@@ -192,7 +192,7 @@ code,.mono{font-family:var(--mono);font-size:12px}
     <button class="btn sm" id="themeBtn" title="Cycle system / dark / light theme">Theme</button>
   </div>
   <nav class="tabs" id="tabs">
-    <button data-view="deals" aria-selected="true">Deals</button>
+    <button data-view="deals" aria-selected="true">Deals &amp; Trades</button>
     <button data-view="rates">Reference data</button>
     <button data-view="audit">Audit log</button>
     <button data-view="tests">Parity tests</button>
@@ -1763,7 +1763,7 @@ function render(){
     $('dealCaption').textContent='No deals';
     configOpen=false;
     renderDeals(); renderClients(); renderAudit(); renderAbout();
-    $('topBanners').innerHTML='<div class="banner warn"><div><b>No deals.</b> Create one on the Deals tab.</div></div>';
+    $('topBanners').innerHTML='<div class="banner warn"><div><b>No deals.</b> Create one on the Deals &amp; Trades tab.</div></div>';
     $('dealContextBox').innerHTML=''; closeTradeModal_silent();
     for(const id of ['btnPrice','btnApprove','btnIssue','btnSettle','btnCancel','btnNewTradeFromDeals','btnDupTrade','btnVersion'])
       { const el=$(id); if(el) el.disabled=true; }
@@ -2561,7 +2561,7 @@ Identifier are empty. Both are required, and trade identifiers must be unique wi
 <li><b>The Pro Forma block is optional</b>, switched on or off per <em>deal</em> so every trade on a facility
 agrees. It is a leaf in the dependency graph, so turning it off leaves B27:B53 bit-for-bit identical —
 the parity tests assert exactly that — and panel 2 is removed from the pricing screen entirely.</li>
-<li><b>Configuring and trading are separate screens.</b> The <b>Deals</b> tab is where a facility is set up,
+<li><b>Configuring and trading are separate screens.</b> The <b>Deals &amp; Trades</b> tab is where a facility is set up,
 and opening one of its trades raises a workspace showing that configuration read-only, the trade's pricing
 panels and its Offer File — a trade is a drill-down from its deal, not a tab of its own.</li>
 </ul>
@@ -2691,7 +2691,7 @@ $('clientFilter').addEventListener('input', renderClients);
 $('clientTable').addEventListener('click', e=>{
   const b=e.target.closest('button[data-pick-client]'); if(!b) return;
   const d=currentDeal();
-  if(!dealEditable(d)) return alert('Deal configuration is locked. Use "Unlock for editing" on the Deals tab first.');
+  if(!dealEditable(d)) return alert('Deal configuration is locked. Use "Unlock for editing" on the Deals & Trades tab first.');
   const c=findClient(b.dataset.pickClient); if(!c) return;
   const prev=d.clientName;
   d.clientId=c.id; d.clientName=c.name;

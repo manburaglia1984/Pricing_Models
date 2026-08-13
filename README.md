@@ -31,10 +31,10 @@ which is what makes the golden-master tests meaningful.
 ## Navigation
 
 A trade belongs to a deal, so it is a drill-down from one rather than a tab of its own. Top-level tabs
-are **Deals**, **Reference data**, **Audit log**, **Parity tests** and **Spec & traceability**; the page
+are **Deals & Trades**, **Reference data**, **Audit log**, **Parity tests** and **Spec & traceability**; the page
 header carries no deal or trade controls at all.
 
-**Deals** is the landing tab. Click any deal row to select it and *Trades on this deal* below updates to
+**Deals & Trades** is the landing tab. Click any deal row to select it and *Trades on this deal* below updates to
 that deal's trades. Row actions are **Configure** and **Delete**; the configuration panel opens on the
 right only when Configure is clicked, closes from its own button, and always shows whichever deal is
 selected.
