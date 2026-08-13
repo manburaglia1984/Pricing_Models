@@ -66,7 +66,9 @@ A **deal** holds everything its trades share. A **trade** is what gets priced, a
 | Deal (shared) | Trade (per trade) |
 |---|---|
 | Client | Trade Identifier — `Cantu!B5` |
-| Transaction Code — `Cantu!B4` | Relevant Obligor — `Offer File!A3` |
+| Transaction Code — `Cantu!B4` | **Trade Date** — selects the base rate curve |
+| | **Funder** — names the Settlement Date, Margin and Cost of Funds fields |
+| | Relevant Obligor — `Offer File!A3` |
 | Currency → base rate index + day count | The invoice/pricing blocks |
 | Pro forma invoices used, yes/no | Pro forma dates and margins, when used |
 | Associated jurisdictions | Lifecycle, rate snapshot, Offer File, audit |
@@ -103,6 +105,30 @@ The unlock lasts for the session only; reloading restores the guard.
 
 *Download deal CSV* in the workspace's Offer File pane emits one Offer File row per trade, which is what
 the workbook's single-row `Offer File` tab had to be re-copied by hand to produce.
+
+## Base rate management
+
+Curves are a **dated history per index and side**, not a single "current" snapshot. A trade prices off
+the **latest curve published on or before its Trade Date** — so a trade struck last month keeps pricing
+off last month's curve however many newer ones arrive, and re-pricing it later reproduces the same rate.
+
+The Reference data tab's **Base rate curves** card manages that history:
+
+- **Upload history (CSV/JSON)** — bulk-load past curves. CSV columns `date,side,1m,3m,6m,12m`, with `side`
+  either `live` or `pf` (defaults to `live`) and rates as percentages. A row replaces any existing curve
+  for that date and side. Incomplete or undated rows are skipped and reported rather than half-loaded.
+  *Download CSV template* gives the exact shape; *Export history (JSON)* round-trips everything.
+- **Add curve** — key in one dated curve directly. All four pillars are required.
+- The history table shows every curve with its rates, source and **which trades price off it**, so you
+  can see what a curve is load-bearing for before deleting it.
+
+**The model asks for what it is missing.** If no curve exists on or before a trade's Trade Date, pricing
+is blocked (`RATE.NO_CURVE`). If the newest curve predates the Trade Date, the trade still prices off it
+but raises `RATE.NOT_CURRENT` naming the gap in days. Both surface a banner in the trade workspace with a
+button that jumps straight to the curve entry, pre-filled with that index and trade date.
+
+Only the single curve the workbook carries is seeded — dated 16-Jul-2026, its Bladex settlement date.
+No historical market data is invented: everything else has to be uploaded.
 
 ## Currency and base rate
 
