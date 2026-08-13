@@ -127,13 +127,26 @@ of 3.85550%, and 16-Jul-2026 with 3.87550% — and the golden master lands on th
 
 The Reference data tab's **Base rate curves** card manages the history:
 
+- **Every rate is editable in place.** Each cell in the history table is an input, as are the business
+  date and the note. Edits commit on blur, so typing and tabbing between cells are never interrupted, and
+  each one is audited with its old and new value. Re-dating a curve onto a date that already has one is
+  refused rather than silently merging.
+- **Add / update** — key in a dated curve, or **a single data point**: fill only the tenors you have and
+  the rest are left exactly as they were. Adding just a 6m fixing for a date that already carries a curve
+  updates the 6m and nothing else. A new date can hold one point on its own.
 - **Upload history (CSV/JSON)** — bulk-load past curves. CSV columns `date,1m,3m,6m,12m`, rates as
-  percentages; a row replaces any existing curve for that date. Incomplete or undated rows are skipped
-  and reported rather than half-loaded. *Download CSV template* gives the exact shape; *Export history*
-  round-trips everything.
-- **Add curve** — key in one dated curve directly. All four pillars are required.
+  percentages; blank cells are left untouched, so partial rows are fine. Rows with no date or no rates at
+  all are skipped and reported rather than half-loaded. *Download CSV template* gives the exact shape;
+  *Export history* round-trips everything.
 - The history table shows each curve's rates, source and **which trades read it, and in which role**
   ("trade date" or "pro forma"), so you can see what a curve is load-bearing for before deleting it.
+  Rows missing pillars say which.
+
+Partial curves are **allowed and flagged, never silently wrong**. A curve interpolates on whatever
+pillars it has, and pricing warns when the one it used is incomplete (`RATE.PARTIAL_CURVE`). The sharp
+case is a curve holding a single point: reading a 90-day rate off a lone 6m fixing is a flat read, not an
+interpolation, so it is labelled `SINGLE_PILLAR` and warned about explicitly rather than being passed off
+as an exact hit.
 
 **The model asks for what it is missing.** No curve on or before a date blocks pricing (`RATE.NO_CURVE`,
 `RATE.NO_CURVE_PF`); a curve that merely predates it prices but warns (`RATE.NOT_CURRENT`,

@@ -376,7 +376,7 @@ code,.mono{font-family:var(--mono);font-size:12px}
         <span class="tiny" id="curveMeta"></span>
       </div>
       <div id="curveAddBox"></div>
-      <p class="tiny" style="margin:0 0 8px">A trade prices off the latest curve published <b>on or before its Trade Date</b>, so the history below is the record. Rates are entered and shown as percentages.</p>
+      <p class="tiny" style="margin:0 0 8px">A trade prices off the latest curve published <b>on or before</b> the date it reads — the Trade Date for panels 3 and 4, the Pro Forma Issue Date for panel 2. Every rate below is editable in place; blank pillars are left untouched, so you can add a single data point for one date. Rates are percentages.</p>
       <div class="scroll" style="max-height:420px"><table id="curveTable"></table></div>
       <div class="toolbar" style="margin:12px 0 0">
         <label class="btn" style="display:inline-flex;align-items:center">Upload history (CSV/JSON)<input type="file" id="curveImportFile" accept=".csv,.json,text/csv,application/json" style="display:none"></label>
@@ -1043,7 +1043,9 @@ function interpolate(pillars, tenorDays){
   const x=Number(tenorDays);
   const exact=ps.find(p=>p.days===x);
   if(exact) return {rate:exact.rate, method:'EXACT_PILLAR', lower:exact, upper:exact};
-  if(ps.length===1) return {rate:ps[0].rate, method:'EXACT_PILLAR', lower:ps[0], upper:ps[0]};
+  // A single pillar cannot be interpolated: it is a flat read, and saying so matters.
+  if(ps.length===1) return {rate:ps[0].rate, method:x===ps[0].days?'EXACT_PILLAR':'SINGLE_PILLAR',
+                            lower:ps[0], upper:ps[0]};
   let lo,hi,method;
   if(x<ps[0].days){ lo=ps[0]; hi=ps[1]; method='LINEAR_EXTRAP'; }
   else if(x>ps[ps.length-1].days){ lo=ps[ps.length-2]; hi=ps[ps.length-1]; method='LINEAR_EXTRAP'; }
@@ -1215,6 +1217,11 @@ function validate(deal, trade, out, quotes, bd){
       if(key==='pf' && !pfOn) continue;
       const q=quotes[key]; if(!q) continue;
       if(q.method==='LINEAR_EXTRAP') W('RATE.EXTRAP', label+' rate is extrapolated beyond the observable pillars — off-curve pricing.');
+      if(q.method==='SINGLE_PILLAR') W('RATE.SINGLE_PILLAR', label+' dated '+fmtShort(q.businessDate)+
+        ' holds one pillar only, so the '+q.tenorDays+'-day rate is read flat off it rather than interpolated. Add the surrounding tenors.');
+      const gaps=missingTenors({pillars:q.pillars});
+      if(gaps.length && q.method!=='SINGLE_PILLAR') W('RATE.PARTIAL_CURVE', label+' dated '+fmtShort(q.businessDate)+
+        ' is missing the '+gaps.map(d=>d<360?d/30+'m':'1y').join(', ')+' pillar(s) — interpolation uses only what is present.');
       if(q.source==='MANUAL_OVERRIDE') W('RATE.OVERRIDE', label+' is a manual entry, not a feed value.');
     }
   }
@@ -1345,7 +1352,7 @@ function normalise(s){
     const merged=[], seen=new Set();
     for(const side of ['live','pf']){
       const v=held[side];
-      const list = Array.isArray(v) ? v : (v && curveComplete(v)
+      const list = Array.isArray(v) ? v : (v && curveUsable(v)
         ? [{businessDate:v.businessDate||WORKBOOK_CURVE_DATE, source:v.source||'MANUAL_OVERRIDE',
             overrideReason:v.overrideReason||'', pillars:v.pillars}] : []);
       for(const c of list){
@@ -1426,14 +1433,19 @@ function renderFunderList(){
 }
 const curvesFor = ccy => { const code=idxFor(ccy).index;
   if(!Array.isArray(store.curves[code])) store.curves[code]=[]; return store.curves[code]; };
-const curveComplete = c => !!c && Array.isArray(c.pillars) && c.pillars.length>0 &&
-  c.pillars.every(p=>String(p.rate)!=='' && Number(p.rate)>0);
+const STD_TENORS = [30,90,180,360];
+const pillarsSet = c => (c && Array.isArray(c.pillars) ? c.pillars : [])
+  .filter(p=>String(p.rate)!=='' && Number(p.rate)>0);
+/** Usable with a single data point — partial curves are allowed and flagged, not rejected. */
+const curveUsable = c => pillarsSet(c).length>0;
+const missingTenors = c => { const have=new Set(pillarsSet(c).map(p=>Number(p.days)));
+  return STD_TENORS.filter(d=>!have.has(d)); };
 const curveHistory = ccy => curvesFor(ccy).slice()
   .sort((a,b)=>a.businessDate.localeCompare(b.businessDate));
 /** The curve in force on a date: the latest complete one published on or before it. */
 function curveAsOf(ccy, dateISO){
   if(!isValidDate(dateISO)) return null;
-  const h=curveHistory(ccy).filter(c=>c.businessDate<=dateISO && curveComplete(c));
+  const h=curveHistory(ccy).filter(c=>c.businessDate<=dateISO && curveUsable(c));
   return h.length ? h[h.length-1] : null;
 }
 
@@ -1962,7 +1974,7 @@ function renderRates(){
           '<input type="number" step="0.00001" id="cd_'+d+'" style="min-width:96px" placeholder="—"></div>').join('')+
         '<div class="field-inline" style="flex:1"><label>Reason</label>'+
           '<input type="text" id="cd_reason" placeholder="source or note" style="flex:1"></div>'+
-        '<button class="btn primary" id="btnCurveAdd">Add curve</button>'+
+        '<button class="btn primary" id="btnCurveAdd">Add / update</button>'+
       '</div></div></div>';
 
   const usedBy={};
@@ -1972,26 +1984,41 @@ function renderRates(){
     tag(curveAsOf(d.currency, t.tradeDate), 'trade date');
     if(d.proformaEnabled!==false) tag(curveAsOf(d.currency, t.inputs.pfIssueDate), 'pro forma');
   }
-  const rows=hist.slice().reverse();
-  $('curveTable').innerHTML='<thead><tr><th>Business date</th><th class="n">1m</th><th class="n">3m</th>'+
-    '<th class="n">6m</th><th class="n">1y</th><th>Source</th><th>Used by trades</th><th></th></tr></thead><tbody>'+
-    (rows.length ? rows.map(c=>{
-      const at=d=>{ const p=c.pillars.find(x=>Number(x.days)===d);
-        return p && String(p.rate)!=='' ? D.of(p.rate).mul(100).toFixed(5)+'%' : '<span class="inline-tag err">—</span>'; };
-      const used=[...new Set(usedBy[c.businessDate]||[])];
-      return '<tr><td><b>'+fmtShort(c.businessDate)+'</b></td>'+
-        '<td class="n">'+at(30)+'</td><td class="n">'+at(90)+'</td><td class="n">'+at(180)+'</td><td class="n">'+at(360)+'</td>'+
-        '<td class="tiny">'+esc(c.source||'')+(c.overrideReason?'<br>'+esc(c.overrideReason):'')+'</td>'+
-        '<td class="tiny">'+(used.length?esc(used.join(', ')):'—')+'</td>'+
-        '<td class="n">'+(admin?'<button class="btn sm danger" data-del-curve="'+esc(c.businessDate)+'">Delete</button>':'')+'</td></tr>';
-    }).join('')
-     : '<tr><td colspan="8" class="tiny">No '+esc(idxFor(ccy).name)+' history yet. Upload a CSV or add a curve above.</td></tr>')+
-    '</tbody>';
+  // Leave the table alone while a cell has focus, so an in-progress edit is not wiped.
+  if(!$('curveTable').contains(document.activeElement)){
+    const rows=hist.slice().reverse();
+    const cell=(c,d)=>{
+      const p=c.pillars.find(x=>Number(x.days)===d);
+      const v=p && String(p.rate)!=='' ? D.of(p.rate).mul(100).toFixed(5) : '';
+      return admin
+        ? '<td class="n suffix" data-suffix="%"><input type="number" step="0.00001" placeholder="—"'+
+          ' data-curve-date="'+esc(c.businessDate)+'" data-curve-tenor="'+d+'" value="'+v+'"></td>'
+        : '<td class="n">'+(v!==''?v+'%':'<span class="inline-tag warn">—</span>')+'</td>';
+    };
+    $('curveTable').innerHTML='<thead><tr><th>Business date</th><th class="n">1m</th><th class="n">3m</th>'+
+      '<th class="n">6m</th><th class="n">1y</th><th>Source / note</th><th>Used by trades</th><th></th></tr></thead><tbody>'+
+      (rows.length ? rows.map(c=>{
+        const used=[...new Set(usedBy[c.businessDate]||[])];
+        const gaps=missingTenors(c);
+        return '<tr><td>'+(admin
+            ? '<input type="date" data-curve-date="'+esc(c.businessDate)+'" data-curve-prop="businessDate" value="'+esc(c.businessDate)+'" style="min-width:140px">'
+            : '<b>'+fmtShort(c.businessDate)+'</b>')+
+          (gaps.length?'<span class="note">missing '+gaps.map(d=>d<360?d/30+'m':'1y').join(', ')+'</span>':'')+'</td>'+
+          cell(c,30)+cell(c,90)+cell(c,180)+cell(c,360)+
+          '<td class="tiny">'+(admin
+            ? '<input type="text" data-curve-date="'+esc(c.businessDate)+'" data-curve-prop="overrideReason" value="'+esc(c.overrideReason||'')+'" placeholder="source or note" style="min-width:150px">'
+            : esc(c.source||'')+(c.overrideReason?'<br>'+esc(c.overrideReason):''))+'</td>'+
+          '<td class="tiny">'+(used.length?esc(used.join(', ')):'—')+'</td>'+
+          '<td class="n">'+(admin?'<button class="btn sm danger" data-del-curve="'+esc(c.businessDate)+'">Delete</button>':'')+'</td></tr>';
+      }).join('')
+       : '<tr><td colspan="8" class="tiny">No '+esc(idxFor(ccy).name)+' history yet. Upload a CSV or add a curve above.</td></tr>')+
+      '</tbody>';
+  }
 
   $('ratesBanners').innerHTML = admin ? '' :
     '<div class="banner info"><div><b>Read-only.</b> Curves and calendars are maintained by the <b>Rates Admin</b> role. Switch role in the header to edit. Every edit is written to the audit log.</div></div>';
 
-  const curveCell=c=>{ const h=curveHistory(c).filter(curveComplete);
+  const curveCell=c=>{ const h=curveHistory(c).filter(curveUsable);
     return h.length ? '<span class="inline-tag ok">'+h.length+' to '+fmtShort(h[h.length-1].businessDate)+'</span>'
                     : '<span class="inline-tag warn">none</span>'; };
   $('ccyTable').innerHTML='<thead><tr><th>Currency</th><th>Base rate index</th><th class="n">Day count</th><th>Curve history</th><th>Note</th></tr></thead><tbody>'+
@@ -2388,9 +2415,14 @@ function runTests(){
     T('Curve as of a gap date', curveAsOf('USD','2026-05-31').businessDate,'2026-03-10','latest on or before');
     T('Curve before the history', String(curveAsOf('USD','2025-12-31')),'null','nothing published yet');
     T('Curve picks that date’s rate', curveAsOf('USD','2026-05-31').pillars[2].rate,'0.030','not the newest curve');
-    T('Incomplete curves are skipped',
+    // A curve with some pillars is used (and flagged); one with none is skipped entirely.
+    T('Partial curve is still used',
       (()=>{ store.curves.TERM_SOFR.push(mk('2026-07-01',''));
-             return curveAsOf('USD','2026-07-05').businessDate; })(),'2026-06-01','every pillar must have a rate');
+             return curveAsOf('USD','2026-07-05').businessDate; })(),'2026-07-01','partial curves are allowed');
+    T('Rateless curve is skipped',
+      (()=>{ store.curves.TERM_SOFR.push({businessDate:'2026-08-01', source:'MANUAL_OVERRIDE', overrideReason:'',
+               pillars:STD_TENORS.map(d=>({days:d,rate:''}))});
+             return curveAsOf('USD','2026-08-05').businessDate; })(),'2026-07-01','no data points at all');
     store.curves.TERM_SOFR=saved;
   }
   // One index read at two dates reproduces the workbook's two interpolation tabs.
@@ -2399,6 +2431,30 @@ function runTests(){
   T('Curve at Trade Date',
     D.of(curveAsOf('USD',WORKBOOK_CURVE_DATE).pillars[2].rate).toFixed(7),'0.0387550',"'SOFR Interpolation'");
   T('One history, no side split', Array.isArray(store.curves.TERM_SOFR),'true','curves[index] is a flat list');
+  // Partial curves: usable, flagged, and never silently flat-quoted as an exact hit.
+  {
+    const one=[{days:180,rate:'0.04'}];
+    T('Single pillar at its own tenor', interpolate(one,180).method,'EXACT_PILLAR','one data point');
+    T('Single pillar at another tenor', interpolate(one,90).method,'SINGLE_PILLAR','flat read, flagged');
+    T('Single pillar rate is that point', interpolate(one,90).rate.toFixed(4),'0.0400','flat read');
+    const partial={pillars:[{days:90,rate:'0.037'},{days:180,rate:'0.039'}]};
+    T('Partial curve is usable', curveUsable(partial),'true','one point is enough');
+    T('Missing tenors reported', missingTenors(partial).join(','),'30,360','RATE.PARTIAL_CURVE');
+    T('Partial curve interpolates on what it has', interpolate(partial.pillars,135).method,'LINEAR_INTERP','between 3m and 6m');
+    T('Empty curve is unusable', curveUsable({pillars:[{days:180,rate:''}]}),'false','no data points');
+  }
+  // Adding one data point must not blank the rest of that date's curve.
+  {
+    const saved=JSON.parse(JSON.stringify(store.curves.TERM_SOFR));
+    putCurve('USD', WORKBOOK_CURVE_DATE, {180:'4.50000'}, null, null, true);
+    const c=curveAsOf('USD', WORKBOOK_CURVE_DATE);
+    T('Single point updates its tenor', D.of(c.pillars.find(p=>p.days===180).rate).toFixed(5),'0.04500','putCurve merge');
+    T('Single point leaves 1m alone', D.of(c.pillars.find(p=>p.days===30).rate).toFixed(7),'0.0364338','putCurve merge');
+    T('Single point leaves 1y alone', D.of(c.pillars.find(p=>p.days===360).rate).toFixed(7),'0.0403325','putCurve merge');
+    putCurve('USD','2030-01-02',{90:'3.00000'},null,null,true);
+    T('A new date can hold one point', pillarsSet(curveAsOf('USD','2030-01-02')).length,'1','partial curve created');
+    store.curves.TERM_SOFR=saved;
+  }
   {
     const deal={currency:'USD', proformaEnabled:true};
     const trade={tradeDate:WORKBOOK_CURVE_DATE, inputs:{...blankTradeInputs(), pfIssueDate:WORKBOOK_PF_CURVE_DATE, bladexDays:180}};
@@ -2710,15 +2766,29 @@ const TENOR_COLS = [['1m',30],['3m',90],['6m',180],['12m',360],['1y',360]];
 /** Add or replace one dated curve. Rates arrive as percentages. */
 function putCurve(ccy, businessDate, pctByTenor, source, reason, silent){
   const list = curvesFor(ccy);
-  const pillars = [30,90,180,360].map(d=>({days:d,
-    rate: pctByTenor[d]===undefined || pctByTenor[d]==='' ? '' : D.of(pctByTenor[d]).div(100).toFixed(12)}));
-  const idx = list.findIndex(c=>c.businessDate===businessDate);
-  const rec = {businessDate, source:source||'MANUAL_OVERRIDE', overrideReason:reason||'', pillars};
-  const replaced = idx>=0;
-  if(replaced) list[idx]=rec; else list.push(rec);
-  if(!silent) audit('rate_curve', idxFor(ccy).index,
-    replaced?'RATE_OVERRIDE':'CREATE', 'curve@'+businessDate,
-    replaced?'replaced':null, pillars.map(p=>p.rate).join('/'), reason||null);
+  let rec = list.find(c=>c.businessDate===businessDate);
+  const isNew = !rec;
+  if(isNew){
+    rec = {businessDate, source:source||'MANUAL_OVERRIDE', overrideReason:reason||'',
+           pillars:STD_TENORS.map(d=>({days:d, rate:''}))};
+    list.push(rec);
+  }
+  const before = rec.pillars.map(p=>p.days+':'+(p.rate||'—')).join(' ');
+  const touched=[];
+  for(const d of Object.keys(pctByTenor).map(Number).sort((a,b)=>a-b)){
+    const v=pctByTenor[d];
+    if(v===undefined || v==='') continue;           // absent means "leave alone", not "clear"
+    let p=rec.pillars.find(x=>Number(x.days)===d);
+    if(!p){ p={days:d, rate:''}; rec.pillars.push(p); }
+    p.rate = D.of(v).div(100).toFixed(12);
+    touched.push(d<360?d/30+'m':'1y');
+  }
+  rec.pillars.sort((a,b)=>a.days-b.days);
+  if(source) rec.source=source;
+  if(reason) rec.overrideReason=reason;
+  if(!silent) audit('rate_curve', idxFor(ccy).index, isNew?'CREATE':'RATE_OVERRIDE',
+    'curve@'+businessDate+' ['+touched.join(',')+']', isNew?null:before,
+    rec.pillars.map(p=>p.days+':'+(p.rate||'—')).join(' '), reason||null);
   return rec;
 }
 function addCurveFromForm(){
@@ -2726,10 +2796,10 @@ function addCurveFromForm(){
   const code=$('curvePicker').value, ccy=CURRENCIES.find(c=>idxFor(c).index===code)||'USD';
   const date=$('cd_date').value;
   if(!isValidDate(date)) return alert('A business date is required.');
-  const pct={}; let missing=[];
-  for(const d of [30,90,180,360]){ const v=$('cd_'+d).value.trim();
-    if(v==='' || !(Number(v)>0)) missing.push(d<360?d/30+'m':'1y'); pct[d]=v; }
-  if(missing.length) return alert('Every pillar needs a rate. Missing: '+missing.join(', '));
+  const pct={}; let given=0;
+  for(const d of STD_TENORS){ const v=$('cd_'+d).value.trim();
+    if(v!=='' && Number(v)>0){ pct[d]=v; given++; } }
+  if(!given) return alert('Enter at least one rate. Blank pillars are left as they are, so you can add a single data point.');
   putCurve(ccy, date, pct, 'MANUAL_OVERRIDE', $('cd_reason').value.trim());
   curveDraft={date:'', reason:''};
   render();
@@ -2769,16 +2839,16 @@ function importCurveText(text, fileName){
     const iDate = col('date')>=0?col('date'):col('business_date');
     if(iDate<0) throw new Error('No "date" column — expected date,1m,3m,6m,12m');
     const tenorAt={}; for(const [name,days] of TENOR_COLS){ const i=col(name); if(i>=0 && tenorAt[days]===undefined) tenorAt[days]=i; }
-    const missingCols=[30,90,180,360].filter(d=>tenorAt[d]===undefined);
-    if(missingCols.length) throw new Error('Missing rate column(s) for '+missingCols.map(d=>d<360?d/30+'m':'1y').join(', '));
+    if(!STD_TENORS.some(d=>tenorAt[d]!==undefined))
+      throw new Error('No rate columns found — expected at least one of 1m, 3m, 6m, 12m');
     for(const line of lines.slice(1)){
       const cells=line.split(',').map(x=>x.trim().replace(/^"|"$/g,''));
       const date=cells[iDate];
       if(!isValidDate(date)){ skipped.push(date||'(blank date)'); continue; }
-      const pct={}; let bad=false;
-      for(const d of [30,90,180,360]){ const v=(cells[tenorAt[d]]||'').replace('%','');
-        if(v==='' || !(Number(v)>0)) bad=true; pct[d]=v; }
-      if(bad){ skipped.push(date+' (incomplete)'); continue; }
+      const pct={}; let given=0;
+      for(const d of STD_TENORS){ const v=(cells[tenorAt[d]]||'').replace('%','');
+        if(v!=='' && Number(v)>0){ pct[d]=v; given++; } }
+      if(!given){ skipped.push(date+' (no rates)'); continue; }
       putCurve(ccy, date, pct, 'MANUAL_OVERRIDE', 'Uploaded from '+fileName, true); added++;
     }
   }
@@ -2804,6 +2874,45 @@ $('curvePicker').addEventListener('change', ()=>{ curveDraft={date:'',reason:''}
 $('curveAddBox').addEventListener('click', e=>{ if(e.target.closest('#btnCurveAdd')) addCurveFromForm(); });
 $('curveTable').addEventListener('click', e=>{
   const b=e.target.closest('button[data-del-curve]'); if(b) deleteCurve(b.dataset.delCurve);
+});
+/* Rebuild the table once focus actually leaves it: the change handler runs while the edited
+   input is still focused, so the render it triggers deliberately skips the table. */
+$('curveTable').addEventListener('focusout', ()=>{
+  setTimeout(()=>{ if(!$('curveTable').contains(document.activeElement)) render(); }, 0);
+});
+/* Edit any published rate in place. Committed on blur so typing is never interrupted. */
+$('curveTable').addEventListener('change', e=>{
+  const el=e.target; if(!el.dataset || !el.dataset.curveDate) return;
+  if(actor().role!=='Rates Admin'){ render(); return alert('Editing a curve requires the Rates Admin role.'); }
+  const code=$('curvePicker').value, ccy=CURRENCIES.find(c=>idxFor(c).index===code)||'USD';
+  const rec=curvesFor(ccy).find(c=>c.businessDate===el.dataset.curveDate);
+  if(!rec) return;
+  const tag=idxFor(ccy).index;
+
+  if(el.dataset.curveProp==='businessDate'){
+    const next=el.value;
+    if(!isValidDate(next)){ render(); return alert('Invalid date.'); }
+    if(next!==rec.businessDate && curvesFor(ccy).some(c=>c.businessDate===next)){
+      render(); return alert('A '+idxFor(ccy).name+' curve already exists for '+fmtShort(next)+'.'); }
+    const prev=rec.businessDate; rec.businessDate=next;
+    audit('rate_curve',tag,'UPDATE','curve.businessDate',prev,next,null);
+    return render();
+  }
+  if(el.dataset.curveProp==='overrideReason'){
+    const prev=rec.overrideReason||''; rec.overrideReason=el.value;
+    if(prev!==el.value) audit('rate_curve',tag,'UPDATE','curve@'+rec.businessDate+'.note',prev,el.value,null);
+    return render();
+  }
+  const d=Number(el.dataset.curveTenor);
+  let p=rec.pillars.find(x=>Number(x.days)===d);
+  if(!p){ p={days:d, rate:''}; rec.pillars.push(p); rec.pillars.sort((a,b)=>a.days-b.days); }
+  const prev=p.rate;
+  const raw=el.value.trim();
+  p.rate = (raw==='' || !(Number(raw)>0)) ? '' : D.of(raw).div(100).toFixed(12);
+  if(prev!==p.rate)
+    audit('rate_curve',tag,'RATE_OVERRIDE','curve@'+rec.businessDate+'.'+(d<360?d/30+'m':'1y'),
+      prev||'—', p.rate||'—', rec.overrideReason||'manual edit');
+  render();
 });
 $('btnCurveTemplate').onclick=()=>download('base-rate-curve-template.csv',
   'date,1m,3m,6m,12m\n2026-06-22,3.64338,3.72777,3.85550,4.03325\n2026-07-16,3.64338,3.72777,3.87550,4.03325\n','text/csv');
