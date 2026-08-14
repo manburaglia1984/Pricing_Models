@@ -39,6 +39,24 @@ that deal's trades. Row actions are **Configure** and **Delete**; the configurat
 right only when Configure is clicked, closes from its own button, and always shows whichever deal is
 selected.
 
+### Settled vs. outstanding, per deal
+
+Each deal row splits its book across four columns — **Settled**, **Settled value**, **Not settled** and
+**Not settled value** — so the count of trades and the money they carry are both readable per deal
+without opening anything. Value is the **IAA Purchase Price (B47)** of each trade, the same figure the
+trade list shows, summed in the deal's own currency.
+
+- *Settled* is the SETTLED state. *Not settled* is everything still live: DRAFT, PRICED, APPROVED, ISSUED.
+- **Cancelled trades are on neither side.** A cancelled trade will never settle, so counting it as
+  outstanding would overstate what is still to come; it is tallied beside the outstanding count as
+  `n cancelled` so the row still reconciles against the deal's full trade list.
+- A trade that cannot be priced right now — no base-rate curve published on or before its Trade Date, or
+  inputs that do not compute — is counted but adds no money, and says so as `+n not priced` rather than
+  being silently read as zero.
+
+A footer row totals the whole book. Money there is listed one currency at a time: this model holds no FX
+rate, so a BRL total and a USD total are never added into a single number.
+
 **Open** on a trade raises the **trade workspace** — a full overlay carrying everything specific to that
 trade:
 

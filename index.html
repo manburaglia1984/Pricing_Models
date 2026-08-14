@@ -155,7 +155,32 @@ tr.dealrow{cursor:pointer}
 tr.dealrow td{background:var(--panel-2);font-weight:600}
 tr.dealrow:hover td{background:var(--accent-soft)}
 tr.dealrow.sel td{background:var(--accent-soft);box-shadow:inset 3px 0 0 var(--accent)}
+/* Book-wide footer under the deal list. Not a dealrow — it selects nothing when clicked. */
+tr.booktotal td{border-top:2px solid var(--line-2);border-bottom:0;font-weight:600;background:var(--panel)}
+tr.booktotal:hover td{background:var(--panel)}
+tr.booktotal .ccy{display:block;font:600 11px/1.6 var(--mono);color:var(--ink-3)}
+/* The deal list carries four settlement columns now. Headers stay on one line and each
+   qualifier ("+1 not priced") drops under its number rather than wrapping through it;
+   the .scroll wrapper takes the extra width on a narrow screen. */
+#dealTable th{white-space:nowrap}
+#dealTable td.n .tiny{display:block;white-space:nowrap}
+/* Panel 1's totals sit in a row rather than four stacked label/value lines: the four figures are
+   short, and the table above them is what needs the vertical space. */
+.suptotals{display:flex;flex-wrap:wrap;gap:9px;margin-top:12px}
+.suptotals .t{flex:1 1 160px;min-width:0;display:flex;flex-direction:column;gap:3px;
+  padding:8px 11px;border:1px solid var(--line);border-radius:9px;background:var(--panel-2)}
+.suptotals .k{display:flex;align-items:center;gap:6px;font-size:10.5px;text-transform:uppercase;
+  letter-spacing:.05em;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.suptotals .k .f{position:static;font:600 9.5px/1.6 var(--mono);color:var(--ink-3)}
+.suptotals .v{font:680 15px/1.3 var(--mono);color:var(--ink);font-variant-numeric:tabular-nums}
+.suptotals .t.strong{border-color:var(--accent);background:var(--accent-soft)}
+.suptotals .t.strong .v,.suptotals .t.strong .k,.suptotals .t.strong .k .f{color:var(--accent)}
 .scroll{overflow-x:auto}
+/* Reference tables that would otherwise run for a screen and a half. The header row sticks
+   so the columns stay named while scrolling; its border has to be a shadow because a
+   sticky cell's own border scrolls away with the rows. */
+.scroll.capped{max-height:280px;overflow-y:auto}
+.scroll.capped th{position:sticky;top:0;z-index:1;border-bottom:0;box-shadow:inset 0 -1px 0 var(--line)}
 code,.mono{font-family:var(--mono);font-size:12px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 @media (max-width:820px){.grid2{grid-template-columns:1fr}}
@@ -187,7 +212,7 @@ code,.mono{font-family:var(--mono);font-size:12px}
     <button class="btn sm" id="themeBtn" title="Cycle system / dark / light theme">Theme</button>
   </div>
   <nav class="tabs" id="tabs">
-    <button data-view="deals" aria-selected="true">Deals</button>
+    <button data-view="deals" aria-selected="true">Deals &amp; Trades</button>
     <button data-view="rates">Reference data</button>
     <button data-view="audit">Audit log</button>
     <button data-view="tests">Parity tests</button>
@@ -247,12 +272,17 @@ code,.mono{font-family:var(--mono);font-size:12px}
       </div>
 
       <div class="card">
-        <h2>1 — Supplier Invoice <span class="src">Cantu!A7:C10</span></h2>
+        <h2>1 — Supplier Invoices <span class="src">Cantu!A7:C10</span></h2>
         <div class="body">
-          <div class="row"><div class="lbl">Issue Date<span class="note">Supplier Invoice Issue Date</span></div><div class="cell"><input type="date" class="in" id="f_supIssue" data-field="supplierIssueDate"></div></div>
-          <div class="row"><div class="lbl">Tenor (days)<span class="note">Hardcoded as +30 in the workbook (B9); editable here</span></div><div class="cell"><input type="number" class="in" id="f_supTenor" data-field="supplierTenorDays" min="1" step="1"></div></div>
-          <div class="row"><div class="lbl">Payment Date<span class="note">Supplier Invoice Maturity Date</span></div><div class="cell"><span class="calc" id="o_supPay" title="B9 = B8 + supplier tenor"><span class="f">B9</span>—</span></div></div>
-          <div class="row"><div class="lbl">Supplier Invoice Amount<span class="note" id="supAmountNote">Amount from the Supplier Invoice</span></div><div class="cell suffix" id="supAmountWrap" data-suffix="$"><input type="number" class="in" id="f_supAmount" data-field="supplierAmount" step="0.01" min="0"></div></div>
+          <div class="scroll"><table id="supInvTable"></table></div>
+          <div class="toolbar" style="margin:10px 0 4px">
+            <button class="btn" id="btnSupInvAdd">+ Add supplier invoice</button>
+            <label class="btn" style="display:inline-flex;align-items:center">Upload invoices (CSV)<input type="file" id="supInvImportFile" accept=".csv,text/csv" style="display:none"></label>
+            <button class="btn" id="btnSupInvTemplate">CSV template</button>
+            <span class="tiny">Every block prices off the total. A row's Payment Date is its own Issue Date + tenor.</span>
+          </div>
+          <p class="tiny" id="supInvHelp" style="margin:2px 0 0">CSV columns: <code>invoice number, supplier name, jurisdiction, issue date, tenor days, amount</code>. Give a <code>payment date</code> instead of a tenor and the tenor is worked out from it. Jurisdiction takes a code (<code>BR</code>) or a name (<code>Brazil</code>); dates and delimiters are read as loosely as on the curve upload.</p>
+          <div id="supInvTotals"></div>
         </div>
       </div>
 
@@ -353,22 +383,6 @@ code,.mono{font-family:var(--mono);font-size:12px}
 <section class="view" id="view-rates">
   <div id="ratesBanners"></div>
   <div class="card">
-    <h2>Clients <span class="src">monday.com · Global Pipeline</span></h2>
-    <div class="body">
-      <div id="clientSourceBox"></div>
-      <div class="toolbar">
-        <button class="btn" id="btnSyncMonday">Refresh from monday.com</button>
-        <label class="btn" style="display:inline-flex;align-items:center">Import JSON<input type="file" id="clientImportFile" accept="application/json" style="display:none"></label>
-        <button class="btn" id="btnClientExport">Export JSON</button>
-        <div class="field-inline" style="margin-left:auto"><label for="clientFilter">Filter</label>
-          <input type="text" id="clientFilter" placeholder="name or country" style="min-width:170px"></div>
-      </div>
-      <p class="tiny" style="margin:0 0 10px">A refresh asks for a monday.com API token, uses it for that one request and never stores it — not in this file, not in localStorage. Because the token grants full account access, prefer <b>Import JSON</b> or a server-side sync for shared copies. Browsers block the direct call from a <code>file://</code> page; serve this file over http(s) for it to work.</p>
-      <div class="scroll" style="max-height:380px"><table id="clientTable"></table></div>
-    </div>
-  </div>
-
-  <div class="card">
     <h2>Base rate curves <span class="src">'SOFR Interpolation' generalised per currency</span></h2>
     <div class="body">
       <div class="toolbar">
@@ -383,20 +397,36 @@ code,.mono{font-family:var(--mono);font-size:12px}
         <button class="btn" id="btnCurveTemplate">Download CSV template</button>
         <button class="btn" id="btnCurveExport">Export history (JSON)</button>
       </div>
-      <p class="tiny" style="margin:8px 0 0">CSV columns: <code>date,1m,3m,6m,12m</code>; extra columns are ignored. A row replaces any existing curve for that date. There is one curve per index — the pro forma block simply reads it at its own issue date.</p>
+      <p class="tiny" style="margin:8px 0 0">CSV columns are <code>date</code> plus the pillars the selected index publishes — <code>1m,3m,6m,12m</code> for Term SOFR, <code>28d,91d,182d</code> for TIIE, and so on; the template above always matches. Columns belonging to another index are ignored and named in the confirmation. Dates may be <code>2026-06-22</code>, <code>6/22/2026</code>, <code>22/06/2026</code> or <code>22-Jun-2026</code> — whatever Excel left behind — and semicolon files with comma decimals are read too. A row replaces any existing curve for that date. There is one curve per index — the pro forma block simply reads it at its own issue date.</p>
     </div>
   </div>
 
   <div class="card">
     <h2>Currencies &amp; base rates</h2>
-    <div class="body"><div class="scroll"><table id="ccyTable"></table></div></div>
+    <div class="body"><div class="scroll capped"><table id="ccyTable"></table></div></div>
+  </div>
+
+  <div class="card">
+    <h2>Clients <span class="src">monday.com · Global Pipeline</span></h2>
+    <div class="body">
+      <div id="clientSourceBox"></div>
+      <div class="toolbar">
+        <button class="btn" id="btnSyncMonday">Refresh from monday.com</button>
+        <label class="btn" style="display:inline-flex;align-items:center">Import JSON<input type="file" id="clientImportFile" accept="application/json" style="display:none"></label>
+        <button class="btn" id="btnClientExport">Export JSON</button>
+        <div class="field-inline" style="margin-left:auto"><label for="clientFilter">Filter</label>
+          <input type="text" id="clientFilter" placeholder="name or country" style="min-width:170px"></div>
+      </div>
+      <p class="tiny" style="margin:0 0 10px">A refresh asks for a monday.com API token, uses it for that one request and never stores it — not in this file, not in localStorage. Because the token grants full account access, prefer <b>Import JSON</b> or a server-side sync for shared copies. Browsers block the direct call from a <code>file://</code> page; serve this file over http(s) for it to work.</p>
+      <div class="scroll capped" style="max-height:380px"><table id="clientTable"></table></div>
+    </div>
   </div>
 
   <div class="card">
     <h2>Holiday calendars <span class="src">BD Dates!B19:K200</span></h2>
     <div class="body">
       <p class="tiny" style="margin:8px 0 12px">Coverage is the last known-good date per jurisdiction. A maturity date beyond coverage hard-blocks pricing — it is never silently passed. Which of these apply is set per deal, above. Source URLs are the official publishers; replace them with the verbatim URLs recorded as cell notes on <code>BD Dates!B19:E19</code> if those differ.</p>
-      <div class="scroll"><table id="calTable"></table></div>
+      <div class="scroll capped"><table id="calTable"></table></div>
     </div>
   </div>
 </section>
@@ -538,16 +568,30 @@ const todayISO = () => dFmt(Date.now());
    Currency is a deal-level choice. It selects the base-rate index AND the day-count
    basis: the workbook hardcodes /360, which is right for Term SOFR and EURIBOR but
    wrong for a 365-basis index such as Term SONIA. */
+/* `tenors` is the grid of pillars each index actually publishes, in days. Only Term SOFR and
+   Term SONIA quote the 1m/3m/6m/12m set the workbook assumed: EURIBOR adds a 1-week fixing,
+   TIIE is a 28/91/182-day convention with no 1-year, IBR runs overnight to 6m, and SARON and
+   CDI are overnight rates with compounded terms above them. A curve carries its own index's
+   pillars and nothing else, so a gap means a fixing is genuinely missing rather than a column
+   that never existed. Interpolation reads whatever pillars are present, so changing a list
+   here changes the entry grid and the CSV shape without touching the pricing engine. */
 const RATE_INDICES = {
-  USD:{index:'TERM_SOFR',  name:'Term SOFR',  basis:360, symbol:'$'},
-  EUR:{index:'EURIBOR',    name:'EURIBOR',    basis:360, symbol:'€'},
-  GBP:{index:'TERM_SONIA', name:'Term SONIA', basis:365, symbol:'£'},
-  MXN:{index:'TIIE',       name:'TIIE',       basis:360, symbol:'MX$'},
-  COP:{index:'IBR',        name:'IBR',        basis:360, symbol:'COL$'},
-  CHF:{index:'SARON',      name:'SARON',      basis:360, symbol:'CHF '},
-  BRL:{index:'CDI',        name:'CDI',        basis:360, symbol:'R$',
-       conventionNote:'CDI is quoted on a 252-business-day compounded basis. This model applies the workbook’s simple ACT/360 discount, so a BRL price is indicative only — confirm the convention with Bladex before use.'},
+  USD:{index:'TERM_SOFR',  name:'Term SOFR',  basis:360, symbol:'$',     tenors:[30,90,180,360]},
+  EUR:{index:'EURIBOR',    name:'EURIBOR',    basis:360, symbol:'€',     tenors:[7,30,90,180,360]},
+  GBP:{index:'TERM_SONIA', name:'Term SONIA', basis:365, symbol:'£',     tenors:[30,90,180,360]},
+  MXN:{index:'TIIE',       name:'TIIE',       basis:360, symbol:'MX$',   tenors:[28,91,182],
+       conventionNote:'Banxico publishes TIIE at 28, 91 and 182 days. There is no 1-year fixing, so a tenor beyond 182 days is extrapolated and flagged as such.'},
+  COP:{index:'IBR',        name:'IBR',        basis:360, symbol:'COL$',  tenors:[1,30,90,180],
+       conventionNote:'Banco de la República publishes IBR overnight and at 1, 3 and 6 months. Nothing is quoted beyond 6 months.'},
+  CHF:{index:'SARON',      name:'SARON',      basis:360, symbol:'CHF ',  tenors:[1,30,90,180,360],
+       conventionNote:'SARON itself is the overnight fixing; the 1m–12m pillars are the compounded SARON terms (SAR1MC … SAR12MC).'},
+  BRL:{index:'CDI',        name:'CDI',        basis:360, symbol:'R$',    tenors:[1,30,90,180,360],
+       conventionNote:'CDI is an overnight rate quoted on a 252-business-day compounded basis, with the term pillars implied from DI futures. This model applies the workbook’s simple ACT/360 discount, so a BRL price is indicative only — confirm the convention with Bladex before use.'},
 };
+/* Tenors are held in days so they sort and interpolate; these are the names desks use for them. */
+const TENOR_LABELS = {1:'O/N', 7:'1w', 14:'2w', 28:'28d', 30:'1m', 60:'2m', 90:'3m', 91:'91d',
+  180:'6m', 182:'182d', 270:'9m', 360:'12m'};
+const tenorLabel = d => TENOR_LABELS[Number(d)] || Number(d)+'d';
 const CURRENCIES = Object.keys(RATE_INDICES);
 const idxFor   = ccy => RATE_INDICES[ccy] || RATE_INDICES.USD;
 const basisFor = ccy => idxFor(ccy).basis;
@@ -1061,10 +1105,31 @@ function interpolate(pillars, tenorDays){
  *  output is null and no pro forma rate is required. Panel 2 is a leaf: panels 3-5 and the
  *  Offer File read only the supplier amount, the TradeCo inputs, the Bladex inputs and the
  *  live curve, so disabling it leaves B27:B53 bit-for-bit identical. */
+/** A trade may carry several supplier invoices. They reduce to the four figures the model
+ *  prices off: the total amount (B10), the earliest issue date, the latest payment date (B9)
+ *  and how many invoices there are. A trade saved before invoices were a list is read through
+ *  the same function via its flat fields, so the engine keeps one contract and the golden
+ *  master still exercises it. Blank rows contribute zero rather than being dropped — the count
+ *  is what the trade holds, and validation is what says a row is incomplete. */
+function supplierTotals(i){
+  const rows = Array.isArray(i.supplierInvoices) && i.supplierInvoices.length
+    ? i.supplierInvoices
+    : [{issueDate:i.supplierIssueDate, tenorDays:i.supplierTenorDays, amount:i.supplierAmount}];
+  let amount=ZERO, firstIssueDate=null, lastPaymentDate=null;
+  for(const v of rows){
+    amount = amount.add(D.of(v.amount||0));
+    if(!isValidDate(v.issueDate)) continue;
+    if(!firstIssueDate || v.issueDate < firstIssueDate) firstIssueDate = v.issueDate;
+    const pay = dAdd(v.issueDate, Number(v.tenorDays||0));
+    if(!lastPaymentDate || pay > lastPaymentDate) lastPaymentDate = pay;
+  }
+  return {count:rows.length, amount, firstIssueDate, lastPaymentDate, rows};
+}
 function price(i, q){
   const BASIS = D.of(i.dayCountBasis || 360);
-  const supplierAmount = D.of(i.supplierAmount);
-  const supplierPaymentDate = dAdd(i.supplierIssueDate, Number(i.supplierTenorDays));
+  const sup = supplierTotals(i);
+  const supplierAmount = sup.amount;                                                     // B10
+  const supplierPaymentDate = sup.lastPaymentDate;                                       // B9
 
   const pfOn = i.pfEnabled !== false;
   let pfMaturityDate=null, pfRate=null, pfMarkup=null, pfDays=null, pfFactor=null,
@@ -1103,6 +1168,7 @@ function price(i, q){
   const payToTradeCo = purchasePrice.sub(payToSupplier).sub(payToCantuAgency);           // B53
 
   return { supplierPaymentDate, supplierAmount, pfOn, dayCountBasis:Number(i.dayCountBasis||360),
+    supplierInvoiceCount:sup.count, supplierFirstIssueDate:sup.firstIssueDate,
     pfMaturityDate, pfRate, pfMarkup, pfFactor, pfDays, pfInvoice1, pfInvoice2, pfTotal,
     tcTenorDays, tcMaturityDate, liveRate, tcMarkup, tcFactor, tcDays, tcInvoice1, tcInvoice2, tcTotal,
     faceValue, iaaMaturityDate, bladexCostOfFunds, iaaFactor, purchasePrice,
@@ -1154,12 +1220,44 @@ function validate(deal, trade, out, quotes, bd){
       '" at version '+trade.versionNo+'.');
   if(!String(trade.obligor||'').trim()) E('TRADE.OBLIGOR','Relevant Obligor is required (Offer File!A3).');
 
-  for(const [k,lbl,needed] of [['supplierIssueDate','Supplier Invoice Issue Date',true],['pfIssueDate','Pro Forma Issue Date',pfOn],
+  for(const [k,lbl,needed] of [['pfIssueDate','Pro Forma Issue Date',pfOn],
                         ['tcIssueDate','TradeCo Invoice Issue Date',true],['bladexSettlementDate',FUNDER+' Settlement Date',true]])
     if(needed && !isValidDate(i[k])) E('DATE.REQUIRED', lbl+' is required.');
 
-  if(!(D.of(i.supplierAmount||0).gt(ZERO))) E('AMT.POSITIVE','Supplier Invoice Amount must be greater than zero (Cantu!B10).');
-  if(Number(i.supplierTenorDays)<1) E('TENOR.SUPPLIER','Supplier tenor must be at least 1 day.');
+  // ---- supplier invoices ----
+  const invoices = i.supplierInvoices || [];
+  if(!invoices.length)
+    E('SUP.NONE','At least one supplier invoice is required — their total is Cantu!B10, which every block prices off.');
+  invoices.forEach((v,n)=>{
+    const who = 'Supplier invoice '+(n+1)+(String(v.name||'').trim()?' ('+String(v.name).trim()+')':'');
+    if(!isValidDate(v.issueDate)) E('DATE.REQUIRED', who+': Issue Date is required.');
+    if(Number(v.tenorDays)<1) E('TENOR.SUPPLIER', who+': tenor must be at least 1 day.');
+    if(!(D.of(v.amount||0).gt(ZERO))) E('AMT.POSITIVE', who+': amount must be greater than zero (Cantu!B10).');
+    // Name and jurisdiction do not change a number, so they are flagged rather than blocking:
+    // a trade migrated from the single-invoice model has neither and must still price.
+    if(!String(v.name||'').trim()) W('NOTE.SUP_NAME','Supplier invoice '+(n+1)+' has no Supplier Name.');
+    if(!String(v.invoiceNumber||'').trim()) W('NOTE.SUP_NUMBER','Supplier invoice '+(n+1)+' has no Invoice Number.');
+    else {
+      // Two rows quoting one invoice number for one supplier is how the same invoice gets funded
+      // twice. Flagged rather than blocked: a genuine invoice can legitimately arrive in tranches.
+      const dup=invoices.findIndex(x=>x!==v &&
+        String(x.invoiceNumber||'').trim().toLowerCase()===String(v.invoiceNumber).trim().toLowerCase() &&
+        String(x.name||'').trim().toLowerCase()===String(v.name||'').trim().toLowerCase());
+      if(dup>=0 && dup<n) W('NOTE.SUP_DUPLICATE','Supplier invoices '+(dup+1)+' and '+(n+1)+
+        ' both quote invoice number "'+String(v.invoiceNumber).trim()+'"'+
+        (String(v.name||'').trim()?' from '+String(v.name).trim():'')+
+        ' — confirm this is not the same invoice counted twice.');
+    }
+    if(!String(v.jurisdiction||'').trim())
+      W('NOTE.SUP_JURISDICTION', who+' has no Supplier Jurisdiction.');
+    else if(!(deal.jurisdictions||[]).includes(v.jurisdiction))
+      W('NOTE.SUP_JURISDICTION', who+' is in '+((CALENDARS[v.jurisdiction]||{}).name||v.jurisdiction)+
+        ", which is not one of the deal's associated jurisdictions, so its dates are checked against no calendar.");
+  });
+  if(invoices.length>1 && out)
+    W('NOTE.SUP_MULTI', invoices.length+' supplier invoices totalling '+money(out.supplierAmount,deal.currency)+
+      ' are priced as one position: B10 is their sum, B8 the earliest issue date and B9 the latest payment date ('+
+      fmtShort(out.supplierPaymentDate)+').');
   if(pfOn && Number(i.pfTenorDays)<1) E('TENOR.PF','Pro Forma tenor must be at least 1 day (Cantu!B14).');
   if(Number(i.bladexDays)<1) E('TENOR.BLADEX',FUNDER+' Days must be at least 1 (Cantu!B41).');
 
@@ -1219,16 +1317,16 @@ function validate(deal, trade, out, quotes, bd){
       if(q.method==='LINEAR_EXTRAP') W('RATE.EXTRAP', label+' rate is extrapolated beyond the observable pillars — off-curve pricing.');
       if(q.method==='SINGLE_PILLAR') W('RATE.SINGLE_PILLAR', label+' dated '+fmtShort(q.businessDate)+
         ' holds one pillar only, so the '+q.tenorDays+'-day rate is read flat off it rather than interpolated. Add the surrounding tenors.');
-      const gaps=missingTenors({pillars:q.pillars});
+      const gaps=missingTenors({pillars:q.pillars}, q.currency);
       if(gaps.length && q.method!=='SINGLE_PILLAR') W('RATE.PARTIAL_CURVE', label+' dated '+fmtShort(q.businessDate)+
-        ' is missing the '+gaps.map(d=>d<360?d/30+'m':'1y').join(', ')+' pillar(s) — interpolation uses only what is present.');
+        ' is missing the '+gaps.map(tenorLabel).join(', ')+' pillar(s) — interpolation uses only what is present.');
       if(q.source==='MANUAL_OVERRIDE') W('RATE.OVERRIDE', label+' is a manual entry, not a feed value.');
     }
   }
 
   // Workbook column-C business notes, as soft checks.
-  if(pfOn && isValidDate(i.supplierIssueDate) && isValidDate(i.pfIssueDate)){
-    const supPay = dAdd(i.supplierIssueDate, Number(i.supplierTenorDays||0));
+  const supPay = supplierTotals(i).lastPaymentDate;
+  if(pfOn && isValidDate(supPay) && isValidDate(i.pfIssueDate)){
     const gap = dDiff(supPay, i.pfIssueDate);
     // Threshold is 30 days: the workbook's own reference deal runs 24, so a tighter bound
     // would fire on the golden case. Tighten once the rule is confirmed.
@@ -1255,8 +1353,13 @@ const LS_KEY='cantu-pricing-model-v2', LS_KEY_V1='cantu-pricing-model-v1';
 const uuid = () => (crypto.randomUUID ? crypto.randomUUID()
   : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return (c==='x'?r:(r&0x3|0x8)).toString(16);}));
 
+/** One row of panel 1. Name and jurisdiction are new; the rest are the workbook's B8/B9/B10. */
+function newSupplierInvoice(seed){
+  return {id:uuid(), invoiceNumber:'', name:'', jurisdiction:'', issueDate:'', tenorDays:30, amount:'', ...(seed||{})};
+}
 function blankTradeInputs(){
-  return { supplierIssueDate:'2026-06-16', supplierTenorDays:30, supplierAmount:'850000',
+  return { supplierInvoices:[newSupplierInvoice({invoiceNumber:'INV-0001', name:'Cantu Supplier',
+             jurisdiction:'BR', issueDate:'2026-06-16', tenorDays:30, amount:'850000'})],
     pfIssueDate:'2026-06-22', pfTenorDays:180, pfMargin:MARKET_DEFAULTS.margin, pfAgencyFee:MARKET_DEFAULTS.agencyFee,
     tcIssueDate:'2026-07-16', tcMargin:MARKET_DEFAULTS.margin, tcAgencyFee:MARKET_DEFAULTS.agencyFee,
     bladexSettlementDate:'2026-07-16', bladexDays:180, bladexMargin:MARKET_DEFAULTS.bladexMargin, legalFees:'0' };
@@ -1342,6 +1445,19 @@ function normalise(s){
   }
   for(const t of s.trades){
     delete t.inputs.pfEnabled;
+    // Panel 1 held exactly one invoice before; those flat fields become the first row.
+    if(!Array.isArray(t.inputs.supplierInvoices))
+      t.inputs.supplierInvoices = [newSupplierInvoice({
+        issueDate: t.inputs.supplierIssueDate || '',
+        tenorDays: Number(t.inputs.supplierTenorDays || 30),
+        amount: String(t.inputs.supplierAmount ?? '')})];
+    delete t.inputs.supplierIssueDate; delete t.inputs.supplierTenorDays; delete t.inputs.supplierAmount;
+    for(const v of t.inputs.supplierInvoices){
+      if(!v.id) v.id = uuid();
+      if(v.invoiceNumber===undefined) v.invoiceNumber='';
+      if(v.name===undefined) v.name='';
+      if(v.jurisdiction===undefined) v.jurisdiction='';
+    }
     if(!t.tradeDate) t.tradeDate = t.inputs.bladexSettlementDate || todayISO();
     if(!t.funder) t.funder = 'Bladex';
   }
@@ -1433,13 +1549,22 @@ function renderFunderList(){
 }
 const curvesFor = ccy => { const code=idxFor(ccy).index;
   if(!Array.isArray(store.curves[code])) store.curves[code]=[]; return store.curves[code]; };
-const STD_TENORS = [30,90,180,360];
+/** The pillars this currency's index publishes. */
+const tenorsFor = ccy => idxFor(ccy).tenors || [30,90,180,360];
+/** Columns for one index's entry table: its published pillars, plus any other tenor a stored
+    curve actually carries, so a rate loaded under an older grid never becomes invisible. */
+function tenorColumns(ccy){
+  const set=new Set(tenorsFor(ccy));
+  for(const c of curvesFor(ccy)) for(const p of (c.pillars||[]))
+    if(String(p.rate)!=='') set.add(Number(p.days));
+  return [...set].sort((a,b)=>a-b);
+}
 const pillarsSet = c => (c && Array.isArray(c.pillars) ? c.pillars : [])
   .filter(p=>String(p.rate)!=='' && Number(p.rate)>0);
 /** Usable with a single data point — partial curves are allowed and flagged, not rejected. */
 const curveUsable = c => pillarsSet(c).length>0;
-const missingTenors = c => { const have=new Set(pillarsSet(c).map(p=>Number(p.days)));
-  return STD_TENORS.filter(d=>!have.has(d)); };
+const missingTenors = (c, ccy) => { const have=new Set(pillarsSet(c).map(p=>Number(p.days)));
+  return tenorsFor(ccy).filter(d=>!have.has(d)); };
 const curveHistory = ccy => curvesFor(ccy).slice()
   .sort((a,b)=>a.businessDate.localeCompare(b.businessDate));
 /** The curve in force on a date: the latest complete one published on or before it. */
@@ -1485,6 +1610,36 @@ function computeAll(deal, trade){
   }
   const v=validate(deal, trade, out, q, bd);
   return {out, quotes:q, bd, calcError, ...v};
+}
+
+/** The money one trade carries: its IAA Purchase Price (B47), the same figure the trade list
+ *  shows. Null when the trade cannot be priced — no curve on its Trade Date, or inputs that
+ *  do not compute. Deliberately lighter than computeAll: the deal list wants the number, not
+ *  the validation, and it prices every trade in the book on each render. */
+function tradeValue(deal, trade){
+  const q=effectiveQuotes(deal,trade);
+  if(!q) return null;
+  try{ return price(effectiveInputs(deal,trade), {pfRate:q.pf?q.pf.rate:null, liveRate:q.live.rate}).purchasePrice; }
+  catch(e){ return null; }
+}
+
+/** Split a deal's trades into settled and still outstanding, with the count and the money on
+ *  each side, in the deal's own currency.
+ *  A CANCELLED trade is on neither side: it will never settle, so counting it as outstanding
+ *  would overstate what is still to come. It is tallied separately so the row still adds up.
+ *  Trades that cannot be priced are counted but contribute no money, and are reported as such
+ *  rather than silently read as zero. */
+function settlementTotals(deal){
+  const side = () => ({n:0, value:ZERO, unpriced:0});
+  const acc = {settled:side(), open:side(), cancelled:0};
+  for(const t of tradesOf(deal.id)){
+    if(t.state==='CANCELLED'){ acc.cancelled++; continue; }
+    const s = t.state==='SETTLED' ? acc.settled : acc.open;
+    s.n++;
+    const v=tradeValue(deal,t);
+    if(v!=null) s.value=s.value.add(v); else s.unpriced++;
+  }
+  return acc;
 }
 
 /* ---------------------------- lifecycle ---------------------------- */
@@ -1638,9 +1793,8 @@ const setCalc = (id, text, bad) => { const el=$(id); if(!el) return;
   const f=el.querySelector('.f'); el.textContent=text; if(f) el.prepend(f); el.classList.toggle('bad', !!bad); };
 
 const PCT_FIELDS = new Set(['pfMargin','pfAgencyFee','tcMargin','tcAgencyFee','bladexMargin']);
-const INT_FIELDS = new Set(['supplierTenorDays','pfTenorDays','bladexDays']);
+const INT_FIELDS = new Set(['pfTenorDays','bladexDays']);
 const TRADE_FIELD_IDS = {
-  supplierIssueDate:'f_supIssue', supplierTenorDays:'f_supTenor', supplierAmount:'f_supAmount',
   pfIssueDate:'f_pfIssue', pfTenorDays:'f_pfTenor', pfMargin:'f_pfMargin', pfAgencyFee:'f_pfAgency',
   tcIssueDate:'f_tcIssue', tcMargin:'f_tcMargin', tcAgencyFee:'f_tcAgency',
   bladexSettlementDate:'f_bladexSettle', bladexDays:'f_bladexDays', bladexMargin:'f_bladexMargin', legalFees:'f_legalFees'};
@@ -1758,7 +1912,7 @@ function render(){
     $('dealCaption').textContent='No deals';
     configOpen=false;
     renderDeals(); renderClients(); renderAudit(); renderAbout();
-    $('topBanners').innerHTML='<div class="banner warn"><div><b>No deals.</b> Create one on the Deals tab.</div></div>';
+    $('topBanners').innerHTML='<div class="banner warn"><div><b>No deals.</b> Create one on the Deals &amp; Trades tab.</div></div>';
     $('dealContextBox').innerHTML=''; closeTradeModal_silent();
     for(const id of ['btnPrice','btnApprove','btnIssue','btnSettle','btnCancel','btnNewTradeFromDeals','btnDupTrade','btnVersion'])
       { const el=$(id); if(el) el.disabled=true; }
@@ -1804,15 +1958,165 @@ function renderHeader(d,t,r){
     (t?' · version '+t.versionNo+' · created by '+esc(t.createdBy):'')+'</small>';
 }
 
+/* Panel 1 is a list, so it is rebuilt rather than bound field-by-field. The rebuild is skipped
+   while a cell holds focus — otherwise the render that every keystroke triggers would tear the
+   input out from under the caret — and the derived cells are refreshed in place instead. */
+function renderSupplierInvoices(d,t){
+  const box=$('supInvTable'); if(!box) return;
+  const locked=!t || LOCKED(t.state), rows=(t&&t.inputs.supplierInvoices)||[];
+  const ccy=d.currency, sym=idxFor(ccy).symbol.trim()||ccy;
+  const jurCell=v=>{
+    if(locked) return esc((CALENDARS[v.jurisdiction]||{}).name || v.jurisdiction || '—');
+    return '<select class="in" data-sup-id="'+esc(v.id)+'" data-sup-field="jurisdiction" style="min-width:128px">'+
+      '<option value="">— none —</option>'+
+      REGIONS.map(region=>{
+        const codes=ALL_JURISDICTIONS.filter(c=>CALENDARS[c].region===region);
+        if(!codes.length) return '';
+        return '<optgroup label="'+esc(region)+'">'+codes.map(c=>'<option value="'+c+'"'+
+          (c===v.jurisdiction?' selected':'')+'>'+esc(CALENDARS[c].name)+' ('+c+')</option>').join('')+'</optgroup>';
+      }).join('')+'</select>';
+  };
+  const txt=(v,field,type,extra)=>locked
+    ? esc(field==='amount' ? money(D.of(v.amount||0),ccy) : (v[field]===''||v[field]==null ? '—' : String(v[field])))
+    : '<input type="'+type+'" class="in" data-sup-id="'+esc(v.id)+'" data-sup-field="'+field+'" value="'+
+      esc(v[field]??'')+'"'+(extra||'')+'>';
+  box.innerHTML='<thead><tr><th>Invoice No.</th><th>Supplier Name</th><th>Jurisdiction</th><th>Issue Date</th>'+
+    '<th class="n">Tenor (d)</th><th class="n" style="white-space:nowrap">Payment Date</th><th class="n">Amount ('+esc(sym)+')</th><th></th></tr></thead><tbody>'+
+    (rows.length ? rows.map(v=>
+      '<tr><td>'+txt(v,'invoiceNumber','text',' placeholder="INV-0001" style="min-width:98px"')+'</td>'+
+      '<td>'+txt(v,'name','text',' placeholder="Supplier legal name" style="min-width:148px"')+'</td>'+
+      '<td>'+jurCell(v)+'</td>'+
+      '<td>'+txt(v,'issueDate','date',' style="min-width:140px"')+'</td>'+
+      '<td class="n">'+txt(v,'tenorDays','number',' min="1" step="1" style="min-width:78px;text-align:right"')+'</td>'+
+      '<td class="n" style="white-space:nowrap"><span class="calc" data-sup-pay="'+esc(v.id)+'" title="Issue Date + tenor">—</span></td>'+
+      '<td class="n">'+txt(v,'amount','number',' min="0" step="0.01" style="min-width:108px;text-align:right"')+'</td>'+
+      '<td class="n">'+(locked?'':'<button class="btn sm danger" data-sup-remove="'+esc(v.id)+'" title="Remove this invoice" aria-label="Remove invoice">&times;</button>')+'</td></tr>').join('')
+     : '<tr><td colspan="8" class="tiny">No supplier invoices — add one, or upload a CSV; their total is what every block prices off.</td></tr>')+
+    '</tbody>';
+  for(const id of ['btnSupInvAdd','btnSupInvTemplate']){ const el=$(id); if(el) el.disabled=locked; }
+  const up=$('supInvImportFile'); if(up) up.disabled=locked;
+  const upLabel=up&&up.closest('label'); if(upLabel) upLabel.style.display=locked?'none':'inline-flex';
+}
+/* ---- supplier invoice CSV ----------------------------------------------------------------
+   Same reader as the curve upload — delimiter sniffing, quoted fields, Excel-mangled dates —
+   over the columns an invoice extract actually carries. Header spellings are matched after
+   normHead() strips spaces, underscores, hyphens and dots. */
+const SUP_COLS = {
+  invoiceNumber:['invoiceno','invoicenumber','invoice','invoice#','number','no','num','docno',
+                 'documentno','documentnumber','ref','reference','invoiceref'],
+  name:['suppliername','supplier','name','vendor','vendorname','beneficiary','payee','counterparty'],
+  jurisdiction:['jurisdiction','supplierjurisdiction','country','countrycode','countryofsupplier','jur','domicile'],
+  issueDate:['issuedate','invoicedate','date','issue','issued','documentdate'],
+  tenorDays:['tenordays','tenor','days','term','termdays','creditdays'],
+  paymentDate:['paymentdate','duedate','maturitydate','payment','due','maturity','paymentdue'],
+  amount:['amount','invoiceamount','value','total','totalamount','faceamount','amt','gross','grossamount'],
+};
+/** A jurisdiction cell may hold a code (BR) or a calendar name (Brazil). Anything else is reported. */
+function readJurisdiction(raw){
+  const s=String(raw||'').trim();
+  if(!s) return {code:''};
+  if(CALENDARS[s.toUpperCase()]) return {code:s.toUpperCase()};
+  const hit=ALL_JURISDICTIONS.find(c=>CALENDARS[c].name.toLowerCase()===s.toLowerCase());
+  return hit ? {code:hit} : {code:'', unknown:s};
+}
+/** Money, however the exporting system wrote it: 850000, "850,000.00", 850.000,00, R$ 850 000.
+    With one separator type the last group decides — exactly three digits reads as thousands. */
+function readAmount(raw){
+  let s=String(raw??'').trim().replace(/^"|"$/g,'').replace(/[^\d.,\-]/g,'');
+  if(!s) return '';
+  const lastDot=s.lastIndexOf('.'), lastComma=s.lastIndexOf(',');
+  if(lastDot>=0 && lastComma>=0){
+    const dec = lastDot>lastComma ? '.' : ',', thou = dec==='.' ? ',' : '.';
+    s = s.split(thou).join('').replace(dec,'.');
+  } else if(lastComma>=0){
+    s = (s.split(',').length-1===1 && s.length-lastComma-1!==3) ? s.replace(',','.') : s.split(',').join('');
+  } else if(lastDot>=0 && !(s.split('.').length-1===1 && s.length-lastDot-1!==3)){
+    s = s.split('.').join('');
+  }
+  return s;
+}
+function parseSupplierInvoicesCsv(text){
+  const body=String(text||'').replace(/^\uFEFF/,'').trim();
+  const lines=body.split(/\r?\n/).filter(l=>l.trim() && !/^[,;\t|]+$/.test(l.trim()));
+  if(!lines.length) throw new Error('Empty file');
+  const delim=sniffDelim(lines[0]);
+  const head=splitCsvLine(lines[0], delim).map(normHead);
+  const at={};
+  for(const [field,names] of Object.entries(SUP_COLS)){
+    const i=head.findIndex(h=>names.includes(h));
+    if(i>=0) at[field]=i;
+  }
+  const shape='Expected a header row of invoice number, supplier name, jurisdiction, issue date, '+
+    'tenor days, amount.\nFound: '+(head.filter(h=>h).join(', ')||'(no header)');
+  if(at.amount===undefined) throw new Error('No amount column. '+shape);
+  if(at.issueDate===undefined) throw new Error('No issue date column. '+shape);
+  if(lines.length<2) throw new Error('The file has a header row but no data rows.');
+  const rows=lines.slice(1).map(l=>splitCsvLine(l, delim));
+  // The day/month order is settled across both date columns at once, as on the curve upload.
+  const pairs=[];
+  for(const cells of rows) for(const f of ['issueDate','paymentDate']){
+    if(at[f]===undefined) continue;
+    const d=readDateCell(cells[at[f]]);
+    if(Array.isArray(d)) pairs.push(d);
+  }
+  const order=resolveDateOrder(pairs);
+  const settle=v=>Array.isArray(v)
+    ? (order.dayFirst ? isoFromParts(v[2],v[1],v[0]) : isoFromParts(v[2],v[0],v[1])) : v;
+
+  const invoices=[], skipped=[], unknownJur=[];
+  rows.forEach((cells,n)=>{
+    const cell=f=>at[f]===undefined ? '' : String(cells[at[f]]??'').trim();
+    const label='Row '+(n+2);
+    const issue=settle(readDateCell(cell('issueDate')));
+    const amount=readAmount(cell('amount'));
+    if(!cell('issueDate') && !cell('amount') && !cell('invoiceNumber') && !cell('name')) return;  // spacer line
+    if(typeof issue!=='string'){ skipped.push(label+' — unreadable issue date "'+cell('issueDate')+'"'); return; }
+    if(!(Number(amount)>0)){ skipped.push(label+' — amount is not a positive number ("'+cell('amount')+'")'); return; }
+    let tenor = cell('tenorDays')!=='' ? Number(readAmount(cell('tenorDays'))) : NaN;
+    if(!(tenor>=1)){
+      const pay=settle(readDateCell(cell('paymentDate')));
+      if(typeof pay==='string') tenor=dDiff(pay, issue);
+    }
+    if(!(tenor>=1)){ skipped.push(label+' — no tenor, and no payment date after the issue date'); return; }
+    const jur=readJurisdiction(cell('jurisdiction'));
+    if(jur.unknown && !unknownJur.includes(jur.unknown)) unknownJur.push(jur.unknown);
+    invoices.push(newSupplierInvoice({invoiceNumber:cell('invoiceNumber'), name:cell('name'),
+      jurisdiction:jur.code, issueDate:issue, tenorDays:Math.round(tenor), amount}));
+  });
+  if(!invoices.length) throw new Error('No usable rows found.'+
+    (skipped.length ? '\n\n'+skipped.slice(0,8).join('\n')+(skipped.length>8?'\n…and '+(skipped.length-8)+' more':'') : ''));
+  return {invoices, skipped, unknownJur, assumedOrder:order.assumed};
+}
+/** Derived cells only: safe to run on every keystroke, including while panel 1 has focus. */
+function refreshSupplierCalcs(d,t,o){
+  const rows=(t&&t.inputs.supplierInvoices)||[], ccy=d.currency;
+  for(const v of rows){
+    const el=document.querySelector('[data-sup-pay="'+CSS.escape(String(v.id))+'"]');
+    if(el) el.textContent = isValidDate(v.issueDate) ? fmtShort(dAdd(v.issueDate, Number(v.tenorDays||0))) : '—';
+  }
+  const sup=supplierTotals(t?t.inputs:{});
+  const tile=(tag,label,value,title,strong)=>'<div class="t'+(strong?' strong':'')+'" title="'+esc(title)+'">'+
+    '<span class="k">'+(tag?'<span class="f">'+tag+'</span>':'')+esc(label)+'</span>'+
+    '<span class="v">'+esc(value)+'</span></div>';
+  $('supInvTotals').innerHTML = '<div class="suptotals">'+
+    tile(null,'Invoices', String(sup.count), 'How many supplier invoices this trade carries') +
+    tile('B8','Earliest issue', isValidDate(sup.firstIssueDate)?fmtShort(sup.firstIssueDate):'—',
+      'Minimum Issue Date across all supplier invoices') +
+    tile('B9','Latest payment', isValidDate(sup.lastPaymentDate)?fmtShort(sup.lastPaymentDate):'—',
+      'Maximum Payment Date across all supplier invoices') +
+    tile('B10','Total amount', money(o?o.supplierAmount:sup.amount, ccy),
+      'Sum of every supplier invoice — the figure panels 2 to 5 price off', true) +
+    '</div>';
+}
 function renderPricing(d,t,r){
   const o=r.out, ccy=d.currency, ix=idxFor(ccy), pfOn = d.proformaEnabled!==false;
   const basisNote='÷ '+ix.basis+' (ACT/'+ix.basis+', '+ix.name+')';
   $('pfFactorNote').textContent=basisNote; $('tcFactorNote').textContent=basisNote; $('iaaFactorNote').textContent=basisNote;
-  $('supAmountWrap').dataset.suffix = ix.symbol.trim() || ccy;
   $('legalWrap').dataset.suffix = ix.symbol.trim() || ccy;
-  $('supAmountNote').textContent = 'Amount in '+ccy+' from the Supplier Invoice';
   // Panel 2 exists only when the deal is configured to use pro forma invoices.
   $('card_pf').style.display = pfOn ? '' : 'none';
+  if(!$('supInvTable').contains(document.activeElement)) renderSupplierInvoices(d,t);
+  refreshSupplierCalcs(d,t,r.out);
 
   const cl=findClient(d.clientId);
   $('dealContextBox').innerHTML='<table>'+[
@@ -1856,11 +2160,10 @@ function renderPricing(d,t,r){
   }
   $('topBanners').innerHTML = banners.map(([k,h])=>'<div class="banner '+k+'"><div>'+h+'</div></div>').join('');
 
-  const OUT_IDS=['o_supPay','o_pfMaturity','o_pfRate','o_pfMarkup','o_pfFactor','o_pfInv1','o_pfInv2','o_pfTotal',
+  const OUT_IDS=['o_pfMaturity','o_pfRate','o_pfMarkup','o_pfFactor','o_pfInv1','o_pfInv2','o_pfTotal',
     'o_tcTenor','o_tcMaturity','o_tcRate','o_tcMarkup','o_tcFactor','o_tcInv1','o_tcInv2','o_tcTotal','o_faceValue',
     'o_iaaMaturity','o_iaaRate','o_bladexCoF','o_iaaFactor','o_purchasePrice','o_paySupplier','o_payAgency','o_payTradeCo','o_recon'];
   if(o){
-    setCalc('o_supPay', fmtShort(o.supplierPaymentDate));
     setCalc('o_pfMaturity', fmtShort(o.pfMaturityDate));
     setCalc('o_pfRate', pct(o.pfRate));
     setCalc('o_pfMarkup', pct(o.pfMarkup));
@@ -1959,8 +2262,9 @@ function renderRates(){
   const ccy=CURRENCIES.find(c=>idxFor(c).index===code)||'USD';
   const hist=curveHistory(ccy);
   const latest=hist.length?hist[hist.length-1].businessDate:null;
-  $('curveMeta').textContent='Day count ACT/'+idxFor(ccy).basis+' · '+hist.length+' curve(s) · '+
-    (latest?'latest '+fmtShort(latest):'no history yet');
+  const grid=tenorsFor(ccy), cols=tenorColumns(ccy);
+  $('curveMeta').textContent='Day count ACT/'+idxFor(ccy).basis+' · pillars '+grid.map(tenorLabel).join(', ')+
+    ' · '+hist.length+' curve(s) · '+(latest?'latest '+fmtShort(latest):'no history yet');
 
   // add / replace one dated curve
   $('curveAddBox').innerHTML = !admin
@@ -1969,8 +2273,8 @@ function renderRates(){
       '<div class="toolbar" style="margin:0 0 8px">'+
         '<div class="field-inline"><label>Business date</label>'+
           '<input type="date" id="cd_date" value="'+esc(curveDraft.date)+'"></div>'+
-        [30,90,180,360].map(d=>'<div class="field-inline suffix" data-suffix="%" style="position:relative">'+
-          '<label>'+(d<360?d/30+'m':'1y')+'</label>'+
+        grid.map(d=>'<div class="field-inline suffix" data-suffix="%" style="position:relative">'+
+          '<label>'+tenorLabel(d)+'</label>'+
           '<input type="number" step="0.00001" id="cd_'+d+'" style="min-width:92px" placeholder="—"></div>').join('')+
       '</div>'+
       '<div class="toolbar" style="margin:0">'+
@@ -1998,23 +2302,24 @@ function renderRates(){
           ' data-curve-date="'+esc(c.businessDate)+'" data-curve-tenor="'+d+'" value="'+v+'"></td>'
         : '<td class="n">'+(v!==''?v+'%':'<span class="inline-tag warn">—</span>')+'</td>';
     };
-    $('curveTable').innerHTML='<thead><tr><th>Business date</th><th class="n">1m</th><th class="n">3m</th>'+
-      '<th class="n">6m</th><th class="n">1y</th><th>Source / note</th><th>Used by trades</th><th></th></tr></thead><tbody>'+
+    $('curveTable').innerHTML='<thead><tr><th>Business date</th>'+
+      cols.map(d=>'<th class="n">'+tenorLabel(d)+(grid.includes(d)?'':' <span class="note">off-grid</span>')+'</th>').join('')+
+      '<th>Source / note</th><th>Used by trades</th><th></th></tr></thead><tbody>'+
       (rows.length ? rows.map(c=>{
         const used=[...new Set(usedBy[c.businessDate]||[])];
-        const gaps=missingTenors(c);
+        const gaps=missingTenors(c, ccy);
         return '<tr><td>'+(admin
             ? '<input type="date" data-curve-date="'+esc(c.businessDate)+'" data-curve-prop="businessDate" value="'+esc(c.businessDate)+'" style="min-width:140px">'
             : '<b>'+fmtShort(c.businessDate)+'</b>')+
-          (gaps.length?'<span class="note">missing '+gaps.map(d=>d<360?d/30+'m':'1y').join(', ')+'</span>':'')+'</td>'+
-          cell(c,30)+cell(c,90)+cell(c,180)+cell(c,360)+
+          (gaps.length?'<span class="note">missing '+gaps.map(tenorLabel).join(', ')+'</span>':'')+'</td>'+
+          cols.map(d=>cell(c,d)).join('')+
           '<td class="tiny">'+(admin
             ? '<input type="text" data-curve-date="'+esc(c.businessDate)+'" data-curve-prop="overrideReason" value="'+esc(c.overrideReason||'')+'" placeholder="source or note" style="min-width:150px">'
             : esc(c.source||'')+(c.overrideReason?'<br>'+esc(c.overrideReason):''))+'</td>'+
           '<td class="tiny">'+(used.length?esc(used.join(', ')):'—')+'</td>'+
           '<td class="n">'+(admin?'<button class="btn sm danger" data-del-curve="'+esc(c.businessDate)+'">Delete</button>':'')+'</td></tr>';
       }).join('')
-       : '<tr><td colspan="8" class="tiny">No '+esc(idxFor(ccy).name)+' history yet. Upload a CSV or add a curve above.</td></tr>')+
+       : '<tr><td colspan="'+(cols.length+4)+'" class="tiny">No '+esc(idxFor(ccy).name)+' history yet. Upload a CSV or add a curve above.</td></tr>')+
       '</tbody>';
   }
 
@@ -2024,10 +2329,11 @@ function renderRates(){
   const curveCell=c=>{ const h=curveHistory(c).filter(curveUsable);
     return h.length ? '<span class="inline-tag ok">'+h.length+' to '+fmtShort(h[h.length-1].businessDate)+'</span>'
                     : '<span class="inline-tag warn">none</span>'; };
-  $('ccyTable').innerHTML='<thead><tr><th>Currency</th><th>Base rate index</th><th class="n">Day count</th><th>Curve history</th><th>Note</th></tr></thead><tbody>'+
+  $('ccyTable').innerHTML='<thead><tr><th>Currency</th><th>Base rate index</th><th class="n">Day count</th><th>Published pillars</th><th>Curve history</th><th>Note</th></tr></thead><tbody>'+
     CURRENCIES.map(c=>{ const ix=idxFor(c);
       return '<tr><td><b>'+c+'</b></td><td>'+esc(ix.name)+' <span class="tiny mono">'+esc(ix.index)+'</span></td>'+
         '<td class="n">ACT/'+ix.basis+'</td>'+
+        '<td class="mono tiny">'+tenorsFor(c).map(tenorLabel).join(' · ')+'</td>'+
         '<td>'+curveCell(c)+'</td>'+
         '<td class="tiny">'+esc(ix.conventionNote||'')+'</td></tr>';
     }).join('')+'</tbody>';
@@ -2139,23 +2445,63 @@ function renderOffer(d,t,r){
 /** Whether the configuration panel is open. It always shows the currently selected deal. */
 let configOpen = false;
 
+/** One cell of book-wide money, listed a currency at a time. Deals in different currencies
+ *  never collapse into a single figure — there is no rate in this model to convert them. */
+function bookMoney(byCcy, key){
+  const rows=[...byCcy.entries()];
+  if(!rows.length) return '<td class="n">—</td>';
+  if(rows.length===1) return '<td class="n">'+money(rows[0][1][key], rows[0][0])+'</td>';
+  return '<td class="n">'+rows.map(([ccy,v])=>'<span class="ccy">'+esc(ccy)+' '+money(v[key],ccy)+'</span>').join('')+'</td>';
+}
+
 function renderDeals(){
   const cur=currentDeal();
-  $('dealTable').innerHTML='<thead><tr><th>Transaction Code</th><th>Client</th><th>Ccy</th><th class="n">Trades</th>'+
+  // Book-wide money is kept per currency: adding a BRL total to a USD one would be a fiction.
+  const book={settled:{n:0, unpriced:0}, open:{n:0, unpriced:0}, cancelled:0, ccy:new Map()};
+  const bookAdd=(ccy,key,v)=>{
+    if(!book.ccy.has(ccy)) book.ccy.set(ccy,{settled:ZERO, open:ZERO});
+    const b=book.ccy.get(ccy); b[key]=b[key].add(v);
+  };
+  // A count cell reads "3" on its own, or "3 +1 not priced" when some trades carry no figure.
+  const countCell=(s,what,extra)=>'<td class="n">'+s.n+
+    (s.unpriced?' <span class="tiny" title="'+s.unpriced+' of these '+what+' trade(s) cannot be priced '+
+      'right now — no base-rate curve on the Trade Date, or inputs that do not compute — so they add '+
+      'nothing to the value beside them.">+'+s.unpriced+' not priced</span>':'')+(extra||'')+'</td>';
+  const cancNote=n=>n?' <span class="tiny" title="'+n+' cancelled trade(s), counted on neither side — '+
+    'a cancelled trade will never settle, so listing it as outstanding would overstate the book.">'+
+    n+' cancelled</span>':'';
+
+  $('dealTable').innerHTML='<thead><tr><th>Transaction Code</th><th>Client</th><th>Ccy</th>'+
+    '<th class="n" title="Trades on this deal in the SETTLED state">Settled</th>'+
+    '<th class="n" title="Sum of the IAA Purchase Price (B47) of every settled trade, in the deal currency">Settled value</th>'+
+    '<th class="n" title="Trades on this deal that have not settled: DRAFT, PRICED, APPROVED or ISSUED. Cancelled trades are excluded.">Not settled</th>'+
+    '<th class="n" title="Sum of the IAA Purchase Price (B47) of every trade still to settle, in the deal currency">Not settled value</th>'+
     '<th>Pro forma</th><th>Jurisdictions</th><th></th></tr></thead><tbody>'+
     (store.deals.length?store.deals.map(d=>{
-      const ts=tradesOf(d.id), js=d.jurisdictions||[];
+      const js=d.jurisdictions||[], tot=settlementTotals(d);
+      book.settled.n+=tot.settled.n; book.settled.unpriced+=tot.settled.unpriced;
+      book.open.n+=tot.open.n;       book.open.unpriced+=tot.open.unpriced;
+      book.cancelled+=tot.cancelled;
+      bookAdd(d.currency,'settled',tot.settled.value); bookAdd(d.currency,'open',tot.open.value);
       return '<tr class="dealrow'+(cur&&d.id===cur.id?' sel':'')+'" data-row-deal="'+d.id+'" title="Click to show this deal’s trades">'+
         '<td>'+esc(d.code||'(untitled deal)')+'</td><td>'+esc(clientLabel(d))+'</td>'+
         '<td>'+esc(d.currency)+' <span class="tiny">'+esc(idxFor(d.currency).name)+'</span></td>'+
-        '<td class="n">'+ts.length+'</td>'+
+        countCell(tot.settled,'settled')+
+        '<td class="n">'+money(tot.settled.value,d.currency)+'</td>'+
+        countCell(tot.open,'unsettled',cancNote(tot.cancelled))+
+        '<td class="n">'+money(tot.open.value,d.currency)+'</td>'+
         '<td>'+(d.proformaEnabled!==false?'<span class="inline-tag ok">yes</span>':'<span class="inline-tag">no</span>')+'</td>'+
         '<td class="tiny">'+(js.length? esc(js.slice(0,4).join(', '))+(js.length>4?' +'+(js.length-4):'')
                                       : '<span class="inline-tag err">none</span>')+'</td>'+
         '<td class="n" style="white-space:nowrap">'+
           '<button class="btn sm" data-config-deal="'+d.id+'">Configure</button> '+
           '<button class="btn sm danger" data-delete-deal="'+d.id+'">Delete</button></td></tr>';
-    }).join('') : '<tr><td colspan="7" class="tiny">No deals. Use <b>New deal</b> to create one.</td></tr>')+'</tbody>';
+    }).join('') : '<tr><td colspan="10" class="tiny">No deals. Use <b>New deal</b> to create one.</td></tr>')+'</tbody>'+
+    (store.deals.length ? '<tfoot><tr class="booktotal">'+
+      '<td colspan="3">All deals <span class="tiny">'+store.deals.length+' deal(s)</span></td>'+
+      countCell(book.settled,'settled')+bookMoney(book.ccy,'settled')+
+      countCell(book.open,'unsettled',cancNote(book.cancelled))+bookMoney(book.ccy,'open')+
+      '<td colspan="3"></td></tr></tfoot>' : '');
 
   const showConfig = configOpen && !!cur;
   $('dealConfigCard').style.display = showConfig ? '' : 'none';
@@ -2328,6 +2674,61 @@ function runTests(){
   T('Legal fees leave price unchanged', o2.purchasePrice.toFixed(2),'853302.69','Cantu!B47');
   T('Legal fees still reconcile', o2.reconciliation.toFixed(10),'0.0000000000','B51+B52+B53−B47');
 
+  // Several supplier invoices price as one position: B10 is their sum, B9 the latest payment.
+  const MANY={...GOLDEN_INPUTS, supplierInvoices:[
+    {id:'a', name:'Cantu Supplier',  jurisdiction:'BR', issueDate:'2026-06-16', tenorDays:30, amount:'500000'},
+    {id:'b', name:'Segunda Ltda',    jurisdiction:'BR', issueDate:'2026-06-02', tenorDays:75, amount:'250000'},
+    {id:'c', name:'Terceira SA',     jurisdiction:'US', issueDate:'2026-06-20', tenorDays:20, amount:'100000'}]};
+  const oMany=price(MANY,{pfRate:pfQ.rate, liveRate:liveQ.rate});
+  T('Invoices sum to B10', oMany.supplierAmount.toFixed(2),'850000.00','Σ supplier invoices');
+  T('Invoice count reported', oMany.supplierInvoiceCount,'3','panel 1 totals');
+  T('Earliest issue date wins B8', oMany.supplierFirstIssueDate,'2026-06-02','min(issue date)');
+  T('Latest payment date wins B9', oMany.supplierPaymentDate,'2026-08-16','max(issue + tenor)');
+  for(const [k,cell] of [['pfTotal','Cantu!B23'],['tcTotal','Cantu!B36'],['faceValue','Cantu!B39'],
+      ['purchasePrice','Cantu!B47'],['payToSupplier','Cantu!B51'],['payToTradeCo','Cantu!B53']])
+    T('Three invoices price as one — '+k, oMany[k].toFixed(10), o[k].toFixed(10), cell);
+  T('Blank invoice row adds nothing',
+    price({...MANY, supplierInvoices:[...MANY.supplierInvoices, newSupplierInvoice()]},
+      {pfRate:pfQ.rate, liveRate:liveQ.rate}).supplierAmount.toFixed(2),'850000.00','Σ supplier invoices');
+  T('Blank row still counts as a row',
+    price({...MANY, supplierInvoices:[...MANY.supplierInvoices, newSupplierInvoice()]},
+      {pfRate:pfQ.rate, liveRate:liveQ.rate}).supplierInvoiceCount,'4','panel 1 totals');
+  // A trade stored before panel 1 held a list is read through the same reducer.
+  const legacy=supplierTotals({supplierIssueDate:'2026-06-16', supplierTenorDays:30, supplierAmount:'850000'});
+  T('Legacy single invoice still reduces', legacy.amount.toFixed(2)+'/'+legacy.lastPaymentDate+'/'+legacy.count,
+    '850000.00/2026-07-16/1','pre-list trade');
+  T('Migration lifts the flat fields into a row',
+    (()=>{ const st=normalise({v:2, deals:[], trades:[{inputs:{supplierIssueDate:'2026-06-16',
+             supplierTenorDays:30, supplierAmount:'850000'}}], curves:{}, clients:defaultClients(), audit:[]});
+           const inv=st.trades[0].inputs.supplierInvoices;
+           return inv.length+'/'+inv[0].issueDate+'/'+inv[0].amount+'/'+('supplierAmount' in st.trades[0].inputs);
+    })(),'1/2026-06-16/850000/false','normalise()');
+
+  // Supplier invoice CSV: amounts however the exporting system wrote them
+  for(const [raw,want] of [['850000','850000'],['850,000.00','850000.00'],['850.000,00','850000.00'],
+      ['R$ 850 000','850000'],['1,234','1234'],['850,00','850.00'],['1234.5','1234.5']])
+    T('Amount "'+raw+'"', readAmount(raw), want, 'supplier CSV');
+  T('Jurisdiction by code', readJurisdiction('br').code,'BR','supplier CSV');
+  T('Jurisdiction by name', readJurisdiction('Brazil').code,'BR','supplier CSV');
+  T('Jurisdiction unknown is reported', readJurisdiction('Atlantis').unknown,'Atlantis','supplier CSV');
+  const csv=parseSupplierInvoicesCsv(
+    'Invoice No.;Supplier;Country;Invoice Date;Due Date;Total Amount\n'+
+    'FT-991;Fornecedor Um;BR;16/06/2026;16/07/2026;850.000,00\n'+
+    'FT-992;Fornecedor Dois;Brazil;02/06/2026;16/08/2026;250.000,50\n');
+  T('CSV reads both rows', csv.invoices.length,'2','supplier CSV');
+  T('CSV derives tenor from the due date', csv.invoices.map(v=>v.tenorDays).join(','),'30,75','no tenor column');
+  T('CSV keeps the invoice number', csv.invoices[0].invoiceNumber,'FT-991','supplier CSV');
+  T('CSV resolves a jurisdiction name', csv.invoices[1].jurisdiction,'BR','supplier CSV');
+  T('CSV sums to the expected total',
+    supplierTotals({supplierInvoices:csv.invoices}).amount.toFixed(2),'1100000.50','Cantu!B10');
+  T('CSV rows envelope the dates',
+    supplierTotals({supplierInvoices:csv.invoices}).firstIssueDate+'→'+
+    supplierTotals({supplierInvoices:csv.invoices}).lastPaymentDate,'2026-06-02→2026-08-16','B8/B9');
+  T('CSV skips an unusable row and says why',
+    parseSupplierInvoicesCsv('invoice number,supplier name,issue date,tenor days,amount\n'+
+      'X1,Bad,not-a-date,30,1000\nX2,Good,2026-06-16,30,7000\n').skipped.length,'1','supplier CSV');
+  T('New invoice rows carry a number field','invoiceNumber' in newSupplierInvoice(),'true','panel 1');
+
   // Optional Pro Forma block
   const oNoPf=price({...GOLDEN_INPUTS, pfEnabled:false},{pfRate:null, liveRate:liveQ.rate});
   T('Pro Forma off — no rate needed', String(oNoPf.pfRate),'null','Cantu!B16');
@@ -2424,7 +2825,7 @@ function runTests(){
              return curveAsOf('USD','2026-07-05').businessDate; })(),'2026-07-01','partial curves are allowed');
     T('Rateless curve is skipped',
       (()=>{ store.curves.TERM_SOFR.push({businessDate:'2026-08-01', source:'MANUAL_OVERRIDE', overrideReason:'',
-               pillars:STD_TENORS.map(d=>({days:d,rate:''}))});
+               pillars:tenorsFor('USD').map(d=>({days:d,rate:''}))});
              return curveAsOf('USD','2026-08-05').businessDate; })(),'2026-07-01','no data points at all');
     store.curves.TERM_SOFR=saved;
   }
@@ -2442,7 +2843,7 @@ function runTests(){
     T('Single pillar rate is that point', interpolate(one,90).rate.toFixed(4),'0.0400','flat read');
     const partial={pillars:[{days:90,rate:'0.037'},{days:180,rate:'0.039'}]};
     T('Partial curve is usable', curveUsable(partial),'true','one point is enough');
-    T('Missing tenors reported', missingTenors(partial).join(','),'30,360','RATE.PARTIAL_CURVE');
+    T('Missing tenors reported', missingTenors(partial,'USD').join(','),'30,360','RATE.PARTIAL_CURVE');
     T('Partial curve interpolates on what it has', interpolate(partial.pillars,135).method,'LINEAR_INTERP','between 3m and 6m');
     T('Empty curve is unusable', curveUsable({pillars:[{days:180,rate:''}]}),'false','no data points');
   }
@@ -2491,7 +2892,8 @@ localStorage.</p>
 
 <h3 style="margin:18px 0 6px">Deal → trades</h3>
 <p>A <b>deal</b> holds what every trade shares: client, Transaction Code (<code>Cantu!B4</code>), currency and the
-associated jurisdictions. A <b>trade</b> holds its own identifier (<code>Cantu!B5</code>), obligor, invoice blocks,
+associated jurisdictions. A <b>trade</b> holds its own identifier (<code>Cantu!B5</code>), obligor, supplier invoices,
+its other invoice blocks,
 lifecycle, rate snapshot and Offer File. Deal configuration is frozen once any trade on it reaches APPROVED, since
 changing it would invalidate a signed-off price; editing it while trades are merely PRICED returns those trades to
 DRAFT and voids their snapshots.</p>
@@ -2511,7 +2913,9 @@ document boundaries. Every one of the 26 workbook outputs reproduces exactly; ru
 
 <h3 style="margin:18px 0 6px">Cell map</h3>
 <div class="scroll"><table><thead><tr><th>Cell</th><th>Field</th><th>Formula</th></tr></thead><tbody>` +
-[['B9','Supplier Payment Date','B8 + supplier tenor (30 in the workbook)'],
+[['B8','Earliest Supplier Issue Date','min(issue date) across the supplier invoices'],
+ ['B9','Latest Supplier Payment Date','max(issue date + tenor) across the supplier invoices'],
+ ['B10','Total Supplier Invoice Amount','Σ of every supplier invoice — what panels 2 to 5 price off'],
  ['B15','Pro Forma Maturity','B13 + B14'],
  ['B16','Pro Forma base rate','pro forma curve interpolated at B41'],
  ['B19','Pro Forma Mark-up','B17 + B16 + B18'],
@@ -2556,7 +2960,7 @@ Identifier are empty. Both are required, and trade identifiers must be unique wi
 <li><b>The Pro Forma block is optional</b>, switched on or off per <em>deal</em> so every trade on a facility
 agrees. It is a leaf in the dependency graph, so turning it off leaves B27:B53 bit-for-bit identical —
 the parity tests assert exactly that — and panel 2 is removed from the pricing screen entirely.</li>
-<li><b>Configuring and trading are separate screens.</b> The <b>Deals</b> tab is where a facility is set up,
+<li><b>Configuring and trading are separate screens.</b> The <b>Deals &amp; Trades</b> tab is where a facility is set up,
 and opening one of its trades raises a workspace showing that configuration read-only, the trade's pricing
 panels and its Offer File — a trade is a drill-down from its deal, not a tab of its own.</li>
 </ul>
@@ -2576,6 +2980,13 @@ document.addEventListener('focusin', e=>{
   if(el.dataset.trade && t) el.dataset.prev=String(t[el.dataset.trade]);
   if(el.dataset.deal) el.dataset.prev=String(d[el.dataset.deal]);
 });
+/** Editing any priced input drops the trade back to DRAFT: a snapshot taken against different
+    numbers is not a quote for these ones. */
+function voidPricedSnapshot(t){
+  if(t.state!=='PRICED') return;
+  t.rateQuotes=null; t.state='DRAFT';
+  audit('trade',t.id,'STATE_CHANGE','state','PRICED','DRAFT','Input edited — rate snapshot voided.');
+}
 document.addEventListener('input', e=>{
   const el=e.target; if(!el.dataset) return;
   const d=currentDeal(), t=currentTrade();
@@ -2592,15 +3003,20 @@ document.addEventListener('input', e=>{
   if(el.dataset.trade && t){
     if(LOCKED(t.state)) return;
     t[el.dataset.trade]=el.value;
-    if(t.state==='PRICED'){ t.rateQuotes=null; t.state='DRAFT';
-      audit('trade',t.id,'STATE_CHANGE','state','PRICED','DRAFT','Input edited — rate snapshot voided.'); }
+    voidPricedSnapshot(t);
+    render(); return;
+  }
+  if(el.dataset.supField && t){
+    if(LOCKED(t.state)) return;
+    const v=(t.inputs.supplierInvoices||[]).find(x=>String(x.id)===el.dataset.supId); if(!v) return;
+    v[el.dataset.supField] = el.dataset.supField==='tenorDays' ? Number(el.value||0) : el.value;
+    voidPricedSnapshot(t);
     render(); return;
   }
   if(el.dataset.field && t){
     if(LOCKED(t.state)) return;
     t.inputs[el.dataset.field]=readField(el.dataset.field, el);
-    if(t.state==='PRICED'){ t.rateQuotes=null; t.state='DRAFT';
-      audit('trade',t.id,'STATE_CHANGE','state','PRICED','DRAFT','Input edited — rate snapshot voided.'); }
+    voidPricedSnapshot(t);
     render(); return;
   }
 });
@@ -2613,6 +3029,15 @@ document.addEventListener('change', e=>{
   }
   if(el.dataset.trade && t) audit('trade',t.id,'UPDATE',el.dataset.trade, el.dataset.prev??null, String(t[el.dataset.trade]));
   if(el.dataset.field && t) audit('trade',t.id,'UPDATE',el.dataset.field, el.dataset.prev??null, String(t.inputs[el.dataset.field]));
+  if(el.dataset.supField && t && !LOCKED(t.state)){
+    const v=(t.inputs.supplierInvoices||[]).find(x=>String(x.id)===el.dataset.supId);
+    if(v){
+      if(el.tagName==='SELECT'){ v[el.dataset.supField]=el.value; voidPricedSnapshot(t); render(); }
+      const n=(t.inputs.supplierInvoices||[]).findIndex(x=>String(x.id)===el.dataset.supId)+1;
+      audit('trade',t.id,'UPDATE','supplierInvoice#'+n+'.'+el.dataset.supField, el.dataset.prev??null,
+        String(v[el.dataset.supField]));
+    }
+  }
 
   if(el.id==='jurAdd' && el.value){ setJurisdictions(el.value, true); }
   if(el.id==='curvePicker'){ curveChoice=el.value; renderRates(); }
@@ -2625,6 +3050,78 @@ document.getElementById('tabs').addEventListener('click', e=>{
   for(const x of document.querySelectorAll('#tabs button')) x.setAttribute('aria-selected', String(x===b));
   for(const v of document.querySelectorAll('.view')) v.classList.toggle('active', v.id==='view-'+b.dataset.view);
   if(b.dataset.view==='tests') runTests();
+});
+$('btnSupInvAdd').onclick=()=>{
+  const t=currentTrade(); if(!t) return;
+  if(LOCKED(t.state)) return alert('This trade is '+t.state+' — its inputs are locked.');
+  (t.inputs.supplierInvoices ||= []).push(newSupplierInvoice());
+  voidPricedSnapshot(t);
+  audit('trade',t.id,'CREATE','supplierInvoice',null,'invoice #'+t.inputs.supplierInvoices.length);
+  render();
+};
+$('supInvTable').addEventListener('click', e=>{
+  const b=e.target.closest('button[data-sup-remove]'); if(!b) return;
+  const t=currentTrade(); if(!t) return;
+  if(LOCKED(t.state)) return alert('This trade is '+t.state+' — its inputs are locked.');
+  const list=t.inputs.supplierInvoices||[], n=list.findIndex(x=>String(x.id)===b.dataset.supRemove);
+  if(n<0) return;
+  if(list.length===1) return alert('A trade needs at least one supplier invoice. Edit this one instead.');
+  const v=list[n];
+  const filled=[v.name,v.issueDate,v.amount].some(x=>String(x||'').trim());
+  if(filled && !confirm('Remove supplier invoice '+(n+1)+(v.name?' ('+v.name+')':'')+'?\n\n'+
+    'The total every block prices off will fall by '+money(D.of(v.amount||0), currentDeal().currency)+'.')) return;
+  list.splice(n,1);
+  voidPricedSnapshot(t);
+  audit('trade',t.id,'DELETE','supplierInvoice#'+(n+1),
+    [v.invoiceNumber,v.name,v.jurisdiction,v.issueDate,v.tenorDays+'d',v.amount].filter(Boolean).join(' · '), null);
+  render();
+});
+$('btnSupInvTemplate').onclick=()=>download('supplier-invoices-template.csv',
+  'invoice number,supplier name,jurisdiction,issue date,tenor days,amount\n'+
+  'INV-0001,Cantu Supplier,BR,2026-06-16,30,850000\n'+
+  'INV-0002,Segunda Fornecedora Ltda,Brazil,2026-06-02,75,250000\n','text/csv');
+$('supInvImportFile').onchange=e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const t=currentTrade(), d=currentDeal();
+  if(!t){ e.target.value=''; return; }
+  if(LOCKED(t.state)){ e.target.value=''; return alert('This trade is '+t.state+' — its inputs are locked.'); }
+  const rd=new FileReader();
+  rd.onload=()=>{
+    try{
+      const res=parseSupplierInvoicesCsv(String(rd.result));
+      const existing=t.inputs.supplierInvoices||[];
+      /* Rows still untouched are replaced without asking; anything typed or previously loaded is
+         the user's, so which way the file lands is their call. Cancel appends rather than aborts,
+         because appending loses nothing — an unwanted row can be removed. */
+      const filled=existing.filter(v=>[v.invoiceNumber,v.name,v.issueDate,v.amount].some(x=>String(x||'').trim()));
+      const replace = !filled.length || confirm(
+        'This trade already holds '+filled.length+' supplier invoice(s).\n\n'+
+        'OK — replace them with the '+res.invoices.length+' in '+f.name+'\n'+
+        'Cancel — keep them and add the '+res.invoices.length+' below');
+      const before=existing.length;
+      t.inputs.supplierInvoices = replace ? res.invoices : [...existing, ...res.invoices];
+      voidPricedSnapshot(t);
+      audit('trade', t.id, replace?'UPDATE':'CREATE', 'supplierInvoices',
+        before+' invoice(s)', t.inputs.supplierInvoices.length+' invoice(s)',
+        (replace?'Replaced with ':'Added ')+res.invoices.length+' invoice(s) from '+f.name);
+      render();
+      const total=supplierTotals(t.inputs);
+      alert('Loaded '+res.invoices.length+' invoice(s) from '+f.name+'.\n'+
+        (replace?'':'Added to the '+before+' already on the trade.\n')+
+        'Panel 1 now totals '+money(total.amount, d.currency)+' across '+total.count+' invoice(s).'+
+        (res.assumedOrder?'\n\nEvery date could be read either way round (e.g. 6/7/2026), so they were '+
+          'taken as month-first. Check the rows and re-save as YYYY-MM-DD if that is wrong.':'')+
+        (res.unknownJur.length?'\n\nJurisdiction left blank on rows naming '+res.unknownJur.slice(0,5).join(', ')+
+          ' — no holiday calendar goes by that. Pick one from the dropdown.':'')+
+        (res.skipped.length?'\n\nSkipped '+res.skipped.length+':\n• '+res.skipped.slice(0,8).join('\n• '):''));
+    }catch(err){ alert('Upload failed: '+err.message); }
+    finally{ e.target.value=''; }
+  };
+  rd.readAsText(f);
+};
+/* Rebuild once focus actually leaves panel 1, for the same reason the curve table does. */
+$('supInvTable').addEventListener('focusout', ()=>{
+  setTimeout(()=>{ if(!$('supInvTable').contains(document.activeElement)) render(); }, 0);
 });
 $('tradeTabs').addEventListener('click', e=>{
   const b=e.target.closest('button[data-tpane]'); if(b) showTradePane(b.dataset.tpane);
@@ -2686,7 +3183,7 @@ $('clientFilter').addEventListener('input', renderClients);
 $('clientTable').addEventListener('click', e=>{
   const b=e.target.closest('button[data-pick-client]'); if(!b) return;
   const d=currentDeal();
-  if(!dealEditable(d)) return alert('Deal configuration is locked. Use "Unlock for editing" on the Deals tab first.');
+  if(!dealEditable(d)) return alert('Deal configuration is locked. Use "Unlock for editing" on the Deals & Trades tab first.');
   const c=findClient(b.dataset.pickClient); if(!c) return;
   const prev=d.clientName;
   d.clientId=c.id; d.clientName=c.name;
@@ -2765,7 +3262,85 @@ $('importFile').onchange=e=>{ const f=e.target.files[0]; if(!f) return;
     }catch(err){ alert('Import failed: '+err.message); } finally{ e.target.value=''; } };
   rd.readAsText(f); };
 /* ---------------------------- curve history ---------------------------- */
-const TENOR_COLS = [['1m',30],['3m',90],['6m',180],['12m',360],['1y',360]];
+/* Uploaded files nearly always make a round trip through Excel before they get here, which
+   rewrites dates into the machine's locale, renames headers and sometimes swaps the delimiter.
+   The lookups below are keyed by the header with spaces, underscores, hyphens and dots removed. */
+const TENOR_COLS = {'on':1,'o/n':1,'overnight':1,'1d':1,'1day':1,
+  '1w':7,'1week':7,'7d':7,'7days':7, '2w':14,'2week':14,'14d':14,'14days':14,
+  '28d':28,'28days':28,
+  '1m':30,'1mo':30,'1month':30,'30d':30,'30days':30,
+  '2m':60,'2mo':60,'2month':60,'60d':60,'60days':60,
+  '3m':90,'3mo':90,'3month':90,'90d':90,'90days':90, '91d':91,'91days':91,
+  '6m':180,'6mo':180,'6month':180,'180d':180,'180days':180, '182d':182,'182days':182,
+  '9m':270,'9mo':270,'9month':270,'270d':270,'270days':270,
+  '12m':360,'12mo':360,'12month':360,'1y':360,'1yr':360,'1year':360,'360d':360,'360days':360};
+const DATE_COLS = ['date','businessdate','curvedate','valuedate','effectivedate','asof','asofdate'];
+const MONTH_ABBR = {jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+const normHead = h => String(h==null?'':h).replace(/^\uFEFF/,'').trim()
+  .replace(/^"|"$/g,'').toLowerCase().replace(/[\s_\-.]+/g,'');
+/** y/m/d → ISO, or null when the calendar rejects it (30 Feb, month 13, a bad month name). */
+function isoFromParts(y, m, d){
+  if(!(y>0) || !(m>=1 && m<=12) || !(d>=1 && d<=31)) return null;
+  if(y<100) y += y<70 ? 2000 : 1900;
+  const iso = String(y).padStart(4,'0')+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+  return isValidDate(iso) && dFmt(dParse(iso))===iso ? iso : null;   // Date.UTC rolls 31 Apr over
+}
+/** One date cell → an ISO string, [d,m,year] while the day/month order is still open, or null. */
+function readDateCell(raw){
+  const s = String(raw==null?'':raw).replace(/^\uFEFF/,'').trim().replace(/^"|"$/g,'').replace(/\s+/g,' ');
+  if(!s) return null;
+  let m;
+  if((m=/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/.exec(s)))              // 2026-06-22, 2026/6/22
+    return isoFromParts(+m[1], +m[2], +m[3]);
+  if((m=/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2}|\d{4})$/.exec(s)))        // 6/22/2026 or 22/06/2026
+    return [+m[1], +m[2], +m[3]];
+  if((m=/^(\d{1,2})[- ]([a-z]{3,9})[,-]? ?(\d{2}|\d{4})$/i.exec(s)))   // 22-Jun-2026, 22 June 26
+    return isoFromParts(+m[3], MONTH_ABBR[m[2].slice(0,3).toLowerCase()], +m[1]);
+  if((m=/^([a-z]{3,9})[- ] ?(\d{1,2})[,-]? ?(\d{2}|\d{4})$/i.exec(s))) // Jun 22, 2026
+    return isoFromParts(+m[3], MONTH_ABBR[m[1].slice(0,3).toLowerCase()], +m[2]);
+  if(/^\d{8}$/.test(s))                                               // 20260622
+    return isoFromParts(+s.slice(0,4), +s.slice(4,6), +s.slice(6,8));
+  if(/^\d{5}$/.test(s) && +s>=20000 && +s<=60000)                     // Excel serial, 1954–2064
+    return dAdd('1899-12-30', +s);
+  return null;
+}
+/** Settle day-first vs month-first for the column as a whole: 6/22 proves the order for 6/7 too. */
+function resolveDateOrder(pairs){
+  const dayFirst = pairs.filter(p=>p[0]>12 && p[1]<=12).length,   // a row above 12 on both sides is
+        monthFirst = pairs.filter(p=>p[1]>12 && p[0]<=12).length; // junk, not evidence either way
+
+  if(dayFirst && monthFirst) throw new Error('The date column mixes day-first and month-first rows '
+    +'(e.g. 22/06/2026 alongside 06/22/2026) — re-save the dates as YYYY-MM-DD.');
+  return {dayFirst: dayFirst>0, assumed: !dayFirst && !monthFirst && pairs.length>0};
+}
+/** Split one line, honouring "quoted, fields" and doubled "" escapes. */
+function splitCsvLine(line, delim){
+  const out=[]; let cur='', quoted=false;
+  for(let i=0;i<line.length;i++){
+    const ch=line[i];
+    if(quoted){
+      if(ch!=='"') cur+=ch;
+      else if(line[i+1]==='"'){ cur+='"'; i++; }
+      else quoted=false;
+    }
+    else if(ch==='"') quoted=true;
+    else if(ch===delim){ out.push(cur.trim()); cur=''; }
+    else cur+=ch;
+  }
+  out.push(cur.trim());
+  return out;
+}
+/** Comma, semicolon, tab or pipe — whichever carves the header into the most columns. */
+const sniffDelim = header => [',',';','\t','|']
+  .map(d=>[d, splitCsvLine(header,d).length]).sort((a,b)=>b[1]-a[1])[0][0];
+/** A rate may arrive as 3.64338, "3.64338 %", 3,64338 (European) or 1,234.5. Always a percentage. */
+function readRate(raw){
+  let s = String(raw==null?'':raw).trim().replace(/^"|"$/g,'').replace(/[%\s]/g,'');
+  if(/^-?\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)) s = s.replace(/\./g,'').replace(',','.');  // 1.234,5
+  else if(/^-?\d*,\d+$/.test(s)) s = s.replace(',','.');                                // 3,64338
+  else s = s.replace(/,/g,'');                                                          // 1,234.5
+  return s;
+}
 /** Add or replace one dated curve. Rates arrive as percentages. */
 function putCurve(ccy, businessDate, pctByTenor, source, reason, silent){
   const list = curvesFor(ccy);
@@ -2773,7 +3348,7 @@ function putCurve(ccy, businessDate, pctByTenor, source, reason, silent){
   const isNew = !rec;
   if(isNew){
     rec = {businessDate, source:source||'MANUAL_OVERRIDE', overrideReason:reason||'',
-           pillars:STD_TENORS.map(d=>({days:d, rate:''}))};
+           pillars:tenorsFor(ccy).map(d=>({days:d, rate:''}))};
     list.push(rec);
   }
   const before = rec.pillars.map(p=>p.days+':'+(p.rate||'—')).join(' ');
@@ -2784,7 +3359,7 @@ function putCurve(ccy, businessDate, pctByTenor, source, reason, silent){
     let p=rec.pillars.find(x=>Number(x.days)===d);
     if(!p){ p={days:d, rate:''}; rec.pillars.push(p); }
     p.rate = D.of(v).div(100).toFixed(12);
-    touched.push(d<360?d/30+'m':'1y');
+    touched.push(tenorLabel(d));
   }
   rec.pillars.sort((a,b)=>a.days-b.days);
   if(source) rec.source=source;
@@ -2800,7 +3375,7 @@ function addCurveFromForm(){
   const date=$('cd_date').value;
   if(!isValidDate(date)) return alert('A business date is required.');
   const pct={}; let given=0;
-  for(const d of STD_TENORS){ const v=$('cd_'+d).value.trim();
+  for(const d of tenorsFor(ccy)){ const v=$('cd_'+d).value.trim();
     if(v!=='' && Number(v)>0){ pct[d]=v; given++; } }
   if(!given) return alert('Enter at least one rate. Blank pillars are left as they are, so you can add a single data point.');
   putCurve(ccy, date, pct, 'MANUAL_OVERRIDE', $('cd_reason').value.trim());
@@ -2818,47 +3393,79 @@ function deleteCurve(date){
   audit('rate_curve', idxFor(ccy).index,'DELETE','curve@'+date, gone.pillars.map(p=>p.rate).join('/'), null, null);
   render();
 }
-/** CSV: date,side,1m,3m,6m,12m — or the JSON shape produced by Export. */
+/** CSV: date,1m,3m,6m,12m — or the JSON shape produced by Export. Delimiter, quoting, header
+    spelling and date format are all sniffed rather than demanded, because the file has usually
+    been through Excel and no longer looks like the template that was downloaded. */
 function importCurveText(text, fileName){
   const code=$('curvePicker').value, ccy=CURRENCIES.find(c=>idxFor(c).index===code)||'USD';
-  let added=0, skipped=[];
-  if(/^\s*[[{]/.test(text)){
-    const j=JSON.parse(text);
+  let added=0, skipped=[], note='';
+  const body = String(text||'').replace(/^\uFEFF/,'').trim();
+  if(/^[[{]/.test(body)){
+    const j=JSON.parse(body);
     const byIndex = j && j.curves ? j.curves : j;
     for(const [idxCode,sides] of Object.entries(byIndex)){
       const target=CURRENCIES.find(c=>idxFor(c).index===idxCode);
       if(!target){ skipped.push('unknown index '+idxCode); continue; }
       const list = Array.isArray(sides) ? sides : [...(sides.live||[]), ...(sides.pf||[])];
       for(const c of list){
-        const pct={}; for(const p of c.pillars) pct[Number(p.days)] = String(p.rate)===''?'':D.of(p.rate).mul(100).toFixed(6);
-        putCurve(target, c.businessDate, pct, c.source, c.overrideReason, true); added++;
+        const date = isValidDate(c.businessDate) ? c.businessDate : readDateCell(c.businessDate);
+        if(typeof date!=='string'){ skipped.push(String(c.businessDate||'(blank date)')+' — unreadable date'); continue; }
+        const pct={}; for(const p of c.pillars||[]) pct[Number(p.days)] = String(p.rate)===''?'':D.of(p.rate).mul(100).toFixed(6);
+        putCurve(target, date, pct, c.source, c.overrideReason, true); added++;
       }
     }
   } else {
-    const lines=text.split(/\r?\n/).filter(l=>l.trim());
+    const lines=body.split(/\r?\n/).filter(l=>l.trim() && !/^[,;\t|]+$/.test(l.trim()));
     if(!lines.length) throw new Error('Empty file');
-    const head=lines[0].split(',').map(x=>x.trim().toLowerCase().replace(/^"|"$/g,''));
-    const col=n=>head.indexOf(n);
-    const iDate = col('date')>=0?col('date'):col('business_date');
-    if(iDate<0) throw new Error('No "date" column — expected date,1m,3m,6m,12m');
-    const tenorAt={}; for(const [name,days] of TENOR_COLS){ const i=col(name); if(i>=0 && tenorAt[days]===undefined) tenorAt[days]=i; }
-    if(!STD_TENORS.some(d=>tenorAt[d]!==undefined))
-      throw new Error('No rate columns found — expected at least one of 1m, 3m, 6m, 12m');
-    for(const line of lines.slice(1)){
-      const cells=line.split(',').map(x=>x.trim().replace(/^"|"$/g,''));
-      const date=cells[iDate];
-      if(!isValidDate(date)){ skipped.push(date||'(blank date)'); continue; }
+    const delim=sniffDelim(lines[0]);
+    const head=splitCsvLine(lines[0], delim).map(normHead);
+    const grid=tenorsFor(ccy), gridNames=grid.map(tenorLabel).join(', ');
+    const iDate=head.findIndex(h=>DATE_COLS.includes(h));
+    if(iDate<0) throw new Error('No "date" column — expected a header row of date, '+gridNames+'.\n'
+      +'Found: '+(head.filter(h=>h).join(', ')||'(no header)'));
+    /* A column is read only if this index publishes that pillar: loading a 1y into TIIE would
+       store a rate that no column of its table can show and that nothing quotes. */
+    const tenorAt={}, offGrid=[];
+    head.forEach((h,i)=>{ const days=TENOR_COLS[h]; if(!days) return;
+      if(!grid.includes(days)){ if(!offGrid.includes(h)) offGrid.push(h); return; }
+      if(tenorAt[days]===undefined) tenorAt[days]=i; });
+    if(!grid.some(d=>tenorAt[d]!==undefined))
+      throw new Error('No rate columns found for '+idxFor(ccy).name+' — it publishes '+gridNames+'.\n'
+        +'Found: '+head.filter(h=>h).join(', ')
+        +(offGrid.length?'\n\nColumns '+offGrid.join(', ')+' are not '+idxFor(ccy).name
+          +' pillars. Pick the right index above, or re-head the file.':''));
+    if(lines.length<2) throw new Error('The file has a header row but no data rows.');
+    /* Read every row before writing any: the day/month order of 6/7/2026 can only be
+       settled by looking at the column as a whole. */
+    const rows=lines.slice(1).map(line=>{
+      const cells=splitCsvLine(line, delim);
+      return {cells, date: readDateCell(cells[iDate]), raw: String(cells[iDate]||'').trim()};
+    });
+    const order=resolveDateOrder(rows.filter(r=>Array.isArray(r.date)).map(r=>r.date));
+    for(const r of rows){
+      let date=r.date;
+      if(Array.isArray(date)) date = order.dayFirst ? isoFromParts(date[2],date[1],date[0])
+                                                    : isoFromParts(date[2],date[0],date[1]);
+      if(!date){ skipped.push((r.raw||'(blank date)')+' — unreadable date'); continue; }
       const pct={}; let given=0;
-      for(const d of STD_TENORS){ const v=(cells[tenorAt[d]]||'').replace('%','');
-        if(v!=='' && Number(v)>0){ pct[d]=v; given++; } }
-      if(!given){ skipped.push(date+' (no rates)'); continue; }
+      for(const d of grid){
+        if(tenorAt[d]===undefined) continue;
+        const v=readRate(r.cells[tenorAt[d]]);
+        if(v!=='' && Number(v)>0){ pct[d]=v; given++; }
+      }
+      if(!given){ skipped.push(date+' — no positive rate in any '+idxFor(ccy).name+' tenor column'); continue; }
       putCurve(ccy, date, pct, 'MANUAL_OVERRIDE', 'Uploaded from '+fileName, true); added++;
     }
+    if(order.assumed) note='\n\nEvery date could be read either way round (e.g. 6/7/2026), so they '
+      +'were taken as month-first. Check the table and re-save as YYYY-MM-DD if that is wrong.';
+    if(offGrid.length) note+='\n\nIgnored '+offGrid.join(', ')+' — '+idxFor(ccy).name+' publishes '
+      +gridNames+' only.';
   }
-  if(!added) throw new Error('No usable rows found');
+  if(!added) throw new Error('No usable rows found.'
+    +(skipped.length?'\n\n'+skipped.slice(0,8).join('\n')+(skipped.length>8?'\n…and '+(skipped.length-8)+' more':''):''));
   audit('rate_curve', idxFor(ccy).index, 'CREATE', 'history_upload', null, added+' curve(s)', 'Uploaded from '+fileName);
   render();
-  alert('Loaded '+added+' curve(s).'+(skipped.length?'\n\nSkipped '+skipped.length+':\n• '+skipped.slice(0,8).join('\n• '):''));
+  alert('Loaded '+added+' curve(s).'+(skipped.length?'\n\nSkipped '+skipped.length+':\n• '+skipped.slice(0,8).join('\n• '):'')+note);
 }
 /** Jump from a trade that needs a rate straight to the curve entry for its trade date. */
 function requestCurveFor(ccy, dateISO){
@@ -2913,12 +3520,21 @@ $('curveTable').addEventListener('change', e=>{
   const raw=el.value.trim();
   p.rate = (raw==='' || !(Number(raw)>0)) ? '' : D.of(raw).div(100).toFixed(12);
   if(prev!==p.rate)
-    audit('rate_curve',tag,'RATE_OVERRIDE','curve@'+rec.businessDate+'.'+(d<360?d/30+'m':'1y'),
+    audit('rate_curve',tag,'RATE_OVERRIDE','curve@'+rec.businessDate+'.'+tenorLabel(d),
       prev||'—', p.rate||'—', rec.overrideReason||'manual edit');
   render();
 });
-$('btnCurveTemplate').onclick=()=>download('base-rate-curve-template.csv',
-  'date,1m,3m,6m,12m\n2026-06-22,3.64338,3.72777,3.85550,4.03325\n2026-07-16,3.64338,3.72777,3.87550,4.03325\n','text/csv');
+/* The template carries the pillars the selected index publishes, so a TIIE download comes back
+   28d,91d,182d. Its numbers are the workbook's illustrative SOFR shape read at those tenors —
+   a shape to type over, never a quote. */
+$('btnCurveTemplate').onclick=()=>{
+  const code=$('curvePicker').value, ccy=CURRENCIES.find(c=>idxFor(c).index===code)||'USD';
+  const grid=tenorsFor(ccy);
+  const shape=[{days:30,rate:'3.64338'},{days:90,rate:'3.72777'},{days:180,rate:'3.85550'},{days:360,rate:'4.03325'}];
+  const row=date=>date+','+grid.map(d=>interpolate(shape,d).rate.toFixed(5)).join(',');
+  download('base-rate-curve-template-'+code.toLowerCase()+'.csv',
+    'date,'+grid.map(tenorLabel).join(',')+'\n'+row('2026-06-22')+'\n'+row('2026-07-16')+'\n','text/csv');
+};
 $('btnCurveExport').onclick=()=>download('base-rate-curves.json',
   JSON.stringify({exportedAt:new Date().toISOString(), curves:store.curves}, null, 2),'application/json');
 $('curveImportFile').onchange=e=>{ const f=e.target.files[0]; if(!f) return;
