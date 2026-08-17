@@ -312,7 +312,7 @@ code,.mono{font-family:var(--mono);font-size:12px}
 
       <!-- Trade identity -->
       <div class="card tight">
-        <h2>Trade <span class="src">Cantu!B5 · Offer File!A3</span></h2>
+        <h2>Trade</h2>
         <div class="body">
           <div class="row"><div class="lbl">Trade Identifier<span class="note">Unique within the deal. Offer File column D.</span></div><div class="cell"><input type="text" class="in" id="f_tradeid" data-trade="identifier"></div></div>
           <div class="row"><div class="lbl">Trade Submission Date<span class="note">Date the trade is submitted. Selects the base rate curve — the latest one published on or before this date.</span></div><div class="cell"><input type="date" class="in" id="f_tradeDate" data-trade="tradeDate"></div></div>
@@ -322,7 +322,7 @@ code,.mono{font-family:var(--mono);font-size:12px}
       </div>
 
       <div class="card">
-        <h2>1 — Supplier Invoices <span class="src">Cantu!A7:C10</span></h2>
+        <h2>1 — Supplier Invoices</h2>
         <div class="body">
           <div class="scroll"><table id="supInvTable"></table></div>
           <div class="toolbar" style="margin:10px 0 4px">
@@ -338,7 +338,7 @@ code,.mono{font-family:var(--mono);font-size:12px}
 
       <!-- Shown only when the deal is configured to use pro forma invoices. -->
       <div class="card" id="card_pf">
-        <h2>2 — TradeCo Pro Forma Invoices <span class="src">Cantu!A12:C23</span></h2>
+        <h2>2 — TradeCo Pro Forma Invoices</h2>
         <div class="body" id="body_pf">
           <div class="row"><div class="lbl">Issue Date<span class="note">It should be a date before (around 5 days) Supplier Invoice Maturity Date</span></div><div class="cell"><input type="date" class="in" id="f_pfIssue" data-field="pfIssueDate"></div></div>
           <div class="row"><div class="lbl">Tenor (days)<span class="note">It could be "Bladex Settlement Date" + 2</span></div><div class="cell"><input type="number" class="in" id="f_pfTenor" data-field="pfTenorDays" min="1" step="1"></div></div>
@@ -355,7 +355,7 @@ code,.mono{font-family:var(--mono);font-size:12px}
       </div>
 
       <div class="card">
-        <h2>3 — TradeCo Invoices <span class="src">Cantu!A25:C36</span></h2>
+        <h2>3 — TradeCo Invoices</h2>
         <div class="body">
           <div class="row"><div class="lbl">Issue Date<span class="note">It should be a date before (around 5 days) Supplier Invoice Maturity Date</span></div><div class="cell"><input type="date" class="in" id="f_tcIssue" data-field="tcIssueDate"></div></div>
           <div class="row"><div class="lbl">Tenor (days)</div><div class="cell"><span class="calc" id="o_tcTenor" title="B27 = B41 + (B40 − B26)"><span class="f">B27</span>—</span></div></div>
@@ -372,7 +372,7 @@ code,.mono{font-family:var(--mono);font-size:12px}
       </div>
 
       <div class="card">
-        <h2>4 — IAA Offer File <span class="src">Cantu!A38:C47</span></h2>
+        <h2>4 — IAA Offer File</h2>
         <div class="body">
           <div class="row"><div class="lbl">TradeCo Invoices/BoE Face Value</div><div class="cell"><span class="calc" id="o_faceValue" title="B39 = B36"><span class="f">B39</span>—</span></div></div>
           <div class="row"><div class="lbl"><span data-tpl="{funder} Settlement Date">Settlement Date</span><span class="note" data-tpl="Date when {funder} will disburse funds to {client}">Date the funder will disburse funds to the client</span></div><div class="cell"><input type="date" class="in" id="f_bladexSettle" data-field="bladexSettlementDate"></div></div>
@@ -387,7 +387,7 @@ code,.mono{font-family:var(--mono);font-size:12px}
       </div>
 
       <div class="card">
-        <h2>5 — Payment waterfall <span class="src">Cantu!A49:C53</span></h2>
+        <h2>5 — Payment waterfall</h2>
         <div class="body">
           <div class="row"><div class="lbl">Legal/Structuring Fees<span class="note">If applicable</span></div><div class="cell suffix" id="legalWrap" data-suffix="$"><input type="number" class="in" id="f_legalFees" data-field="legalFees" step="0.01"></div></div>
           <div class="row head"><div class="lbl" data-tpl="Payment to {client} Supplier (Supplier Invoice)">Payment to the client's Supplier (Supplier Invoice)</div><div class="cell"><span class="calc" id="o_paySupplier" title="B51 = B39 × (1 − B33) − B49"><span class="f">B51</span>—</span></div></div>
@@ -401,7 +401,7 @@ code,.mono{font-family:var(--mono);font-size:12px}
     <div>
       <div class="card tight"><h2>Validation</h2><div class="body" id="validationBox"></div></div>
       <div class="card tight"><h2>Rate quotes</h2><div class="body" id="quoteBox"></div></div>
-      <div class="card tight"><h2>Business-day check <span class="src">BD Dates</span></h2><div class="body" id="bdBox"></div></div>
+      <div class="card tight"><h2>Business-day check</h2><div class="body" id="bdBox"></div></div>
       <div class="card tight"><h2>Trade summary</h2><div class="body" id="summaryBox"></div></div>
     </div>
   </div>
@@ -410,7 +410,7 @@ code,.mono{font-family:var(--mono);font-size:12px}
 <div class="tpane" id="tpane-offer">
   <div id="offerBanners"></div>
   <div class="card">
-    <h2>IAA Offer File <span class="src">Offer File!A2:L3</span></h2>
+    <h2>IAA Offer File</h2>
     <div class="body">
       <div class="toolbar">
         <button class="btn" id="btnCopyRow">Copy row (TSV)</button>
