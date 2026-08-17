@@ -265,7 +265,6 @@ code,.mono{font-family:var(--mono);font-size:12px}
     <button data-view="deals" aria-selected="true">Deals &amp; Trades</button>
     <button data-view="rates">Reference data</button>
     <button data-view="audit">Audit log</button>
-    <button data-view="tests">Parity tests</button>
     <button data-view="about">Spec &amp; traceability</button>
   </nav>
 </header>
@@ -572,7 +571,11 @@ code,.mono{font-family:var(--mono);font-size:12px}
 </section>
 
 <!-- ================= TESTS ================= -->
-<section class="view" id="view-tests">
+<!-- The parity suite lives here rather than on a tab of its own: it is evidence about the model,
+     the same as the spec map below it, and it is read occasionally rather than worked in. It still
+     runs on every load, so a broken file announces itself without anyone opening this tab. -->
+<section class="view" id="view-about">
+  <div class="card"><h2>What this is</h2><div class="body" id="aboutBox"></div></div>
   <div class="card">
     <h2>Parity tests — golden master vs. the workbook</h2>
     <div class="body">
@@ -580,10 +583,6 @@ code,.mono{font-family:var(--mono);font-size:12px}
       <div class="scroll"><table id="testTable"></table></div>
     </div>
   </div>
-</section>
-
-<section class="view" id="view-about">
-  <div class="card"><h2>What this is</h2><div class="body" id="aboutBox"></div></div>
 </section>
 </main>
 
@@ -3089,7 +3088,8 @@ CURRENCIES.map(c=>'<tr><td>'+c+'</td><td>'+esc(idxFor(c).name)+'</td><td class="
 <h3 style="margin:18px 0 6px">Calculation parity</h3>
 <p>The calc engine is pure — <code>price(inputs, rateQuote)</code>, no I/O, no clock reads — and uses fixed-point
 decimal arithmetic (BigInt, 20 dp) rather than floating point. Rounding to 2 dp happens only at the presentation and
-document boundaries. Every one of the 26 workbook outputs reproduces exactly; run the <b>Parity tests</b> tab.</p>
+document boundaries. Every one of the 26 workbook outputs reproduces exactly — the <b>Parity tests</b> at the foot of
+this tab prove it, and they run on every load whether or not anyone opens them.</p>
 
 <h3 style="margin:18px 0 6px">Cell map</h3>
 <div class="scroll"><table><thead><tr><th>Cell</th><th>Field</th><th>Formula</th></tr></thead><tbody>` +
@@ -3229,7 +3229,7 @@ document.getElementById('tabs').addEventListener('click', e=>{
   const b=e.target.closest('button[data-view]'); if(!b) return;
   for(const x of document.querySelectorAll('#tabs button')) x.setAttribute('aria-selected', String(x===b));
   for(const v of document.querySelectorAll('.view')) v.classList.toggle('active', v.id==='view-'+b.dataset.view);
-  if(b.dataset.view==='tests') runTests();
+  if(b.dataset.view==='about') runTests();   // the suite sits on this tab; re-run on arrival
 });
 $('btnSupInvAdd').onclick=()=>{
   const t=currentTrade(); if(!t) return;

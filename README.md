@@ -11,8 +11,14 @@ single self-contained file that works offline and can be emailed or dropped on a
 ## Parity with the workbook
 
 The calc engine reproduces **all 26 output cells** of the `Cantu` tab exactly, plus the
-`Offer File`, `SOFR Interpolation` and `BD Dates` derivations. Open the **Parity tests** tab and
-press *Run tests* — 39 assertions, each labelled with its source cell.
+`Offer File`, `SOFR Interpolation` and `BD Dates` derivations. The suite sits at the foot of the
+**Spec & traceability** tab — press *Run tests* — and runs on every load whether or not anyone opens
+it, which is the only regression net a single emailed file can carry.
+
+**148 assertions**, each labelled with its source. 63 tie to a workbook artifact (47 `Cantu` cells,
+9 `SOFR Interpolation`, 5 `BD Dates`, 2 `Offer File`); the other 85 cover behaviour the workbook never
+had — decimal invariants, multi-invoice aggregation, the supplier CSV parser, curve interpolation and
+`putCurve` merges, and the v1 → v2 migration.
 
 | | Workbook | This app |
 |---|---|---|
@@ -31,7 +37,7 @@ which is what makes the golden-master tests meaningful.
 ## Navigation
 
 A trade belongs to a deal, so it is a drill-down from one rather than a tab of its own. Top-level tabs
-are **Deals**, **Reference data**, **Audit log**, **Parity tests** and **Spec & traceability**; the page
+are **Deals & Trades**, **Reference data**, **Audit log** and **Spec & traceability**; the page
 header carries no deal or trade controls at all.
 
 **Deals** is the landing tab. Click any deal row to select it and *Trades on this deal* below updates to
