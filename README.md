@@ -99,10 +99,39 @@ A **deal** holds everything its trades share. A **trade** is what gets priced, a
 
 This matches the SharePoint layout, where `Trade 1 - DRC` holds SB01 / SB02 / SB03 under one facility.
 
+### Reference data
+
+**Reference data** is a menu of four sets rather than four cards down one page. Each opens in its own
+window (`Esc` or the backdrop closes it), so no single screen carries the currency history, the client
+book and every holiday calendar at once. Each tile shows a live count, and the long-form guidance in
+each window sits behind a collapsed *How…* summary instead of standing open.
+
+| Set | Holds |
+| --- | --- |
+| **Currencies & Base Rates** | The index and day count per currency, plus the dated curve history and its upload/export |
+| **Clients** | The client book from the monday.com Global Pipeline; **Use** picks the client for the current deal |
+| **Jurisdictions & Holiday Calendars** | The shipped calendars, and the form that adds one (below) |
+| **Investors** | The funding counterparties a trade can name as its Funder |
+
+Two shortcuts land directly in a window: the **Add the … curve for …** button on a trade's rate banner
+opens *Currencies & Base Rates* with that date queued, and **+ New jurisdiction** on a deal's picker opens
+*Jurisdictions* with the add form already showing.
+
+#### Investors
+
+An investor is a funding counterparty. Naming one makes it a suggestion on a trade's **Funder** field —
+the field that titles that trade's Settlement Date, Margin and Cost of Funds rows. The field stays free
+text, so a one-off funder can still be typed straight into a trade without being added here first.
+
+**Pricing is unaffected.** A trade prices off the margins keyed into its own panels, never off this list;
+the standing margin recorded against an investor is a reference for whoever keys the trade. Adding and
+removing need the **Rates Admin** role and are audited, a duplicate name is refused, and removal is
+refused while any trade still names that investor as its Funder.
+
 ### Adding a jurisdiction without a new build
 
 29 holiday calendars ship with the file. A deal in a country outside those 29 needs a calendar, not
-a new version of this file, so **Reference data → Holiday calendars → + Add jurisdiction** takes one:
+a new version of this file, so **Reference data → Jurisdictions & Holiday Calendars → + Add jurisdiction** takes one:
 a code, a name, a region, a source URL, and the publisher's holiday list pasted in.
 
 - Dates are read as loosely as on the curve upload — `2027-01-01`, `01/01/2027`, `1-Jan-2027` and Excel

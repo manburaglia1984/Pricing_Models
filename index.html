@@ -116,6 +116,9 @@ main{padding:18px 20px 60px;max-width:1500px;margin:0 auto}
 .row.wide{grid-template-columns:1fr}
 .row .lbl{font-size:13.5px;color:var(--ink)}
 .row .note{display:block;font-size:11.5px;font-style:italic;color:var(--note);margin-top:1px}
+/* The same note treatment inside a table cell — the calendar and investor lists both use it, and
+   .row .note alone left those rendering as a second line of full-weight body text. */
+td .note{display:block;font-size:11.5px;font-style:italic;color:var(--note);margin-top:1px;line-height:1.45}
 .row .cell{text-align:right}
 input,select,textarea{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line-2);border-radius:6px;padding:5px 8px;width:100%;text-align:right}
 input[type=text]{text-align:left}
@@ -149,6 +152,30 @@ input:disabled,select:disabled{opacity:.6;cursor:not-allowed}
 .modal h1{font-size:15px;font-weight:650;letter-spacing:-.02em}
 .modal h1 small{display:block;font-weight:400;font-size:11.5px;color:var(--ink-3);letter-spacing:0}
 @media (max-width:760px){.modal .sheet{inset:0;border-radius:0} .modal .sheet>.content{padding:12px 12px 40px}}
+
+/* Reference data is a menu of four sets rather than four cards stacked down one page. Each tile
+   carries a live count, so the menu answers "how much is in there" before anything is opened. */
+.refmenu{display:grid;grid-template-columns:repeat(auto-fit,minmax(255px,1fr));gap:14px}
+.reftile{display:flex;flex-direction:column;gap:5px;align-items:flex-start;text-align:left;
+  padding:15px 17px;border:1px solid var(--line-2);border-radius:11px;background:var(--panel);
+  box-shadow:var(--shadow);cursor:pointer;font:inherit;color:var(--ink)}
+.reftile:hover{border-color:var(--accent);background:var(--accent-soft)}
+.reftile .t{font-size:14.5px;font-weight:650;letter-spacing:-.01em}
+.reftile .d{font-size:12px;color:var(--ink-2);line-height:1.45}
+.reftile .m{margin-top:3px;font:600 11px/1.5 var(--mono);color:var(--accent)}
+.reftile .mk{width:26px;height:26px;display:grid;place-items:center;border-radius:7px;
+  background:var(--accent-soft);color:var(--accent);font:700 12px/1 var(--mono);margin-bottom:3px}
+.reftile:hover .mk{background:var(--panel)}
+
+/* Long-form guidance that used to sit open on the page, collapsed by default. The panes stay
+   readable at a glance and the detail is still one click away rather than deleted. */
+details.help{margin:10px 0 0;border-top:1px dashed var(--line);padding-top:8px}
+details.help>summary{cursor:pointer;font-size:11.5px;color:var(--accent);width:fit-content}
+details.help>summary::marker{color:var(--ink-3)}
+details.help p{margin:7px 0 0;font-size:11.5px;color:var(--ink-3);line-height:1.6}
+/* One window, one set showing. The panes share #refModal so every table below keeps the id its
+   existing render function already writes to. */
+.refpane{display:none} .refpane.active{display:block}
 .taglist{display:flex;flex-wrap:wrap;gap:6px;padding:4px 0 2px}
 .taglist .tag{display:inline-flex;align-items:center;gap:5px;padding:3px 6px 3px 11px;border:1px solid var(--accent);
   background:var(--accent-soft);color:var(--accent);border-radius:999px;font-size:12.5px;font-weight:560}
@@ -431,59 +458,116 @@ code,.mono{font-family:var(--mono);font-size:12px}
 <!-- ================= REFERENCE DATA ================= -->
 <section class="view" id="view-rates">
   <div id="ratesBanners"></div>
+  <!-- A menu rather than four stacked cards: each set opens in its own window, so one screen is
+       never carrying the currency history, the client book and every holiday calendar at once. -->
+  <div class="refmenu" id="refMenu">
+    <button class="reftile" data-ref="ccy">
+      <span class="mk">%</span>
+      <span class="t">Currencies &amp; Base Rates</span>
+      <span class="d">The index and day count behind each currency, and the dated curve history every trade prices off.</span>
+      <span class="m" id="refMetaCcy"></span>
+    </button>
+    <button class="reftile" data-ref="clients">
+      <span class="mk">C</span>
+      <span class="t">Clients</span>
+      <span class="d">The client book from the monday.com Global Pipeline. Pick the client a deal belongs to.</span>
+      <span class="m" id="refMetaClients"></span>
+    </button>
+    <button class="reftile" data-ref="jur">
+      <span class="mk">◱</span>
+      <span class="t">Jurisdictions &amp; Holiday Calendars</span>
+      <span class="d">The calendars a maturity date is checked against, and where to add a country this build does not ship.</span>
+      <span class="m" id="refMetaJur"></span>
+    </button>
+    <button class="reftile" data-ref="investors">
+      <span class="mk">£</span>
+      <span class="t">Investors</span>
+      <span class="d">The funding counterparties a trade can name as its Funder, and the terms each one is priced at.</span>
+      <span class="m" id="refMetaInvestors"></span>
+    </button>
+  </div>
+</section>
+
+<!-- ============ REFERENCE DATA WINDOWS (opened from the menu above) ============ -->
+<div class="modal" id="refModal" role="dialog" aria-modal="true" aria-labelledby="refModalTitle">
+  <div class="backdrop" data-close-ref></div>
+  <div class="sheet">
+    <header>
+      <div class="top-row">
+        <h1 id="refModalTitle">Reference data<small id="refModalSub"></small></h1>
+        <div class="spacer"></div>
+        <span class="tiny" id="refRoleNote"></span>
+        <button class="btn" data-close-ref>Close</button>
+      </div>
+    </header>
+    <div class="content">
+
+<!-- ---- Currencies & Base Rates ---- -->
+<div class="refpane" id="refpane-ccy">
   <div class="card">
-    <h2>Base rate curves <span class="src">'SOFR Interpolation' generalised per currency</span></h2>
+    <h2>Currencies</h2>
+    <div class="body"><div class="scroll"><table id="ccyTable"></table></div></div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <h2>Curve history</h2>
     <div class="body">
       <div class="toolbar">
         <div class="field-inline"><label for="curvePicker">Index</label><select id="curvePicker" style="min-width:230px"></select></div>
         <span class="tiny" id="curveMeta"></span>
       </div>
       <div id="curveAddBox"></div>
-      <p class="tiny" style="margin:0 0 8px">A trade prices off the latest curve published <b>on or before</b> the date it reads — the Trade Submission Date for panels 3 and 4, the Pro Forma Issue Date for panel 2. Every rate below is editable in place; blank pillars are left untouched, so you can add a single data point for one date. Rates are percentages.</p>
-      <div class="scroll" style="max-height:420px"><table id="curveTable"></table></div>
+      <div class="scroll" style="max-height:360px"><table id="curveTable"></table></div>
       <div class="toolbar" style="margin:12px 0 0">
         <label class="btn" style="display:inline-flex;align-items:center">Upload history (CSV/JSON)<input type="file" id="curveImportFile" accept=".csv,.json,text/csv,application/json" style="display:none"></label>
-        <button class="btn" id="btnCurveTemplate">Download CSV template</button>
-        <button class="btn" id="btnCurveExport">Export history (JSON)</button>
+        <button class="btn" id="btnCurveTemplate">CSV template</button>
+        <button class="btn" id="btnCurveExport">Export (JSON)</button>
+        <span class="tiny">Rates are percentages, editable in place. A blank pillar is left untouched.</span>
       </div>
-      <p class="tiny" style="margin:8px 0 0">CSV columns are <code>date</code> plus the pillars the selected index publishes — <code>1m,3m,6m,12m</code> for Term SOFR, <code>28d,91d,182d</code> for TIIE, and so on; the template above always matches. Columns belonging to another index are ignored and named in the confirmation. Dates may be <code>2026-06-22</code>, <code>6/22/2026</code>, <code>22/06/2026</code> or <code>22-Jun-2026</code> — whatever Excel left behind — and semicolon files with comma decimals are read too. A row replaces any existing curve for that date. There is one curve per index — the pro forma block simply reads it at its own issue date.</p>
+      <details class="help">
+        <summary>How a trade picks its curve, and how uploads are read</summary>
+        <p>A trade prices off the latest curve published <b>on or before</b> the date it reads — the Trade Submission Date for panels 3 and 4, the Pro Forma Issue Date for panel 2. There is one curve per index; the pro forma block simply reads it at its own issue date.</p>
+        <p>CSV columns are <code>date</code> plus the pillars the selected index publishes — <code>1m,3m,6m,12m</code> for Term SOFR, <code>28d,91d,182d</code> for TIIE, and so on; the template always matches. Columns belonging to another index are ignored and named in the confirmation. Dates may be <code>2026-06-22</code>, <code>6/22/2026</code>, <code>22/06/2026</code> or <code>22-Jun-2026</code> — whatever Excel left behind — and semicolon files with comma decimals are read too. A row replaces any existing curve for that date.</p>
+      </details>
     </div>
   </div>
+</div>
 
+<!-- ---- Clients ---- -->
+<div class="refpane" id="refpane-clients">
   <div class="card">
-    <h2>Currencies &amp; base rates</h2>
-    <div class="body"><div class="scroll capped"><table id="ccyTable"></table></div></div>
-  </div>
-
-  <div class="card">
-    <h2>Clients <span class="src">monday.com · Global Pipeline</span></h2>
+    <h2>Client book</h2>
     <div class="body">
-      <div id="clientSourceBox"></div>
       <div class="toolbar">
+        <div class="field-inline" style="flex:1 1 200px"><label for="clientFilter">Filter</label>
+          <input type="text" id="clientFilter" placeholder="name or country" style="flex:0 1 210px"></div>
+        <span class="tiny" id="clientSourceBox"></span>
+      </div>
+      <div class="scroll capped" style="max-height:440px"><table id="clientTable"></table></div>
+      <div class="toolbar" style="margin:12px 0 0">
         <button class="btn" id="btnSyncMonday">Refresh from monday.com</button>
         <label class="btn" style="display:inline-flex;align-items:center">Import JSON<input type="file" id="clientImportFile" accept="application/json" style="display:none"></label>
         <button class="btn" id="btnClientExport">Export JSON</button>
-        <div class="field-inline" style="margin-left:auto"><label for="clientFilter">Filter</label>
-          <input type="text" id="clientFilter" placeholder="name or country" style="min-width:170px"></div>
       </div>
-      <p class="tiny" style="margin:0 0 10px">A refresh asks for a monday.com API token, uses it for that one request and never stores it — not in this file, not in localStorage. Because the token grants full account access, prefer <b>Import JSON</b> or a server-side sync for shared copies. Browsers block the direct call from a <code>file://</code> page; serve this file over http(s) for it to work.</p>
-      <div class="scroll capped" style="max-height:380px"><table id="clientTable"></table></div>
+      <details class="help">
+        <summary>About refreshing from monday.com</summary>
+        <p>A refresh asks for a monday.com API token, uses it for that one request and never stores it — not in this file, not in localStorage. Because the token grants full account access, prefer <b>Import JSON</b> or a server-side sync for shared copies. Browsers block the direct call from a <code>file://</code> page; serve this file over http(s) for it to work.</p>
+      </details>
     </div>
   </div>
+</div>
 
+<!-- ---- Jurisdictions & Holiday Calendars ---- -->
+<div class="refpane" id="refpane-jur">
   <div class="card">
-    <h2>Holiday calendars <span class="src">BD Dates!B19:K200</span></h2>
+    <h2>Holiday calendars</h2>
     <div class="body">
-      <p class="tiny" style="margin:8px 0 12px">Coverage is the last known-good date per jurisdiction. A maturity date beyond coverage hard-blocks pricing — it is never silently passed. Which of these apply is set per deal, above. Source URLs are the official publishers; replace them with the verbatim URLs recorded as cell notes on <code>BD Dates!B19:E19</code> if those differ.</p>
-      <div class="scroll capped"><table id="calTable"></table></div>
-      <!-- Adding a country here is what keeps a deal in a new jurisdiction from needing a new
-           build of this file. The form is static markup so a re-render never wipes what is
-           half-typed into it; only the role notice and the table above are re-rendered. -->
-      <div class="toolbar" style="margin:12px 0 0">
+      <div class="toolbar">
         <button class="btn" id="btnJurAddToggle">+ Add jurisdiction</button>
         <span class="tiny" id="jurAddNote"></span>
       </div>
-      <div class="card tight" id="jurAddCard" style="display:none;margin:10px 0 0;background:var(--panel-2)"><div class="body">
+      <!-- Static markup, so a re-render never wipes what is half-typed into it. -->
+      <div class="card tight" id="jurAddCard" style="display:none;margin:0 0 12px;background:var(--panel-2)"><div class="body">
         <div class="toolbar" style="margin:0 0 8px">
           <div class="field-inline"><label for="ja_code">Code</label>
             <input type="text" id="ja_code" maxlength="4" placeholder="CL" style="min-width:64px;text-transform:uppercase"></div>
@@ -503,11 +587,63 @@ code,.mono{font-family:var(--mono);font-size:12px}
           <button class="btn" id="btnJurCancel">Cancel</button>
           <span class="tiny" id="jurAddCount"></span>
         </div>
-        <p class="tiny" style="margin:8px 0 0">Paste the publisher's list: one date per line, or separated by commas, semicolons or tabs. Dates are read as loosely as on the curve upload — <code>2027-01-01</code>, <code>01/01/2027</code>, <code>1-Jan-2027</code> and Excel serials all work, and day-first vs month-first is settled across the whole list at once. Weekends are already handled, so holidays alone are enough. Coverage runs to the last date you give: a maturity date beyond it reports <b>CHECK LIST</b> rather than passing silently.</p>
+        <details class="help">
+          <summary>How the pasted list is read</summary>
+          <p>One date per line, or separated by commas, semicolons or tabs. Dates are read as loosely as on the curve upload — <code>2027-01-01</code>, <code>01/01/2027</code>, <code>1-Jan-2027</code> and Excel serials all work, and day-first vs month-first is settled across the whole list at once. Weekends are already handled, so holidays alone are enough.</p>
+        </details>
       </div></div>
+      <div class="scroll capped" style="max-height:420px"><table id="calTable"></table></div>
+      <details class="help">
+        <summary>How coverage works</summary>
+        <p>Coverage is the last known-good date per jurisdiction. A maturity date beyond coverage <b>hard-blocks pricing</b> — it is never silently passed. Which calendars apply is set per deal, on Deals &amp; Trades. Source URLs are the official publishers; replace them with the verbatim URLs recorded as cell notes on <code>BD Dates!B19:E19</code> if those differ.</p>
+      </details>
     </div>
   </div>
-</section>
+</div>
+
+<!-- ---- Investors ---- -->
+<div class="refpane" id="refpane-investors">
+  <div class="card">
+    <h2>Investors</h2>
+    <div class="body">
+      <div class="toolbar">
+        <button class="btn" id="btnInvAddToggle">+ Add investor</button>
+        <span class="tiny" id="invAddNote"></span>
+      </div>
+      <div class="card tight" id="invAddCard" style="display:none;margin:0 0 12px;background:var(--panel-2)"><div class="body">
+        <div class="toolbar" style="margin:0 0 8px">
+          <div class="field-inline" style="flex:1 1 210px"><label for="iv_name">Name</label>
+            <input type="text" id="iv_name" placeholder="Banco Latinoamericano de Comercio Exterior" style="flex:1 1 150px"></div>
+          <div class="field-inline"><label for="iv_status">Status</label><select id="iv_status"></select></div>
+          <div class="field-inline" style="flex:1 1 150px"><label for="iv_country">Country</label>
+            <input type="text" id="iv_country" placeholder="Panama" style="flex:1 1 110px"></div>
+          <div class="field-inline"><label for="iv_region">Region</label><select id="iv_region"></select></div>
+        </div>
+        <div class="toolbar" style="margin:0 0 8px">
+          <div class="field-inline suffix" data-suffix="%" style="position:relative"><label for="iv_margin">Standing margin</label>
+            <input type="number" id="iv_margin" step="0.00001" style="min-width:96px"></div>
+          <div class="field-inline" style="flex:1 1 240px"><label for="iv_note">Note</label>
+            <input type="text" id="iv_note" placeholder="mandate, limits, contact" style="flex:1 1 170px"></div>
+        </div>
+        <div class="toolbar" style="margin:0">
+          <button class="btn primary" id="btnInvSave">Add investor</button>
+          <button class="btn" id="btnInvCancel">Cancel</button>
+          <span class="tiny">Standing margin is optional — a reminder of the terms agreed, not something a trade reads.</span>
+        </div>
+      </div></div>
+      <div class="scroll capped" style="max-height:420px"><table id="invTable"></table></div>
+      <details class="help">
+        <summary>What an investor is used for</summary>
+        <p>An investor is a funding counterparty. Naming one here makes it a suggestion on a trade's <b>Funder</b> field, which is what titles that trade's Settlement Date, Margin and Cost of Funds rows. The field stays free text, so a one-off funder can still be typed straight into a trade without being added here first.</p>
+        <p>Pricing is unaffected: a trade prices off the margins keyed into its own panels, never off this list. The standing margin recorded here is a reference for whoever keys the trade. Removing an investor is refused while a trade still names it.</p>
+      </details>
+    </div>
+  </div>
+</div>
+
+    </div><!-- /.content -->
+  </div><!-- /.sheet -->
+</div><!-- /#refModal -->
 
 <!-- ================= DEALS (configuration) ================= -->
 <section class="view active" id="view-deals">
@@ -955,7 +1091,20 @@ const SEED_CLIENTS = [
 const STATUS_RANK = {Live:0, Implementation:1, Validation:2, Discovery:3, Hold:4, Prospect:5, Lost:6};
 const ACTIVE_STATUSES = ['Live','Implementation','Validation','Discovery','Hold'];
 
+
 const MARKET_DEFAULTS = { margin:'0.03', agencyFee:'0.001', bladexMargin:'0.0235' };
+/* Investors — the funding counterparties a trade can name as its Funder. Kept as reference data
+   beside the clients rather than derived from whatever has been typed into trades so far, which
+   is all the Funder datalist had to go on before. Deliberately does not touch pricing: a trade
+   prices off the margins keyed into its own panels, never off this list. */
+const INVESTOR_STATUSES = ['Active','Onboarding','Prospect','Inactive'];
+const INVESTOR_RANK = {Active:0, Onboarding:1, Prospect:2, Inactive:3};
+const SEED_INVESTORS = [
+  {id:'bladex', name:'Bladex', status:'Active', country:'Panama', region:'Americas',
+   margin:MARKET_DEFAULTS.bladexMargin, note:'Banco Latinoamericano de Comercio Exterior — the funder the workbook was built around.'},
+];
+const investorList = () => (store.investors && store.investors.list) || [];
+
 const RECEIVING_ACCOUNT_TEXT = 'See Part A (Receiving Account(s)) of Annex 2 (Accounts) to the IAA Addendum';
 
 /* ---------------------------- calendars ----------------------------
@@ -1569,6 +1718,7 @@ function defaultCurves(){
   for(const ccy of CURRENCIES){ const code=idxFor(ccy).index; if(!out[code]) out[code]=[]; }
   return out;
 }
+function defaultInvestors(){ return { list:SEED_INVESTORS.map(i=>({...i})) }; }
 function defaultClients(){
   return { source:{...MONDAY_SOURCE, syncedAt:null, via:'seeded'}, list:SEED_CLIENTS.map(c=>({...c})) };
 }
@@ -1586,6 +1736,7 @@ function normalise(s){
   if(!s.clients || !s.clients.list || !s.clients.list.length) s.clients=defaultClients();
   s.curves = {...defaultCurves(), ...(s.curves||{})};
   if(!Array.isArray(s.jurisdictions)) s.jurisdictions=[];   // books written before they existed
+  if(!s.investors || !Array.isArray(s.investors.list)) s.investors=defaultInvestors();
   // An empty jurisdiction list is left empty: on a new deal it is a selection not yet made,
   // and the validation rail already flags it. Only a migrated v1 record gets the four
   // hardcoded ones back, because v1 genuinely ran on BD Dates!B4:B13 — see migrateV1.
@@ -1673,7 +1824,8 @@ function seedStore(){
   const t=newTrade(d.id, who); t.identifier='DRC-CANTU-SB01'; t.tradeDate=WORKBOOK_CURVE_DATE;
   t.funder='Bladex'; t.obligor='Gripmaster'; t.inputs=workbookTradeInputs();
   return { v:2, deals:[d], trades:[t], currentDealId:d.id, currentTradeId:t.id,
-    curves:defaultCurves(), clients:defaultClients(), jurisdictions:[], audit:[] };
+    curves:defaultCurves(), clients:defaultClients(), investors:defaultInvestors(),
+    jurisdictions:[], audit:[] };
 }
 const save = () => { try{ localStorage.setItem(LS_KEY, JSON.stringify(store)); }catch(e){ console.warn('Persist failed', e); } };
 const actor = () => ({ name:(document.getElementById('actorName').value||'unknown').trim(),
@@ -1702,7 +1854,10 @@ function clientLabel(deal){
 const funderLabel = trade => (trade && String(trade.funder||'').trim()) || 'Funder';
 /** Suggest funders already used elsewhere in the book. */
 function renderFunderList(){
-  const names=[...new Set(['Bladex', ...store.trades.map(t=>String(t.funder||'').trim()).filter(Boolean)])].sort();
+  // Investors first — they are the maintained list; funders already typed into trades are kept so
+  // a one-off never disappears from the suggestions just because nobody added it to reference data.
+  const names=[...new Set([...investorList().filter(i=>i.status!=='Inactive').map(i=>i.name),
+                           ...store.trades.map(t=>String(t.funder||'').trim())].filter(Boolean))].sort();
   const el=$('funderList'); if(el) el.innerHTML=names.map(n=>'<option value="'+esc(n)+'">').join('');
 }
 const curvesFor = ccy => { const code=idxFor(ccy).index;
@@ -2075,7 +2230,7 @@ function render(){
     $('stateBadge').textContent='—'; $('stateBadge').className='badge DRAFT';
     $('dealCaption').textContent='No deals';
     configOpen=false;
-    renderDeals(); renderClients(); renderAudit(); renderAbout();
+    renderDeals(); renderClients(); renderInvestors(); renderRefMenu(); renderAudit(); renderAbout();
     $('topBanners').innerHTML='<div class="banner warn"><div><b>No deals.</b> Create one on the Deals &amp; Trades tab.</div></div>';
     $('dealContextBox').innerHTML=''; closeTradeModal_silent();
     for(const id of ['btnPrice','btnApprove','btnIssue','btnSettle','btnCancel','btnNewTradeFromDeals','btnDupTrade','btnVersion'])
@@ -2086,7 +2241,7 @@ function render(){
   const r=computeAll(d,t);
   applyNaming(clientLabel(d), funderLabel(t));
   renderHeader(d,t,r); renderDealForm(); renderFunderList(); renderPricing(d,t,r);
-  renderRates(); renderClients(); renderOffer(d,t,r);
+  renderRates(); renderClients(); renderInvestors(); renderRefMenu(); renderOffer(d,t,r);
   renderDeals(); renderAudit(); renderAbout();
   save();
 }
@@ -2488,8 +2643,10 @@ function renderRates(){
       '</tbody>';
   }
 
+  // On the menu screen, before any window is opened — the window headers carry a compact note too.
   $('ratesBanners').innerHTML = admin ? '' :
-    '<div class="banner info"><div><b>Read-only.</b> Curves and calendars are maintained by the <b>Rates Admin</b> role. Switch role in the header to edit. Every edit is written to the audit log.</div></div>';
+    '<div class="banner info" style="margin-bottom:14px"><div><b>Read-only as '+esc(actor().role)+
+    '.</b> Reference data is maintained by the <b>Rates Admin</b> role — switch role in the header to edit. Every edit is audited.</div></div>';
 
   const curveCell=c=>{ const h=curveHistory(c).filter(curveUsable);
     return h.length ? '<span class="inline-tag ok">'+h.length+' to '+fmtShort(h[h.length-1].businessDate)+'</span>'
@@ -2498,7 +2655,7 @@ function renderRates(){
     CURRENCIES.map(c=>{ const ix=idxFor(c);
       return '<tr><td><b>'+c+'</b></td><td>'+esc(ix.name)+' <span class="tiny mono">'+esc(ix.index)+'</span></td>'+
         '<td class="n">ACT/'+ix.basis+'</td>'+
-        '<td class="mono tiny">'+tenorsFor(c).map(tenorLabel).join(' · ')+'</td>'+
+        '<td class="mono tiny" style="white-space:nowrap">'+tenorsFor(c).map(tenorLabel).join(' · ')+'</td>'+
         '<td>'+curveCell(c)+'</td>'+
         '<td class="tiny">'+esc(ix.conventionNote||'')+'</td></tr>';
     }).join('')+'</tbody>';
@@ -2513,7 +2670,7 @@ function renderRates(){
         '<td class="n">'+fmtShort(c.coverageThrough)+'</td>'+
         '<td class="n">'+(fwd==null?'<span class="inline-tag err">none</span>'
                                   :'<span class="inline-tag '+(fwd<180?'warn':'ok')+'">'+fwd+'</span>')+'</td>'+
-        '<td>'+(c.url?'<a href="'+esc(c.url)+'" target="_blank" rel="noopener" class="tiny">'+esc(c.url)+'</a>'
+        '<td>'+(c.url?'<a href="'+esc(c.url)+'" target="_blank" rel="noopener" class="tiny" title="'+esc(c.url)+'">'+esc(hostOf(c.url))+'</a>'
                     :'<span class="tiny">'+(c.custom?'added by '+esc(customAddedBy(code)):'—')+'</span>')+'</td>'+
         '<td class="n">'+(c.custom && admin
           ? '<button class="btn sm danger" data-jur-delete="'+code+'">Remove</button>' : '')+'</td></tr>';
@@ -2527,17 +2684,131 @@ function renderRates(){
     : 'Adding a jurisdiction requires the Rates Admin role. '+ALL_JURISDICTIONS.length+' available.';
   if(!admin) showJurAdd(false);
 }
+/** Just the publisher's host, so a long official URL does not crowd the row out. */
+const hostOf = u => { try{ return new URL(u).host.replace(/^www\./,''); }catch(e){ return u; } };
 const customAddedBy = code => ((store.jurisdictions||[]).find(j=>j.code===code)||{}).addedBy || 'unknown';
+
+/* ---------------------------- reference data windows ---------------------------- */
+const REF_SETS = {
+  ccy:       {title:'Currencies & Base Rates', sub:'Index, day count and the dated curve history each trade prices off'},
+  clients:   {title:'Clients',                 sub:'The client book from the monday.com Global Pipeline'},
+  jur:       {title:'Jurisdictions & Holiday Calendars', sub:'Calendars a maturity date is checked against'},
+  investors: {title:'Investors',               sub:'Funding counterparties a trade can name as its Funder'},
+};
+let refOpen = null;
+/** Open one reference set in its window. Every set shares #refModal, so the tables inside keep
+ *  the ids their existing render functions already write to. */
+function openRef(name){
+  if(!REF_SETS[name]) return;
+  refOpen = name;
+  $('refModalTitle').firstChild.nodeValue = REF_SETS[name].title;
+  $('refModalSub').textContent = REF_SETS[name].sub;
+  for(const el of document.querySelectorAll('#refModal .refpane'))
+    el.classList.toggle('active', el.id==='refpane-'+name);
+  $('refModal').classList.add('open');
+  document.body.style.overflow='hidden';
+  render();
+}
+function closeRef(){
+  refOpen = null;
+  $('refModal').classList.remove('open');
+  document.body.style.overflow='';
+  showJurAdd(false); showInvAdd(false);
+  render();
+}
+/** The menu tiles carry a live count, so the set's size is readable without opening it. */
+function renderRefMenu(){
+  const ix = idxFor(currentDeal() ? currentDeal().currency : 'USD');
+  const curveCount = Object.values(store.curves||{}).reduce((n,h)=>n+(Array.isArray(h)?h.length:0),0);
+  const cl = clientList(), inv = investorList();
+  const added = (store.jurisdictions||[]).length;
+  $('refMetaCcy').textContent = CURRENCIES.length+' currencies · '+curveCount+' dated curve(s)';
+  $('refMetaClients').textContent = cl.length+' clients · '+
+    cl.filter(c=>ACTIVE_STATUSES.includes(c.status)).length+' active';
+  $('refMetaJur').textContent = ALL_JURISDICTIONS.length+' jurisdictions'+(added?' · '+added+' added here':'');
+  $('refMetaInvestors').textContent = inv.length+' investor(s) · '+
+    inv.filter(i=>i.status==='Active').length+' active';
+  if(refOpen) $('refRoleNote').textContent = actor().role==='Rates Admin'
+    ? 'Rates Admin — edits are audited' : 'Read-only as '+actor().role;
+  void ix;
+}
+
+/** Investors. Add and remove only, like the jurisdictions: a party list is not a spreadsheet. */
+function renderInvestors(){
+  const admin = actor().role==='Rates Admin';
+  const rows = investorList().slice().sort((a,b)=>
+    (INVESTOR_RANK[a.status]??9)-(INVESTOR_RANK[b.status]??9) || String(a.name).localeCompare(String(b.name)));
+  const usedBy = name => store.trades.filter(t=>String(t.funder||'').trim().toLowerCase()===String(name).trim().toLowerCase()).length;
+  $('invTable').innerHTML='<thead><tr><th>Investor</th><th>Status</th><th>Country</th><th>Region</th>'+
+    '<th class="n">Standing margin</th><th class="n">Trades</th><th></th></tr></thead><tbody>'+
+    (rows.length?rows.map(i=>{
+      const n=usedBy(i.name);
+      return '<tr><td>'+esc(i.name)+
+        (i.note?'<span class="note" style="display:block;max-width:46ch">'+esc(i.note)+'</span>':'')+'</td>'+
+        '<td><span class="inline-tag '+(i.status==='Active'?'ok':i.status==='Inactive'?'warn':'')+'">'+esc(i.status||'—')+'</span></td>'+
+        '<td>'+esc(i.country||'—')+'</td><td>'+esc(i.region||'—')+'</td>'+
+        '<td class="n">'+(isBlankRate(i.margin)?'—':pct(D.of(i.margin),3))+'</td>'+
+        '<td class="n">'+(n||'—')+'</td>'+
+        '<td class="n" style="white-space:nowrap">'+
+          (admin?'<button class="btn sm danger" data-inv-delete="'+esc(i.id)+'">Remove</button>':'')+'</td></tr>';
+    }).join('') : '<tr><td colspan="7" class="tiny">No investors yet. Use <b>+ Add investor</b>.</td></tr>')+'</tbody>';
+  $('btnInvAddToggle').disabled = !admin;
+  $('invAddNote').textContent = admin
+    ? 'Named here, an investor becomes a suggestion on a trade’s Funder field.'
+    : 'Adding an investor requires the Rates Admin role.';
+  if(!admin) showInvAdd(false);
+}
+function showInvAdd(on){
+  const card=$('invAddCard'); if(!card) return;
+  card.style.display = on ? '' : 'none';
+  if(!on) return;
+  $('iv_status').innerHTML=INVESTOR_STATUSES.map(s=>'<option>'+esc(s)+'</option>').join('');
+  $('iv_region').innerHTML=['Americas','EMEA','APAC','RoW'].map(r=>'<option>'+esc(r)+'</option>').join('');
+  $('iv_name').focus();
+}
+function addInvestorFromForm(){
+  if(actor().role!=='Rates Admin') return alert('Adding an investor requires the Rates Admin role.');
+  const name=$('iv_name').value.trim();
+  if(!name) return alert('An investor name is required.');
+  if(investorList().some(i=>i.name.trim().toLowerCase()===name.toLowerCase()))
+    return alert('"'+name+'" is already on the list.');
+  const marginRaw=$('iv_margin').value;
+  let margin='';
+  if(!isBlankRate(marginRaw)){
+    try{ margin=D.of(marginRaw).div(100).toFixed(12); }
+    catch(e){ return alert('Standing margin is not a number.'); }
+    if(D.of(margin).lt(ZERO)) return alert('Standing margin cannot be negative.');
+  }
+  store.investors.list.push({id:uuid(), name, status:$('iv_status').value,
+    country:$('iv_country').value.trim(), region:$('iv_region').value,
+    margin, note:$('iv_note').value.trim(), addedBy:actor().name, addedAt:new Date().toISOString()});
+  audit('investor', name, 'CREATE', null, null,
+    name+' — '+$('iv_status').value+(margin?', standing margin '+pct(D.of(margin),3):''), 'Added to reference data');
+  for(const id of ['iv_name','iv_country','iv_margin','iv_note']) $(id).value='';
+  showInvAdd(false); save(); render();
+}
+/** Refused while a trade still names it as Funder — that trade's labels read from the name. */
+function removeInvestor(id){
+  if(actor().role!=='Rates Admin') return alert('Removing an investor requires the Rates Admin role.');
+  const i=investorList().find(x=>String(x.id)===String(id)); if(!i) return;
+  const used=store.trades.filter(t=>String(t.funder||'').trim().toLowerCase()===i.name.trim().toLowerCase());
+  if(used.length) return alert('Cannot remove '+i.name+' — '+used.length+' trade(s) name it as Funder:\n• '+
+    used.map(t=>t.identifier||'(untitled)').join('\n• ')+
+    '\n\nThose trades take their Settlement Date, Margin and Cost of Funds labels from the name.');
+  if(!confirm('Remove '+i.name+' from the investor list?\n\nTrades already priced are untouched — this list '+
+    'only feeds the Funder suggestions. It stays in the audit log.')) return;
+  store.investors.list=investorList().filter(x=>String(x.id)!==String(id));
+  audit('investor', i.name, 'DELETE', null, i.name+' ('+i.status+')', null, 'Removed from reference data');
+  save(); render();
+}
 
 function renderClients(){
   const src=(store.clients&&store.clients.source)||{}, list=clientList();
   const active=list.filter(c=>ACTIVE_STATUSES.includes(c.status)).length;
-  $('clientSourceBox').innerHTML='<div class="banner info" style="margin-bottom:12px"><div>'+
-    '<b>'+list.length+' clients</b> ('+active+' active) from <b>'+esc(src.boardName||'—')+'</b> · board '+esc(src.boardId||'—')+
-    ' · column <code>'+esc(src.clientColumnId||'—')+'</code><br><span class="tiny">'+
-    (src.syncedAt ? 'Last refreshed '+new Date(src.syncedAt).toLocaleString()+' ('+esc(src.via||'')+')'
-                  : 'Seeded with the list captured when this file was built — not yet refreshed from the API.')+
-    '</span></div></div>';
+  $('clientSourceBox').innerHTML='<b>'+list.length+'</b> clients · <b>'+active+'</b> active · '+
+    esc(src.boardName||'—')+' · '+
+    (src.syncedAt ? 'refreshed '+new Date(src.syncedAt).toLocaleDateString()+' ('+esc(src.via||'')+')'
+                  : 'as captured when this file was built');
   const f=($('clientFilter').value||'').toLowerCase().trim();
   const rows=list.filter(c=>!f || c.name.toLowerCase().includes(f) || (c.country||'').toLowerCase().includes(f))
                  .sort((a,b)=>(STATUS_RANK[a.status]??9)-(STATUS_RANK[b.status]??9) || a.name.localeCompare(b.name));
@@ -3439,6 +3710,19 @@ function setJurisdictions(code, on){
 $('jurisdictionBox').addEventListener('click', e=>{
   const b=e.target.closest('button[data-jur-remove]'); if(b) setJurisdictions(b.dataset.jurRemove, false);
 });
+// ---- reference data menu + windows ----
+$('refMenu').addEventListener('click', e=>{
+  const b=e.target.closest('button[data-ref]'); if(b) openRef(b.dataset.ref);
+});
+$('refModal').addEventListener('click', e=>{ if(e.target.closest('[data-close-ref]')) closeRef(); });
+// Esc closes whichever window is on top: the trade workspace sits above the reference ones.
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !modalOpen && refOpen) closeRef(); });
+$('btnInvAddToggle').onclick=()=>showInvAdd($('invAddCard').style.display==='none');
+$('btnInvCancel').onclick=()=>showInvAdd(false);
+$('btnInvSave').onclick=addInvestorFromForm;
+$('invTable').addEventListener('click', e=>{
+  const b=e.target.closest('button[data-inv-delete]'); if(b) removeInvestor(b.dataset.invDelete);
+});
 $('btnJurAddToggle').onclick=()=>showJurAdd($('jurAddCard').style.display==='none');
 $('btnJurCancel').onclick=()=>showJurAdd(false);
 $('btnJurSave').onclick=addJurisdictionFromForm;
@@ -3451,7 +3735,7 @@ $('btnJurNew').onclick=()=>{
   if(actor().role!=='Rates Admin')
     return alert('Adding a jurisdiction requires the Rates Admin role — switch role in the header, '+
       'add it under Reference data → Holiday calendars, then come back to this deal.');
-  showTab('rates'); showJurAdd(true);
+  showTab('rates'); openRef('jur'); showJurAdd(true);
   $('jurAddCard').scrollIntoView({block:'center'});
 };
 $('btnJurClear').onclick=()=>{ const d=currentDeal(); if(!dealEditable(d)) return;
@@ -3470,6 +3754,7 @@ $('clientTable').addEventListener('click', e=>{
   d.clientId=c.id; d.clientName=c.name;
   audit('deal',d.id,'UPDATE','clientName',prev,c.name);
   revertPricedTrades(d,'Client changed — rate snapshot voided.');
+  closeRef();
   loadFormFromStore(); render(); showTab('deals');
 });
 
@@ -3755,7 +4040,7 @@ function requestCurveFor(ccy, dateISO){
   curveChoice = idxFor(ccy).index;
   curveDraft = {date: isValidDate(dateISO)?dateISO:'', reason:''};
   closeTradeModal();
-  showTab('rates');
+  showTab('rates'); openRef('ccy');
   if(actor().role!=='Rates Admin')
     alert('Switch to the Rates Admin role in the header to enter the '+idxFor(ccy).name+' curve.');
 }
