@@ -122,6 +122,9 @@ input[type=text]{text-align:left}
 textarea{text-align:left;resize:vertical;font:12px/1.6 var(--mono)}
 input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:var(--accent)}
 input.in{background:var(--input-bg);border-color:var(--input-line);color:var(--input-ink);font-weight:560}
+/* The rate fields carry the standing terms as placeholders. Lighter and italic, so a hint can
+   never be misread as a figure someone actually keyed into the trade. */
+input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1;font-weight:400;font-style:italic}
 input:disabled,select:disabled{opacity:.6;cursor:not-allowed}
 .calc{display:block;background:var(--calc-bg);border:1px solid var(--line);border-radius:6px;padding:5px 8px;text-align:right;color:var(--ink);font-variant-numeric:tabular-nums;cursor:help;position:relative}
 .calc.strong{font-weight:680}
@@ -1367,6 +1370,22 @@ function validate(deal, trade, out, quotes, bd){
   if(pfOn && Number(i.pfTenorDays)<1) E('TENOR.PF','Pro Forma tenor must be at least 1 day (Cantu!B14).');
   if(Number(i.bladexDays)<1) E('TENOR.BLADEX',FUNDER+' Days must be at least 1 (Cantu!B41).');
 
+  // ---- agreed rates ----
+  // These five have no safe default. price() reads a blank as zero, which would quietly drop the
+  // margin out of the markup and hand back a price that looks finished, so a blank blocks instead.
+  const RATE_FIELDS = [['pfMargin','Pro Forma Margin',pfOn], ['pfAgencyFee','Pro Forma Agency Fee',pfOn],
+    ['tcMargin','TradeCo Margin',true], ['tcAgencyFee','TradeCo Agency Fee',true],
+    ['bladexMargin',FUNDER+' Margin',true]];
+  /** A rate field as a number, or null when blank or unparseable — never silently zero. */
+  const rateOf = k => { if(isBlankRate(i[k])) return null;
+    try{ return D.of(i[k]); }catch(e){ return null; } };
+  for(const [k,lbl,needed] of RATE_FIELDS){
+    if(!needed) continue;
+    if(isBlankRate(i[k])) E('RATE.REQUIRED', lbl+' is required — enter the agreed rate.');
+    else if(rateOf(k)===null) E('RATE.NUMERIC', lbl+' is not a number ("'+String(i[k])+'").');
+    else if(rateOf(k).lt(ZERO)) E('RATE.NEGATIVE', lbl+' cannot be negative.');
+  }
+
   // ---- curves ----
   if(!isValidDate(trade.tradeDate)) E('TRADE.DATE','Trade Date is required — it selects the base rate curve.');
   if(!String(trade.funder||'').trim()) E('TRADE.FUNDER','Funder is required.');
@@ -1443,11 +1462,16 @@ function validate(deal, trade, out, quotes, bd){
     W('NOTE.TC_ISSUE','TradeCo Issue Date differs from the Bladex Settlement Date, so B27 ('+(out?out.tcTenorDays:'?')+'d) no longer equals Bladex Days ('+i.bladexDays+'d).');
   if(pfOn && Number(i.pfTenorDays)!==Number(i.bladexDays)+2 && Number(i.pfTenorDays)!==Number(i.bladexDays))
     W('NOTE.PF_TENOR','Pro Forma tenor is '+i.pfTenorDays+'d. The workbook note suggests Bladex Days + 2 ('+(Number(i.bladexDays)+2)+'d).');
+  // Only a rate that has been entered can depart from the standing terms. An empty field is
+  // already a blocking RATE.REQUIRED above; warning that it "is 0%, not 3%" on top of that would
+  // put five acknowledgements in front of every new trade for figures nobody had typed yet.
   for(const [k,def,lbl,needed] of [['pfMargin',MARKET_DEFAULTS.margin,'Pro Forma margin',pfOn],['tcMargin',MARKET_DEFAULTS.margin,'TradeCo margin',true],
                             ['bladexMargin',MARKET_DEFAULTS.bladexMargin,FUNDER+' margin',true],
-                            ['pfAgencyFee',MARKET_DEFAULTS.agencyFee,'Pro Forma agency fee',pfOn],['tcAgencyFee',MARKET_DEFAULTS.agencyFee,'TradeCo agency fee',true]])
-    if(needed && !D.of(i[k]||0).eq(D.of(def)))
-      W('NOTE.STANDARD_TERMS', lbl+' is '+pct(D.of(i[k]||0))+', not the standing '+pct(D.of(def))+'. Confirm a pricing discussion with '+CLIENT+'/'+FUNDER+' took place.');
+                            ['pfAgencyFee',MARKET_DEFAULTS.agencyFee,'Pro Forma agency fee',pfOn],['tcAgencyFee',MARKET_DEFAULTS.agencyFee,'TradeCo agency fee',true]]){
+    const v = needed ? rateOf(k) : null;
+    if(v && !v.eq(D.of(def)))
+      W('NOTE.STANDARD_TERMS', lbl+' is '+pct(v)+', not the standing '+pct(D.of(def))+'. Confirm a pricing discussion with '+CLIENT+'/'+FUNDER+' took place.');
+  }
   if(D.of(i.legalFees||0).gt(ZERO))
     W('NOTE.LEGAL_FEES','Legal/Structuring Fees of '+money(D.of(i.legalFees),deal.currency)+' are deducted from the supplier leg (B51) and therefore land in the TradeCo residual (B53).');
 
@@ -1473,9 +1497,9 @@ function newSupplierInvoice(seed){
  *  30-day tenor is the workbook's own hardcoded B9. */
 function blankTradeInputs(){
   return { supplierInvoices:[newSupplierInvoice()],
-    pfIssueDate:'', pfTenorDays:'', pfMargin:MARKET_DEFAULTS.margin, pfAgencyFee:MARKET_DEFAULTS.agencyFee,
-    tcIssueDate:'', tcMargin:MARKET_DEFAULTS.margin, tcAgencyFee:MARKET_DEFAULTS.agencyFee,
-    bladexSettlementDate:'', bladexDays:'', bladexMargin:MARKET_DEFAULTS.bladexMargin, legalFees:'0' };
+    pfIssueDate:'', pfTenorDays:'', pfMargin:'', pfAgencyFee:'',
+    tcIssueDate:'', tcMargin:'', tcAgencyFee:'',
+    bladexSettlementDate:'', bladexDays:'', bladexMargin:'', legalFees:'0' };
 }
 /** The worked example from Cantu Pricing Model 07222026.xlsx. It seeds a first run so the app
  *  opens on a trade that prices to B47; New deal and New trade never reach it. */
@@ -1484,7 +1508,10 @@ function workbookTradeInputs(){
     supplierInvoices:[newSupplierInvoice({invoiceNumber:'INV-0001', name:'Cantu Supplier',
       jurisdiction:'BR', issueDate:'2026-06-16', tenorDays:30, amount:'850000'})],
     pfIssueDate:'2026-06-22', pfTenorDays:180, tcIssueDate:'2026-07-16',
-    bladexSettlementDate:'2026-07-16', bladexDays:180 };
+    bladexSettlementDate:'2026-07-16', bladexDays:180,
+    pfMargin:MARKET_DEFAULTS.margin, pfAgencyFee:MARKET_DEFAULTS.agencyFee,
+    tcMargin:MARKET_DEFAULTS.margin, tcAgencyFee:MARKET_DEFAULTS.agencyFee,
+    bladexMargin:MARKET_DEFAULTS.bladexMargin };
 }
 function newDeal(who){
   return { id:uuid(), code:'', clientId:'', clientName:'', currency:'USD', proformaEnabled:true,
@@ -1945,12 +1972,18 @@ function loadFormFromStore(){
     const el=$(id); if(!el) continue;
     const raw=t.inputs[f];
     if(el.type==='checkbox') el.checked = raw!==false;
-    else el.value = PCT_FIELDS.has(f) ? D.of(raw||0).mul(100).toFixed(5) : (raw ?? '');
+    // A blank rate field stays blank. Rendering it as 0.00000 would put a figure nobody agreed
+    // in front of the user, and 0% is a real rate — it cannot double as "not entered yet".
+    else if(PCT_FIELDS.has(f)) el.value = isBlankRate(raw) ? '' : D.of(raw).mul(100).toFixed(5);
+    else el.value = raw ?? '';
   }
 }
+/** Blank means not entered. Kept separate from zero, which is a rate a deal could genuinely carry. */
+const isBlankRate = v => String(v??'').trim()==='';
 function readField(field, el){
   if(el.type==='checkbox') return el.checked;
-  if(PCT_FIELDS.has(field)) return D.of(el.value||0).div(100).toFixed(12);
+  // Clearing the field writes blank back, not 0 — otherwise a cleared margin silently becomes 0%.
+  if(PCT_FIELDS.has(field)) return isBlankRate(el.value) ? '' : D.of(el.value).div(100).toFixed(12);
   if(INT_FIELDS.has(field)) return Number(el.value||0);
   return el.value;
 }
@@ -3815,6 +3848,14 @@ $('btnAuditCsv').onclick=()=>{ const scope=$('auditScope').value, t=currentTrade
   download('audit-log.csv', head.join(',')+'\n'+rows.map(a=>head.map(h=>csvCell(a[h])).join(',')).join('\n')+'\n','text/csv'); };
 
 /* ---------------------------- boot ---------------------------- */
+// The standing market terms become placeholders on the five rate fields. The expected figure stays
+// in front of whoever is keying the trade, without a new trade carrying a rate nobody agreed —
+// and read from MARKET_DEFAULTS so the hint cannot drift from the value the warning compares to.
+for(const [id,def] of [['f_pfMargin',MARKET_DEFAULTS.margin], ['f_tcMargin',MARKET_DEFAULTS.margin],
+                       ['f_pfAgency',MARKET_DEFAULTS.agencyFee], ['f_tcAgency',MARKET_DEFAULTS.agencyFee],
+                       ['f_bladexMargin',MARKET_DEFAULTS.bladexMargin]])
+  $(id).placeholder = D.of(def).mul(100).toFixed(5);
+
 loadFormFromStore();
 render();
 runTests();

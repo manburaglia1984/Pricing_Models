@@ -127,15 +127,31 @@ apart is exactly what invites a mis-click.
 ### What a new deal or trade starts with
 
 **Nothing carried over.** **New deal** and **New trade** open empty: no client, code or jurisdictions on
-the deal; no obligor, funder, dates, tenors, supplier invoice number, name or amount on the trade. The
-validation rail names every field still needed, so a blank trade cannot price by accident on a figure
-nobody entered. **Duplicate** and **New version** are the deliberate opposite — those copy their source.
+the deal; no obligor, funder, dates, tenors, margins, agency fees, supplier invoice number, name or
+amount on the trade. The validation rail names every field still needed, so a blank trade cannot price
+by accident on a figure nobody entered. **Duplicate** and **New version** are the deliberate opposite —
+those copy their source.
 
-Four things stay set, none of them another deal's data:
+#### The agreed rates
+
+The two Margins, the two Agency Fees and the Funder Margin start blank, and **blank blocks pricing**.
+`price()` reads an empty rate as zero, which would drop the margin straight out of the markup and hand
+back a purchase price that looks finished, so each empty field raises a blocking `RATE.REQUIRED` instead.
+
+- **Blank is not zero.** Clearing a field writes blank back, not `0`, and a blank survives a reload
+  rather than being read in as `0.00000`. An explicit `0%` is a real rate: it prices, and it raises the
+  standing-terms warning like any other departure.
+- **The standing terms appear as placeholders**, in lighter italic so a hint is never mistaken for a
+  keyed figure. They are read from `MARKET_DEFAULTS`, so the hint cannot drift from the value
+  `NOTE.STANDARD_TERMS` compares against.
+- `NOTE.STANDARD_TERMS` only fires on a rate that **has** been entered and differs. Warning that an
+  empty field "is 0%, not 3%" would put five acknowledgements in front of every new trade for figures
+  nobody had typed.
+
+Three things stay set, none of them another deal's data:
 
 | Stays set | Why |
 | --- | --- |
-| The five margin / agency-fee fields, at the standing market terms | These *are* the baseline. A departure from them is what `NOTE.STANDARD_TERMS` asks you to justify, so starting them empty would raise five warnings to acknowledge on every new trade. |
 | Legal / structuring fees at `0` | Zero is the true default; `NOTE.LEGAL_FEES` fires only above it. |
 | Supplier row tenor at `30` days | The workbook's own hardcoded B9, documented as such on the field. |
 | Trade Date at today, deal currency at USD | A trade is struck now, and the Trade Date selects the curve; the currency drives every index and day-count label and so needs a valid value. |
