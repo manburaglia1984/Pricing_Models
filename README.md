@@ -93,6 +93,37 @@ A **deal** holds everything its trades share. A **trade** is what gets priced, a
 
 This matches the SharePoint layout, where `Trade 1 - DRC` holds SB01 / SB02 / SB03 under one facility.
 
+### Adding a jurisdiction without a new build
+
+29 holiday calendars ship with the file. A deal in a country outside those 29 needs a calendar, not
+a new version of this file, so **Reference data → Holiday calendars → + Add jurisdiction** takes one:
+a code, a name, a region, a source URL, and the publisher's holiday list pasted in.
+
+- Dates are read as loosely as on the curve upload — `2027-01-01`, `01/01/2027`, `1-Jan-2027` and Excel
+  serials all work — and day-first vs month-first is settled across the whole list at once, so a list
+  mixing both orders is refused rather than silently misread. A live count shows what parsed before you
+  commit, and anything unreadable is named and confirmed rather than dropped quietly.
+- **Weekends are already handled**, so holidays alone are enough.
+- **Coverage runs to the last date given.** A maturity date beyond it reports `CHECK LIST` — the same
+  hard stop as a shipped calendar past its coverage, never a silent pass.
+- Added calendars live **in the book**, beside the deals: they save with it, and travel through
+  **Export / Import JSON** so a colleague opening your file gets your jurisdictions too.
+- Requires the **Rates Admin** role, as every other reference-data edit does, and both adding and
+  removing are written to the audit log with the source you name. The deal's own picker carries a
+  **+ New jurisdiction** shortcut so a deal in a new country does not have to go hunting for the tab.
+- A code already in use is refused, and removal is refused while any deal still lists it — those deals'
+  maturity dates are being checked against it.
+
+### Branding
+
+The header carries the Silver Birch lockup, and the browser tab the mark on the brand purple. The mark is
+an inline SVG `<symbol>` defined once and referenced by `<use>`, single-colour with `fill-rule="evenodd"`,
+so one fill paints it at any size. `--brand` and `--silver` are the logo's own two colours and never vary
+by theme — the badge behind the mark stays the deep purple the silver was drawn against. `--accent` is
+that same purple doing the interface's work, so it lightens in dark mode as an accent must. **New trade**
+is teal rather than a second purple: with the accent now brand purple, two purple primary buttons a card
+apart is exactly what invites a mis-click.
+
 ### What a new deal or trade starts with
 
 **Nothing carried over.** **New deal** and **New trade** open empty: no client, code or jurisdictions on
