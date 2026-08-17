@@ -50,7 +50,7 @@ trade list shows, summed in the deal's own currency.
 - **Cancelled trades are on neither side.** A cancelled trade will never settle, so counting it as
   outstanding would overstate what is still to come; it is tallied beside the outstanding count as
   `n cancelled` so the row still reconciles against the deal's full trade list.
-- A trade that cannot be priced right now — no base-rate curve published on or before its Trade Date, or
+- A trade that cannot be priced right now — no base-rate curve published on or before its Trade Submission Date, or
   inputs that do not compute — is counted but adds no money, and says so as `+n not priced` rather than
   being silently read as zero.
 
@@ -84,7 +84,7 @@ A **deal** holds everything its trades share. A **trade** is what gets priced, a
 | Deal (shared) | Trade (per trade) |
 |---|---|
 | Client | Trade Identifier — `Cantu!B5` |
-| Transaction Code — `Cantu!B4` | **Trade Date** — selects the base rate curve |
+| Transaction Code — `Cantu!B4` | **Trade Submission Date** — selects the base rate curve |
 | | **Funder** — names the Settlement Date, Margin and Cost of Funds fields |
 | | Relevant Obligor — `Offer File!A3` |
 | Currency → base rate index + day count | The invoice/pricing blocks |
@@ -154,7 +154,7 @@ Three things stay set, none of them another deal's data:
 | --- | --- |
 | Legal / structuring fees at `0` | Zero is the true default; `NOTE.LEGAL_FEES` fires only above it. |
 | Supplier row tenor at `30` days | The workbook's own hardcoded B9, documented as such on the field. |
-| Trade Date at today, deal currency at USD | A trade is struck now, and the Trade Date selects the curve; the currency drives every index and day-count label and so needs a valid value. |
+| Trade Submission Date at today, deal currency at USD | A trade is submitted now, and that date selects the curve; the currency drives every index and day-count label and so needs a valid value. |
 
 An empty jurisdiction list is now left empty on load rather than backfilled to `US, GB, BR, HK` — on a new
 deal it is a selection not yet made, and the validation rail already flags it. Only a **migrated v1
@@ -203,7 +203,7 @@ spreadsheet needed two tabs because it cannot hold a history. With one, the spli
 | Block | Reads the curve as at |
 |---|---|
 | Panel 2 — TradeCo Pro Forma | the **Pro Forma Issue Date** (`Cantu!B13`) |
-| Panel 3 — TradeCo Invoices, and Panel 4 — IAA | the **Trade Date** |
+| Panel 3 — TradeCo Invoices, and Panel 4 — IAA | the **Trade Submission Date** |
 
 A curve applies from its business date until the next one supersedes it, so a trade prices off the
 **latest curve published on or before** the date in question. A trade struck last month keeps last
@@ -226,7 +226,7 @@ The Reference data tab's **Base rate curves** card manages the history:
   all are skipped and reported rather than half-loaded. *Download CSV template* gives the exact shape;
   *Export history* round-trips everything.
 - The history table shows each curve's rates, source and **which trades read it, and in which role**
-  ("trade date" or "pro forma"), so you can see what a curve is load-bearing for before deleting it.
+  ("trade submission date" or "pro forma"), so you can see what a curve is load-bearing for before deleting it.
   Rows missing pillars say which.
 
 Partial curves are **allowed and flagged, never silently wrong**. A curve interpolates on whatever
@@ -239,7 +239,7 @@ as an exact hit.
 `RATE.NO_CURVE_PF`); a curve that merely predates it prices but warns (`RATE.NOT_CURRENT`,
 `RATE.NOT_CURRENT_PF`) naming the gap in days. Each surfaces its own banner in the trade workspace with a
 button that jumps to the curve entry pre-filled with **that** index and date — so a missing pro forma
-rate sends you to the pro forma issue date, not the trade date.
+rate sends you to the pro forma issue date, not the submission date.
 
 Only the two curves the workbook carries are seeded. No historical market data is invented: everything
 else has to be uploaded.

@@ -315,7 +315,7 @@ code,.mono{font-family:var(--mono);font-size:12px}
         <h2>Trade <span class="src">Cantu!B5 · Offer File!A3</span></h2>
         <div class="body">
           <div class="row"><div class="lbl">Trade Identifier<span class="note">Unique within the deal. Offer File column D.</span></div><div class="cell"><input type="text" class="in" id="f_tradeid" data-trade="identifier"></div></div>
-          <div class="row"><div class="lbl">Trade Date<span class="note">Date the trade is struck. Selects the base rate curve — the latest one published on or before this date.</span></div><div class="cell"><input type="date" class="in" id="f_tradeDate" data-trade="tradeDate"></div></div>
+          <div class="row"><div class="lbl">Trade Submission Date<span class="note">Date the trade is submitted. Selects the base rate curve — the latest one published on or before this date.</span></div><div class="cell"><input type="date" class="in" id="f_tradeDate" data-trade="tradeDate"></div></div>
           <div class="row"><div class="lbl">Funder<span class="note">Provides the funding and sets the margin. Names the Settlement Date, Margin and Cost of Funds fields below.</span></div><div class="cell"><input type="text" class="in" id="f_funder" data-trade="funder" list="funderList"><datalist id="funderList"></datalist></div></div>
           <div class="row"><div class="lbl">Relevant Obligor<span class="note">Offer File!A3 — may differ per trade.</span></div><div class="cell"><input type="text" class="in" id="f_obligor" data-trade="obligor"></div></div>
         </div>
@@ -360,7 +360,7 @@ code,.mono{font-family:var(--mono);font-size:12px}
           <div class="row"><div class="lbl">Issue Date<span class="note">It should be a date before (around 5 days) Supplier Invoice Maturity Date</span></div><div class="cell"><input type="date" class="in" id="f_tcIssue" data-field="tcIssueDate"></div></div>
           <div class="row"><div class="lbl">Tenor (days)</div><div class="cell"><span class="calc" id="o_tcTenor" title="B27 = B41 + (B40 − B26)"><span class="f">B27</span>—</span></div></div>
           <div class="row"><div class="lbl">Maturity Date</div><div class="cell"><span class="calc" id="o_tcMaturity" title="B28 = B42 = B40 + B41"><span class="f">B28</span>—</span></div></div>
-          <div class="row"><div class="lbl"><span id="o_tcRateLabel">Base rate</span><span class="note">Prior Funding — the curve as at the Trade Date, interpolated at Funder Days</span></div><div class="cell"><span class="calc" id="o_tcRate" title="B29 = live curve interpolated at B41"><span class="f">B29</span>—</span></div></div>
+          <div class="row"><div class="lbl"><span id="o_tcRateLabel">Base rate</span><span class="note">Prior Funding — the curve as at the Trade Submission Date, interpolated at Funder Days</span></div><div class="cell"><span class="calc" id="o_tcRate" title="B29 = live curve interpolated at B41"><span class="f">B29</span>—</span></div></div>
           <div class="row"><div class="lbl"><span data-tpl="Margin ({funder} Margin + TradeCo Fee)">Margin</span><span class="note" data-tpl="Should be always the same unless pricing discussion with {client}/{funder}">Should be always the same unless pricing discussion with the client and funder</span></div><div class="cell suffix" data-suffix="%"><input type="number" class="in" id="f_tcMargin" data-field="tcMargin" step="0.00001"></div></div>
           <div class="row"><div class="lbl">Agency Fee<span class="note">Also drives the agency-fee payment leg (B52)</span></div><div class="cell suffix" data-suffix="%"><input type="number" class="in" id="f_tcAgency" data-field="tcAgencyFee" step="0.00001"></div></div>
           <div class="row"><div class="lbl">TradeCo Mark-up</div><div class="cell"><span class="calc" id="o_tcMarkup" title="B32 = B30 + B29 + B31"><span class="f">B32</span>—</span></div></div>
@@ -440,7 +440,7 @@ code,.mono{font-family:var(--mono);font-size:12px}
         <span class="tiny" id="curveMeta"></span>
       </div>
       <div id="curveAddBox"></div>
-      <p class="tiny" style="margin:0 0 8px">A trade prices off the latest curve published <b>on or before</b> the date it reads — the Trade Date for panels 3 and 4, the Pro Forma Issue Date for panel 2. Every rate below is editable in place; blank pillars are left untouched, so you can add a single data point for one date. Rates are percentages.</p>
+      <p class="tiny" style="margin:0 0 8px">A trade prices off the latest curve published <b>on or before</b> the date it reads — the Trade Submission Date for panels 3 and 4, the Pro Forma Issue Date for panel 2. Every rate below is editable in place; blank pillars are left untouched, so you can add a single data point for one date. Rates are percentages.</p>
       <div class="scroll" style="max-height:420px"><table id="curveTable"></table></div>
       <div class="toolbar" style="margin:12px 0 0">
         <label class="btn" style="display:inline-flex;align-items:center">Upload history (CSV/JSON)<input type="file" id="curveImportFile" accept=".csv,.json,text/csv,application/json" style="display:none"></label>
@@ -1387,20 +1387,20 @@ function validate(deal, trade, out, quotes, bd){
   }
 
   // ---- curves ----
-  if(!isValidDate(trade.tradeDate)) E('TRADE.DATE','Trade Date is required — it selects the base rate curve.');
+  if(!isValidDate(trade.tradeDate)) E('TRADE.DATE','Trade Submission Date is required — it selects the base rate curve.');
   if(!String(trade.funder||'').trim()) E('TRADE.FUNDER','Funder is required.');
   if(isValidDate(trade.tradeDate) && isValidDate(i.bladexSettlementDate) && trade.tradeDate > i.bladexSettlementDate)
-    W('NOTE.TRADE_DATE','Trade Date is after the '+FUNDER+' Settlement Date — a trade is normally struck on or before settlement.');
+    W('NOTE.TRADE_DATE','Trade Submission Date is after the '+FUNDER+' Settlement Date — a trade is normally submitted on or before settlement.');
 
-  // The curve in force on the trade date, not simply "the curve that is loaded".
+  // The curve in force on the submission date, not simply "the curve that is loaded".
   const liveCurve=curveAsOf(deal.currency, trade.tradeDate);
   const pfCurve=pfOn?curveAsOf(deal.currency, i.pfIssueDate):null;
   if(isValidDate(trade.tradeDate)){
-    if(!liveCurve) E('RATE.NO_CURVE','No '+ix.name+' curve published on or before the Trade Date ('+
+    if(!liveCurve) E('RATE.NO_CURVE','No '+ix.name+' curve published on or before the Trade Submission Date ('+
       fmtShort(trade.tradeDate)+'). A Rates Admin must upload or key in the '+deal.currency+' curve for that date.');
     else if(liveCurve.businessDate!==trade.tradeDate)
       W('RATE.NOT_CURRENT','Using the '+ix.name+' curve dated '+fmtShort(liveCurve.businessDate)+', '+
-        dDiff(trade.tradeDate, liveCurve.businessDate)+' day(s) before the Trade Date. Upload the curve for '+
+        dDiff(trade.tradeDate, liveCurve.businessDate)+' day(s) before the Trade Submission Date. Upload the curve for '+
         fmtShort(trade.tradeDate)+' to price on current data.');
   }
   if(pfOn && isValidDate(i.pfIssueDate)){
@@ -1552,7 +1552,7 @@ function effectiveInputs(deal, trade){
 /* One dated curve history per index. There is no separate "pro forma" curve: the workbook's
    two interpolation tabs were the same index read at two different dates — its own notes say
    "Issuance Date Pro Forma" (B16) and "Prior Funding" (B29). So the TradeCo block reads the
-   curve as at the Trade Date and the Pro Forma block reads it as at the Pro Forma Issue Date. */
+   curve as at the Trade Submission Date and the Pro Forma block reads it as at the Pro Forma Issue Date. */
 // The workbook prices as at its Bladex settlement date; the file name is just when it was saved.
 const WORKBOOK_CURVE_DATE='2026-07-16';        // Bladex settlement — the TradeCo/IAA rate date
 const WORKBOOK_PF_CURVE_DATE='2026-06-22';     // Pro Forma issue date — Cantu!B13
@@ -1741,7 +1741,7 @@ function quoteFrom(curve, tenorDays, ccy, role, asOf){
     tenorDays:Number(tenorDays), rate:r.rate.toFixed(12), method:r.method,
     pillars:curve.pillars.map(p=>({...p})), quotedAt:new Date().toISOString() };
 }
-/** One index, read at two dates: the Trade Date for the TradeCo and IAA blocks, and the
+/** One index, read at two dates: the Trade Submission Date for the TradeCo and IAA blocks, and the
  *  Pro Forma Issue Date for panel 2 — matching the workbook's own B16 / B29 notes. */
 function liveQuotes(deal, trade){
   const t=Number(trade.inputs.bladexDays);
@@ -1751,7 +1751,7 @@ function liveQuotes(deal, trade){
   const pfOn = deal.proformaEnabled !== false;
   const pfDate = trade.inputs.pfIssueDate;
   const pf = pfOn ? curveAsOf(deal.currency, pfDate) : null;
-  return { live:quoteFrom(live,t,deal.currency,'Trade Date',trade.tradeDate),
+  return { live:quoteFrom(live,t,deal.currency,'Trade Submission Date',trade.tradeDate),
            pf: pf ? quoteFrom(pf,t,deal.currency,'Pro Forma Issue Date',pfDate) : null };
 }
 const effectiveQuotes = (deal,trade) => trade.rateQuotes || liveQuotes(deal,trade);
@@ -1772,7 +1772,7 @@ function computeAll(deal, trade){
 }
 
 /** The money one trade carries: its IAA Purchase Price (B47), the same figure the trade list
- *  shows. Null when the trade cannot be priced — no curve on its Trade Date, or inputs that
+ *  shows. Null when the trade cannot be priced — no curve on its Trade Submission Date, or inputs that
  *  do not compute. Deliberately lighter than computeAll: the deal list wants the number, not
  *  the validation, and it prices every trade in the book on each render. */
 function tradeValue(deal, trade){
@@ -2454,7 +2454,7 @@ function renderRates(){
   for(const t of store.trades){
     const d=store.deals.find(x=>x.id===t.dealId); if(!d || idxFor(d.currency).index!==code) continue;
     const tag=(c,role)=>{ if(c) (usedBy[c.businessDate] ||= []).push((t.identifier||'(untitled)')+' · '+role); };
-    tag(curveAsOf(d.currency, t.tradeDate), 'trade date');
+    tag(curveAsOf(d.currency, t.tradeDate), 'trade submission date');
     if(d.proformaEnabled!==false) tag(curveAsOf(d.currency, t.inputs.pfIssueDate), 'pro forma');
   }
   // Leave the table alone while a cell has focus, so an in-progress edit is not wiped.
@@ -2645,7 +2645,7 @@ function renderDeals(){
   // A count cell reads "3" on its own, or "3 +1 not priced" when some trades carry no figure.
   const countCell=(s,what,extra)=>'<td class="n">'+s.n+
     (s.unpriced?' <span class="tiny" title="'+s.unpriced+' of these '+what+' trade(s) cannot be priced '+
-      'right now — no base-rate curve on the Trade Date, or inputs that do not compute — so they add '+
+      'right now — no base-rate curve on the Trade Submission Date, or inputs that do not compute — so they add '+
       'nothing to the value beside them.">+'+s.unpriced+' not priced</span>':'')+(extra||'')+'</td>';
   const cancNote=n=>n?' <span class="tiny" title="'+n+' cancelled trade(s), counted on neither side — '+
     'a cancelled trade will never settle, so listing it as outstanding would overstate the book.">'+
@@ -2988,7 +2988,7 @@ function runTests(){
   T('TARGET2 Christmas is closed', businessDayCheck('2026-12-25',['EU']).verdict,'CHECK DATE!','TARGET2');
   T('TARGET2 Good Friday 2027', CALENDARS.EU.set.has('2027-03-26'),'true','Easter 2027-03-28');
 
-  // Curve history resolves as at the trade date: latest published on or before it.
+  // Curve history resolves as at the submission date: latest published on or before it.
   {
     const saved=store.curves.TERM_SOFR;
     const mk=(bd,six)=>({businessDate:bd, source:'MANUAL_OVERRIDE', overrideReason:'',
@@ -3012,7 +3012,7 @@ function runTests(){
   // One index read at two dates reproduces the workbook's two interpolation tabs.
   T('Curve at Pro Forma Issue Date',
     D.of(curveAsOf('USD',WORKBOOK_PF_CURVE_DATE).pillars[2].rate).toFixed(7),'0.0385550',"'SOFR Interpolation Pro Forma'");
-  T('Curve at Trade Date',
+  T('Curve at Trade Submission Date',
     D.of(curveAsOf('USD',WORKBOOK_CURVE_DATE).pillars[2].rate).toFixed(7),'0.0387550',"'SOFR Interpolation'");
   T('One history, no side split', Array.isArray(store.curves.TERM_SOFR),'true','curves[index] is a flat list');
   // Partial curves: usable, flagged, and never silently flat-quoted as an exact hit.
@@ -3043,7 +3043,7 @@ function runTests(){
     const deal={currency:'USD', proformaEnabled:true};
     const trade={tradeDate:WORKBOOK_CURVE_DATE, inputs:{...blankTradeInputs(), pfIssueDate:WORKBOOK_PF_CURVE_DATE, bladexDays:180}};
     const q=liveQuotes(deal,trade);
-    T('Trade Date drives the TradeCo rate', D.of(q.live.rate).toFixed(7),'0.0387550','Cantu!B29');
+    T('Trade Submission Date drives the TradeCo rate', D.of(q.live.rate).toFixed(7),'0.0387550','Cantu!B29');
     T('Pro Forma Issue Date drives panel 2', D.of(q.pf.rate).toFixed(7),'0.0385550','Cantu!B16');
     const q2=liveQuotes(deal,{...trade, inputs:{...trade.inputs, pfIssueDate:WORKBOOK_CURVE_DATE}});
     T('Moving the PF issue date moves its rate', D.of(q2.pf.rate).toFixed(7),'0.0387550','panel 2 follows its own date');
@@ -3750,7 +3750,7 @@ function importCurveText(text, fileName){
   render();
   alert('Loaded '+added+' curve(s).'+(skipped.length?'\n\nSkipped '+skipped.length+':\n• '+skipped.slice(0,8).join('\n• '):'')+note);
 }
-/** Jump from a trade that needs a rate straight to the curve entry for its trade date. */
+/** Jump from a trade that needs a rate straight to the curve entry for its submission date. */
 function requestCurveFor(ccy, dateISO){
   curveChoice = idxFor(ccy).index;
   curveDraft = {date: isValidDate(dateISO)?dateISO:'', reason:''};
