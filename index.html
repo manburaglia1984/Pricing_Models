@@ -9,6 +9,7 @@
   --bg:#f6f7f9; --panel:#ffffff; --panel-2:#fbfcfd; --ink:#15181d; --ink-2:#5a626e; --ink-3:#8b93a1;
   --line:#e2e6ec; --line-2:#cdd4de;
   --accent:#1f5fbf; --accent-ink:#ffffff; --accent-soft:#e8f0fd;
+  --violet:#6d3fb8; --violet-ink:#ffffff;
   --input-bg:#fff8d6; --input-line:#e3cf72; --input-ink:#3d3410;
   --calc-bg:#f1f3f6; --note:#7a4fbd;
   --ok:#177245; --ok-bg:#e6f4ec; --warn:#8a5a00; --warn-bg:#fdf3e0; --err:#a51c30; --err-bg:#fceaed;
@@ -21,6 +22,7 @@
     --bg:#0e1116; --panel:#161a21; --panel-2:#1b2029; --ink:#e7eaef; --ink-2:#a3acbb; --ink-3:#727c8c;
     --line:#252b35; --line-2:#333b48;
     --accent:#5b9bf8; --accent-ink:#0e1116; --accent-soft:#16233a;
+    --violet:#a983f0; --violet-ink:#0e1116;
     --input-bg:#33300f; --input-line:#6d6222; --input-ink:#f3ecc6;
     --calc-bg:#1c212a; --note:#b898ea;
     --ok:#6fd39b; --ok-bg:#12261b; --warn:#e3b25f; --warn-bg:#2a2110; --err:#f38a9c; --err-bg:#2d1219;
@@ -31,6 +33,7 @@
   --bg:#0e1116; --panel:#161a21; --panel-2:#1b2029; --ink:#e7eaef; --ink-2:#a3acbb; --ink-3:#727c8c;
   --line:#252b35; --line-2:#333b48;
   --accent:#5b9bf8; --accent-ink:#0e1116; --accent-soft:#16233a;
+    --violet:#a983f0; --violet-ink:#0e1116;
   --input-bg:#33300f; --input-line:#6d6222; --input-ink:#f3ecc6;
   --calc-bg:#1c212a; --note:#b898ea;
   --ok:#6fd39b; --ok-bg:#12261b; --warn:#e3b25f; --warn-bg:#2a2110; --err:#f38a9c; --err-bg:#2d1219;
@@ -59,6 +62,10 @@ header.top{position:sticky;top:0;z-index:40;background:var(--panel);border-botto
 .btn:disabled{opacity:.42;cursor:not-allowed}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .btn.primary:hover:not(:disabled){filter:brightness(1.08);color:var(--accent-ink)}
+/* Same weight as .primary, a different hue: New trade creates a different kind of thing
+   from New deal, and the two sit one card apart. */
+.btn.primary.violet{background:var(--violet);border-color:var(--violet);color:var(--violet-ink)}
+.btn.primary.violet:hover:not(:disabled){color:var(--violet-ink)}
 .btn.danger:hover:not(:disabled){border-color:var(--err);color:var(--err)}
 .btn.sm{padding:3px 9px;font-size:12px}
 nav.tabs{display:flex;gap:2px;padding:0 20px;overflow-x:auto}
@@ -447,9 +454,12 @@ code,.mono{font-family:var(--mono);font-size:12px}
   </div>
   <div id="dealsSplit">
       <div class="card tight">
-        <h2>Trades on this deal <span class="tiny" style="text-transform:none;letter-spacing:0" id="dealTradesFor"></span>
-          <span class="src"><button class="btn sm" id="btnNewTradeFromDeals">New trade</button></span></h2>
-        <div class="body" id="dealTradesBox"></div>
+        <h2>Trades on this deal <span class="tiny" style="text-transform:none;letter-spacing:0" id="dealTradesFor"></span></h2>
+        <div class="body">
+          <!-- New trade leads its card's toolbar, the way New deal leads the one above. -->
+          <div class="toolbar"><button class="btn primary violet" id="btnNewTradeFromDeals">New trade</button></div>
+          <div id="dealTradesBox"></div>
+        </div>
       </div>
       <div class="card deal" id="dealConfigCard">
         <h2>Deal configuration <span class="tiny" style="text-transform:none;letter-spacing:0" id="dealScopeNote"></span>
