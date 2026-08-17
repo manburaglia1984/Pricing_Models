@@ -1367,20 +1367,36 @@ const uuid = () => (crypto.randomUUID ? crypto.randomUUID()
 function newSupplierInvoice(seed){
   return {id:uuid(), invoiceNumber:'', name:'', jurisdiction:'', issueDate:'', tenorDays:30, amount:'', ...(seed||{})};
 }
+/** A new trade starts empty. Nothing is carried across from any other trade or deal: every
+ *  amount, date, tenor and name is blank, and the validation rail names each one that still
+ *  needs a value rather than letting a stale figure price.
+ *  What remains set is not another deal's data. The five margin and fee fields hold the
+ *  standing market terms — those are the baseline NOTE.STANDARD_TERMS asks you to justify a
+ *  departure from, so emptying them would raise five warnings on every new trade. Legal fees
+ *  of zero is the real default (NOTE.LEGAL_FEES fires only above it), and the supplier row's
+ *  30-day tenor is the workbook's own hardcoded B9. */
 function blankTradeInputs(){
-  return { supplierInvoices:[newSupplierInvoice({invoiceNumber:'INV-0001', name:'Cantu Supplier',
-             jurisdiction:'BR', issueDate:'2026-06-16', tenorDays:30, amount:'850000'})],
-    pfIssueDate:'2026-06-22', pfTenorDays:180, pfMargin:MARKET_DEFAULTS.margin, pfAgencyFee:MARKET_DEFAULTS.agencyFee,
-    tcIssueDate:'2026-07-16', tcMargin:MARKET_DEFAULTS.margin, tcAgencyFee:MARKET_DEFAULTS.agencyFee,
-    bladexSettlementDate:'2026-07-16', bladexDays:180, bladexMargin:MARKET_DEFAULTS.bladexMargin, legalFees:'0' };
+  return { supplierInvoices:[newSupplierInvoice()],
+    pfIssueDate:'', pfTenorDays:'', pfMargin:MARKET_DEFAULTS.margin, pfAgencyFee:MARKET_DEFAULTS.agencyFee,
+    tcIssueDate:'', tcMargin:MARKET_DEFAULTS.margin, tcAgencyFee:MARKET_DEFAULTS.agencyFee,
+    bladexSettlementDate:'', bladexDays:'', bladexMargin:MARKET_DEFAULTS.bladexMargin, legalFees:'0' };
+}
+/** The worked example from Cantu Pricing Model 07222026.xlsx. It seeds a first run so the app
+ *  opens on a trade that prices to B47; New deal and New trade never reach it. */
+function workbookTradeInputs(){
+  return { ...blankTradeInputs(),
+    supplierInvoices:[newSupplierInvoice({invoiceNumber:'INV-0001', name:'Cantu Supplier',
+      jurisdiction:'BR', issueDate:'2026-06-16', tenorDays:30, amount:'850000'})],
+    pfIssueDate:'2026-06-22', pfTenorDays:180, tcIssueDate:'2026-07-16',
+    bladexSettlementDate:'2026-07-16', bladexDays:180 };
 }
 function newDeal(who){
   return { id:uuid(), code:'', clientId:'', clientName:'', currency:'USD', proformaEnabled:true,
-    jurisdictions:[...DEFAULT_JURISDICTIONS], createdBy:who, createdAt:new Date().toISOString(), cancelled:false };
+    jurisdictions:[], createdBy:who, createdAt:new Date().toISOString(), cancelled:false };
 }
 function newTrade(dealId, who){
-  return { id:uuid(), dealId, identifier:'', tradeDate:todayISO(), funder:'Bladex',
-    obligor:'Gripmaster', versionNo:1, state:'DRAFT',
+  return { id:uuid(), dealId, identifier:'', tradeDate:todayISO(), funder:'',
+    obligor:'', versionNo:1, state:'DRAFT',
     inputs:blankTradeInputs(), createdBy:who, createdAt:new Date().toISOString(),
     approvedBy:null, approvedAt:null, actualSettlementDate:null,
     rateQuotes:null, acks:{}, offerFiles:[], cancelled:false };
@@ -1446,7 +1462,10 @@ function load(){
 function normalise(s){
   if(!s.clients || !s.clients.list || !s.clients.list.length) s.clients=defaultClients();
   s.curves = {...defaultCurves(), ...(s.curves||{})};
-  for(const d of s.deals){ if(!d.jurisdictions||!d.jurisdictions.length) d.jurisdictions=[...DEFAULT_JURISDICTIONS];
+  // An empty jurisdiction list is left empty: on a new deal it is a selection not yet made,
+  // and the validation rail already flags it. Only a migrated v1 record gets the four
+  // hardcoded ones back, because v1 genuinely ran on BD Dates!B4:B13 — see migrateV1.
+  for(const d of s.deals){ if(!Array.isArray(d.jurisdictions)) d.jurisdictions=[];
     if(!RATE_INDICES[d.currency]) d.currency='USD';
     // Pro forma was per-trade before; lift it to the deal from whatever its trades said.
     if(d.proformaEnabled===undefined)
@@ -1500,8 +1519,9 @@ function migrateV1(v1){
     d.clientName=old.inputs.clientName||''; d.currency=RATE_INDICES[old.inputs.currency]?old.inputs.currency:'USD';
     d.proformaEnabled = old.inputs.pfEnabled!==false;
     d.createdAt=old.createdAt||d.createdAt;
+    d.jurisdictions=[...DEFAULT_JURISDICTIONS];   // v1 had no picker; it ran on BD Dates!B4:B13
     const t=newTrade(d.id, old.createdBy||'migrated');
-    t.id=old.id; t.identifier=old.inputs.tradeIdentifier||''; t.obligor=old.inputs.obligor||'Gripmaster';
+    t.id=old.id; t.identifier=old.inputs.tradeIdentifier||''; t.obligor=old.inputs.obligor||'';
     t.versionNo=old.versionNo||1; t.state=old.state||'DRAFT'; t.createdAt=old.createdAt||t.createdAt;
     t.approvedBy=old.approvedBy||null; t.approvedAt=old.approvedAt||null;
     t.actualSettlementDate=old.actualSettlementDate||null;
@@ -1518,12 +1538,16 @@ function migrateV1(v1){
       oldValue:'v1 (flat deals)', newValue:'v2 (deal → trades)', reason:'Migrated '+deals.length+' record(s)',
       actor:'system', role:'system', at:new Date().toISOString()}] });
 }
+/** First run only: the workbook's reference deal, so the app opens on something that prices.
+ *  Every value it needs is set here rather than defaulted, which is what keeps New deal and
+ *  New trade blank. */
 function seedStore(){
   const who='m.buraglia';
-  const d=newDeal(who); d.code='SC DRC-CANTU';
+  const d=newDeal(who); d.code='SC DRC-CANTU'; d.jurisdictions=[...DEFAULT_JURISDICTIONS];
   const seed=SEED_CLIENTS.find(c=>/^cantu/i.test(c.name));
   if(seed){ d.clientId=seed.id; d.clientName=seed.name; }
   const t=newTrade(d.id, who); t.identifier='DRC-CANTU-SB01'; t.tradeDate=WORKBOOK_CURVE_DATE;
+  t.funder='Bladex'; t.obligor='Gripmaster'; t.inputs=workbookTradeInputs();
   return { v:2, deals:[d], trades:[t], currentDealId:d.id, currentTradeId:t.id,
     curves:defaultCurves(), clients:defaultClients(), audit:[] };
 }
@@ -2131,7 +2155,8 @@ function renderPricing(d,t,r){
   const cl=findClient(d.clientId);
   $('dealContextBox').innerHTML='<table>'+[
     ['Client', esc(clientLabel(d))+(cl&&cl.country?' <span class="tiny">· '+esc(cl.country)+'</span>':'')],
-    ['Transaction Code', esc(d.code||'<span class="tiny">not set</span>')],
+    // esc() has to wrap the code alone — folding the fallback inside it printed the markup.
+    ['Transaction Code', d.code ? esc(d.code) : '<span class="tiny">not set</span>'],
     ['Currency', esc(ccy)+' <span class="tiny">· '+esc(ix.name)+' · ACT/'+ix.basis+'</span>'],
     ['Pro forma invoices', pfOn ? '<span class="inline-tag ok">used</span>' : '<span class="inline-tag">not used</span>'],
     ['Jurisdictions', (d.jurisdictions||[]).length

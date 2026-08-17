@@ -93,6 +93,28 @@ A **deal** holds everything its trades share. A **trade** is what gets priced, a
 
 This matches the SharePoint layout, where `Trade 1 - DRC` holds SB01 / SB02 / SB03 under one facility.
 
+### What a new deal or trade starts with
+
+**Nothing carried over.** **New deal** and **New trade** open empty: no client, code or jurisdictions on
+the deal; no obligor, funder, dates, tenors, supplier invoice number, name or amount on the trade. The
+validation rail names every field still needed, so a blank trade cannot price by accident on a figure
+nobody entered. **Duplicate** and **New version** are the deliberate opposite — those copy their source.
+
+Four things stay set, none of them another deal's data:
+
+| Stays set | Why |
+| --- | --- |
+| The five margin / agency-fee fields, at the standing market terms | These *are* the baseline. A departure from them is what `NOTE.STANDARD_TERMS` asks you to justify, so starting them empty would raise five warnings to acknowledge on every new trade. |
+| Legal / structuring fees at `0` | Zero is the true default; `NOTE.LEGAL_FEES` fires only above it. |
+| Supplier row tenor at `30` days | The workbook's own hardcoded B9, documented as such on the field. |
+| Trade Date at today, deal currency at USD | A trade is struck now, and the Trade Date selects the curve; the currency drives every index and day-count label and so needs a valid value. |
+
+An empty jurisdiction list is now left empty on load rather than backfilled to `US, GB, BR, HK` — on a new
+deal it is a selection not yet made, and the validation rail already flags it. Only a **migrated v1
+record** gets those four back, because v1 had no picker and genuinely ran on `BD Dates!B4:B13`.
+
+First run still seeds the workbook's reference deal, so the app opens on a trade that prices to B47.
+
 ### Trade identifiers
 
 New trades are numbered `<Transaction Code>-NN`, taking the **lowest unused number** rather than a
