@@ -15,7 +15,7 @@ The calc engine reproduces **all 26 output cells** of the `Cantu` tab exactly, p
 **Settings → Spec & traceability** — press *Run tests* — and runs on every load whether or not anyone
 opens it, which is the only regression net a single emailed file can carry.
 
-**169 assertions**, each labelled with its source. 63 tie to a workbook artifact (47 `Cantu` cells,
+**174 assertions**, each labelled with its source. 63 tie to a workbook artifact (47 `Cantu` cells,
 9 `SOFR Interpolation`, 5 `BD Dates`, 2 `Offer File`); the rest cover behaviour the workbook never had —
 decimal invariants and the `pow`/`ln`/`exp` primitives, both discount conventions, calendar edits and
 estimate handling, multi-invoice aggregation, the supplier CSV parser, curve interpolation and
@@ -144,6 +144,18 @@ Each investor records:
 | --- | --- | --- |
 | **Simple discount** | `Face Value × (1 − (Base + Margin) × Days ÷ Basis)` | Bladex — and the workbook's own `Cantu!B46 → B47` |
 | **Compound monthly** | `Face Value ÷ (1 + (Base + Margin) ÷ 12) ^ (Days ÷ 30)` | IDB Invest |
+
+The convention governs **both discounting blocks**, not only the funder's. Panel 3 grosses the supplier
+amount up to the TradeCo invoice total, which is the same arithmetic inverted, so it follows too:
+
+| | Panel 3 gross-up (`B36`) | Panel 3 factor (`B33`) |
+| --- | --- | --- |
+| Simple | `B10 ÷ (1 − B32 × Days ÷ Basis)` | `B32 × Days ÷ Basis` |
+| Compound monthly | `B10 × (1 + B32 ÷ 12) ^ (Days ÷ 30)` | `1 − B10 ÷ B36` — the discount actually applied |
+
+Compounding grosses up *less* than a linear factor at the same rate, so a compound funder pulls the face
+value, the purchase price and the TradeCo residual down together. **The supplier leg (`B51`) is identical
+either way** — the supplier is made whole regardless of how the funder discounts.
 
 A funder not on the investor list prices under the **simple** convention, which is what every trade did
 before conventions existed — so adding this repriced nothing. Compound discounting needs a fractional

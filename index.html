@@ -1570,18 +1570,30 @@ function price(i, q){
   const liveRate = D.of(q.liveRate);                                                     // B29
   const tcMarkup = D.of(i.tcMargin).add(liveRate).add(D.of(i.tcAgencyFee));              // B32
   const tcDays   = dDiff(tcMaturityDate, i.bladexSettlementDate);
-  const tcFactor = tcMarkup.mul(D.of(tcDays)).div(BASIS);                                // B33
+  // The funder's discount convention governs both discounting blocks, not just the IAA one below.
+  // `simple` is the workbook and the fallback, so its lines here are exactly what they always were.
+  const convention = conventionOf(i.discountConvention);
+  let tcFactor, tcTotal;
+  if(convention==='compound_monthly'){
+    // B36 is a gross-up: the invoice total that nets back to B10 once discounted. Inverting the
+    // compound discount gives amount x (1+r/12)^(days/30), where the simple one divides by (1−B33).
+    const monthly = ONE.add(tcMarkup.div(12));
+    if(monthly.lte(ZERO))
+      throw new Error('Compound discount needs 1 + (Mark-up) / 12 to be positive; it is '+monthly.toFixed(8)+'.');
+    tcTotal = supplierAmount.mul(monthly.pow(D.of(tcDays).div(30)));
+    // B33 stays the discount actually applied, so the panel never shows a factor nothing used.
+    tcFactor = tcTotal.eq(ZERO) ? ZERO : ONE.sub(supplierAmount.div(tcTotal));
+  } else {
+    tcFactor = tcMarkup.mul(D.of(tcDays)).div(BASIS);                                    // B33
+    tcTotal  = supplierAmount.div(ONE.sub(tcFactor));                                    // B36
+  }
   const tcInvoice1 = supplierAmount;                                                     // B34
-  const tcTotal  = supplierAmount.div(ONE.sub(tcFactor));                                // B36
   const tcInvoice2 = tcTotal.sub(tcInvoice1);                                            // B35
 
   const faceValue = tcTotal;                                                             // B39
   const iaaMaturityDate = dAdd(i.bladexSettlementDate, Number(i.bladexDays));            // B42
   const bladexCostOfFunds = D.of(i.bladexMargin).add(liveRate);                          // B45
   const iaaDays = dDiff(iaaMaturityDate, i.bladexSettlementDate);
-  // The funder's discount convention. `simple` is the workbook and the fallback, and its two lines
-  // below are untouched — a trade under it computes exactly what it always did, to the last digit.
-  const convention = conventionOf(i.discountConvention);
   let iaaFactor, purchasePrice;
   if(convention==='compound_monthly'){
     const monthly = ONE.add(bladexCostOfFunds.div(12));
@@ -3650,7 +3662,19 @@ function runTests(){
     const want=cmp.faceValue.div(ONE.add(rate.div(12)).pow(D.of(180).div(30)));
     T('Compound discount matches its formula', cmp.purchasePrice.toFixed(10), want.toFixed(10),
       'FV ÷ (1+(base+margin)/12)^(days/30)');
-    T('Compound prices above simple', cmp.purchasePrice.gt(o.purchasePrice),'true','same rate, monthly vs linear');
+    // The convention drives both discounting blocks, so it moves the gross-up as well as the
+    // discount. Compounding grosses up less than a linear factor at the same rate, which pulls the
+    // face value, the purchase price and the TradeCo residual down together.
+    T('Compound gross-up matches its formula', cmp.tcTotal.toFixed(10),
+      cmp.supplierAmount.mul(ONE.add(cmp.tcMarkup.div(12)).pow(D.of(180).div(30))).toFixed(10),
+      'B36 = B10 × (1+B32/12)^(days/30)');
+    T('Compound B33 is the discount applied', cmp.tcFactor.toFixed(10),
+      ONE.sub(cmp.supplierAmount.div(cmp.tcTotal)).toFixed(10),'B33 = 1 − B10/B36');
+    T('Convention reaches panel 3 as well', cmp.tcFactor.eq(o.tcFactor),'false','B33 follows the funder');
+    T('Compound grosses up below linear', cmp.faceValue.lt(o.faceValue),'true','B39, monthly vs linear');
+    T('Compound purchase price follows it down', cmp.purchasePrice.lt(o.purchasePrice),'true','B47');
+    T('Supplier leg is convention-independent', cmp.payToSupplier.toFixed(2), o.payToSupplier.toFixed(2),
+      'Cantu!B51 — the supplier is made whole either way');
     T('Compound still reconciles', cmp.reconciliation.toFixed(10),'0.0000000000','B51+B52+B53−B47');
     T('Compound reports its convention', cmp.convention,'compound_monthly','out.convention');
     T('Unset convention falls back to simple', price(GOLDEN_INPUTS,{pfRate:pfQ.rate,liveRate:liveQ.rate}).convention,
