@@ -15,9 +15,10 @@ The calc engine reproduces **all 26 output cells** of the `Cantu` tab exactly, p
 **Settings → Spec & traceability** — press *Run tests* — and runs on every load whether or not anyone
 opens it, which is the only regression net a single emailed file can carry.
 
-**148 assertions**, each labelled with its source. 63 tie to a workbook artifact (47 `Cantu` cells,
-9 `SOFR Interpolation`, 5 `BD Dates`, 2 `Offer File`); the other 85 cover behaviour the workbook never
-had — decimal invariants, multi-invoice aggregation, the supplier CSV parser, curve interpolation and
+**169 assertions**, each labelled with its source. 63 tie to a workbook artifact (47 `Cantu` cells,
+9 `SOFR Interpolation`, 5 `BD Dates`, 2 `Offer File`); the rest cover behaviour the workbook never had —
+decimal invariants and the `pow`/`ln`/`exp` primitives, both discount conventions, calendar edits and
+estimate handling, multi-invoice aggregation, the supplier CSV parser, curve interpolation and
 `putCurve` merges, and the v1 → v2 migration.
 
 | | Workbook | This app |
@@ -126,12 +127,33 @@ opens *Currencies & Base Rates* with that date queued, and **+ New jurisdiction*
 
 An investor is a funding counterparty. Naming one makes it a suggestion on a trade's **Funder** field —
 the field that titles that trade's Settlement Date, Margin and Cost of Funds rows. The field stays free
-text, so a one-off funder can still be typed straight into a trade without being added here first.
+text, so a one-off funder can still be typed straight into a trade without being added here first, and an
+unlisted funder raises a note rather than an error.
 
-**Pricing is unaffected.** A trade prices off the margins keyed into its own panels, never off this list;
-the standing margin recorded against an investor is a reference for whoever keys the trade. Adding and
-removing need the **Rates Admin** role and are audited, a duplicate name is refused, and removal is
-refused while any trade still names that investor as its Funder.
+Each investor records:
+
+| | |
+| --- | --- |
+| **Currencies it can fund** | A capability, not a preference. Leave it empty and nothing is checked; list currencies and a trade whose deal is in any other currency is **blocked outright**. |
+| **Discount** | The shape of the arithmetic panels 4 and 5 apply. The rate and the day count still come from the trade's own panels. |
+| **Settled / Not settled** | Trades naming this investor, split by state, with the money each side carries — per currency, since there is no FX rate in this model. |
+
+##### Discount conventions
+
+| Convention | Purchase Price | Used by |
+| --- | --- | --- |
+| **Simple discount** | `Face Value × (1 − (Base + Margin) × Days ÷ Basis)` | Bladex — and the workbook's own `Cantu!B46 → B47` |
+| **Compound monthly** | `Face Value ÷ (1 + (Base + Margin) ÷ 12) ^ (Days ÷ 30)` | IDB Invest |
+
+A funder not on the investor list prices under the **simple** convention, which is what every trade did
+before conventions existed — so adding this repriced nothing. Compound discounting needs a fractional
+power, so `D` gained `ipow`, `ln`, `exp` and `pow`: a whole exponent (a round 30-day tenor) is exact
+repeated multiplication, and a fractional one goes through `exp(f · ln x)` in the same 20 dp fixed point
+as everything else. Both paths are asserted in the parity suite.
+
+Changing an investor's convention reprices every **DRAFT** trade naming it, and asks before doing so;
+priced trades keep their bound snapshot until re-priced. Renaming is refused while a trade names the old
+name, since that trade would stop matching the record. Everything needs **Rates Admin** and is audited.
 
 ### Adding a jurisdiction without a new build
 
@@ -153,6 +175,32 @@ a code, a name, a region, a source URL, and the publisher's holiday list pasted 
   **+ New jurisdiction** shortcut so a deal in a new country does not have to go hunting for the tab.
 - A code already in use is refused, and removal is refused while any deal still lists it — those deals'
   maturity dates are being checked against it.
+
+#### Editing a calendar, and holidays that are estimates
+
+**Edit** on any row opens the calendar — one the build ships as much as one added here. Name, region,
+source URL and note are editable, and holidays are edited **a year at a time**: a rules calendar carries
+250-odd dates, and nobody wants to hunt one down in a wall of text.
+
+Edits **layer over the shipped build** rather than replacing it. The book stores only the difference —
+which dates were added, which removed — so a rules calendar keeps generating every other year out to
+2040, and **Revert to shipped** drops the difference and puts the build's own calendar back. An edited
+row is tagged `edited`, and a calendar change sends any priced trade on a deal using it back to DRAFT
+rather than leaving a snapshot taken under the old calendar.
+
+**Estimates.** Put `?` after a date — `2027-02-08 ?` — for a holiday that is on the calendar but not yet
+confirmed: a lunar or Islamic date, or a year the publisher has not gazetted. Both the add form and the
+editor read the marker.
+
+An estimate still counts as a non-business day, but it is deliberately not the same as a confirmed one:
+
+| Maturity date lands on | Result |
+| --- | --- |
+| A confirmed holiday | Blocking error — pricing stops |
+| An **estimated** holiday | Acknowledgeable warning, and the business-day panel reads `No?` in amber |
+
+Unmark it once the publisher confirms and it blocks like any other. The verdict line distinguishes them
+too: `CHECK DATE!` for a confirmed problem, `CHECK — ESTIMATED` when only provisional dates are involved.
 
 ### Branding
 

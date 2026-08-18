@@ -191,6 +191,13 @@ details.help p{margin:7px 0 0;font-size:11.5px;color:var(--ink-3);line-height:1.
 .taglist .tag button{border:0;background:none;color:inherit;font:inherit;font-size:15px;line-height:1;padding:0 2px;cursor:pointer;opacity:.65}
 .taglist .tag button:hover{opacity:1}
 .taglist .tag button:disabled{display:none}
+/* Chips that toggle rather than delete — the investor currency picker. An unselected one keeps the
+   chip shape so the row of them reads as one control with some on and some off. */
+.taglist button.tag{padding:3px 11px;cursor:pointer}
+.taglist button.tag.off{border-color:var(--line-2);background:var(--panel-2);color:var(--ink-3);font-weight:500}
+.taglist button.tag.off:hover{border-color:var(--accent);color:var(--accent)}
+/* Per-currency money lines stacked under a count, in the investor and deal tables alike. */
+td .ccy{display:block;font:600 11px/1.6 var(--mono);color:var(--ink-3);white-space:nowrap}
 .taglist .empty{font-size:12.5px;color:var(--err)}
 .toggle{display:inline-flex;align-items:center;gap:6px;text-transform:none;letter-spacing:0;font-size:11.5px;font-weight:520;color:var(--ink-2);cursor:pointer;user-select:none}
 .toggle input{width:auto;margin:0;accent-color:var(--accent);cursor:pointer}
@@ -615,6 +622,43 @@ code,.mono{font-family:var(--mono);font-size:12px}
         <details class="help">
           <summary>How the pasted list is read</summary>
           <p>One date per line, or separated by commas, semicolons or tabs. Dates are read as loosely as on the curve upload — <code>2027-01-01</code>, <code>01/01/2027</code>, <code>1-Jan-2027</code> and Excel serials all work, and day-first vs month-first is settled across the whole list at once. Weekends are already handled, so holidays alone are enough.</p>
+          <p>Put <code>?</code> after a date — <code>2027-02-08 ?</code> — for one the publisher has not confirmed. An estimate still counts as a non-business day, but a maturity date landing on it warns rather than blocking outright.</p>
+        </details>
+      </div></div>
+      <!-- Editor for one jurisdiction. Holidays are edited a year at a time: a rules calendar carries
+           250-odd dates, and nobody wants to find one of them in a wall of text. -->
+      <div class="card tight" id="jurEditCard" style="display:none;margin:0 0 12px;background:var(--panel-2)"><div class="body">
+        <div class="toolbar" style="margin:0 0 8px">
+          <b id="je_title" style="font-size:13.5px"></b>
+          <span class="inline-tag" id="je_state"></span>
+          <div class="spacer" style="flex:1"></div>
+          <button class="btn sm" id="btnJurRevert">Revert to shipped</button>
+        </div>
+        <div class="toolbar" style="margin:0 0 8px">
+          <div class="field-inline" style="flex:1 1 190px"><label for="je_name">Name</label>
+            <input type="text" id="je_name" style="flex:1 1 130px"></div>
+          <div class="field-inline"><label for="je_region">Region</label><select id="je_region"></select></div>
+          <div class="field-inline" style="flex:1 1 230px"><label for="je_url">Source URL</label>
+            <input type="text" id="je_url" style="flex:1 1 160px"></div>
+        </div>
+        <div class="toolbar" style="margin:0 0 8px">
+          <div class="field-inline" style="flex:1 1 100%"><label for="je_note">Note</label>
+            <input type="text" id="je_note" placeholder="modelling caveats, who confirmed it" style="flex:1 1 100%"></div>
+        </div>
+        <div class="toolbar" style="margin:0 0 6px">
+          <div class="field-inline"><label for="je_year">Holidays in</label><select id="je_year"></select></div>
+          <span class="tiny" id="je_yearNote"></span>
+        </div>
+        <textarea id="je_days" rows="9" spellcheck="false"></textarea>
+        <div class="toolbar" style="margin:9px 0 0">
+          <button class="btn primary" id="btnJurEditSave">Save changes</button>
+          <button class="btn" id="btnJurEditCancel">Cancel</button>
+          <span class="tiny" id="je_count"></span>
+        </div>
+        <details class="help">
+          <summary>Marking a holiday as an estimate</summary>
+          <p>Put <code>?</code> after a date — <code>2027-02-08 ?</code> — for a holiday that is on the calendar but not yet confirmed: a lunar or Islamic date, or a year the publisher has not gazetted. An estimate still counts as a non-business day, but a maturity date landing on one raises an <b>acknowledgeable warning</b> instead of the hard block a confirmed holiday gives. Unmark it once confirmed and it blocks like any other.</p>
+          <p>You are editing one year at a time; every other year is left exactly as it is. Dates are read in the same formats as everywhere else. <b>Revert to shipped</b> drops every edit for this jurisdiction and puts the build's own calendar back.</p>
         </details>
       </div></div>
       <div class="scroll capped" style="max-height:420px"><table id="calTable"></table></div>
@@ -645,22 +689,27 @@ code,.mono{font-family:var(--mono);font-size:12px}
           <div class="field-inline"><label for="iv_region">Region</label><select id="iv_region"></select></div>
         </div>
         <div class="toolbar" style="margin:0 0 8px">
-          <div class="field-inline suffix" data-suffix="%" style="position:relative"><label for="iv_margin">Standing margin</label>
-            <input type="number" id="iv_margin" step="0.00001" style="min-width:96px"></div>
+          <div class="field-inline" style="flex:1 1 260px"><label for="iv_discount">Discount</label>
+            <select id="iv_discount" style="flex:1 1 190px"></select></div>
           <div class="field-inline" style="flex:1 1 240px"><label for="iv_note">Note</label>
             <input type="text" id="iv_note" placeholder="mandate, limits, contact" style="flex:1 1 170px"></div>
+        </div>
+        <div class="row wide" style="border:0;padding:0;margin:0 0 8px">
+          <div class="lbl">Currencies it can fund<span class="note" id="iv_ccyNote"></span>
+            <div class="taglist" id="iv_ccyBox" style="margin-top:6px"></div></div>
         </div>
         <div class="toolbar" style="margin:0">
           <button class="btn primary" id="btnInvSave">Add investor</button>
           <button class="btn" id="btnInvCancel">Cancel</button>
-          <span class="tiny">Standing margin is optional — a reminder of the terms agreed, not something a trade reads.</span>
+          <span class="tiny" id="iv_formulaNote"></span>
         </div>
       </div></div>
       <div class="scroll capped" style="max-height:420px"><table id="invTable"></table></div>
       <details class="help">
         <summary>What an investor is used for</summary>
         <p>An investor is a funding counterparty. Naming one here makes it a suggestion on a trade's <b>Funder</b> field, which is what titles that trade's Settlement Date, Margin and Cost of Funds rows. The field stays free text, so a one-off funder can still be typed straight into a trade without being added here first.</p>
-        <p>Pricing is unaffected: a trade prices off the margins keyed into its own panels, never off this list. The standing margin recorded here is a reference for whoever keys the trade. Removing an investor is refused while a trade still names it.</p>
+        <p><b>Currencies</b> is a capability, not a preference: leave it empty and nothing is checked, but list currencies and a trade whose deal is in any other currency is blocked outright. <b>Discount</b> is the shape of the arithmetic panels 4 and 5 apply — the rate and day count still come from the trade's own panels. A funder that is not on this list prices under the simple discount, which is what every trade did before conventions existed.</p>
+        <p>Removing an investor is refused while a trade still names it.</p>
       </details>
     </div>
   </div>
@@ -784,6 +833,44 @@ class D {
   div(o){ const d=D.of(o); if(d.v===0n) throw new Error('Division by zero'); return new D(rdiv(this.v*POW, d.v)); }
   abs(){ return new D(this.v<0n?-this.v:this.v); }
   cmp(o){ const d=D.of(o); return this.v<d.v?-1:this.v>d.v?1:0; }
+  /** x^n for a whole n, by squaring. Exact — no series, just multiplications at full scale. */
+  ipow(n){ let r=new D(POW), b=this, e=BigInt(n);
+    if(e<0n) throw new Error('Negative exponent'); 
+    while(e>0n){ if(e&1n) r=r.mul(b); b=b.mul(b); e>>=1n; } return r; }
+  /** ln x for x > 0, as 2·atanh((x−1)/(x+1)). That series converges in a handful of terms for the
+   *  x this model actually raises — 1 + rate/12, so ~1.005 — where a plain ln series would crawl. */
+  ln(){
+    if(this.v<=0n) throw new Error('ln of a non-positive number');
+    const z=this.sub(1).div(this.add(1)), z2=z.mul(z);
+    let term=z, sum=z;
+    for(let k=3;k<200;k+=2){
+      term=term.mul(z2);
+      const add=term.div(k);
+      if(add.v===0n) break;                       // below the 20 dp scale: nothing left to add
+      sum=sum.add(add);
+    }
+    return sum.mul(2);
+  }
+  /** e^x by Taylor. Used only on x = f·ln(base) with f < 1, so x is small and this converges fast. */
+  exp(){
+    let term=new D(POW), sum=new D(POW);
+    for(let k=1;k<200;k++){
+      term=term.mul(this).div(k);
+      if(term.v===0n) break;
+      sum=sum.add(term);
+    }
+    return sum;
+  }
+  /** x^y for any non-negative y: the whole part exactly by squaring, the fraction via exp(f·ln x).
+   *  Splitting it keeps a round tenor — 180/30 = 6 — free of any series at all. */
+  pow(y){
+    const e=D.of(y);
+    if(e.v<0n) throw new Error('Negative exponent');
+    const whole=e.v/POW, frac=new D(e.v%POW);
+    let r=this.ipow(whole);
+    if(frac.v!==0n) r=r.mul(frac.mul(this.ln()).exp());
+    return r;
+  }
   lt(o){return this.cmp(o)<0} lte(o){return this.cmp(o)<=0}
   gt(o){return this.cmp(o)>0} gte(o){return this.cmp(o)>=0} eq(o){return this.cmp(o)===0}
   toFixed(n){
@@ -1126,11 +1213,38 @@ const MARKET_DEFAULTS = { margin:'0.03', agencyFee:'0.001', bladexMargin:'0.0235
    prices off the margins keyed into its own panels, never off this list. */
 const INVESTOR_STATUSES = ['Active','Onboarding','Prospect','Inactive'];
 const INVESTOR_RANK = {Active:0, Onboarding:1, Prospect:2, Inactive:3};
+
+/* How a funder discounts the face value. The rate and the day count still come from the trade's own
+   panels — this only decides the shape of the arithmetic applied to them. `simple` is the workbook's
+   own convention, so it is the fallback for any funder not on the investor list: adding conventions
+   reprices nothing that existed before. */
+const DISCOUNT_CONVENTIONS = {
+  simple: {
+    label:'Simple discount',
+    formula:'Face Value × (1 − (Base + Margin) × Days ÷ Basis)',
+    note:'Linear discount on the day count — the workbook’s convention (Cantu!B46 → B47). Used by Bladex.',
+  },
+  compound_monthly: {
+    label:'Compound monthly',
+    formula:'Face Value ÷ (1 + (Base + Margin) ÷ 12) ^ (Days ÷ 30)',
+    note:'Discounts monthly rather than linearly, so for the same rate and tenor it prices a little above the simple convention. Used by IDB Invest.',
+  },
+};
+const conventionOf = key => DISCOUNT_CONVENTIONS[key] ? key : 'simple';
+
 const SEED_INVESTORS = [
   {id:'bladex', name:'Bladex', status:'Active', country:'Panama', region:'Americas',
-   margin:MARKET_DEFAULTS.bladexMargin, note:'Banco Latinoamericano de Comercio Exterior — the funder the workbook was built around.'},
+   currencies:['USD'], discount:'simple',
+   note:'Banco Latinoamericano de Comercio Exterior — the funder the workbook was built around.'},
+  {id:'idbinvest', name:'IDB Invest', status:'Prospect', country:'United States', region:'Americas',
+   currencies:[], discount:'compound_monthly',
+   note:'Seeded as the worked example of the compound convention — confirm its status and currencies.'},
 ];
 const investorList = () => (store.investors && store.investors.list) || [];
+const findInvestor = name => { const n=String(name||'').trim().toLowerCase();
+  return n ? investorList().find(i=>String(i.name).trim().toLowerCase()===n) || null : null; };
+/** The convention a trade prices under, from whoever it names as Funder. */
+const conventionFor = trade => conventionOf((findInvestor(trade&&trade.funder)||{}).discount);
 
 const RECEIVING_ACCOUNT_TEXT = 'See Part A (Receiving Account(s)) of Annex 2 (Accounts) to the IAA Addendum';
 
@@ -1283,17 +1397,20 @@ const SOURCED_CALENDARS = {
     '2027-01-01','2027-02-06','2027-02-08','2027-02-09','2027-03-26','2027-03-27','2027-03-29','2027-04-05','2027-05-01','2027-05-13','2027-06-09','2027-07-01','2027-09-16','2027-10-01','2027-10-08','2027-12-25','2027-12-27']},
 };
 const CAL_FROM=2024, CAL_TO=2040;
-const CALENDARS={};
+/* What the build ships, kept pristine. CALENDARS below is the working set — shipped, then whatever
+   the book edits on top — so an edit can always be backed out by dropping its stored entry. */
+const SHIPPED_CALENDARS={};
 for(const [code,spec] of Object.entries(JURISDICTION_RULES)){
   const days=generateHolidays(spec,CAL_FROM,CAL_TO);
-  CALENDARS[code]={code, name:spec.name, region:spec.region, url:spec.url, conf:spec.conf, note:spec.note,
+  SHIPPED_CALENDARS[code]={code, name:spec.name, region:spec.region, url:spec.url, conf:spec.conf, note:spec.note,
     derived:true, days, set:new Set(days), coverageThrough:CAL_TO+'-12-31'};
 }
 for(const [code,spec] of Object.entries(SOURCED_CALENDARS)){
-  CALENDARS[code]={code, name:spec.name, region:spec.region, url:spec.url, conf:spec.conf,
+  SHIPPED_CALENDARS[code]={code, name:spec.name, region:spec.region, url:spec.url, conf:spec.conf,
     derived:false, days:spec.days, set:new Set(spec.days),
     coverageThrough:spec.days.reduce((a,b)=>a>b?a:b)};
 }
+const CALENDARS={};
 const REGIONS = ['Americas','EMEA','APAC'];
 const ALL_JURISDICTIONS = [];
 const DEFAULT_JURISDICTIONS = ['US','GB','BR','HK'];   // as hardcoded in BD Dates!B4:B13
@@ -1306,13 +1423,32 @@ const DEFAULT_JURISDICTIONS = ['US','GB','BR','HK'];   // as hardcoded in BD Dat
  *  the end of the list reports CHECK LIST instead of passing unchecked.
  *  Call this after any change to store.jurisdictions, and once on load. */
 function installCustomCalendars(list){
-  for(const code of Object.keys(CALENDARS)) if(CALENDARS[code].custom) delete CALENDARS[code];
+  // Always rebuilt from the shipped baseline, so removing a stored entry restores what ships.
+  for(const code of Object.keys(CALENDARS)) delete CALENDARS[code];
+  for(const [code,c] of Object.entries(SHIPPED_CALENDARS)) CALENDARS[code]={...c, estimates:new Set()};
   for(const j of (list || [])){
-    if(!j || !j.code || CALENDARS[j.code]) continue;          // never shadow a shipped calendar
-    const days=[...new Set(j.days||[])].filter(isValidDate).sort();
-    CALENDARS[j.code]={code:j.code, name:j.name||j.code, region:REGIONS.includes(j.region)?j.region:'Americas',
-      url:j.url||'', note:j.note||'', conf:'custom', custom:true, derived:false,
-      days, set:new Set(days), coverageThrough: days.length ? days[days.length-1] : ''};
+    if(!j || !j.code) continue;
+    const base=SHIPPED_CALENDARS[j.code] || null;
+    // A jurisdiction the build never shipped carries its own list; one it did ships that list and
+    // the entry holds only the differences, so a rules calendar keeps generating out to CAL_TO.
+    const baseDays = Array.isArray(j.days) ? j.days : (base ? base.days : []);
+    const remove=new Set((j.remove||[]).filter(isValidDate));
+    const days=[...new Set([...baseDays, ...(j.add||[])])]
+      .filter(d=>isValidDate(d) && !remove.has(d)).sort();
+    const dayset=new Set(days);
+    CALENDARS[j.code]={
+      code:j.code,
+      name: j.name || (base?base.name:j.code),
+      region: REGIONS.includes(j.region) ? j.region : (base?base.region:'Americas'),
+      url: j.url ?? (base?base.url:'') ?? '',
+      note: j.note ?? (base?base.note:'') ?? '',
+      conf: base ? 'edited' : 'custom',
+      custom: !base, edited: !!base, derived: false,
+      days, set:dayset,
+      // An estimate only means anything on a date that is actually in the list.
+      estimates:new Set((j.estimates||[]).filter(d=>dayset.has(d))),
+      coverageThrough: days.length ? days[days.length-1] : '',
+    };
   }
   // ALL_JURISDICTIONS is read across the whole render path, so it is refilled in place rather
   // than reassigned — every existing reader then sees the current list without being rewired.
@@ -1443,8 +1579,21 @@ function price(i, q){
   const iaaMaturityDate = dAdd(i.bladexSettlementDate, Number(i.bladexDays));            // B42
   const bladexCostOfFunds = D.of(i.bladexMargin).add(liveRate);                          // B45
   const iaaDays = dDiff(iaaMaturityDate, i.bladexSettlementDate);
-  const iaaFactor = bladexCostOfFunds.mul(D.of(iaaDays)).div(BASIS);                     // B46
-  const purchasePrice = faceValue.mul(ONE.sub(iaaFactor));                               // B47
+  // The funder's discount convention. `simple` is the workbook and the fallback, and its two lines
+  // below are untouched — a trade under it computes exactly what it always did, to the last digit.
+  const convention = conventionOf(i.discountConvention);
+  let iaaFactor, purchasePrice;
+  if(convention==='compound_monthly'){
+    const monthly = ONE.add(bladexCostOfFunds.div(12));
+    if(monthly.lte(ZERO))
+      throw new Error('Compound discount needs 1 + (Base + Margin) / 12 to be positive; it is '+monthly.toFixed(8)+'.');
+    purchasePrice = faceValue.div(monthly.pow(D.of(iaaDays).div(30)));
+    // B46 stays the discount actually applied, so the screen never shows a factor nothing used.
+    iaaFactor = faceValue.eq(ZERO) ? ZERO : ONE.sub(purchasePrice.div(faceValue));
+  } else {
+    iaaFactor = bladexCostOfFunds.mul(D.of(iaaDays)).div(BASIS);                         // B46
+    purchasePrice = faceValue.mul(ONE.sub(iaaFactor));                                   // B47
+  }
 
   const legalFees = D.of(i.legalFees||0);                                                // B49
   const payToSupplier = faceValue.mul(ONE.sub(tcFactor)).sub(legalFees);                 // B51
@@ -1455,7 +1604,7 @@ function price(i, q){
     supplierInvoiceCount:sup.count, supplierFirstIssueDate:sup.firstIssueDate,
     pfMaturityDate, pfRate, pfMarkup, pfFactor, pfDays, pfInvoice1, pfInvoice2, pfTotal,
     tcTenorDays, tcMaturityDate, liveRate, tcMarkup, tcFactor, tcDays, tcInvoice1, tcInvoice2, tcTotal,
-    faceValue, iaaMaturityDate, bladexCostOfFunds, iaaFactor, purchasePrice,
+    faceValue, iaaMaturityDate, bladexCostOfFunds, iaaFactor, purchasePrice, convention,
     legalFees, payToSupplier, payToCantuAgency, payToTradeCo,
     reconciliation: payToSupplier.add(payToCantuAgency).add(payToTradeCo).sub(purchasePrice) };
 }
@@ -1469,11 +1618,17 @@ function businessDayCheck(dateISO, jurisdictions){
     if(dateISO > c.coverageThrough) return {code, name:c.name, status:'BEYOND_COVERAGE', label:'CHECK LIST', coverageThrough:c.coverageThrough};
     const dow=dDow(dateISO);
     if(dow===0||dow===6) return {code, name:c.name, status:'WEEKEND', label:'No', coverageThrough:c.coverageThrough};
-    if(c.set.has(dateISO)) return {code, name:c.name, status:'HOLIDAY', label:'No', coverageThrough:c.coverageThrough};
+    if(c.set.has(dateISO)) return {code, name:c.name, label:'No', coverageThrough:c.coverageThrough,
+      // An estimated holiday is a maybe, not a no. It is reported apart so it can be acknowledged
+      // rather than block, which is the difference between a provisional list and a gazetted one.
+      status: (c.estimates && c.estimates.has(dateISO)) ? 'HOLIDAY_ESTIMATE' : 'HOLIDAY'};
     return {code, name:c.name, status:'OK', label:'Yes', coverageThrough:c.coverageThrough};
   });
-  const anyError = rows.some(r=>r.status!=='OK');
-  return {rows, anyError, verdict: rows.length===0 ? 'NO JURISDICTIONS' : anyError ? 'CHECK DATE!' : 'OK'};
+  const anyEstimate = rows.some(r=>r.status==='HOLIDAY_ESTIMATE');
+  const anyError = rows.some(r=>r.status!=='OK' && r.status!=='HOLIDAY_ESTIMATE');
+  return {rows, anyError, anyEstimate,
+    verdict: rows.length===0 ? 'NO JURISDICTIONS' : anyError ? 'CHECK DATE!'
+           : anyEstimate ? 'CHECK — ESTIMATED' : 'OK'};
 }
 
 /* ---------------------------- validation ---------------------------- */
@@ -1564,6 +1719,26 @@ function validate(deal, trade, out, quotes, bd){
   // ---- curves ----
   if(!isValidDate(trade.tradeDate)) E('TRADE.DATE','Trade Submission Date is required — it selects the base rate curve.');
   if(!String(trade.funder||'').trim()) E('TRADE.FUNDER','Funder is required.');
+  else {
+    // What the investor list says this funder can and does do. An unlisted funder is not an error —
+    // the field is free text by design — but a listed one that cannot fund this currency is.
+    const inv=findInvestor(trade.funder);
+    if(!inv) W('NOTE.FUNDER_UNLISTED','"'+String(trade.funder).trim()+'" is not on the investor list, '+
+      'so its currency capability is unchecked and it prices under the simple discount. Add it under '+
+      'Settings → Investors to record what it can fund.');
+    else {
+      const ccys=(inv.currencies||[]).filter(Boolean);
+      if(ccys.length && !ccys.includes(deal.currency))
+        E('FUNDER.CURRENCY', inv.name+' is recorded as funding '+ccys.join(', ')+
+          ' — not '+deal.currency+'. Either the deal currency or the investor’s currencies are wrong.');
+      if(inv.status==='Inactive')
+        W('NOTE.FUNDER_INACTIVE', inv.name+' is marked Inactive on the investor list.');
+      if(conventionOf(inv.discount)!=='simple')
+        W('NOTE.FUNDER_CONVENTION', inv.name+' discounts on the '+DISCOUNT_CONVENTIONS[conventionOf(inv.discount)].label+
+          ' convention: '+DISCOUNT_CONVENTIONS[conventionOf(inv.discount)].formula+
+          '. Panels 4 and 5 price on that, not on the workbook’s linear B46.');
+    }
+  }
   if(isValidDate(trade.tradeDate) && isValidDate(i.bladexSettlementDate) && trade.tradeDate > i.bladexSettlementDate)
     W('NOTE.TRADE_DATE','Trade Submission Date is after the '+FUNDER+' Settlement Date — a trade is normally submitted on or before settlement.');
 
@@ -1602,6 +1777,9 @@ function validate(deal, trade, out, quotes, bd){
         E('CAL.COVERAGE', r.name+' calendar covers only through '+fmtShort(r.coverageThrough)+' — the maturity date is beyond it. Refresh the calendar before pricing.');
       else if(r.status==='WEEKEND') E('CAL.BUSDAY','Maturity date falls on a weekend in '+r.name+'.');
       else if(r.status==='HOLIDAY') E('CAL.BUSDAY','Maturity date is a public holiday in '+r.name+'.');
+      else if(r.status==='HOLIDAY_ESTIMATE') W('CAL.BUSDAY_EST','Maturity date is an <b>estimated</b> holiday in '+
+        r.name+' — the date is on the calendar but marked provisional. Confirm it against the publisher '+
+        'before settling; if it is confirmed, unmark the estimate and this becomes a hard block.');
     }
     for(const code of (deal.jurisdictions||[])){
       const c=CALENDARS[code]; if(!c) continue;
@@ -1720,7 +1898,7 @@ function nextTradeIdentifier(deal){
  *  agrees on it; the pro forma dates and margins stay per trade. */
 function effectiveInputs(deal, trade){
   return { ...trade.inputs, currency:deal.currency, dayCountBasis:basisFor(deal.currency),
-    pfEnabled: deal.proformaEnabled !== false,
+    pfEnabled: deal.proformaEnabled !== false, discountConvention: conventionFor(trade),
     jurisdictions:deal.jurisdictions, transactionCode:deal.code, clientName:deal.clientName };
 }
 
@@ -1764,6 +1942,11 @@ function normalise(s){
   s.curves = {...defaultCurves(), ...(s.curves||{})};
   if(!Array.isArray(s.jurisdictions)) s.jurisdictions=[];   // books written before they existed
   if(!s.investors || !Array.isArray(s.investors.list)) s.investors=defaultInvestors();
+  for(const i of s.investors.list){
+    if(!Array.isArray(i.currencies)) i.currencies=[];   // empty = capability unknown, so unchecked
+    i.discount=conventionOf(i.discount);                // anything unrecognised falls back to simple
+    delete i.margin;                                    // a standing margin belonged to the trade
+  }
   // An empty jurisdiction list is left empty: on a new deal it is a selection not yet made,
   // and the validation rail already flags it. Only a migrated v1 record gets the four
   // hardcoded ones back, because v1 genuinely ran on BD Dates!B4:B13 — see migrateV1.
@@ -2573,7 +2756,9 @@ function renderPricing(d,t,r){
 
   $('bdBox').innerHTML = '<p class="tiny" style="margin:4px 0 8px">Maturity date '+(o?fmtShort(o.iaaMaturityDate):'—')+' (B42)</p>'+
     (r.bd.rows.length ? '<table>'+r.bd.rows.map(x=>'<tr><td>'+esc(x.name)+'</td><td class="n"><span class="inline-tag '+
-      (x.status==='OK'?'ok':'err')+'">'+esc(x.label)+'</span></td>'+
+      (x.status==='OK'?'ok':x.status==='HOLIDAY_ESTIMATE'?'warn':'err')+'" title="'+
+      (x.status==='HOLIDAY_ESTIMATE'?'On the calendar but marked provisional':esc(x.status))+'">'+
+      esc(x.status==='HOLIDAY_ESTIMATE'?'No?':x.label)+'</span></td>'+
       '<td class="n tiny">'+(x.coverageThrough?'to '+fmtShort(x.coverageThrough):'')+'</td></tr>').join('')+'</table>'
      : '<p class="tiny">No jurisdictions selected on this deal.</p>');
 
@@ -2687,20 +2872,27 @@ function renderRates(){
         '<td class="tiny">'+esc(ix.conventionNote||'')+'</td></tr>';
     }).join('')+'</tbody>';
 
-  $('calTable').innerHTML='<thead><tr><th>Jurisdiction</th><th>Code</th><th class="n">Holidays</th><th class="n">Coverage through</th><th class="n">Forward days</th><th>Source</th><th></th></tr></thead><tbody>'+
+  $('calTable').innerHTML='<thead><tr><th>Jurisdiction</th><th>Code</th><th class="n">Holidays</th>'+
+    '<th class="n" title="Dates on the calendar but marked provisional">Estimated</th>'+
+    '<th class="n">Coverage through</th><th class="n">Forward days</th><th>Source</th><th></th></tr></thead><tbody>'+
     ALL_JURISDICTIONS.map(code=>{
       const c=CALENDARS[code], fwd=isValidDate(c.coverageThrough)?dDiff(c.coverageThrough, todayISO()):null;
-      return '<tr><td>'+esc(c.name)+
+      const est=c.estimates?c.estimates.size:0;
+      return '<tr'+(code===jurEditing?' class="sel"':'')+'><td>'+esc(c.name)+
         (c.custom?' <span class="inline-tag">added</span>':'')+
-        (c.note?'<span class="note" style="display:block;max-width:44ch">'+esc(c.note)+'</span>':'')+
+        (c.edited?' <span class="inline-tag warn" title="Differs from the calendar this build ships">edited</span>':'')+
+        (c.note?'<span class="note" style="display:block;max-width:42ch">'+esc(c.note)+'</span>':'')+
         '</td><td class="mono">'+code+'</td><td class="n">'+c.days.length+'</td>'+
+        '<td class="n">'+(est?'<span class="inline-tag warn">'+est+'</span>':'<span class="tiny">—</span>')+'</td>'+
         '<td class="n">'+fmtShort(c.coverageThrough)+'</td>'+
         '<td class="n">'+(fwd==null?'<span class="inline-tag err">none</span>'
                                   :'<span class="inline-tag '+(fwd<180?'warn':'ok')+'">'+fwd+'</span>')+'</td>'+
         '<td>'+(c.url?'<a href="'+esc(c.url)+'" target="_blank" rel="noopener" class="tiny" title="'+esc(c.url)+'">'+esc(hostOf(c.url))+'</a>'
                     :'<span class="tiny">'+(c.custom?'added by '+esc(customAddedBy(code)):'—')+'</span>')+'</td>'+
-        '<td class="n">'+(c.custom && admin
-          ? '<button class="btn sm danger" data-jur-delete="'+code+'">Remove</button>' : '')+'</td></tr>';
+        '<td class="n" style="white-space:nowrap">'+(admin
+          ? '<button class="btn sm" data-jur-edit="'+code+'">Edit</button>'+
+            (c.custom?' <button class="btn sm danger" data-jur-delete="'+code+'">Remove</button>':'')
+          : '')+'</td></tr>';
     }).join('')+'</tbody>';
 
   // The add form is static markup; only its role notice changes with who is acting.
@@ -2709,7 +2901,7 @@ function renderRates(){
     ? 'Adds a holiday calendar to this book — no new version of this file needed. '+
       ALL_JURISDICTIONS.length+' jurisdiction(s) available.'
     : 'Adding a jurisdiction requires the Rates Admin role. '+ALL_JURISDICTIONS.length+' available.';
-  if(!admin) showJurAdd(false);
+  if(!admin){ showJurAdd(false); showJurEdit(null); }
 }
 /** Just the publisher's host, so a long official URL does not crowd the row out. */
 const hostOf = u => { try{ return new URL(u).host.replace(/^www\./,''); }catch(e){ return u; } };
@@ -2749,7 +2941,7 @@ function closeRef(){
   refOpen = null;
   $('refModal').classList.remove('open');
   document.body.style.overflow='';
-  showJurAdd(false); showInvAdd(false);
+  showJurAdd(false); showInvAdd(false); showJurEdit(null);
   render();
 }
 /** The menu tiles carry a live count, so the set's size is readable without opening it. */
@@ -2773,58 +2965,144 @@ function renderRefMenu(){
   void ix;
 }
 
+/** What one investor is carrying: how many trades name it, split settled vs still to settle, with the
+ *  money on each side. Money is kept per currency — an investor funding two currencies has two totals,
+ *  and there is no rate in this model to collapse them. */
+function investorBook(name){
+  const key=String(name||'').trim().toLowerCase();
+  const acc={settled:{n:0,unpriced:0}, open:{n:0,unpriced:0}, cancelled:0, ccy:new Map()};
+  for(const t of store.trades){
+    if(String(t.funder||'').trim().toLowerCase()!==key) continue;
+    if(t.state==='CANCELLED'){ acc.cancelled++; continue; }
+    const d=store.deals.find(x=>x.id===t.dealId); if(!d) continue;
+    const side = t.state==='SETTLED' ? acc.settled : acc.open;
+    side.n++;
+    const v=tradeValue(d,t);
+    if(v==null){ side.unpriced++; continue; }
+    if(!acc.ccy.has(d.currency)) acc.ccy.set(d.currency,{settled:ZERO, open:ZERO});
+    const b=acc.ccy.get(d.currency);
+    b[t.state==='SETTLED'?'settled':'open'] = b[t.state==='SETTLED'?'settled':'open'].add(v);
+  }
+  return acc;
+}
+/** One cell of an investor's money, a currency per line, with the trade count leading it. */
+function bookCell(acc, key){
+  const rows=[...acc.ccy.entries()].filter(([,v])=>!v[key].eq(ZERO));
+  const side=key==='settled'?acc.settled:acc.open;
+  if(!side.n) return '<td class="n tiny">—</td>';
+  return '<td class="n"><b>'+side.n+'</b>'+
+    (rows.length ? rows.map(([c,v])=>'<span class="ccy">'+esc(c)+' '+money(v[key],c)+'</span>').join('')
+                 : '<span class="ccy">—</span>')+
+    (side.unpriced?'<span class="ccy">'+side.unpriced+' not priced</span>':'')+'</td>';
+}
+
 /** Investors. Add and remove only, like the jurisdictions: a party list is not a spreadsheet. */
 function renderInvestors(){
   const admin = actor().role==='Rates Admin';
   const rows = investorList().slice().sort((a,b)=>
     (INVESTOR_RANK[a.status]??9)-(INVESTOR_RANK[b.status]??9) || String(a.name).localeCompare(String(b.name)));
-  const usedBy = name => store.trades.filter(t=>String(t.funder||'').trim().toLowerCase()===String(name).trim().toLowerCase()).length;
-  $('invTable').innerHTML='<thead><tr><th>Investor</th><th>Status</th><th>Country</th><th>Region</th>'+
-    '<th class="n">Standing margin</th><th class="n">Trades</th><th></th></tr></thead><tbody>'+
+  $('invTable').innerHTML='<thead><tr><th>Investor</th><th>Status</th><th>Country</th>'+
+    '<th>Currencies</th><th>Discount</th>'+
+    '<th class="n" title="Trades naming this investor that have settled, and the money they carried">Settled</th>'+
+    '<th class="n" title="Trades naming this investor still to settle, and the money outstanding">Not settled</th>'+
+    '<th></th></tr></thead><tbody>'+
     (rows.length?rows.map(i=>{
-      const n=usedBy(i.name);
+      const acc=investorBook(i.name), conv=DISCOUNT_CONVENTIONS[conventionOf(i.discount)];
+      const ccys=(i.currencies||[]).filter(Boolean);
       return '<tr><td>'+esc(i.name)+
-        (i.note?'<span class="note" style="display:block;max-width:46ch">'+esc(i.note)+'</span>':'')+'</td>'+
+        (i.note?'<span class="note" style="display:block;max-width:44ch">'+esc(i.note)+'</span>':'')+'</td>'+
         '<td><span class="inline-tag '+(i.status==='Active'?'ok':i.status==='Inactive'?'warn':'')+'">'+esc(i.status||'—')+'</span></td>'+
-        '<td>'+esc(i.country||'—')+'</td><td>'+esc(i.region||'—')+'</td>'+
-        '<td class="n">'+(isBlankRate(i.margin)?'—':pct(D.of(i.margin),3))+'</td>'+
-        '<td class="n">'+(n||'—')+'</td>'+
+        '<td>'+esc(i.country||'—')+'</td>'+
+        '<td>'+(ccys.length ? ccys.map(c=>'<span class="inline-tag">'+esc(c)+'</span>').join(' ')
+                            : '<span class="tiny">any — unchecked</span>')+'</td>'+
+        '<td><span title="'+esc(conv.formula)+'">'+esc(conv.label)+'</span>'+
+          '<span class="note" style="display:block;max-width:34ch">'+esc(conv.formula)+'</span></td>'+
+        bookCell(acc,'settled')+bookCell(acc,'open')+
         '<td class="n" style="white-space:nowrap">'+
-          (admin?'<button class="btn sm danger" data-inv-delete="'+esc(i.id)+'">Remove</button>':'')+'</td></tr>';
-    }).join('') : '<tr><td colspan="7" class="tiny">No investors yet. Use <b>+ Add investor</b>.</td></tr>')+'</tbody>';
+          (admin?'<button class="btn sm" data-inv-edit="'+esc(i.id)+'">Edit</button> '+
+                 '<button class="btn sm danger" data-inv-delete="'+esc(i.id)+'">Remove</button>':'')+
+          (acc.cancelled?'<span class="ccy tiny">'+acc.cancelled+' cancelled</span>':'')+'</td></tr>';
+    }).join('') : '<tr><td colspan="8" class="tiny">No investors yet. Use <b>+ Add investor</b>.</td></tr>')+'</tbody>';
   $('btnInvAddToggle').disabled = !admin;
   $('invAddNote').textContent = admin
     ? 'Named here, an investor becomes a suggestion on a trade’s Funder field.'
     : 'Adding an investor requires the Rates Admin role.';
   if(!admin) showInvAdd(false);
 }
-function showInvAdd(on){
+/** The id being edited, or null when the form is adding. */
+let invEditing = null;
+/** Currencies chosen in the form, before it is saved. */
+let invCcyDraft = new Set();
+function renderInvCcyBox(){
+  const box=$('iv_ccyBox'); if(!box) return;
+  box.innerHTML=CURRENCIES.map(c=>{ const on=invCcyDraft.has(c);
+    return '<button type="button" class="tag'+(on?'':' off')+'" data-iv-ccy="'+esc(c)+'" '+
+      'title="'+(on?'Funds':'Does not fund')+' '+esc(c)+'">'+esc(c)+'</button>';
+  }).join('');
+  $('iv_ccyNote').textContent = invCcyDraft.size
+    ? 'A trade in any other currency is blocked for this investor.'
+    : 'None selected — currency is left unchecked for this investor.';
+}
+function renderInvFormulaNote(){
+  const c=DISCOUNT_CONVENTIONS[conventionOf($('iv_discount').value)];
+  $('iv_formulaNote').textContent = 'Purchase Price = '+c.formula;
+}
+function showInvAdd(on, editId){
   const card=$('invAddCard'); if(!card) return;
   card.style.display = on ? '' : 'none';
-  if(!on) return;
+  if(!on){ invEditing=null; return; }
+  invEditing = editId || null;
   $('iv_status').innerHTML=INVESTOR_STATUSES.map(s=>'<option>'+esc(s)+'</option>').join('');
   $('iv_region').innerHTML=['Americas','EMEA','APAC','RoW'].map(r=>'<option>'+esc(r)+'</option>').join('');
+  $('iv_discount').innerHTML=Object.entries(DISCOUNT_CONVENTIONS)
+    .map(([k,c])=>'<option value="'+esc(k)+'">'+esc(c.label)+'</option>').join('');
+  const inv = editId ? investorList().find(i=>String(i.id)===String(editId)) : null;
+  $('iv_name').value    = inv ? inv.name : '';
+  $('iv_country').value = inv ? (inv.country||'') : '';
+  $('iv_note').value    = inv ? (inv.note||'') : '';
+  $('iv_status').value  = inv && INVESTOR_STATUSES.includes(inv.status) ? inv.status : 'Active';
+  $('iv_region').value  = inv && inv.region ? inv.region : 'Americas';
+  $('iv_discount').value= conventionOf(inv && inv.discount);
+  invCcyDraft = new Set(inv ? (inv.currencies||[]).filter(c=>CURRENCIES.includes(c)) : []);
+  renderInvCcyBox(); renderInvFormulaNote();
+  $('btnInvSave').textContent = inv ? 'Save changes' : 'Add investor';
   $('iv_name').focus();
 }
-function addInvestorFromForm(){
-  if(actor().role!=='Rates Admin') return alert('Adding an investor requires the Rates Admin role.');
+/** Add, or save an edit — one path, so the two cannot drift apart. */
+function saveInvestorFromForm(){
+  if(actor().role!=='Rates Admin') return alert('Maintaining investors requires the Rates Admin role.');
   const name=$('iv_name').value.trim();
   if(!name) return alert('An investor name is required.');
-  if(investorList().some(i=>i.name.trim().toLowerCase()===name.toLowerCase()))
-    return alert('"'+name+'" is already on the list.');
-  const marginRaw=$('iv_margin').value;
-  let margin='';
-  if(!isBlankRate(marginRaw)){
-    try{ margin=D.of(marginRaw).div(100).toFixed(12); }
-    catch(e){ return alert('Standing margin is not a number.'); }
-    if(D.of(margin).lt(ZERO)) return alert('Standing margin cannot be negative.');
+  const clash=investorList().find(i=>String(i.name).trim().toLowerCase()===name.toLowerCase()
+    && String(i.id)!==String(invEditing));
+  if(clash) return alert('"'+clash.name+'" is already on the list.');
+  const fields={ name, status:$('iv_status').value, country:$('iv_country').value.trim(),
+    region:$('iv_region').value, currencies:CURRENCIES.filter(c=>invCcyDraft.has(c)),
+    discount:conventionOf($('iv_discount').value), note:$('iv_note').value.trim() };
+  const describe = f => f.name+' — '+f.status+', '+DISCOUNT_CONVENTIONS[f.discount].label+
+    ', '+(f.currencies.length?f.currencies.join('/'):'any currency');
+
+  if(invEditing){
+    const inv=investorList().find(i=>String(i.id)===String(invEditing));
+    if(!inv) return;
+    // Renaming breaks the link to trades that named the old name, so it is refused while any hold it.
+    if(inv.name!==name){
+      const used=store.trades.filter(t=>String(t.funder||'').trim().toLowerCase()===inv.name.trim().toLowerCase());
+      if(used.length) return alert('Cannot rename '+inv.name+' — '+used.length+' trade(s) name it as Funder:\n• '+
+        used.map(t=>t.identifier||'(untitled)').join('\n• ')+
+        '\n\nThose trades would stop matching this record. Rename the Funder on them first, or add a new investor.');
+    }
+    const before=describe({...inv, currencies:(inv.currencies||[]), discount:conventionOf(inv.discount)});
+    const repriced = conventionOf(inv.discount)!==fields.discount;
+    if(repriced && !confirm('Changing the discount convention reprices every DRAFT trade that names '+
+      inv.name+'.\n\nPriced trades keep their bound snapshot until re-priced. Continue?')) return;
+    Object.assign(inv, fields);
+    audit('investor', name, 'UPDATE', null, before, describe(fields), 'Edited under Settings → Investors');
+  } else {
+    store.investors.list.push({id:uuid(), ...fields,
+      addedBy:actor().name, addedAt:new Date().toISOString()});
+    audit('investor', name, 'CREATE', null, null, describe(fields), 'Added to reference data');
   }
-  store.investors.list.push({id:uuid(), name, status:$('iv_status').value,
-    country:$('iv_country').value.trim(), region:$('iv_region').value,
-    margin, note:$('iv_note').value.trim(), addedBy:actor().name, addedAt:new Date().toISOString()});
-  audit('investor', name, 'CREATE', null, null,
-    name+' — '+$('iv_status').value+(margin?', standing margin '+pct(D.of(margin),3):''), 'Added to reference data');
-  for(const id of ['iv_name','iv_country','iv_margin','iv_note']) $(id).value='';
   showInvAdd(false); save(); render();
 }
 /** Refused while a trade still names it as Funder — that trade's labels read from the name. */
@@ -3358,6 +3636,48 @@ function runTests(){
     const q2=liveQuotes(deal,{...trade, inputs:{...trade.inputs, pfIssueDate:WORKBOOK_CURVE_DATE}});
     T('Moving the PF issue date moves its rate', D.of(q2.pf.rate).toFixed(7),'0.0387550','panel 2 follows its own date');
   }
+  // ---- decimal pow, and the compound discount convention that needs it ----
+  T('pow whole exponent exact', D.of('1.005').pow(6).toFixed(20), D.of('1.005').ipow(6).toFixed(20),'D.pow');
+  T('2^10', D.of(2).ipow(10).toFixed(0),'1024','D.ipow');
+  T('ln(e) = 1', D.of('2.718281828459045235').ln().toFixed(12),'1.000000000000','D.ln');
+  T('exp(1) = e', D.of(1).exp().toFixed(15),'2.718281828459045','D.exp');
+  T('pow fraction vs Math.pow', D.of('1.005').pow('5.8333333333').toFixed(12),
+    Math.pow(1.005,5.8333333333).toFixed(12),'D.pow');
+  {
+    const cmp=price({...GOLDEN_INPUTS, discountConvention:'compound_monthly'},
+                    {pfRate:pfQ.rate, liveRate:liveQ.rate});
+    const rate=D.of(GOLDEN_INPUTS.bladexMargin).add(D.of(liveQ.rate));
+    const want=cmp.faceValue.div(ONE.add(rate.div(12)).pow(D.of(180).div(30)));
+    T('Compound discount matches its formula', cmp.purchasePrice.toFixed(10), want.toFixed(10),
+      'FV ÷ (1+(base+margin)/12)^(days/30)');
+    T('Compound prices above simple', cmp.purchasePrice.gt(o.purchasePrice),'true','same rate, monthly vs linear');
+    T('Compound still reconciles', cmp.reconciliation.toFixed(10),'0.0000000000','B51+B52+B53−B47');
+    T('Compound reports its convention', cmp.convention,'compound_monthly','out.convention');
+    T('Unset convention falls back to simple', price(GOLDEN_INPUTS,{pfRate:pfQ.rate,liveRate:liveQ.rate}).convention,
+      'simple','no investor named');
+    T('Simple convention untouched by the branch', o.purchasePrice.toFixed(2),'853302.69','Cantu!B47');
+  }
+  T('Unlisted funder prices simple', conventionFor({funder:'Nobody In Particular'}),'simple','conventionFor');
+
+  // ---- calendar edits layer over the shipped build rather than replacing it ----
+  {
+    const saved=store.jurisdictions;
+    store.jurisdictions=[{code:'US', add:['2027-03-15'], remove:['2027-07-05'], estimates:['2027-11-25']}];
+    refreshCalendars();
+    T('Edit adds a date', CALENDARS.US.set.has('2027-03-15'),'true','layered add');
+    T('Edit removes a date', CALENDARS.US.set.has('2027-07-05'),'false','layered remove');
+    T('Edit flags an estimate', CALENDARS.US.estimates.has('2027-11-25'),'true','layered estimate');
+    T('Untouched years still generate', CALENDARS.US.set.has('2028-07-04'),'true','rules keep running');
+    T('Estimated holiday is not a hard no', businessDayCheck('2027-11-25',['US']).anyError,'false','acknowledgeable');
+    T('Estimated holiday still flags', businessDayCheck('2027-11-25',['US']).verdict,'CHECK — ESTIMATED','bd verdict');
+    T('Confirmed holiday still blocks', businessDayCheck('2027-03-15',['US']).anyError,'true','bd verdict');
+    store.jurisdictions=saved; refreshCalendars();
+    T('Revert restores the shipped list', CALENDARS.US.days.join(',')===SHIPPED_CALENDARS.US.days.join(','),
+      'true','SHIPPED_CALENDARS baseline');
+  }
+  T('Estimate marker read on paste', parseHolidayList('2027-01-01\n2027-02-08 ?').estimates.join(','),
+    '2027-02-08','parseHolidayList');
+
   T('Funder label falls back', funderLabel({}),'Funder','trade.funder');
   T('Funder label used', funderLabel({funder:'Bladex'}),'Bladex','trade.funder');
 
@@ -3660,19 +3980,22 @@ $('btnNewTradeFromDeals').onclick=()=>{ if(createTrade()) openTradeModal(); };
  *  settled across the whole list at once, exactly as it is on the curve and invoice uploads. */
 function parseHolidayList(text){
   const tokens=String(text||'').split(/[\n\r,;\t]+/).map(s=>s.trim()).filter(Boolean);
-  const iso=[], amb=[], bad=[];
+  const iso=[], amb=[], bad=[], est=new Set();
   for(const tk of tokens){
-    const v=readDateCell(tk);
+    // A trailing "?" marks a date the publisher has not confirmed — same marker as the editor.
+    const provisional=/[?~]\s*$/.test(tk);
+    const v=readDateCell(tk.replace(/[?~]\s*$/,'').trim());
     if(v==null) bad.push(tk);
-    else if(Array.isArray(v)) amb.push(v);
-    else iso.push(v);
+    else if(Array.isArray(v)) amb.push([...v, provisional]);
+    else { iso.push(v); if(provisional) est.add(v); }
   }
-  const order=resolveDateOrder(amb);        // throws if the list mixes both orders
-  for(const [a,b,y] of amb){
+  const order=resolveDateOrder(amb.map(x=>x.slice(0,3)));   // throws if the list mixes both orders
+  for(const [a,b,y,provisional] of amb){
     const s=isoFromParts(y, order.dayFirst?b:a, order.dayFirst?a:b);
-    if(s) iso.push(s); else bad.push(a+'/'+b+'/'+y);
+    if(s){ iso.push(s); if(provisional) est.add(s); } else bad.push(a+'/'+b+'/'+y);
   }
-  return {days:[...new Set(iso)].sort(), bad, assumedOrder:order.assumed};
+  const days=[...new Set(iso)].sort();
+  return {days, estimates:days.filter(d=>est.has(d)), bad, assumedOrder:order.assumed};
 }
 /** Live count under the form, so a paste is checked before it is committed. */
 function refreshJurAddCount(){
@@ -3682,6 +4005,7 @@ function refreshJurAddCount(){
   let r; try{ r=parseHolidayList(raw); }
   catch(e){ el.innerHTML='<span class="inline-tag err">'+esc(e.message)+'</span>'; return; }
   el.innerHTML='<span class="inline-tag '+(r.days.length?'ok':'err')+'">'+r.days.length+' date(s)</span>'+
+    (r.estimates.length ? ' <span class="inline-tag warn">'+r.estimates.length+' estimated</span>' : '')+
     (r.days.length ? ' <span class="tiny">'+fmtShort(r.days[0])+' → '+fmtShort(r.days[r.days.length-1])+
       (r.assumedOrder?' · order assumed month-first':'')+'</span>' : '')+
     (r.bad.length ? ' <span class="inline-tag warn">'+r.bad.length+' unreadable</span>' : '');
@@ -3709,11 +4033,12 @@ function addJurisdictionFromForm(){
   const reason=prompt('Source for these dates (recorded in the audit log):', url||'published holiday list');
   if(reason===null) return;
   if(!reason.trim()) return alert('A source is required.');
-  store.jurisdictions.push({code, name, region, url, days:r.days,
+  store.jurisdictions.push({code, name, region, url, days:r.days, estimates:r.estimates,
     addedBy:actor().name, addedAt:new Date().toISOString()});
   refreshCalendars();
   audit('jurisdiction', code, 'CREATE', null, null,
-    code+' — '+name+' ('+region+'), '+r.days.length+' holiday(s) through '+r.days[r.days.length-1],
+    code+' — '+name+' ('+region+'), '+r.days.length+' holiday(s) through '+r.days[r.days.length-1]+
+    (r.estimates.length?', '+r.estimates.length+' estimated':''),
     reason.trim());
   for(const el of ['ja_code','ja_name','ja_url','ja_days']) $(el).value='';
   refreshJurAddCount(); showJurAdd(false);
@@ -3721,6 +4046,142 @@ function addJurisdictionFromForm(){
   alert(name+' ('+code+') is now selectable on any deal. Coverage runs to '+
     fmtShort(r.days[r.days.length-1])+'; a maturity date beyond that reports CHECK LIST.');
 }
+/* ---- editing one jurisdiction ---- */
+let jurEditing = null;                 // code being edited, or null
+const yearOf = d => String(d).slice(0,4);
+/** The entry in the book for a code, created on demand. Shipped calendars have none until edited. */
+function jurEntry(code){
+  let j=(store.jurisdictions||[]).find(x=>x.code===code);
+  if(!j){ j={code, add:[], remove:[], estimates:[]}; store.jurisdictions.push(j); }
+  j.add ||= []; j.remove ||= []; j.estimates ||= [];
+  return j;
+}
+/** One year's dates as text, an estimate marked with a trailing "?". */
+function jurYearText(code, year){
+  const c=CALENDARS[code]; if(!c) return '';
+  return c.days.filter(d=>yearOf(d)===String(year))
+    .map(d=>d+(c.estimates.has(d)?' ?':'')).join('\n');
+}
+/** Parse it back. Same loose date reading as everywhere else, plus the "?" estimate marker. */
+function parseYearText(text){
+  const out={days:[], estimates:[], bad:[]};
+  for(const raw of String(text||'').split(/[\n\r,;\t]+/)){
+    const line=raw.trim(); if(!line) continue;
+    const est=/[?~]\s*$/.test(line);
+    const token=line.replace(/[?~]\s*$/,'').trim();
+    const v=readDateCell(token);
+    if(v==null || Array.isArray(v)){ out.bad.push(line); continue; }  // unambiguous dates only here
+    out.days.push(v); if(est) out.estimates.push(v);
+  }
+  out.days=[...new Set(out.days)].sort();
+  out.estimates=[...new Set(out.estimates)];
+  return out;
+}
+function refreshJurEditCount(){
+  const el=$('je_count'); if(!el || !jurEditing) return;
+  const r=parseYearText($('je_days').value);
+  el.innerHTML='<span class="inline-tag '+(r.bad.length?'warn':'ok')+'">'+r.days.length+' date(s)</span>'+
+    (r.estimates.length?' <span class="inline-tag warn">'+r.estimates.length+' estimated</span>':'')+
+    (r.bad.length?' <span class="inline-tag err">'+r.bad.length+' unreadable</span>':'');
+}
+function showJurEdit(code){
+  const card=$('jurEditCard'); if(!card) return;
+  if(!code){ card.style.display='none'; jurEditing=null; return; }
+  const c=CALENDARS[code]; if(!c) return;
+  jurEditing=code;
+  card.style.display='';
+  showJurAdd(false);
+  const shipped=SHIPPED_CALENDARS[code];
+  $('je_title').textContent=c.name+' ('+code+')';
+  $('je_state').textContent = !shipped ? 'added here' : c.edited ? 'shipped · edited' : 'shipped';
+  $('je_state').className='inline-tag'+(c.edited?' warn':'');
+  $('btnJurRevert').style.display = shipped && c.edited ? '' : 'none';
+  $('je_region').innerHTML=REGIONS.map(r=>'<option>'+esc(r)+'</option>').join('');
+  $('je_name').value=c.name; $('je_region').value=c.region;
+  $('je_url').value=c.url||''; $('je_note').value=c.note||'';
+  const years=[...new Set(c.days.map(yearOf))].sort();
+  const thisYear=String(new Date().getUTCFullYear());
+  const offer=[...new Set([...years, thisYear, String(+thisYear+1)])].sort();
+  $('je_year').innerHTML=offer.map(y=>'<option>'+y+
+    (years.includes(y)?'':' — empty')+'</option>').join('');
+  // Land on a year that has dates in it. Opening on an empty this-year would look like a calendar
+  // with nothing in it, and invites typing next year's list into the wrong year.
+  $('je_year').value = years.includes(thisYear) ? thisYear : (years[0] || thisYear);
+  loadJurYear();
+}
+function loadJurYear(){
+  if(!jurEditing) return;
+  const y=$('je_year').value;
+  $('je_days').value=jurYearText(jurEditing, y);
+  const base=SHIPPED_CALENDARS[jurEditing];
+  $('je_yearNote').textContent = base
+    ? 'The build ships '+base.days.filter(d=>yearOf(d)===y).length+' date(s) for '+y+'.'
+    : 'Added jurisdiction — every date here is one you entered.';
+  refreshJurEditCount();
+}
+/** Save the edited year. Only that year is touched: its dates are diffed against the shipped base
+ *  so a rules calendar keeps generating every other year, and the entry stores just the difference. */
+function saveJurEdit(){
+  if(actor().role!=='Rates Admin') return alert('Editing a jurisdiction requires the Rates Admin role.');
+  if(!jurEditing) return;
+  const code=jurEditing, y=$('je_year').value, c=CALENDARS[code], base=SHIPPED_CALENDARS[code];
+  const name=$('je_name').value.trim();
+  if(!name) return alert('A jurisdiction name is required.');
+  const r=parseYearText($('je_days').value);
+  if(r.bad.length && !confirm(r.bad.length+' entr(y/ies) could not be read as a date and will be left '+
+    'out:\n\n• '+r.bad.slice(0,8).join('\n• ')+'\n\nSave '+y+' with the '+r.days.length+' date(s) that did read?')) return;
+  const wrongYear=r.days.filter(d=>yearOf(d)!==y);
+  if(wrongYear.length && !confirm(wrongYear.length+' date(s) are not in '+y+':\n\n• '+
+    wrongYear.slice(0,8).join('\n• ')+'\n\nThey will be saved into their own year. Continue?')) return;
+
+  const j=jurEntry(code);
+  const inYear = d => yearOf(d)===y;
+  const baseYear = (base ? base.days : (Array.isArray(j.days)?j.days:[])).filter(inYear);
+  const edited = new Set(r.days);
+  if(base){
+    // Keep every adjustment outside this year, replace this year's with a fresh diff.
+    j.add    = [...j.add.filter(d=>!inYear(d)),    ...r.days.filter(d=>!baseYear.includes(d))].sort();
+    j.remove = [...j.remove.filter(d=>!inYear(d)), ...baseYear.filter(d=>!edited.has(d))].sort();
+  } else {
+    j.days = [...new Set([...(j.days||[]).filter(d=>!inYear(d)), ...r.days])].sort();
+    j.add=[]; j.remove=[];
+  }
+  j.estimates = [...new Set([...j.estimates.filter(d=>!inYear(d)), ...r.estimates])].sort();
+  j.name=name; j.region=$('je_region').value; j.url=$('je_url').value.trim(); j.note=$('je_note').value.trim();
+
+  const beforeYear=(c.days||[]).filter(inYear), beforeTotal=(c.days||[]).length;
+  refreshCalendars();
+  const now=CALENDARS[code];
+  const afterYear=now.days.filter(inYear);
+  audit('jurisdiction', code, 'UPDATE', y,
+    beforeYear.length+' in '+y+', '+beforeTotal+' total',
+    afterYear.length+' in '+y+', '+now.days.length+' total'+
+      (now.estimates.size?', '+now.estimates.size+' estimated':''),
+    'Edited '+y+' under Settings → Jurisdictions');
+  revertPricedTradesUsing(code);
+  showJurEdit(code); save(); render();
+}
+/** Drop every edit for a shipped jurisdiction and put the build's own calendar back. */
+function revertJurisdiction(code){
+  if(actor().role!=='Rates Admin') return alert('Reverting a jurisdiction requires the Rates Admin role.');
+  if(!SHIPPED_CALENDARS[code]) return;
+  if(!confirm('Discard every edit to '+SHIPPED_CALENDARS[code].name+' and restore the calendar this build '+
+    'ships?\n\nThe edits stay in the audit log.')) return;
+  store.jurisdictions=(store.jurisdictions||[]).filter(x=>x.code!==code);
+  refreshCalendars();
+  audit('jurisdiction', code, 'UPDATE', null, 'edited', 'reverted to shipped', 'Edits discarded');
+  revertPricedTradesUsing(code);
+  showJurEdit(code); save(); render();
+}
+/** A calendar change can move a maturity-date verdict, so any priced trade on a deal using this
+ *  jurisdiction goes back to DRAFT rather than keeping a snapshot taken under the old calendar. */
+function revertPricedTradesUsing(code){
+  for(const d of store.deals){
+    if(!(d.jurisdictions||[]).includes(code)) continue;
+    revertPricedTrades(d, 'Holiday calendar for '+code+' changed — rate snapshot voided.');
+  }
+}
+
 /** Remove an added jurisdiction. Refused while a deal still lists it — those deals' maturity
  *  checks would silently stop covering that country. */
 function removeJurisdiction(code){
@@ -3759,19 +4220,34 @@ $('refMenu').addEventListener('click', e=>{
 $('refModal').addEventListener('click', e=>{ if(e.target.closest('[data-close-ref]')) closeRef(); });
 // Esc closes whichever window is on top: the trade workspace sits above the reference ones.
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !modalOpen && refOpen) closeRef(); });
-$('btnInvAddToggle').onclick=()=>showInvAdd($('invAddCard').style.display==='none');
+$('btnInvAddToggle').onclick=()=>showInvAdd($('invAddCard').style.display==='none'||!!invEditing, null);
 $('btnInvCancel').onclick=()=>showInvAdd(false);
-$('btnInvSave').onclick=addInvestorFromForm;
+$('btnInvSave').onclick=saveInvestorFromForm;
+$('iv_discount').addEventListener('change', renderInvFormulaNote);
+$('iv_ccyBox').addEventListener('click', e=>{
+  const b=e.target.closest('button[data-iv-ccy]'); if(!b) return;
+  const c=b.dataset.ivCcy;
+  invCcyDraft.has(c) ? invCcyDraft.delete(c) : invCcyDraft.add(c);
+  renderInvCcyBox();
+});
 $('invTable').addEventListener('click', e=>{
-  const b=e.target.closest('button[data-inv-delete]'); if(b) removeInvestor(b.dataset.invDelete);
+  const del=e.target.closest('button[data-inv-delete]'); if(del) return removeInvestor(del.dataset.invDelete);
+  const ed=e.target.closest('button[data-inv-edit]'); if(ed) showInvAdd(true, ed.dataset.invEdit);
 });
 $('btnJurAddToggle').onclick=()=>showJurAdd($('jurAddCard').style.display==='none');
 $('btnJurCancel').onclick=()=>showJurAdd(false);
 $('btnJurSave').onclick=addJurisdictionFromForm;
 $('ja_days').addEventListener('input', refreshJurAddCount);
 $('calTable').addEventListener('click', e=>{
-  const b=e.target.closest('button[data-jur-delete]'); if(b) removeJurisdiction(b.dataset.jurDelete);
+  const del=e.target.closest('button[data-jur-delete]'); if(del) return removeJurisdiction(del.dataset.jurDelete);
+  const ed=e.target.closest('button[data-jur-edit]');
+  if(ed) showJurEdit(ed.dataset.jurEdit===jurEditing ? null : ed.dataset.jurEdit);
 });
+$('btnJurEditSave').onclick=saveJurEdit;
+$('btnJurEditCancel').onclick=()=>{ showJurEdit(null); render(); };
+$('btnJurRevert').onclick=()=>{ if(jurEditing) revertJurisdiction(jurEditing); };
+$('je_year').addEventListener('change', loadJurYear);
+$('je_days').addEventListener('input', refreshJurEditCount);
 // Reached from the deal's own picker, so a deal in a new country never leaves that screen for long.
 $('btnJurNew').onclick=()=>{
   if(actor().role!=='Rates Admin')
