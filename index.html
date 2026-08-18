@@ -155,7 +155,15 @@ input:disabled,select:disabled{opacity:.6;cursor:not-allowed}
 
 /* Reference data is a menu of four sets rather than four cards stacked down one page. Each tile
    carries a live count, so the menu answers "how much is in there" before anything is opened. */
-.refmenu{display:grid;grid-template-columns:repeat(auto-fit,minmax(255px,1fr));gap:14px}
+/* Explicit tracks rather than auto-fit: the four reference tiles fill a row exactly, and the two
+   Records tiles below them keep that same width instead of stretching across the whole row. */
+.refmenu{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+@media (max-width:1150px){.refmenu{grid-template-columns:repeat(3,1fr)}}
+@media (max-width:880px){.refmenu{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:560px){.refmenu{grid-template-columns:1fr}}
+.refgroup{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);
+  font-weight:600;margin:0 0 9px}
+.refgroup+.refmenu{margin-bottom:20px}
 .reftile{display:flex;flex-direction:column;gap:5px;align-items:flex-start;text-align:left;
   padding:15px 17px;border:1px solid var(--line-2);border-radius:11px;background:var(--panel);
   box-shadow:var(--shadow);cursor:pointer;font:inherit;color:var(--ink)}
@@ -290,9 +298,7 @@ code,.mono{font-family:var(--mono);font-size:12px}
   </div>
   <nav class="tabs" id="tabs">
     <button data-view="deals" aria-selected="true">Deals &amp; Trades</button>
-    <button data-view="rates">Reference data</button>
-    <button data-view="audit">Audit log</button>
-    <button data-view="about">Spec &amp; traceability</button>
+    <button data-view="settings">Settings</button>
   </nav>
 </header>
 
@@ -456,11 +462,14 @@ code,.mono{font-family:var(--mono);font-size:12px}
 </div><!-- /#tradeModal -->
 
 <!-- ================= REFERENCE DATA ================= -->
-<section class="view" id="view-rates">
+<section class="view" id="view-settings">
   <div id="ratesBanners"></div>
-  <!-- A menu rather than four stacked cards: each set opens in its own window, so one screen is
-       never carrying the currency history, the client book and every holiday calendar at once. -->
-  <div class="refmenu" id="refMenu">
+  <!-- A menu rather than a stack of cards: each set opens in its own window, so one screen is never
+       carrying the currency history, the client book and every holiday calendar at once. Grouped
+       because the first four are lookups that get edited and the last two are records that do not. -->
+  <div id="refMenu">
+  <h3 class="refgroup">Reference data</h3>
+  <div class="refmenu">
     <button class="reftile" data-ref="ccy">
       <span class="mk">%</span>
       <span class="t">Currencies &amp; Base Rates</span>
@@ -485,6 +494,22 @@ code,.mono{font-family:var(--mono);font-size:12px}
       <span class="d">The funding counterparties a trade can name as its Funder, and the terms each one is priced at.</span>
       <span class="m" id="refMetaInvestors"></span>
     </button>
+  </div>
+  <h3 class="refgroup">Records</h3>
+  <div class="refmenu">
+    <button class="reftile" data-ref="audit">
+      <span class="mk">≡</span>
+      <span class="t">Audit log</span>
+      <span class="d">Every change, who made it and why — append-only, scoped to a trade, a deal or the whole book.</span>
+      <span class="m" id="refMetaAudit"></span>
+    </button>
+    <button class="reftile" data-ref="about">
+      <span class="mk">§</span>
+      <span class="t">Spec &amp; traceability</span>
+      <span class="d">What this model is, the workbook cell map, and the parity suite that proves it still ties.</span>
+      <span class="m" id="refMetaAbout"></span>
+    </button>
+  </div>
   </div>
 </section>
 
@@ -641,6 +666,33 @@ code,.mono{font-family:var(--mono);font-size:12px}
   </div>
 </div>
 
+<!-- ---- Audit log ---- -->
+<div class="refpane" id="refpane-audit">
+  <div class="card">
+    <h2>Audit log <span class="src">append-only</span></h2>
+    <div class="body">
+      <div class="toolbar">
+        <div class="field-inline"><label for="auditScope">Scope</label>
+          <select id="auditScope"><option value="trade">Current trade</option><option value="deal">Current deal + its trades</option><option value="all">All entities</option></select></div>
+        <button class="btn" id="btnAuditCsv">Download CSV</button>
+      </div>
+      <div class="scroll"><table id="auditTable"></table></div>
+    </div>
+  </div>
+</div>
+
+<!-- ---- Spec & traceability, with the parity suite at its foot ---- -->
+<div class="refpane" id="refpane-about">
+  <div class="card"><h2>What this is</h2><div class="body" id="aboutBox"></div></div>
+  <div class="card">
+    <h2>Parity tests — golden master vs. the workbook</h2>
+    <div class="body">
+      <div class="toolbar"><button class="btn primary" id="btnRunTests">Run tests</button><span id="testSummary" class="tiny"></span></div>
+      <div class="scroll"><table id="testTable"></table></div>
+    </div>
+  </div>
+</div>
+
     </div><!-- /.content -->
   </div><!-- /.sheet -->
 </div><!-- /#refModal -->
@@ -692,34 +744,9 @@ code,.mono{font-family:var(--mono);font-size:12px}
 </section>
 
 <!-- ================= AUDIT ================= -->
-<section class="view" id="view-audit">
-  <div class="card">
-    <h2>Audit log <span class="src">append-only</span></h2>
-    <div class="body">
-      <div class="toolbar">
-        <div class="field-inline"><label for="auditScope">Scope</label>
-          <select id="auditScope"><option value="trade">Current trade</option><option value="deal">Current deal + its trades</option><option value="all">All entities</option></select></div>
-        <button class="btn" id="btnAuditCsv">Download CSV</button>
-      </div>
-      <div class="scroll"><table id="auditTable"></table></div>
-    </div>
-  </div>
-</section>
 
-<!-- ================= TESTS ================= -->
-<!-- The parity suite lives here rather than on a tab of its own: it is evidence about the model,
-     the same as the spec map below it, and it is read occasionally rather than worked in. It still
-     runs on every load, so a broken file announces itself without anyone opening this tab. -->
-<section class="view" id="view-about">
-  <div class="card"><h2>What this is</h2><div class="body" id="aboutBox"></div></div>
-  <div class="card">
-    <h2>Parity tests — golden master vs. the workbook</h2>
-    <div class="body">
-      <div class="toolbar"><button class="btn primary" id="btnRunTests">Run tests</button><span id="testSummary" class="tiny"></span></div>
-      <div class="scroll"><table id="testTable"></table></div>
-    </div>
-  </div>
-</section>
+
+
 </main>
 
 <script>
@@ -2688,12 +2715,20 @@ function renderRates(){
 const hostOf = u => { try{ return new URL(u).host.replace(/^www\./,''); }catch(e){ return u; } };
 const customAddedBy = code => ((store.jurisdictions||[]).find(j=>j.code===code)||{}).addedBy || 'unknown';
 
+let lastTests = {pass:0, total:0};
+/** The parity suite's standing verdict, for the menu tile. Never triggers a run itself. */
+const testSummaryLine = () => lastTests.total
+  ? lastTests.pass+' / '+lastTests.total+' checks passing'
+  : 'not run yet';
+
 /* ---------------------------- reference data windows ---------------------------- */
 const REF_SETS = {
   ccy:       {title:'Currencies & Base Rates', sub:'Index, day count and the dated curve history each trade prices off'},
   clients:   {title:'Clients',                 sub:'The client book from the monday.com Global Pipeline'},
   jur:       {title:'Jurisdictions & Holiday Calendars', sub:'Calendars a maturity date is checked against'},
   investors: {title:'Investors',               sub:'Funding counterparties a trade can name as its Funder'},
+  audit:     {title:'Audit log',               sub:'Append-only — every change, who made it and why'},
+  about:     {title:'Spec & traceability',     sub:'What this model is, its cell map, and the parity suite'},
 };
 let refOpen = null;
 /** Open one reference set in its window. Every set shares #refModal, so the tables inside keep
@@ -2707,6 +2742,7 @@ function openRef(name){
     el.classList.toggle('active', el.id==='refpane-'+name);
   $('refModal').classList.add('open');
   document.body.style.overflow='hidden';
+  if(name==='about') runTests();      // as arriving at its old tab did
   render();
 }
 function closeRef(){
@@ -2728,6 +2764,10 @@ function renderRefMenu(){
   $('refMetaJur').textContent = ALL_JURISDICTIONS.length+' jurisdictions'+(added?' · '+added+' added here':'');
   $('refMetaInvestors').textContent = inv.length+' investor(s) · '+
     inv.filter(i=>i.status==='Active').length+' active';
+  const log=store.audit||[];
+  $('refMetaAudit').textContent = log.length+' entr'+(log.length===1?'y':'ies')+
+    (log.length ? ' · last '+new Date(log[log.length-1].at).toLocaleDateString() : '');
+  $('refMetaAbout').textContent = testSummaryLine();
   if(refOpen) $('refRoleNote').textContent = actor().role==='Rates Admin'
     ? 'Rates Admin — edits are audited' : 'Read-only as '+actor().role;
   void ix;
@@ -3326,6 +3366,9 @@ function runTests(){
   T('Client label falls back', clientLabel({}),'Client','—');
 
   const pass=results.filter(r=>r.pass).length;
+  lastTests={pass, total:results.length};
+  // Boot runs the suite after the first render, so the menu tile has to be told the verdict.
+  { const el=$('refMetaAbout'); if(el) el.textContent=testSummaryLine(); }
   $('testSummary').textContent = pass+' / '+results.length+' passing'+(pass===results.length?' — full parity with the workbook.':' — INVESTIGATE.');
   $('testSummary').style.color = pass===results.length ? 'var(--ok)' : 'var(--err)';
   $('testTable').innerHTML='<thead><tr><th></th><th>Check</th><th class="n">Computed</th><th class="n">Expected</th><th>Source</th></tr></thead><tbody>'+
@@ -3500,7 +3543,6 @@ document.getElementById('tabs').addEventListener('click', e=>{
   const b=e.target.closest('button[data-view]'); if(!b) return;
   for(const x of document.querySelectorAll('#tabs button')) x.setAttribute('aria-selected', String(x===b));
   for(const v of document.querySelectorAll('.view')) v.classList.toggle('active', v.id==='view-'+b.dataset.view);
-  if(b.dataset.view==='about') runTests();   // the suite sits on this tab; re-run on arrival
 });
 $('btnSupInvAdd').onclick=()=>{
   const t=currentTrade(); if(!t) return;
@@ -3735,7 +3777,7 @@ $('btnJurNew').onclick=()=>{
   if(actor().role!=='Rates Admin')
     return alert('Adding a jurisdiction requires the Rates Admin role — switch role in the header, '+
       'add it under Reference data → Holiday calendars, then come back to this deal.');
-  showTab('rates'); openRef('jur'); showJurAdd(true);
+  showTab('settings'); openRef('jur'); showJurAdd(true);
   $('jurAddCard').scrollIntoView({block:'center'});
 };
 $('btnJurClear').onclick=()=>{ const d=currentDeal(); if(!dealEditable(d)) return;
@@ -4040,7 +4082,7 @@ function requestCurveFor(ccy, dateISO){
   curveChoice = idxFor(ccy).index;
   curveDraft = {date: isValidDate(dateISO)?dateISO:'', reason:''};
   closeTradeModal();
-  showTab('rates'); openRef('ccy');
+  showTab('settings'); openRef('ccy');
   if(actor().role!=='Rates Admin')
     alert('Switch to the Rates Admin role in the header to enter the '+idxFor(ccy).name+' curve.');
 }

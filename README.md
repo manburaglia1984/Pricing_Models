@@ -11,9 +11,9 @@ single self-contained file that works offline and can be emailed or dropped on a
 ## Parity with the workbook
 
 The calc engine reproduces **all 26 output cells** of the `Cantu` tab exactly, plus the
-`Offer File`, `SOFR Interpolation` and `BD Dates` derivations. The suite sits at the foot of the
-**Spec & traceability** tab — press *Run tests* — and runs on every load whether or not anyone opens
-it, which is the only regression net a single emailed file can carry.
+`Offer File`, `SOFR Interpolation` and `BD Dates` derivations. The suite sits at the foot of
+**Settings → Spec & traceability** — press *Run tests* — and runs on every load whether or not anyone
+opens it, which is the only regression net a single emailed file can carry.
 
 **148 assertions**, each labelled with its source. 63 tie to a workbook artifact (47 `Cantu` cells,
 9 `SOFR Interpolation`, 5 `BD Dates`, 2 `Offer File`); the other 85 cover behaviour the workbook never
@@ -36,9 +36,9 @@ which is what makes the golden-master tests meaningful.
 
 ## Navigation
 
-A trade belongs to a deal, so it is a drill-down from one rather than a tab of its own. Top-level tabs
-are **Deals & Trades**, **Reference data**, **Audit log** and **Spec & traceability**; the page
-header carries no deal or trade controls at all.
+A trade belongs to a deal, so it is a drill-down from one rather than a tab of its own. There are two
+top-level tabs — **Deals & Trades**, where the work happens, and **Settings**, a menu of everything the
+work reads from. The page header carries no deal or trade controls at all.
 
 **Deals** is the landing tab. Click any deal row to select it and *Trades on this deal* below updates to
 that deal's trades. Row actions are **Configure** and **Delete**; the configuration panel opens on the
@@ -99,12 +99,15 @@ A **deal** holds everything its trades share. A **trade** is what gets priced, a
 
 This matches the SharePoint layout, where `Trade 1 - DRC` holds SB01 / SB02 / SB03 under one facility.
 
-### Reference data
+### Settings
 
-**Reference data** is a menu of four sets rather than four cards down one page. Each opens in its own
-window (`Esc` or the backdrop closes it), so no single screen carries the currency history, the client
-book and every holiday calendar at once. Each tile shows a live count, and the long-form guidance in
-each window sits behind a collapsed *How…* summary instead of standing open.
+**Settings** is a menu of six sets, each opening in its own window (`Esc` or the backdrop closes it), so
+no single screen carries the currency history, the client book and every holiday calendar at once. Each
+tile shows a live count, and the long-form guidance inside each window sits behind a collapsed *How…*
+summary instead of standing open.
+
+The tiles are grouped by what they are: the first four are lookups that get edited, the last two are
+records that do not.
 
 | Set | Holds |
 | --- | --- |
@@ -112,6 +115,8 @@ each window sits behind a collapsed *How…* summary instead of standing open.
 | **Clients** | The client book from the monday.com Global Pipeline; **Use** picks the client for the current deal |
 | **Jurisdictions & Holiday Calendars** | The shipped calendars, and the form that adds one (below) |
 | **Investors** | The funding counterparties a trade can name as its Funder |
+| **Audit log** | Append-only history, scoped to a trade, a deal or the whole book, with CSV download |
+| **Spec & traceability** | What this model is, the workbook cell map, and the parity suite |
 
 Two shortcuts land directly in a window: the **Add the … curve for …** button on a trade's rate banner
 opens *Currencies & Base Rates* with that date queued, and **+ New jurisdiction** on a deal's picker opens
@@ -131,7 +136,7 @@ refused while any trade still names that investor as its Funder.
 ### Adding a jurisdiction without a new build
 
 29 holiday calendars ship with the file. A deal in a country outside those 29 needs a calendar, not
-a new version of this file, so **Reference data → Jurisdictions & Holiday Calendars → + Add jurisdiction** takes one:
+a new version of this file, so **Settings → Jurisdictions & Holiday Calendars → + Add jurisdiction** takes one:
 a code, a name, a region, a source URL, and the publisher's holiday list pasted in.
 
 - Dates are read as loosely as on the curve upload — `2027-01-01`, `01/01/2027`, `1-Jan-2027` and Excel
@@ -247,7 +252,7 @@ month's rate however many newer curves arrive, and re-pricing it later reproduce
 This still reproduces the workbook exactly: its two tabs become two dated curves — 22-Jun-2026 with a 6m
 of 3.85550%, and 16-Jul-2026 with 3.87550% — and the golden master lands on the same $853,302.69.
 
-The Reference data tab's **Base rate curves** card manages the history:
+**Settings → Currencies & Base Rates** manages the history:
 
 - **Every rate is editable in place.** Each cell in the history table is an input, as are the business
   date and the note. Edits commit on blur, so typing and tabbing between cells are never interrupted, and
@@ -302,7 +307,7 @@ ACT/360 discount. The model applies the workbook's simple-discount formula and r
 `CCY.CONVENTION` warning; confirm the convention with Bladex before pricing BRL for real.
 
 **Only USD ships with a loaded curve** — the pillars from the workbook. Every other index starts empty
-and a Rates Admin must enter its pillars on the Reference data tab before a trade in that currency can
+and a Rates Admin must enter its pillars under Settings before a trade in that currency can
 be priced. Seeding invented rates for EUR or GBP would be worse than blocking: someone would price off
 them. Pricing is hard-blocked with `RATE.NO_CURVE` until a curve is loaded.
 
@@ -330,11 +335,11 @@ the parity tests.
 
 Two caveats worth reading before go-live:
 
-- Calendars marked **rules** in the Reference data tab are national/bank-holiday defaults derived from
+- Calendars marked **rules** under Settings are national/bank-holiday defaults derived from
   the rules above. Only US, GB, BR and TARGET2 are marked **verified** (against the workbook or a
   fixed six-rule definition). Check the others against the publisher link before relying on them, and
   note that sub-national holidays — German *Länder*, Swiss cantons, Australian states — are not modelled.
-- **Dominican Republic** carries one modelling gap, flagged in the Reference data tab: Restoration Day
+- **Dominican Republic** carries one modelling gap, flagged in its calendar row: Restoration Day
   (16 Aug) is observed on the date itself in presidential-inauguration years — 2028, 2032, 2036, 2040 —
   rather than shifted to the nearest Monday. The rules always shift it, so check those four years against
   the Banco Central calendar.
@@ -387,7 +392,7 @@ Seeded from monday.com at build time:
 | Captured | 269 distinct clients from 308 pipeline deals — 86 active, 103 prospect, 80 lost |
 | Per client | name, monday item id, strongest deal status, country, region, deal count |
 
-Refresh it three ways, from the **Reference data** tab:
+Refresh it three ways, from **Settings → Clients**:
 
 1. **Refresh from monday.com** — Rates Admin only. Prompts for an API token, uses it for that one
    request and never stores it, anywhere. Two caveats: a personal token grants full account access,
