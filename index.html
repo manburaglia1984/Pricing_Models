@@ -99,23 +99,31 @@ nav.tabs button:hover{color:var(--ink)}
 
 main{padding:18px 20px 60px;max-width:1500px;margin:0 auto}
 .view{display:none} .view.active{display:block}
-.cols{display:grid;grid-template-columns:minmax(0,1fr) 356px;gap:18px;align-items:start}
+.cols{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:14px;align-items:start}
 @media (max-width:1100px){.cols{grid-template-columns:minmax(0,1fr)}}
-
+/* The five pricing panels used to run down one column, which made the workspace nearly four
+   screens tall and left a wide gap between every label and its field. They flow into as many
+   ~23em columns as the pane can fit instead: multi-column rather than grid, because the panels
+   are wildly different heights and grid rows would align them into ragged whitespace.
+   23em is measured, not guessed: narrower fits more columns but wraps the rows taller, and past
+   about 21em the extra column stops paying for itself. */
+.panelcols{columns:23em;column-gap:14px}
+.panelcols>.card{break-inside:avoid;margin-bottom:14px}
+@media (max-width:900px){.panelcols{columns:auto}}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:11px;box-shadow:var(--shadow);margin-bottom:16px;overflow:hidden}
-.card>h2{display:flex;align-items:center;gap:9px;padding:11px 15px;border-bottom:1px solid var(--line);font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-2);background:var(--panel-2)}
+.card>h2{display:flex;align-items:center;gap:9px;padding:8px 13px;border-bottom:1px solid var(--line);font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-2);background:var(--panel-2)}
 .card>h2 .src{margin-left:auto;font:400 11px/1 var(--mono);color:var(--ink-3);text-transform:none;letter-spacing:0}
-.card .body{padding:6px 15px 13px}
-.card.tight .body{padding:12px 15px}
+.card .body{padding:5px 13px 10px}
+.card.tight .body{padding:10px 13px}
 .card.deal{border-color:var(--accent);border-width:1px}
 .card.deal>h2{background:var(--accent-soft);color:var(--accent)}
 
-.row{display:grid;grid-template-columns:1fr 190px;gap:10px;align-items:center;padding:5px 0;border-bottom:1px dashed var(--line)}
+.row{display:grid;grid-template-columns:minmax(0,1fr) 148px;gap:8px;align-items:center;padding:4px 0;border-bottom:1px dashed var(--line)}
 .row:last-child{border-bottom:0}
 .row.head{border-bottom:1px solid var(--line-2);margin-top:4px}
 .row.wide{grid-template-columns:1fr}
-.row .lbl{font-size:13.5px;color:var(--ink)}
-.row .note{display:block;font-size:11.5px;font-style:italic;color:var(--note);margin-top:1px}
+.row .lbl{font-size:13px;color:var(--ink);line-height:1.35}
+.row .note{display:block;font-size:11px;font-style:italic;color:var(--note);margin-top:1px;line-height:1.35}
 /* The same note treatment inside a table cell — the calendar and investor lists both use it, and
    .row .note alone left those rendering as a second line of full-weight body text. */
 td .note{display:block;font-size:11.5px;font-style:italic;color:var(--note);margin-top:1px;line-height:1.45}
@@ -341,8 +349,7 @@ code,.mono{font-family:var(--mono);font-size:12px}
 
 <div class="tpane active" id="tpane-pricing">
   <div id="topBanners"></div>
-  <div class="cols">
-    <div>
+  <div class="panelcols">
       <!-- Read-only view of the deal this trade belongs to. Edited on the Deals tab. -->
       <div class="card deal tight">
         <h2>Deal</h2>
@@ -357,25 +364,11 @@ code,.mono{font-family:var(--mono);font-size:12px}
           <div class="row"><div class="lbl">Trade Submission Date<span class="note">Date the trade is submitted. Selects the base rate curve — the latest one published on or before this date.</span></div><div class="cell"><input type="date" class="in" id="f_tradeDate" data-trade="tradeDate"></div></div>
           <div class="row"><div class="lbl">Funder<span class="note">Provides the funding and sets the margin. Names the Settlement Date, Margin and Cost of Funds fields below.</span></div><div class="cell"><input type="text" class="in" id="f_funder" data-trade="funder" list="funderList"><datalist id="funderList"></datalist></div></div>
           <div class="row"><div class="lbl">Relevant Obligor<span class="note">Offer File!A3 — may differ per trade.</span></div><div class="cell"><input type="text" class="in" id="f_obligor" data-trade="obligor"></div></div>
+          <div class="row"><div class="lbl">TradeCo Fee<span class="note">This desk's own fee. Added to the investor's margin to give the Margin used by panels 2 and 3.</span></div><div class="cell suffix" data-suffix="%"><input type="number" class="in" id="f_tcFee" data-field="tcFee" step="0.00001"></div></div>
         </div>
       </div>
 
-      <div class="card">
-        <h2>1 — Supplier Invoices</h2>
-        <div class="body">
-          <div class="scroll"><table id="supInvTable"></table></div>
-          <div class="toolbar" style="margin:10px 0 4px">
-            <button class="btn" id="btnSupInvAdd">+ Add supplier invoice</button>
-            <label class="btn" style="display:inline-flex;align-items:center">Upload invoices (CSV)<input type="file" id="supInvImportFile" accept=".csv,text/csv" style="display:none"></label>
-            <button class="btn" id="btnSupInvTemplate">CSV template</button>
-            <span class="tiny">Every block prices off the total. A row's Payment Date is its own Issue Date + tenor.</span>
-          </div>
-          <p class="tiny" id="supInvHelp" style="margin:2px 0 0">CSV columns: <code>invoice number, supplier name, jurisdiction, issue date, tenor days, amount</code>. Give a <code>payment date</code> instead of a tenor and the tenor is worked out from it. Jurisdiction takes a code (<code>BR</code>) or a name (<code>Brazil</code>); dates and delimiters are read as loosely as on the curve upload.</p>
-          <div id="supInvTotals"></div>
-        </div>
-      </div>
-
-      <!-- Shown only when the deal is configured to use pro forma invoices. -->
+      <div class="card tight"><h2>Validation</h2><div class="body" id="validationBox"></div></div>
       <div class="card" id="card_pf">
         <h2>2 — TradeCo Pro Forma Invoices</h2>
         <div class="body" id="body_pf">
@@ -383,7 +376,7 @@ code,.mono{font-family:var(--mono);font-size:12px}
           <div class="row"><div class="lbl">Tenor (days)<span class="note">It could be "Bladex Settlement Date" + 2</span></div><div class="cell"><input type="number" class="in" id="f_pfTenor" data-field="pfTenorDays" min="1" step="1"></div></div>
           <div class="row"><div class="lbl">Maturity Date</div><div class="cell"><span class="calc" id="o_pfMaturity" title="B15 = B13 + B14"><span class="f">B15</span>—</span></div></div>
           <div class="row"><div class="lbl"><span id="o_pfRateLabel">Base rate</span><span class="note">Issuance Date Pro Forma — the curve as at the Pro Forma Issue Date, interpolated at Funder Days</span></div><div class="cell"><span class="calc" id="o_pfRate" title="B16 = pro forma curve interpolated at B41"><span class="f">B16</span>—</span></div></div>
-          <div class="row"><div class="lbl"><span data-tpl="Margin ({funder} Margin + TradeCo Fee)">Margin</span><span class="note" data-tpl="Should be always the same unless pricing discussion with {client}/{funder}">Should be always the same unless pricing discussion with the client and funder</span></div><div class="cell suffix" data-suffix="%"><input type="number" class="in" id="f_pfMargin" data-field="pfMargin" step="0.00001"></div></div>
+          <div class="row"><div class="lbl"><span data-tpl="Margin ({funder} Margin + TradeCo Fee)">Margin</span><span class="note">TradeCo Fee + the investor's margin (B44). Keyed on the Trade box and panel 4.</span></div><div class="cell"><span class="calc" id="o_pfMargin" title="B17 = TradeCo Fee + B44"><span class="f">B17</span>—</span></div></div>
           <div class="row"><div class="lbl">Agency Fee</div><div class="cell suffix" data-suffix="%"><input type="number" class="in" id="f_pfAgency" data-field="pfAgencyFee" step="0.00001"></div></div>
           <div class="row"><div class="lbl">TradeCo Mark-up</div><div class="cell"><span class="calc" id="o_pfMarkup" title="B19 = B17 + B16 + B18"><span class="f">B19</span>—</span></div></div>
           <div class="row"><div class="lbl">Factor<span class="note" id="pfFactorNote"></span></div><div class="cell"><span class="calc" id="o_pfFactor" title="B20 = B19 × (B15 − B13) / basis"><span class="f">B20</span>—</span></div></div>
@@ -400,7 +393,7 @@ code,.mono{font-family:var(--mono);font-size:12px}
           <div class="row"><div class="lbl">Tenor (days)</div><div class="cell"><span class="calc" id="o_tcTenor" title="B27 = B41 + (B40 − B26)"><span class="f">B27</span>—</span></div></div>
           <div class="row"><div class="lbl">Maturity Date</div><div class="cell"><span class="calc" id="o_tcMaturity" title="B28 = B42 = B40 + B41"><span class="f">B28</span>—</span></div></div>
           <div class="row"><div class="lbl"><span id="o_tcRateLabel">Base rate</span><span class="note">Prior Funding — the curve as at the Trade Submission Date, interpolated at Funder Days</span></div><div class="cell"><span class="calc" id="o_tcRate" title="B29 = live curve interpolated at B41"><span class="f">B29</span>—</span></div></div>
-          <div class="row"><div class="lbl"><span data-tpl="Margin ({funder} Margin + TradeCo Fee)">Margin</span><span class="note" data-tpl="Should be always the same unless pricing discussion with {client}/{funder}">Should be always the same unless pricing discussion with the client and funder</span></div><div class="cell suffix" data-suffix="%"><input type="number" class="in" id="f_tcMargin" data-field="tcMargin" step="0.00001"></div></div>
+          <div class="row"><div class="lbl"><span data-tpl="Margin ({funder} Margin + TradeCo Fee)">Margin</span><span class="note">TradeCo Fee + the investor's margin (B44). Keyed on the Trade box and panel 4.</span></div><div class="cell"><span class="calc" id="o_tcMargin" title="B30 = TradeCo Fee + B44"><span class="f">B30</span>—</span></div></div>
           <div class="row"><div class="lbl">Agency Fee<span class="note">Also drives the agency-fee payment leg (B52)</span></div><div class="cell suffix" data-suffix="%"><input type="number" class="in" id="f_tcAgency" data-field="tcAgencyFee" step="0.00001"></div></div>
           <div class="row"><div class="lbl">TradeCo Mark-up</div><div class="cell"><span class="calc" id="o_tcMarkup" title="B32 = B30 + B29 + B31"><span class="f">B32</span>—</span></div></div>
           <div class="row"><div class="lbl">Factor<span class="note" id="tcFactorNote"></span></div><div class="cell"><span class="calc" id="o_tcFactor" title="B33 = B32 × (B28 − B40) / basis"><span class="f">B33</span>—</span></div></div>
@@ -435,15 +428,28 @@ code,.mono{font-family:var(--mono);font-size:12px}
           <div class="row"><div class="lbl"><b>Reconciliation</b> — legs vs IAA Purchase Price</div><div class="cell"><span class="calc strong" id="o_recon" title="B51 + B52 + B53 − B47 must be exactly 0">—</span></div></div>
         </div>
       </div>
-    </div>
-
-    <div>
-      <div class="card tight"><h2>Validation</h2><div class="body" id="validationBox"></div></div>
       <div class="card tight"><h2>Rate quotes</h2><div class="body" id="quoteBox"></div></div>
       <div class="card tight"><h2>Business-day check</h2><div class="body" id="bdBox"></div></div>
       <div class="card tight"><h2>Trade summary</h2><div class="body" id="summaryBox"></div></div>
-    </div>
   </div>
+
+      <div class="card">
+        <h2>1 — Supplier Invoices</h2>
+        <div class="body">
+          <div class="scroll"><table id="supInvTable"></table></div>
+          <div class="toolbar" style="margin:10px 0 4px">
+            <button class="btn" id="btnSupInvAdd">+ Add supplier invoice</button>
+            <label class="btn" style="display:inline-flex;align-items:center">Upload invoices (CSV)<input type="file" id="supInvImportFile" accept=".csv,text/csv" style="display:none"></label>
+            <button class="btn" id="btnSupInvTemplate">CSV template</button>
+            <span class="tiny">Every block prices off the total. A row's Payment Date is its own Issue Date + tenor.</span>
+          </div>
+          <details class="help"><summary>How the CSV is read</summary>
+          <p class="tiny" id="supInvHelp" style="margin:2px 0 0">CSV columns: <code>invoice number, supplier name, jurisdiction, issue date, tenor days, amount</code>. Give a <code>payment date</code> instead of a tenor and the tenor is worked out from it. Jurisdiction takes a code (<code>BR</code>) or a name (<code>Brazil</code>); dates and delimiters are read as loosely as on the curve upload.</p></details>
+          <div id="supInvTotals"></div>
+        </div>
+      </div>
+
+      <!-- Shown only when the deal is configured to use pro forma invoices. -->
 </div><!-- /#tpane-pricing -->
 
 <div class="tpane" id="tpane-offer">
@@ -1206,7 +1212,9 @@ const STATUS_RANK = {Live:0, Implementation:1, Validation:2, Discovery:3, Hold:4
 const ACTIVE_STATUSES = ['Live','Implementation','Validation','Discovery','Hold'];
 
 
-const MARKET_DEFAULTS = { margin:'0.03', agencyFee:'0.001', bladexMargin:'0.0235' };
+// margin is no longer keyed — it is tcFee + bladexMargin, and 0.0065 + 0.0235 is the 0.03 the
+// workbook carries, so the standing terms still describe the same trade.
+const MARKET_DEFAULTS = { margin:'0.03', tcFee:'0.0065', agencyFee:'0.001', bladexMargin:'0.0235' };
 /* Investors — the funding counterparties a trade can name as its Funder. Kept as reference data
    beside the clients rather than derived from whatever has been typed into trades so far, which
    is all the Funder datalist had to go on before. Deliberately does not touch pricing: a trade
@@ -1551,48 +1559,58 @@ function price(i, q){
   const supplierAmount = sup.amount;                                                     // B10
   const supplierPaymentDate = sup.lastPaymentDate;                                       // B9
 
+  // The funder's discount convention, resolved once — every block below follows it.
+  const convention = conventionOf(i.discountConvention);
+  /** Gross a net amount up to the invoice total that discounts back to it. The inverse of the
+   *  convention's own discount, so panels 2 and 3 stay consistent with the funder's arithmetic. */
+  const grossUp = (net, rate, days) => {
+    if(convention==='compound_monthly'){
+      const monthly = ONE.add(rate.div(12));
+      if(monthly.lte(ZERO))
+        throw new Error('Compound discount needs 1 + (Mark-up) / 12 to be positive; it is '+monthly.toFixed(8)+'.');
+      const total = net.mul(monthly.pow(D.of(days).div(30)));
+      // The factor reported is the discount actually applied, so no panel shows one nothing used.
+      return {total, factor: total.eq(ZERO) ? ZERO : ONE.sub(net.div(total))};
+    }
+    const factor = rate.mul(D.of(days)).div(BASIS);
+    return {total: net.div(ONE.sub(factor)), factor};
+  };
+
+  // B30 / B18 — the TradeCo mark-up component: this desk's fee plus whatever the investor charges.
+  // Both panels read the same pair, so the two can no longer be keyed out of step with each other.
+  const investorMargin = D.of(i.bladexMargin);                                           // B44
+  const tcFeeRate = D.of(i.tcFee);
+  const tcMargin = tcFeeRate.add(investorMargin);                                        // B30 = fee + B44
+
   const pfOn = i.pfEnabled !== false;
   let pfMaturityDate=null, pfRate=null, pfMarkup=null, pfDays=null, pfFactor=null,
       pfInvoice1=null, pfTotal=null, pfInvoice2=null;
   if(pfOn){
     pfMaturityDate = dAdd(i.pfIssueDate, Number(i.pfTenorDays));                         // B15
     pfRate   = D.of(q.pfRate);                                                           // B16
-    pfMarkup = D.of(i.pfMargin).add(pfRate).add(D.of(i.pfAgencyFee));                    // B19
+    pfMarkup = tcMargin.add(pfRate).add(D.of(i.pfAgencyFee));                            // B19
     pfDays   = dDiff(pfMaturityDate, i.pfIssueDate);
-    pfFactor = pfMarkup.mul(D.of(pfDays)).div(BASIS);                                    // B20
+    const pf = grossUp(supplierAmount, pfMarkup, pfDays);
+    pfFactor = pf.factor;                                                                // B20
     pfInvoice1 = supplierAmount;                                                         // B21
-    pfTotal  = supplierAmount.div(ONE.sub(pfFactor));                                    // B23
+    pfTotal  = pf.total;                                                                 // B23
     pfInvoice2 = pfTotal.sub(pfInvoice1);                                                // B22
   }
 
   const tcMaturityDate = dAdd(i.bladexSettlementDate, Number(i.bladexDays));             // B28 = B42
   const tcTenorDays = Number(i.bladexDays) + dDiff(i.bladexSettlementDate, i.tcIssueDate); // B27
   const liveRate = D.of(q.liveRate);                                                     // B29
-  const tcMarkup = D.of(i.tcMargin).add(liveRate).add(D.of(i.tcAgencyFee));              // B32
+  const tcMarkup = tcMargin.add(liveRate).add(D.of(i.tcAgencyFee));                       // B32
   const tcDays   = dDiff(tcMaturityDate, i.bladexSettlementDate);
-  // The funder's discount convention governs both discounting blocks, not just the IAA one below.
-  // `simple` is the workbook and the fallback, so its lines here are exactly what they always were.
-  const convention = conventionOf(i.discountConvention);
-  let tcFactor, tcTotal;
-  if(convention==='compound_monthly'){
-    // B36 is a gross-up: the invoice total that nets back to B10 once discounted. Inverting the
-    // compound discount gives amount x (1+r/12)^(days/30), where the simple one divides by (1−B33).
-    const monthly = ONE.add(tcMarkup.div(12));
-    if(monthly.lte(ZERO))
-      throw new Error('Compound discount needs 1 + (Mark-up) / 12 to be positive; it is '+monthly.toFixed(8)+'.');
-    tcTotal = supplierAmount.mul(monthly.pow(D.of(tcDays).div(30)));
-    // B33 stays the discount actually applied, so the panel never shows a factor nothing used.
-    tcFactor = tcTotal.eq(ZERO) ? ZERO : ONE.sub(supplierAmount.div(tcTotal));
-  } else {
-    tcFactor = tcMarkup.mul(D.of(tcDays)).div(BASIS);                                    // B33
-    tcTotal  = supplierAmount.div(ONE.sub(tcFactor));                                    // B36
-  }
+  const tc = grossUp(supplierAmount, tcMarkup, tcDays);
+  const tcFactor = tc.factor;                                                            // B33
+  const tcTotal  = tc.total;                                                             // B36
   const tcInvoice1 = supplierAmount;                                                     // B34
   const tcInvoice2 = tcTotal.sub(tcInvoice1);                                            // B35
 
   const faceValue = tcTotal;                                                             // B39
   const iaaMaturityDate = dAdd(i.bladexSettlementDate, Number(i.bladexDays));            // B42
-  const bladexCostOfFunds = D.of(i.bladexMargin).add(liveRate);                          // B45
+  const bladexCostOfFunds = investorMargin.add(liveRate);                                // B45
   const iaaDays = dDiff(iaaMaturityDate, i.bladexSettlementDate);
   let iaaFactor, purchasePrice;
   if(convention==='compound_monthly'){
@@ -1629,6 +1647,7 @@ function price(i, q){
     supplierInvoiceCount:sup.count, supplierFirstIssueDate:sup.firstIssueDate,
     pfMaturityDate, pfRate, pfMarkup, pfFactor, pfDays, pfInvoice1, pfInvoice2, pfTotal,
     tcTenorDays, tcMaturityDate, liveRate, tcMarkup, tcFactor, tcDays, tcInvoice1, tcInvoice2, tcTotal,
+    tcFeeRate, investorMargin, tcMargin,
     faceValue, iaaMaturityDate, bladexCostOfFunds, iaaFactor, purchasePrice, convention,
     legalFees, payToSupplier, payToCantuAgency, payToTradeCo,
     reconciliation: payToSupplier.add(payToCantuAgency).add(payToTradeCo).sub(purchasePrice) };
@@ -1728,9 +1747,8 @@ function validate(deal, trade, out, quotes, bd){
   // ---- agreed rates ----
   // These five have no safe default. price() reads a blank as zero, which would quietly drop the
   // margin out of the markup and hand back a price that looks finished, so a blank blocks instead.
-  const RATE_FIELDS = [['pfMargin','Pro Forma Margin',pfOn], ['pfAgencyFee','Pro Forma Agency Fee',pfOn],
-    ['tcMargin','TradeCo Margin',true], ['tcAgencyFee','TradeCo Agency Fee',true],
-    ['bladexMargin',FUNDER+' Margin',true]];
+  const RATE_FIELDS = [['tcFee','TradeCo Fee',true], ['bladexMargin',FUNDER+' Margin',true],
+    ['pfAgencyFee','Pro Forma Agency Fee',pfOn], ['tcAgencyFee','TradeCo Agency Fee',true]];
   /** A rate field as a number, or null when blank or unparseable — never silently zero. */
   const rateOf = k => { if(isBlankRate(i[k])) return null;
     try{ return D.of(i[k]); }catch(e){ return null; } };
@@ -1843,7 +1861,7 @@ function validate(deal, trade, out, quotes, bd){
   // Only a rate that has been entered can depart from the standing terms. An empty field is
   // already a blocking RATE.REQUIRED above; warning that it "is 0%, not 3%" on top of that would
   // put five acknowledgements in front of every new trade for figures nobody had typed yet.
-  for(const [k,def,lbl,needed] of [['pfMargin',MARKET_DEFAULTS.margin,'Pro Forma margin',pfOn],['tcMargin',MARKET_DEFAULTS.margin,'TradeCo margin',true],
+  for(const [k,def,lbl,needed] of [['tcFee',MARKET_DEFAULTS.tcFee,'TradeCo Fee',true],
                             ['bladexMargin',MARKET_DEFAULTS.bladexMargin,FUNDER+' margin',true],
                             ['pfAgencyFee',MARKET_DEFAULTS.agencyFee,'Pro Forma agency fee',pfOn],['tcAgencyFee',MARKET_DEFAULTS.agencyFee,'TradeCo agency fee',true]]){
     const v = needed ? rateOf(k) : null;
@@ -1875,8 +1893,8 @@ function newSupplierInvoice(seed){
  *  30-day tenor is the workbook's own hardcoded B9. */
 function blankTradeInputs(){
   return { supplierInvoices:[newSupplierInvoice()],
-    pfIssueDate:'', pfTenorDays:'', pfMargin:'', pfAgencyFee:'',
-    tcIssueDate:'', tcMargin:'', tcAgencyFee:'',
+    pfIssueDate:'', pfTenorDays:'', pfAgencyFee:'',
+    tcIssueDate:'', tcFee:'', tcAgencyFee:'',
     bladexSettlementDate:'', bladexDays:'', bladexMargin:'', legalFees:'0' };
 }
 /** The worked example from Cantu Pricing Model 07222026.xlsx. It seeds a first run so the app
@@ -1887,9 +1905,8 @@ function workbookTradeInputs(){
       jurisdiction:'BR', issueDate:'2026-06-16', tenorDays:30, amount:'850000'})],
     pfIssueDate:'2026-06-22', pfTenorDays:180, tcIssueDate:'2026-07-16',
     bladexSettlementDate:'2026-07-16', bladexDays:180,
-    pfMargin:MARKET_DEFAULTS.margin, pfAgencyFee:MARKET_DEFAULTS.agencyFee,
-    tcMargin:MARKET_DEFAULTS.margin, tcAgencyFee:MARKET_DEFAULTS.agencyFee,
-    bladexMargin:MARKET_DEFAULTS.bladexMargin };
+    pfAgencyFee:MARKET_DEFAULTS.agencyFee, tcAgencyFee:MARKET_DEFAULTS.agencyFee,
+    tcFee:MARKET_DEFAULTS.tcFee, bladexMargin:MARKET_DEFAULTS.bladexMargin };
 }
 function newDeal(who){
   return { id:uuid(), code:'', clientId:'', clientName:'', currency:'USD', proformaEnabled:true,
@@ -1984,6 +2001,13 @@ function normalise(s){
   }
   for(const t of s.trades){
     delete t.inputs.pfEnabled;
+    // The margin used to be keyed twice; it is now TradeCo Fee + the investor's margin. Backing the
+    // fee out of what was stored keeps an existing trade pricing to the same numbers.
+    if(t.inputs.tcFee===undefined){
+      const m=t.inputs.tcMargin, b=t.inputs.bladexMargin;
+      t.inputs.tcFee = (isBlankRate(m)||isBlankRate(b)) ? '' : D.of(m).sub(D.of(b)).toFixed(12);
+    }
+    delete t.inputs.tcMargin; delete t.inputs.pfMargin;
     // Panel 1 held exactly one invoice before; those flat fields become the first row.
     if(!Array.isArray(t.inputs.supplierInvoices))
       t.inputs.supplierInvoices = [newSupplierInvoice({
@@ -2340,11 +2364,11 @@ const esc = s => String(s??'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>
 const setCalc = (id, text, bad) => { const el=$(id); if(!el) return;
   const f=el.querySelector('.f'); el.textContent=text; if(f) el.prepend(f); el.classList.toggle('bad', !!bad); };
 
-const PCT_FIELDS = new Set(['pfMargin','pfAgencyFee','tcMargin','tcAgencyFee','bladexMargin']);
+const PCT_FIELDS = new Set(['tcFee','pfAgencyFee','tcAgencyFee','bladexMargin']);
 const INT_FIELDS = new Set(['pfTenorDays','bladexDays']);
 const TRADE_FIELD_IDS = {
-  pfIssueDate:'f_pfIssue', pfTenorDays:'f_pfTenor', pfMargin:'f_pfMargin', pfAgencyFee:'f_pfAgency',
-  tcIssueDate:'f_tcIssue', tcMargin:'f_tcMargin', tcAgencyFee:'f_tcAgency',
+  pfIssueDate:'f_pfIssue', pfTenorDays:'f_pfTenor', pfAgencyFee:'f_pfAgency',
+  tcIssueDate:'f_tcIssue', tcFee:'f_tcFee', tcAgencyFee:'f_tcAgency',
   bladexSettlementDate:'f_bladexSettle', bladexDays:'f_bladexDays', bladexMargin:'f_bladexMargin', legalFees:'f_legalFees'};
 const TRADE_TOP_IDS = { identifier:'f_tradeid', tradeDate:'f_tradeDate', funder:'f_funder', obligor:'f_obligor' };
 const DEAL_FIELD_IDS = { clientId:'d_client', code:'d_code', currency:'d_currency', proformaEnabled:'d_proforma' };
@@ -2492,7 +2516,7 @@ function renderHeader(d,t,r){
     ? '— locked: a trade on this deal is approved or later'
     : '— applies to all '+tradesOf(d.id).length+' trade(s) on this deal';
   const tLocked = !t || LOCKED(t.state), pfOff = d.proformaEnabled===false;
-  const PF_INPUTS=['f_pfIssue','f_pfTenor','f_pfMargin','f_pfAgency'];
+  const PF_INPUTS=['f_pfIssue','f_pfTenor','f_pfAgency'];
   for(const id of [...Object.values(TRADE_FIELD_IDS), ...Object.values(TRADE_TOP_IDS)]){
     const el=$(id); if(!el) continue;
     el.disabled = tLocked || (pfOff && PF_INPUTS.includes(id));
@@ -2715,12 +2739,14 @@ function renderPricing(d,t,r){
   }
   $('topBanners').innerHTML = banners.map(([k,h])=>'<div class="banner '+k+'"><div>'+h+'</div></div>').join('');
 
-  const OUT_IDS=['o_pfMaturity','o_pfRate','o_pfMarkup','o_pfFactor','o_pfInv1','o_pfInv2','o_pfTotal',
+  const OUT_IDS=['o_pfMaturity','o_pfRate','o_pfMargin','o_pfMarkup','o_pfFactor','o_pfInv1','o_pfInv2','o_pfTotal','o_tcMargin',
     'o_tcTenor','o_tcMaturity','o_tcRate','o_tcMarkup','o_tcFactor','o_tcInv1','o_tcInv2','o_tcTotal','o_faceValue',
     'o_iaaMaturity','o_iaaRate','o_bladexCoF','o_iaaFactor','o_purchasePrice','o_paySupplier','o_payAgency','o_payTradeCo','o_recon'];
   if(o){
     setCalc('o_pfMaturity', fmtShort(o.pfMaturityDate));
     setCalc('o_pfRate', pct(o.pfRate));
+    setCalc('o_pfMargin', pct(o.tcMargin));
+    setCalc('o_tcMargin', pct(o.tcMargin));
     setCalc('o_pfMarkup', pct(o.pfMarkup));
     setCalc('o_pfFactor', fac(o.pfFactor), !!o.pfFactor && o.pfFactor.gte(ONE));
     setCalc('o_pfInv1', money(o.pfInvoice1,ccy));
@@ -3413,8 +3439,8 @@ const SOFR_LIVE=[{days:30,rate:'0.0364338'},{days:90,rate:'0.0372777'},{days:180
 const SOFR_PF  =[{days:30,rate:'0.0364338'},{days:90,rate:'0.0372777'},{days:180,rate:'0.0385550'},{days:360,rate:'0.0403325'}];
 const GOLDEN_INPUTS = { pfEnabled:true, currency:'USD', dayCountBasis:360,
   supplierIssueDate:'2026-06-16', supplierTenorDays:30, supplierAmount:'850000',
-  pfIssueDate:'2026-06-22', pfTenorDays:180, pfMargin:'0.03', pfAgencyFee:'0.001',
-  tcIssueDate:'2026-07-16', tcMargin:'0.03', tcAgencyFee:'0.001',
+  pfIssueDate:'2026-06-22', pfTenorDays:180, pfAgencyFee:'0.001',
+  tcIssueDate:'2026-07-16', tcFee:'0.0065', tcAgencyFee:'0.001',
   bladexSettlementDate:'2026-07-16', bladexDays:180, bladexMargin:'0.0235', legalFees:'0' };
 
 function runTests(){
@@ -3699,10 +3725,31 @@ function runTests(){
       ONE.add(D.of(GOLDEN_INPUTS.tcAgencyFee).div(12)).pow(D.of(180).div(30)).sub(ONE).toFixed(10),
       'B52 ÷ B39 is the compound accrual factor');
     T('Compound still reconciles', cmp.reconciliation.toFixed(10),'0.0000000000','B51+B52+B53−B47');
+    // Panel 2 is the same gross-up as panel 3, so it follows the convention too.
+    T('Convention reaches panel 2', cmp.pfFactor.eq(o.pfFactor),'false','B20 follows the funder');
+    T('Compound pro forma gross-up matches its formula', cmp.pfTotal.toFixed(10),
+      cmp.supplierAmount.mul(ONE.add(cmp.pfMarkup.div(12)).pow(D.of(cmp.pfDays).div(30))).toFixed(10),
+      'B23 = B10 × (1+B19/12)^(days/30)');
+    T('No block left on the linear form',
+      [cmp.pfFactor.eq(o.pfFactor), cmp.tcFactor.eq(o.tcFactor), cmp.iaaFactor.eq(o.iaaFactor),
+       cmp.payToCantuAgency.eq(o.payToCantuAgency)].some(Boolean),'false','B20, B33, B46, B52');
     T('Compound reports its convention', cmp.convention,'compound_monthly','out.convention');
     T('Unset convention falls back to simple', price(GOLDEN_INPUTS,{pfRate:pfQ.rate,liveRate:liveQ.rate}).convention,
       'simple','no investor named');
     T('Simple convention untouched by the branch', o.purchasePrice.toFixed(2),'853302.69','Cantu!B47');
+  }
+
+  // ---- the mark-up margin is derived, not keyed twice ----
+  {
+    T('Margin is fee + investor margin', o.tcMargin.toFixed(10),
+      o.tcFeeRate.add(o.investorMargin).toFixed(10),'B30 = TradeCo Fee + B44');
+    T('Standing fee and margin still make 3%', o.tcMargin.toFixed(5),'0.03000','0.0065 + 0.0235');
+    T('Both panels read one margin', o.pfMarkup.sub(o.pfRate).sub(D.of(GOLDEN_INPUTS.pfAgencyFee)).toFixed(10),
+      o.tcMarkup.sub(o.liveRate).sub(D.of(GOLDEN_INPUTS.tcAgencyFee)).toFixed(10),'B17 = B30');
+    const bumped=price({...GOLDEN_INPUTS, bladexMargin:'0.03'},{pfRate:pfQ.rate, liveRate:liveQ.rate});
+    T('Investor margin flows into the mark-up', bumped.tcMargin.toFixed(5),'0.03650','0.0065 + 0.03');
+    T('Trade inputs carry no keyed margin', ('tcMargin' in blankTradeInputs())||('pfMargin' in blankTradeInputs()),
+      'false','derived, not stored');
   }
   T('Unlisted funder prices simple', conventionFor({funder:'Nobody In Particular'}),'simple','conventionFor');
 
@@ -4701,7 +4748,7 @@ $('btnAuditCsv').onclick=()=>{ const scope=$('auditScope').value, t=currentTrade
 // The standing market terms become placeholders on the five rate fields. The expected figure stays
 // in front of whoever is keying the trade, without a new trade carrying a rate nobody agreed —
 // and read from MARKET_DEFAULTS so the hint cannot drift from the value the warning compares to.
-for(const [id,def] of [['f_pfMargin',MARKET_DEFAULTS.margin], ['f_tcMargin',MARKET_DEFAULTS.margin],
+for(const [id,def] of [['f_tcFee',MARKET_DEFAULTS.tcFee],
                        ['f_pfAgency',MARKET_DEFAULTS.agencyFee], ['f_tcAgency',MARKET_DEFAULTS.agencyFee],
                        ['f_bladexMargin',MARKET_DEFAULTS.bladexMargin]])
   $(id).placeholder = D.of(def).mul(100).toFixed(5);

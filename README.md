@@ -15,7 +15,7 @@ The calc engine reproduces **all 26 output cells** of the `Cantu` tab exactly, p
 **Settings → Spec & traceability** — press *Run tests* — and runs on every load whether or not anyone
 opens it, which is the only regression net a single emailed file can carry.
 
-**178 assertions**, each labelled with its source. 63 tie to a workbook artifact (47 `Cantu` cells,
+**186 assertions**, each labelled with its source. 63 tie to a workbook artifact (47 `Cantu` cells,
 9 `SOFR Interpolation`, 5 `BD Dates`, 2 `Offer File`); the rest cover behaviour the workbook never had —
 decimal invariants and the `pow`/`ln`/`exp` primitives, both discount conventions, calendar edits and
 estimate handling, multi-invoice aggregation, the supplier CSV parser, curve interpolation and
@@ -153,6 +153,10 @@ amount up to the TradeCo invoice total, which is the same arithmetic inverted, s
 | Simple | `B10 ÷ (1 − B32 × Days ÷ Basis)` | `B32 × Days ÷ Basis` |
 | Compound monthly | `B10 × (1 + B32 ÷ 12) ^ (Days ÷ 30)` | `1 − B10 ÷ B36` — the discount actually applied |
 
+**Every discounting block follows it** — panel 2's gross-up (`B23`), panel 3's (`B36`), the funder's
+discount (`B47`) and the agency fee (`B52`). Nothing is left on the linear form when a compound funder
+is named, which a parity assertion pins.
+
 The **agency fee (`B52`)** accrues over the same funding period, so it follows too:
 
 | | Agency fee (`B52`) |
@@ -231,6 +235,42 @@ by theme — the badge behind the mark stays the deep purple the silver was draw
 that same purple doing the interface's work, so it lightens in dark mode as an accent must. **New trade**
 is teal rather than a second purple: with the accent now brand purple, two purple primary buttons a card
 apart is exactly what invites a mis-click.
+
+### The mark-up margin is derived, not keyed
+
+Panels 2 and 3 both show **Margin (Investor Margin + TradeCo Fee)**, and it is now computed rather than
+typed into each panel:
+
+    Margin (B17 = B30)  =  TradeCo Fee  +  Investor Margin (B44)
+
+**TradeCo Fee** is a new field on the **Trade** box — this desk's own fee, keyed once. The investor's
+margin stays where it was, on panel 4. The two Margin fields became read-outs, so they can no longer be
+keyed out of step with each other or with the funder's margin.
+
+The standing terms still describe the same trade: `0.0065 + 0.0235 = 0.03`, so the workbook reproduces
+exactly. A trade stored before this change has its fee backed out of the margin it already carried
+(`tcFee = tcMargin − bladexMargin`), so it prices to the same numbers.
+
+### The trade workspace fits on one screen
+
+The five panels used to run down a single column, which made the workspace **3.8 screens** tall and left
+a ~900px gap between every label and its 190px field. Every card now flows into as many ~23em columns as
+the pane can fit — multi-column rather than grid, because the panels are wildly different heights and
+grid rows would align them into ragged whitespace.
+
+| | Before | After |
+| --- | --- | --- |
+| Height at 1600px | 3.80 screens | 1.98 screens |
+| Cards visible without scrolling | 3 | **9 of 11** |
+| A row's label / field | 912px / 190px | ~200px / 148px |
+
+Panels 2 and 3 land side by side, which is what makes their factors directly comparable. **Panel 1 sits
+full width below the flow**: it is the one input block that is a table rather than label/field pairs, and
+seven columns cannot live in a 23em track. The calculations occupy the first screen; the invoice editor,
+filled once per trade, is below them with room to work.
+
+23em is measured, not guessed — narrower fits more columns but wraps the rows taller, and past about
+21em the extra column stops paying for itself.
 
 ### What a new deal or trade starts with
 
