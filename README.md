@@ -253,28 +253,39 @@ exactly. A trade stored before this change has its fee backed out of the margin 
 
 ### The trade workspace layout
 
-Four fixed columns, so a figure is always where it was last looked for. The arrangement does not move
-with the content — named grid areas, not an automatic flow:
+Four fixed columns, so a figure is always where it was last looked for. Named grid areas, not an
+automatic flow — and **nothing in the grid grows with the data**:
 
-| Column 1 | Columns 2–3 | Column 4 |
-| --- | --- | --- |
-| **Deal** | **1 — Invoice Info** *(spans both)* | **Validation** |
-| **Trade Info** | ↓ column 2 ↓ · ↓ column 3 ↓ | **Rate quotes** |
-| **Trade summary** | **2 — TradeCo Pro Forma** · **4 — IAA Offer File** | **Business-day check** |
-| | **3 — TradeCo Invoices** · **5 — Payment waterfall** | |
+| Column 1 | Column 2 | Column 3 | Column 4 |
+| --- | --- | --- | --- |
+| **Deal** | **1 — Invoice Info** | **4 — IAA Offer File** | **Validation** |
+| **Trade Info** | **2 — TradeCo Pro Forma** | **5 — Payment waterfall** | **Rate quotes** |
+| | **3 — TradeCo Invoices** | | **Business-day check** |
+| | | | **Trade summary** |
 
 The five panels used to run down a single column, which made the workspace **3.8 screens** tall and left
 a ~900px gap between every label and its 190px field. Rows are now `1fr / 148px` in a ~370px column, so
-the label sits next to its value. Panels 2 and 3 stack in one column with 4 and 5 beside them, which puts
-the two gross-ups and the two discounts within a glance of each other.
+the label sits next to its value.
 
-**Panel 1 spans the two middle columns** — its invoice list is an eight-column table, and that needs the
-width. It uses `table-layout:fixed` with a `colgroup` rather than intrinsic sizing: left to size itself, a
-`<select>` full of *Dominican Republic (DO)* and a native date input pushed the amount column off the
-edge. Fixed shares out exactly the width available, at any viewport.
+It collapses to two columns below 1240px and one below 820px.
 
-It collapses to two columns below 1240px and one below 820px, the invoice list keeping its own full-width
-row throughout.
+#### The invoice list is a window
+
+Panel 1 carries **only the four totals** the pricing blocks actually read — invoice count, earliest issue
+(`B8`), latest payment (`B9`) and total amount (`B10`) — plus **Open invoice list**. The list itself is a
+window, stacked above the trade workspace it opens from and closed with `Esc`, the backdrop or Close.
+
+That is what keeps the layout still. A panel holding a row per invoice grew a line every time one was
+added and pushed everything beside it down the page. Measured with 1 invoice and again with 9: the
+columns and every panel's position are **identical** — Trade Info at 562px, panel 2 at 526px, panel 4 at
+280px, before and after.
+
+The window gets the full sheet width for its eight-column table, carries **Add / Upload CSV / CSV
+template**, and echoes the same four totals at its foot so it is self-contained while open. Edits write
+straight through: changing an amount there moves `B10` and reprices `B47` immediately.
+
+The **validation list is capped** at 340px with its own scroll for the same reason — a trade with a dozen
+unfinished invoices raises an entry each, and uncapped that one card dragged the whole grid down.
 
 ### What a new deal or trade starts with
 

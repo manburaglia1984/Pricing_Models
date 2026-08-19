@@ -107,18 +107,17 @@ main{padding:18px 20px 60px;max-width:1500px;margin:0 auto}
    point is that the arrangement does not move with the content. */
 .pricegrid{display:grid;gap:14px;align-items:start;
   grid-template-columns:repeat(4,minmax(0,1fr));
-  grid-template-areas:'c1 inv inv c4'
-                      'c1 c2  c3  c4'}
+  grid-template-areas:'c1 c2 c3 c4'}
 .pricegrid>.pgcol{min-width:0}
 .pricegrid>.pgcol>.card:last-child{margin-bottom:0}
 /* Two columns, then one, as the pane narrows — the invoice list keeps its own full-width row. */
 @media (max-width:1240px){
   .pricegrid{grid-template-columns:repeat(2,minmax(0,1fr));
-    grid-template-areas:'c1 c4' 'inv inv' 'c2 c3'}
+    grid-template-areas:'c1 c4' 'c2 c3'}
 }
 @media (max-width:820px){
   .pricegrid{grid-template-columns:minmax(0,1fr);
-    grid-template-areas:'c1' 'inv' 'c2' 'c3' 'c4'}
+    grid-template-areas:'c1' 'c2' 'c3' 'c4'}
 }
 .card{background:var(--panel);border:1px solid var(--line);border-radius:11px;box-shadow:var(--shadow);margin-bottom:16px;overflow:hidden}
 .card>h2{display:flex;align-items:center;gap:9px;padding:8px 13px;border-bottom:1px solid var(--line);font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-2);background:var(--panel-2)}
@@ -143,6 +142,9 @@ td .note{display:block;font-size:11.5px;font-style:italic;color:var(--note);marg
 /* Fixed layout, so the colgroup shares out exactly the width available and nothing overflows.
    Inputs and the jurisdiction select fill their cell rather than demanding an intrinsic minimum —
    the select's full option names are still there when it is opened. */
+/* The checks column must not run away either: a trade with a dozen unfinished invoices raises a
+   validation entry each, and left uncapped that one card dragged the whole grid down. */
+#validationBox{max-height:340px;overflow-y:auto}
 #supInvTable{table-layout:fixed;width:100%}
 #supInvTable input,#supInvTable select{min-width:0;width:100%}
 #supInvTable td,#supInvTable th{overflow:hidden;text-overflow:ellipsis}
@@ -169,6 +171,8 @@ input:disabled,select:disabled{opacity:.6;cursor:not-allowed}
 .inline-tag.err{color:var(--err);border-color:var(--err);background:var(--err-bg)}
 /* Trade workspace — a trade is a drill-down from its deal, not a peer tab. */
 .modal{position:fixed;inset:0;z-index:60;display:none}
+/* The invoice list opens from inside the trade workspace, so it has to sit above it. */
+#invModal{z-index:70}
 .modal.open{display:block}
 .modal .backdrop{position:absolute;inset:0;background:rgba(8,12,18,.55)}
 .modal .sheet{position:absolute;inset:22px;background:var(--bg);border:1px solid var(--line-2);
@@ -368,108 +372,103 @@ code,.mono{font-family:var(--mono);font-size:12px}
 
 <div class="tpane active" id="tpane-pricing">
   <div id="topBanners"></div>
-  <!-- A fixed four-column arrangement rather than an automatic flow, so each column always holds
-       the same panels and a figure is always in the place you last looked for it. Panel 1 spans the
-       two middle columns: its invoice list is a seven-column table and needs the width. -->
+  <!-- Four fixed columns. Nothing here grows with the data: the invoice list moved to its own
+       window precisely so a trade with twenty invoices lays out like a trade with one. -->
   <div class="pricegrid">
     <div class="pgcol" style="grid-area:c1">
-      <div class="card deal tight">
-      <h2>Deal</h2>
-      <div class="body" id="dealContextBox"></div>
-      </div>
-      <div class="card tight">
-      <h2>Trade Info</h2>
-      <div class="body">
-      <div class="row"><div class="lbl">Trade Identifier<span class="note">Unique within the deal. Offer File column D.</span></div><div class="cell"><input type="text" class="in" id="f_tradeid" data-trade="identifier"></div></div>
-      <div class="row"><div class="lbl">Trade Submission Date<span class="note">Date the trade is submitted. Selects the base rate curve — the latest one published on or before this date.</span></div><div class="cell"><input type="date" class="in" id="f_tradeDate" data-trade="tradeDate"></div></div>
-      <div class="row"><div class="lbl">Funder<span class="note">Provides the funding and sets the margin. Names the Settlement Date, Margin and Cost of Funds fields below.</span></div><div class="cell"><input type="text" class="in" id="f_funder" data-trade="funder" list="funderList"><datalist id="funderList"></datalist></div></div>
-      <div class="row"><div class="lbl">Relevant Obligor<span class="note">Offer File!A3 — may differ per trade.</span></div><div class="cell"><input type="text" class="in" id="f_obligor" data-trade="obligor"></div></div>
-      <div class="row"><div class="lbl">TradeCo Fee<span class="note">This desk's own fee. Added to the investor's margin to give the Margin used by panels 2 and 3.</span></div><div class="cell suffix" data-suffix="%"><input type="number" class="in" id="f_tcFee" data-field="tcFee" step="0.00001"></div></div>
-      </div>
-      </div>
-      <div class="card tight"><h2>Trade summary</h2><div class="body" id="summaryBox"></div></div>
-    </div>
-    <div class="pgcol" style="grid-area:inv">
-      <div class="card">
-      <h2>1 — Invoice Info</h2>
-      <div class="body">
-      <div class="scroll"><table id="supInvTable"></table></div>
-      <div class="toolbar" style="margin:10px 0 4px">
-      <button class="btn" id="btnSupInvAdd">+ Add supplier invoice</button>
-      <label class="btn" style="display:inline-flex;align-items:center">Upload invoices (CSV)<input type="file" id="supInvImportFile" accept=".csv,text/csv" style="display:none"></label>
-      <button class="btn" id="btnSupInvTemplate">CSV template</button>
-      <span class="tiny">Every block prices off the total. A row's Payment Date is its own Issue Date + tenor.</span>
-      </div>
-      <details class="help"><summary>How the CSV is read</summary>
-      <p class="tiny" id="supInvHelp" style="margin:2px 0 0">CSV columns: <code>invoice number, supplier name, jurisdiction, issue date, tenor days, amount</code>. Give a <code>payment date</code> instead of a tenor and the tenor is worked out from it. Jurisdiction takes a code (<code>BR</code>) or a name (<code>Brazil</code>); dates and delimiters are read as loosely as on the curve upload.</p></details>
-      <div id="supInvTotals"></div>
-      </div>
-      </div>
+        <div class="card deal tight">
+        <h2>Deal</h2>
+        <div class="body" id="dealContextBox"></div>
+        </div>
+        <div class="card tight">
+        <h2>Trade Info</h2>
+        <div class="body">
+        <div class="row"><div class="lbl">Trade Identifier<span class="note">Unique within the deal. Offer File column D.</span></div><div class="cell"><input type="text" class="in" id="f_tradeid" data-trade="identifier"></div></div>
+        <div class="row"><div class="lbl">Trade Submission Date<span class="note">Date the trade is submitted. Selects the base rate curve — the latest one published on or before this date.</span></div><div class="cell"><input type="date" class="in" id="f_tradeDate" data-trade="tradeDate"></div></div>
+        <div class="row"><div class="lbl">Funder<span class="note">Provides the funding and sets the margin. Names the Settlement Date, Margin and Cost of Funds fields below.</span></div><div class="cell"><input type="text" class="in" id="f_funder" data-trade="funder" list="funderList"><datalist id="funderList"></datalist></div></div>
+        <div class="row"><div class="lbl">Relevant Obligor<span class="note">Offer File!A3 — may differ per trade.</span></div><div class="cell"><input type="text" class="in" id="f_obligor" data-trade="obligor"></div></div>
+        <div class="row"><div class="lbl">TradeCo Fee<span class="note">This desk's own fee. Added to the investor's margin to give the Margin used by panels 2 and 3.</span></div><div class="cell suffix" data-suffix="%"><input type="number" class="in" id="f_tcFee" data-field="tcFee" step="0.00001"></div></div>
+        </div>
+        </div>
     </div>
     <div class="pgcol" style="grid-area:c2">
-      <div class="card" id="card_pf">
-      <h2>2 — TradeCo Pro Forma Invoices</h2>
-      <div class="body" id="body_pf">
-      <div class="row"><div class="lbl">Issue Date<span class="note">It should be a date before (around 5 days) Supplier Invoice Maturity Date</span></div><div class="cell"><input type="date" class="in" id="f_pfIssue" data-field="pfIssueDate"></div></div>
-      <div class="row"><div class="lbl">Tenor (days)<span class="note">It could be "Bladex Settlement Date" + 2</span></div><div class="cell"><input type="number" class="in" id="f_pfTenor" data-field="pfTenorDays" min="1" step="1"></div></div>
-      <div class="row"><div class="lbl">Maturity Date</div><div class="cell"><span class="calc" id="o_pfMaturity" title="B15 = B13 + B14"><span class="f">B15</span>—</span></div></div>
-      <div class="row"><div class="lbl"><span id="o_pfRateLabel">Base rate</span><span class="note">Issuance Date Pro Forma — the curve as at the Pro Forma Issue Date, interpolated at Funder Days</span></div><div class="cell"><span class="calc" id="o_pfRate" title="B16 = pro forma curve interpolated at B41"><span class="f">B16</span>—</span></div></div>
-      <div class="row"><div class="lbl"><span data-tpl="Margin ({funder} Margin + TradeCo Fee)">Margin</span><span class="note">TradeCo Fee + the investor's margin (B44). Keyed on the Trade box and panel 4.</span></div><div class="cell"><span class="calc" id="o_pfMargin" title="B17 = TradeCo Fee + B44"><span class="f">B17</span>—</span></div></div>
-      <div class="row"><div class="lbl">Agency Fee</div><div class="cell suffix" data-suffix="%"><input type="number" class="in" id="f_pfAgency" data-field="pfAgencyFee" step="0.00001"></div></div>
-      <div class="row"><div class="lbl">TradeCo Mark-up</div><div class="cell"><span class="calc" id="o_pfMarkup" title="B19 = B17 + B16 + B18"><span class="f">B19</span>—</span></div></div>
-      <div class="row"><div class="lbl">Factor<span class="note" id="pfFactorNote"></span></div><div class="cell"><span class="calc" id="o_pfFactor" title="B20 = B19 × (B15 − B13) / basis"><span class="f">B20</span>—</span></div></div>
-      <div class="row head"><div class="lbl">Total Invoice Amount — Invoice #1</div><div class="cell"><span class="calc" id="o_pfInv1" title="B21 = B10"><span class="f">B21</span>—</span></div></div>
-      <div class="row"><div class="lbl">Financial Cost — Invoice #2</div><div class="cell"><span class="calc" id="o_pfInv2" title="B22 = B23 − B21"><span class="f">B22</span>—</span></div></div>
-      <div class="row"><div class="lbl"><b>Total TradeCo Invoices Amount</b></div><div class="cell"><span class="calc strong" id="o_pfTotal" title="B23 = B10 / (1 − B20)"><span class="f">B23</span>—</span></div></div>
-      </div>
-      </div>
-      <div class="card">
-      <h2>3 — TradeCo Invoices</h2>
-      <div class="body">
-      <div class="row"><div class="lbl">Issue Date<span class="note">It should be a date before (around 5 days) Supplier Invoice Maturity Date</span></div><div class="cell"><input type="date" class="in" id="f_tcIssue" data-field="tcIssueDate"></div></div>
-      <div class="row"><div class="lbl">Tenor (days)</div><div class="cell"><span class="calc" id="o_tcTenor" title="B27 = B41 + (B40 − B26)"><span class="f">B27</span>—</span></div></div>
-      <div class="row"><div class="lbl">Maturity Date</div><div class="cell"><span class="calc" id="o_tcMaturity" title="B28 = B42 = B40 + B41"><span class="f">B28</span>—</span></div></div>
-      <div class="row"><div class="lbl"><span id="o_tcRateLabel">Base rate</span><span class="note">Prior Funding — the curve as at the Trade Submission Date, interpolated at Funder Days</span></div><div class="cell"><span class="calc" id="o_tcRate" title="B29 = live curve interpolated at B41"><span class="f">B29</span>—</span></div></div>
-      <div class="row"><div class="lbl"><span data-tpl="Margin ({funder} Margin + TradeCo Fee)">Margin</span><span class="note">TradeCo Fee + the investor's margin (B44). Keyed on the Trade box and panel 4.</span></div><div class="cell"><span class="calc" id="o_tcMargin" title="B30 = TradeCo Fee + B44"><span class="f">B30</span>—</span></div></div>
-      <div class="row"><div class="lbl">Agency Fee<span class="note">Also drives the agency-fee payment leg (B52)</span></div><div class="cell suffix" data-suffix="%"><input type="number" class="in" id="f_tcAgency" data-field="tcAgencyFee" step="0.00001"></div></div>
-      <div class="row"><div class="lbl">TradeCo Mark-up</div><div class="cell"><span class="calc" id="o_tcMarkup" title="B32 = B30 + B29 + B31"><span class="f">B32</span>—</span></div></div>
-      <div class="row"><div class="lbl">Factor<span class="note" id="tcFactorNote"></span></div><div class="cell"><span class="calc" id="o_tcFactor" title="B33 = B32 × (B28 − B40) / basis"><span class="f">B33</span>—</span></div></div>
-      <div class="row head"><div class="lbl">Total Invoice Amount — Invoice #1</div><div class="cell"><span class="calc" id="o_tcInv1" title="B34 = B10"><span class="f">B34</span>—</span></div></div>
-      <div class="row"><div class="lbl">Financial Cost — Invoice #2</div><div class="cell"><span class="calc" id="o_tcInv2" title="B35 = B36 − B34"><span class="f">B35</span>—</span></div></div>
-      <div class="row"><div class="lbl"><b>Total TradeCo Invoices Amount</b></div><div class="cell"><span class="calc strong" id="o_tcTotal" title="B36 = B10 / (1 − B33)"><span class="f">B36</span>—</span></div></div>
-      </div>
-      </div>
+        <div class="card">
+        <h2>1 — Invoice Info</h2>
+        <!-- Only the totals live here. The list itself is a window: a panel that grows a row per
+        invoice pushed everything beside it down the page, and the four figures below are all
+        the pricing blocks actually read. -->
+        <div class="body">
+        <div id="supInvTotals"></div>
+        <div class="toolbar" style="margin:11px 0 0">
+        <button class="btn primary alt" id="btnOpenInvoices">Open invoice list</button>
+        <span class="tiny" id="supInvCount"></span>
+        </div>
+        </div>
+        </div>
+        <div class="card" id="card_pf">
+        <h2>2 — TradeCo Pro Forma Invoices</h2>
+        <div class="body" id="body_pf">
+        <div class="row"><div class="lbl">Issue Date<span class="note">It should be a date before (around 5 days) Supplier Invoice Maturity Date</span></div><div class="cell"><input type="date" class="in" id="f_pfIssue" data-field="pfIssueDate"></div></div>
+        <div class="row"><div class="lbl">Tenor (days)<span class="note">It could be "Bladex Settlement Date" + 2</span></div><div class="cell"><input type="number" class="in" id="f_pfTenor" data-field="pfTenorDays" min="1" step="1"></div></div>
+        <div class="row"><div class="lbl">Maturity Date</div><div class="cell"><span class="calc" id="o_pfMaturity" title="B15 = B13 + B14"><span class="f">B15</span>—</span></div></div>
+        <div class="row"><div class="lbl"><span id="o_pfRateLabel">Base rate</span><span class="note">Issuance Date Pro Forma — the curve as at the Pro Forma Issue Date, interpolated at Funder Days</span></div><div class="cell"><span class="calc" id="o_pfRate" title="B16 = pro forma curve interpolated at B41"><span class="f">B16</span>—</span></div></div>
+        <div class="row"><div class="lbl"><span data-tpl="Margin ({funder} Margin + TradeCo Fee)">Margin</span><span class="note">TradeCo Fee + the investor's margin (B44). Keyed on the Trade box and panel 4.</span></div><div class="cell"><span class="calc" id="o_pfMargin" title="B17 = TradeCo Fee + B44"><span class="f">B17</span>—</span></div></div>
+        <div class="row"><div class="lbl">Agency Fee</div><div class="cell suffix" data-suffix="%"><input type="number" class="in" id="f_pfAgency" data-field="pfAgencyFee" step="0.00001"></div></div>
+        <div class="row"><div class="lbl">TradeCo Mark-up</div><div class="cell"><span class="calc" id="o_pfMarkup" title="B19 = B17 + B16 + B18"><span class="f">B19</span>—</span></div></div>
+        <div class="row"><div class="lbl">Factor<span class="note" id="pfFactorNote"></span></div><div class="cell"><span class="calc" id="o_pfFactor" title="B20 = B19 × (B15 − B13) / basis"><span class="f">B20</span>—</span></div></div>
+        <div class="row head"><div class="lbl">Total Invoice Amount — Invoice #1</div><div class="cell"><span class="calc" id="o_pfInv1" title="B21 = B10"><span class="f">B21</span>—</span></div></div>
+        <div class="row"><div class="lbl">Financial Cost — Invoice #2</div><div class="cell"><span class="calc" id="o_pfInv2" title="B22 = B23 − B21"><span class="f">B22</span>—</span></div></div>
+        <div class="row"><div class="lbl"><b>Total TradeCo Invoices Amount</b></div><div class="cell"><span class="calc strong" id="o_pfTotal" title="B23 = B10 / (1 − B20)"><span class="f">B23</span>—</span></div></div>
+        </div>
+        </div>
+        <div class="card">
+        <h2>3 — TradeCo Invoices</h2>
+        <div class="body">
+        <div class="row"><div class="lbl">Issue Date<span class="note">It should be a date before (around 5 days) Supplier Invoice Maturity Date</span></div><div class="cell"><input type="date" class="in" id="f_tcIssue" data-field="tcIssueDate"></div></div>
+        <div class="row"><div class="lbl">Tenor (days)</div><div class="cell"><span class="calc" id="o_tcTenor" title="B27 = B41 + (B40 − B26)"><span class="f">B27</span>—</span></div></div>
+        <div class="row"><div class="lbl">Maturity Date</div><div class="cell"><span class="calc" id="o_tcMaturity" title="B28 = B42 = B40 + B41"><span class="f">B28</span>—</span></div></div>
+        <div class="row"><div class="lbl"><span id="o_tcRateLabel">Base rate</span><span class="note">Prior Funding — the curve as at the Trade Submission Date, interpolated at Funder Days</span></div><div class="cell"><span class="calc" id="o_tcRate" title="B29 = live curve interpolated at B41"><span class="f">B29</span>—</span></div></div>
+        <div class="row"><div class="lbl"><span data-tpl="Margin ({funder} Margin + TradeCo Fee)">Margin</span><span class="note">TradeCo Fee + the investor's margin (B44). Keyed on the Trade box and panel 4.</span></div><div class="cell"><span class="calc" id="o_tcMargin" title="B30 = TradeCo Fee + B44"><span class="f">B30</span>—</span></div></div>
+        <div class="row"><div class="lbl">Agency Fee<span class="note">Also drives the agency-fee payment leg (B52)</span></div><div class="cell suffix" data-suffix="%"><input type="number" class="in" id="f_tcAgency" data-field="tcAgencyFee" step="0.00001"></div></div>
+        <div class="row"><div class="lbl">TradeCo Mark-up</div><div class="cell"><span class="calc" id="o_tcMarkup" title="B32 = B30 + B29 + B31"><span class="f">B32</span>—</span></div></div>
+        <div class="row"><div class="lbl">Factor<span class="note" id="tcFactorNote"></span></div><div class="cell"><span class="calc" id="o_tcFactor" title="B33 = B32 × (B28 − B40) / basis"><span class="f">B33</span>—</span></div></div>
+        <div class="row head"><div class="lbl">Total Invoice Amount — Invoice #1</div><div class="cell"><span class="calc" id="o_tcInv1" title="B34 = B10"><span class="f">B34</span>—</span></div></div>
+        <div class="row"><div class="lbl">Financial Cost — Invoice #2</div><div class="cell"><span class="calc" id="o_tcInv2" title="B35 = B36 − B34"><span class="f">B35</span>—</span></div></div>
+        <div class="row"><div class="lbl"><b>Total TradeCo Invoices Amount</b></div><div class="cell"><span class="calc strong" id="o_tcTotal" title="B36 = B10 / (1 − B33)"><span class="f">B36</span>—</span></div></div>
+        </div>
+        </div>
     </div>
     <div class="pgcol" style="grid-area:c3">
-      <div class="card">
-      <h2>4 — IAA Offer File</h2>
-      <div class="body">
-      <div class="row"><div class="lbl">TradeCo Invoices/BoE Face Value</div><div class="cell"><span class="calc" id="o_faceValue" title="B39 = B36"><span class="f">B39</span>—</span></div></div>
-      <div class="row"><div class="lbl"><span data-tpl="{funder} Settlement Date">Settlement Date</span><span class="note" data-tpl="Date when {funder} will disburse funds to {client}">Date the funder will disburse funds to the client</span></div><div class="cell"><input type="date" class="in" id="f_bladexSettle" data-field="bladexSettlementDate"></div></div>
-      <div class="row"><div class="lbl">Days<span class="note" data-tpl="Number of days confirmed with {client} — also the interpolation tenor for both curves">Number of days confirmed with the client — also the interpolation tenor for both curves</span></div><div class="cell"><input type="number" class="in" id="f_bladexDays" data-field="bladexDays" min="1" step="1"></div></div>
-      <div class="row"><div class="lbl">TradeCo Invoice/BoE Maturity Date <span id="o_bdCheck" class="inline-tag">—</span></div><div class="cell"><span class="calc" id="o_iaaMaturity" title="B42 = B40 + B41"><span class="f">B42</span>—</span></div></div>
-      <div class="row"><div class="lbl"><span id="o_iaaRateLabel">Base rate</span></div><div class="cell"><span class="calc" id="o_iaaRate" title="B43 = B29"><span class="f">B43</span>—</span></div></div>
-      <div class="row"><div class="lbl"><span data-tpl="{funder} Margin">Funder Margin</span><span class="note" data-tpl="Should be always the same unless pricing discussion with {client}/{funder}">Should be always the same unless pricing discussion with the client and funder</span></div><div class="cell suffix" data-suffix="%"><input type="number" class="in" id="f_bladexMargin" data-field="bladexMargin" step="0.00001"></div></div>
-      <div class="row"><div class="lbl"><span data-tpl="{funder} Cost of Funds">Cost of Funds</span></div><div class="cell"><span class="calc" id="o_bladexCoF" title="B45 = B44 + B43"><span class="f">B45</span>—</span></div></div>
-      <div class="row"><div class="lbl">Factor<span class="note" id="iaaFactorNote"></span></div><div class="cell"><span class="calc" id="o_iaaFactor" title="B46 = B45 × (B42 − B40) / basis"><span class="f">B46</span>—</span></div></div>
-      <div class="row"><div class="lbl"><b>IAA Purchase Price</b></div><div class="cell"><span class="calc strong" id="o_purchasePrice" title="B47 = B39 × (1 − B46)"><span class="f">B47</span>—</span></div></div>
-      </div>
-      </div>
-      <div class="card">
-      <h2>5 — Payment waterfall</h2>
-      <div class="body">
-      <div class="row"><div class="lbl">Legal/Structuring Fees<span class="note">If applicable</span></div><div class="cell suffix" id="legalWrap" data-suffix="$"><input type="number" class="in" id="f_legalFees" data-field="legalFees" step="0.01"></div></div>
-      <div class="row head"><div class="lbl" data-tpl="Payment to {client} Supplier (Supplier Invoice)">Payment to the client's Supplier (Supplier Invoice)</div><div class="cell"><span class="calc" id="o_paySupplier" title="B51 = B39 × (1 − B33) − B49"><span class="f">B51</span>—</span></div></div>
-      <div class="row"><div class="lbl" data-tpl="Payment to {client} (Agency Fee)">Payment to the client (Agency Fee)</div><div class="cell"><span class="calc" id="o_payAgency" title="B52 = B39 × B31 × B41 / basis"><span class="f">B52</span>—</span></div></div>
-      <div class="row"><div class="lbl">Payment to TradeCo (TradeCo Fee)</div><div class="cell"><span class="calc" id="o_payTradeCo" title="B53 = B47 − B51 − B52"><span class="f">B53</span>—</span></div></div>
-      <div class="row"><div class="lbl"><b>Reconciliation</b> — legs vs IAA Purchase Price</div><div class="cell"><span class="calc strong" id="o_recon" title="B51 + B52 + B53 − B47 must be exactly 0">—</span></div></div>
-      </div>
-      </div>
+        <div class="card">
+        <h2>4 — IAA Offer File</h2>
+        <div class="body">
+        <div class="row"><div class="lbl">TradeCo Invoices/BoE Face Value</div><div class="cell"><span class="calc" id="o_faceValue" title="B39 = B36"><span class="f">B39</span>—</span></div></div>
+        <div class="row"><div class="lbl"><span data-tpl="{funder} Settlement Date">Settlement Date</span><span class="note" data-tpl="Date when {funder} will disburse funds to {client}">Date the funder will disburse funds to the client</span></div><div class="cell"><input type="date" class="in" id="f_bladexSettle" data-field="bladexSettlementDate"></div></div>
+        <div class="row"><div class="lbl">Days<span class="note" data-tpl="Number of days confirmed with {client} — also the interpolation tenor for both curves">Number of days confirmed with the client — also the interpolation tenor for both curves</span></div><div class="cell"><input type="number" class="in" id="f_bladexDays" data-field="bladexDays" min="1" step="1"></div></div>
+        <div class="row"><div class="lbl">TradeCo Invoice/BoE Maturity Date <span id="o_bdCheck" class="inline-tag">—</span></div><div class="cell"><span class="calc" id="o_iaaMaturity" title="B42 = B40 + B41"><span class="f">B42</span>—</span></div></div>
+        <div class="row"><div class="lbl"><span id="o_iaaRateLabel">Base rate</span></div><div class="cell"><span class="calc" id="o_iaaRate" title="B43 = B29"><span class="f">B43</span>—</span></div></div>
+        <div class="row"><div class="lbl"><span data-tpl="{funder} Margin">Funder Margin</span><span class="note" data-tpl="Should be always the same unless pricing discussion with {client}/{funder}">Should be always the same unless pricing discussion with the client and funder</span></div><div class="cell suffix" data-suffix="%"><input type="number" class="in" id="f_bladexMargin" data-field="bladexMargin" step="0.00001"></div></div>
+        <div class="row"><div class="lbl"><span data-tpl="{funder} Cost of Funds">Cost of Funds</span></div><div class="cell"><span class="calc" id="o_bladexCoF" title="B45 = B44 + B43"><span class="f">B45</span>—</span></div></div>
+        <div class="row"><div class="lbl">Factor<span class="note" id="iaaFactorNote"></span></div><div class="cell"><span class="calc" id="o_iaaFactor" title="B46 = B45 × (B42 − B40) / basis"><span class="f">B46</span>—</span></div></div>
+        <div class="row"><div class="lbl"><b>IAA Purchase Price</b></div><div class="cell"><span class="calc strong" id="o_purchasePrice" title="B47 = B39 × (1 − B46)"><span class="f">B47</span>—</span></div></div>
+        </div>
+        </div>
+        <div class="card">
+        <h2>5 — Payment waterfall</h2>
+        <div class="body">
+        <div class="row"><div class="lbl">Legal/Structuring Fees<span class="note">If applicable</span></div><div class="cell suffix" id="legalWrap" data-suffix="$"><input type="number" class="in" id="f_legalFees" data-field="legalFees" step="0.01"></div></div>
+        <div class="row head"><div class="lbl" data-tpl="Payment to {client} Supplier (Supplier Invoice)">Payment to the client's Supplier (Supplier Invoice)</div><div class="cell"><span class="calc" id="o_paySupplier" title="B51 = B39 × (1 − B33) − B49"><span class="f">B51</span>—</span></div></div>
+        <div class="row"><div class="lbl" data-tpl="Payment to {client} (Agency Fee)">Payment to the client (Agency Fee)</div><div class="cell"><span class="calc" id="o_payAgency" title="B52 = B39 × B31 × B41 / basis"><span class="f">B52</span>—</span></div></div>
+        <div class="row"><div class="lbl">Payment to TradeCo (TradeCo Fee)</div><div class="cell"><span class="calc" id="o_payTradeCo" title="B53 = B47 − B51 − B52"><span class="f">B53</span>—</span></div></div>
+        <div class="row"><div class="lbl"><b>Reconciliation</b> — legs vs IAA Purchase Price</div><div class="cell"><span class="calc strong" id="o_recon" title="B51 + B52 + B53 − B47 must be exactly 0">—</span></div></div>
+        </div>
+        </div>
     </div>
     <div class="pgcol" style="grid-area:c4">
-      <div class="card tight"><h2>Validation</h2><div class="body" id="validationBox"></div></div>
-      <div class="card tight"><h2>Rate quotes</h2><div class="body" id="quoteBox"></div></div>
-      <div class="card tight"><h2>Business-day check</h2><div class="body" id="bdBox"></div></div>
+        <div class="card tight"><h2>Validation</h2><div class="body" id="validationBox"></div></div>
+        <div class="card tight"><h2>Rate quotes</h2><div class="body" id="quoteBox"></div></div>
+        <div class="card tight"><h2>Business-day check</h2><div class="body" id="bdBox"></div></div>
+        <div class="card tight"><h2>Trade summary</h2><div class="body" id="summaryBox"></div></div>
     </div>
   </div>
 </div><!-- /#tpane-pricing -->
@@ -547,6 +546,39 @@ code,.mono{font-family:var(--mono);font-size:12px}
   </div>
   </div>
 </section>
+
+<!-- ============ SUPPLIER INVOICES (opened from panel 1 of a trade) ============ -->
+<div class="modal" id="invModal" role="dialog" aria-modal="true" aria-labelledby="invModalTitle">
+  <div class="backdrop" data-close-inv></div>
+  <div class="sheet">
+    <header>
+      <div class="top-row">
+        <h1 id="invModalTitle">Supplier invoices<small id="invModalSub"></small></h1>
+        <div class="spacer"></div>
+        <button class="btn" data-close-inv>Close</button>
+      </div>
+    </header>
+    <div class="content">
+      <div class="card">
+        <h2>Invoices on this trade</h2>
+        <div class="body">
+          <div class="toolbar" style="margin:0 0 10px">
+            <button class="btn" id="btnSupInvAdd">+ Add supplier invoice</button>
+            <label class="btn" style="display:inline-flex;align-items:center">Upload invoices (CSV)<input type="file" id="supInvImportFile" accept=".csv,text/csv" style="display:none"></label>
+            <button class="btn" id="btnSupInvTemplate">CSV template</button>
+            <span class="tiny">Every block prices off the total. A row's Payment Date is its own Issue Date + tenor.</span>
+          </div>
+          <div class="scroll"><table id="supInvTable"></table></div>
+          <details class="help"><summary>How the CSV is read</summary>
+          <p class="tiny" id="supInvHelp" style="margin:2px 0 0">CSV columns: <code>invoice number, supplier name, jurisdiction, issue date, tenor days, amount</code>. Give a <code>payment date</code> instead of a tenor and the tenor is worked out from it. Jurisdiction takes a code (<code>BR</code>) or a name (<code>Brazil</code>); dates and delimiters are read as loosely as on the curve upload.</p></details>
+        </div>
+      </div>
+      <div class="card tight"><h2>Totals the pricing blocks read</h2>
+        <div class="body"><div id="supInvTotals2"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- ============ REFERENCE DATA WINDOWS (opened from the menu above) ============ -->
 <div class="modal" id="refModal" role="dialog" aria-modal="true" aria-labelledby="refModalTitle">
@@ -2706,7 +2738,7 @@ function refreshSupplierCalcs(d,t,o){
   const tile=(tag,label,value,title,strong)=>'<div class="t'+(strong?' strong':'')+'" title="'+esc(title)+'">'+
     '<span class="k">'+(tag?'<span class="f">'+tag+'</span>':'')+esc(label)+'</span>'+
     '<span class="v">'+esc(value)+'</span></div>';
-  $('supInvTotals').innerHTML = '<div class="suptotals">'+
+  const totalsHtml = '<div class="suptotals">'+
     tile(null,'Invoices', String(sup.count), 'How many supplier invoices this trade carries') +
     tile('B8','Earliest issue', isValidDate(sup.firstIssueDate)?fmtShort(sup.firstIssueDate):'—',
       'Minimum Issue Date across all supplier invoices') +
@@ -2715,6 +2747,14 @@ function refreshSupplierCalcs(d,t,o){
     tile('B10','Total amount', money(o?o.supplierAmount:sup.amount, ccy),
       'Sum of every supplier invoice — the figure panels 2 to 5 price off', true) +
     '</div>';
+  // The same four figures in the panel and at the foot of the window, so the window is
+  // self-contained while it is open.
+  $('supInvTotals').innerHTML = totalsHtml;
+  const echo=$('supInvTotals2'); if(echo) echo.innerHTML = totalsHtml;
+  const n=rows.length;
+  $('supInvCount').textContent = n===1 ? '1 invoice on this trade' : n+' invoices on this trade';
+  $('invModalSub').textContent = (t&&t.identifier ? t.identifier+' · ' : '')+
+    (n===1?'1 invoice':n+' invoices')+' · total '+money(o?o.supplierAmount:sup.amount, ccy);
 }
 function renderPricing(d,t,r){
   const o=r.out, ccy=d.currency, ix=idxFor(ccy), pfOn = d.proformaEnabled!==false;
@@ -2993,6 +3033,22 @@ let lastTests = {pass:0, total:0};
 const testSummaryLine = () => lastTests.total
   ? lastTests.pass+' / '+lastTests.total+' checks passing'
   : 'not run yet';
+
+/* ---------------------------- supplier invoice window ---------------------------- */
+let invOpen = false;
+function openInvoices(){
+  if(!currentTrade()) return;
+  invOpen = true;
+  $('invModal').classList.add('open');
+  render();                                   // fills the table and both totals strips
+  const t=$('supInvTable').querySelector('input');
+  if(t) t.focus();
+}
+function closeInvoices(){
+  invOpen = false;
+  $('invModal').classList.remove('open');
+  render();
+}
 
 /* ---------------------------- reference data windows ---------------------------- */
 const REF_SETS = {
@@ -3390,6 +3446,7 @@ function closeTradeModal(){ closeTradeModal_silent(); render(); }
 /** Close without re-rendering — for callers already inside a render pass. */
 function closeTradeModal_silent(){
   modalOpen=false;
+  invOpen=false; $('invModal').classList.remove('open');   // it belongs to the trade being closed
   $('tradeModal').classList.remove('open');
   document.body.style.overflow='';
 }
@@ -4066,7 +4123,14 @@ $('tradeTabs').addEventListener('click', e=>{
 $('tradeModal').addEventListener('click', e=>{
   if(e.target.closest('[data-close-modal]')) closeTradeModal();
 });
-document.addEventListener('keydown', e=>{ if(e.key==='Escape' && modalOpen) closeTradeModal(); });
+// Esc closes the topmost window first: invoices over the trade workspace, then the workspace.
+document.addEventListener('keydown', e=>{
+  if(e.key!=='Escape') return;
+  if(invOpen) closeInvoices();
+  else if(modalOpen) closeTradeModal();
+});
+$('btnOpenInvoices').onclick=openInvoices;
+$('invModal').addEventListener('click', e=>{ if(e.target.closest('[data-close-inv]')) closeInvoices(); });
 const showTab = v => document.querySelector('#tabs button[data-view="'+v+'"]').click();
 // The lockup goes home rather than leaving a stray "#" on the URL.
 $('brandLockup').onclick=e=>{ e.preventDefault(); showTab('deals'); };
@@ -4343,7 +4407,7 @@ $('refMenu').addEventListener('click', e=>{
 });
 $('refModal').addEventListener('click', e=>{ if(e.target.closest('[data-close-ref]')) closeRef(); });
 // Esc closes whichever window is on top: the trade workspace sits above the reference ones.
-document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !modalOpen && refOpen) closeRef(); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !modalOpen && !invOpen && refOpen) closeRef(); });
 $('btnInvAddToggle').onclick=()=>showInvAdd($('invAddCard').style.display==='none'||!!invEditing, null);
 $('btnInvCancel').onclick=()=>showInvAdd(false);
 $('btnInvSave').onclick=saveInvestorFromForm;
