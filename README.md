@@ -15,7 +15,7 @@ The calc engine reproduces **all 26 output cells** of the `Cantu` tab exactly, p
 **Settings → Spec & traceability** — press *Run tests* — and runs on every load whether or not anyone
 opens it, which is the only regression net a single emailed file can carry.
 
-**174 assertions**, each labelled with its source. 63 tie to a workbook artifact (47 `Cantu` cells,
+**178 assertions**, each labelled with its source. 63 tie to a workbook artifact (47 `Cantu` cells,
 9 `SOFR Interpolation`, 5 `BD Dates`, 2 `Offer File`); the rest cover behaviour the workbook never had —
 decimal invariants and the `pow`/`ln`/`exp` primitives, both discount conventions, calendar edits and
 estimate handling, multi-invoice aggregation, the supplier CSV parser, curve interpolation and
@@ -153,9 +153,17 @@ amount up to the TradeCo invoice total, which is the same arithmetic inverted, s
 | Simple | `B10 ÷ (1 − B32 × Days ÷ Basis)` | `B32 × Days ÷ Basis` |
 | Compound monthly | `B10 × (1 + B32 ÷ 12) ^ (Days ÷ 30)` | `1 − B10 ÷ B36` — the discount actually applied |
 
+The **agency fee (`B52`)** accrues over the same funding period, so it follows too:
+
+| | Agency fee (`B52`) |
+| --- | --- |
+| Simple | `B39 × B31 × Days ÷ Basis` |
+| Compound monthly | `B39 × ((1 + B31 ÷ 12) ^ (Days ÷ 30) − 1)` |
+
 Compounding grosses up *less* than a linear factor at the same rate, so a compound funder pulls the face
-value, the purchase price and the TradeCo residual down together. **The supplier leg (`B51`) is identical
-either way** — the supplier is made whole regardless of how the funder discounts.
+value, the purchase price, the agency fee and the TradeCo residual down together. **The supplier leg
+(`B51`) is identical either way** — the supplier is made whole regardless of how the funder discounts,
+and the waterfall reconciles to zero under both conventions.
 
 A funder not on the investor list prices under the **simple** convention, which is what every trade did
 before conventions existed — so adding this repriced nothing. Compound discounting needs a fractional

@@ -1609,7 +1609,20 @@ function price(i, q){
 
   const legalFees = D.of(i.legalFees||0);                                                // B49
   const payToSupplier = faceValue.mul(ONE.sub(tcFactor)).sub(legalFees);                 // B51
-  const payToCantuAgency = faceValue.mul(D.of(i.tcAgencyFee)).mul(D.of(Number(i.bladexDays))).div(BASIS); // B52
+  // B52 accrues the agency fee over the funding period, so it follows the funder's convention like
+  // the two factors above: a rate applied linearly becomes (1 + rate/12)^(days/30) − 1 compounded.
+  // Only the split between this leg and the TradeCo residual moves — B51 and B47 are already fixed,
+  // so the waterfall still reconciles by construction.
+  const agencyFee = D.of(i.tcAgencyFee);
+  let payToCantuAgency;
+  if(convention==='compound_monthly'){
+    const monthlyFee = ONE.add(agencyFee.div(12));
+    if(monthlyFee.lte(ZERO))
+      throw new Error('Compound agency fee needs 1 + (Agency Fee) / 12 to be positive; it is '+monthlyFee.toFixed(8)+'.');
+    payToCantuAgency = faceValue.mul(monthlyFee.pow(D.of(iaaDays).div(30)).sub(ONE));      // B52
+  } else {
+    payToCantuAgency = faceValue.mul(agencyFee).mul(D.of(Number(i.bladexDays))).div(BASIS); // B52
+  }
   const payToTradeCo = purchasePrice.sub(payToSupplier).sub(payToCantuAgency);           // B53
 
   return { supplierPaymentDate, supplierAmount, pfOn, dayCountBasis:Number(i.dayCountBasis||360),
@@ -3675,6 +3688,16 @@ function runTests(){
     T('Compound purchase price follows it down', cmp.purchasePrice.lt(o.purchasePrice),'true','B47');
     T('Supplier leg is convention-independent', cmp.payToSupplier.toFixed(2), o.payToSupplier.toFixed(2),
       'Cantu!B51 — the supplier is made whole either way');
+    // B52 accrues over the same funding period, so it compounds with everything else.
+    T('Compound agency fee matches its formula', cmp.payToCantuAgency.toFixed(10),
+      cmp.faceValue.mul(ONE.add(D.of(GOLDEN_INPUTS.tcAgencyFee).div(12)).pow(D.of(180).div(30)).sub(ONE)).toFixed(10),
+      'B52 = B39 × ((1+B31/12)^(days/30) − 1)');
+    T('Convention reaches the agency leg', cmp.payToCantuAgency.eq(o.payToCantuAgency),'false','B52 follows the funder');
+    T('Simple agency fee untouched', o.payToCantuAgency.toFixed(2),'440.36','Cantu!B52');
+    T('Compound agency fee accrues over the funding period',
+      cmp.payToCantuAgency.div(cmp.faceValue).toFixed(10),
+      ONE.add(D.of(GOLDEN_INPUTS.tcAgencyFee).div(12)).pow(D.of(180).div(30)).sub(ONE).toFixed(10),
+      'B52 ÷ B39 is the compound accrual factor');
     T('Compound still reconciles', cmp.reconciliation.toFixed(10),'0.0000000000','B51+B52+B53−B47');
     T('Compound reports its convention', cmp.convention,'compound_monthly','out.convention');
     T('Unset convention falls back to simple', price(GOLDEN_INPUTS,{pfRate:pfQ.rate,liveRate:liveQ.rate}).convention,
