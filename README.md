@@ -69,8 +69,8 @@ trade:
 
 - a header with the trade identifier, its deal, the state badge, and every trade action (Price, Approve,
   Issue, Mark settled, Cancel, Duplicate, New version, Edit deal configuration);
-- a **Pricing** pane — the deal's configuration read-only, the trade's own fields, the five panels and the
-  validation / rate-quote / business-day / summary rail;
+- a **Pricing** pane — the deal, the trade's own fields, the five pricing panels and the validation /
+  rate-quote / business-day / summary cards, in four fixed columns (below);
 - an **Offer File** pane, since the Offer File describes one trade and belongs with it.
 
 Close it with the Close button, `Esc`, or a click on the backdrop. It is an in-page overlay rather than a
@@ -251,26 +251,30 @@ The standing terms still describe the same trade: `0.0065 + 0.0235 = 0.03`, so t
 exactly. A trade stored before this change has its fee backed out of the margin it already carried
 (`tcFee = tcMargin − bladexMargin`), so it prices to the same numbers.
 
-### The trade workspace fits on one screen
+### The trade workspace layout
+
+Four fixed columns, so a figure is always where it was last looked for. The arrangement does not move
+with the content — named grid areas, not an automatic flow:
+
+| Column 1 | Columns 2–3 | Column 4 |
+| --- | --- | --- |
+| **Deal** | **1 — Invoice Info** *(spans both)* | **Validation** |
+| **Trade Info** | ↓ column 2 ↓ · ↓ column 3 ↓ | **Rate quotes** |
+| **Trade summary** | **2 — TradeCo Pro Forma** · **4 — IAA Offer File** | **Business-day check** |
+| | **3 — TradeCo Invoices** · **5 — Payment waterfall** | |
 
 The five panels used to run down a single column, which made the workspace **3.8 screens** tall and left
-a ~900px gap between every label and its 190px field. Every card now flows into as many ~23em columns as
-the pane can fit — multi-column rather than grid, because the panels are wildly different heights and
-grid rows would align them into ragged whitespace.
+a ~900px gap between every label and its 190px field. Rows are now `1fr / 148px` in a ~370px column, so
+the label sits next to its value. Panels 2 and 3 stack in one column with 4 and 5 beside them, which puts
+the two gross-ups and the two discounts within a glance of each other.
 
-| | Before | After |
-| --- | --- | --- |
-| Height at 1600px | 3.80 screens | 1.98 screens |
-| Cards visible without scrolling | 3 | **9 of 11** |
-| A row's label / field | 912px / 190px | ~200px / 148px |
+**Panel 1 spans the two middle columns** — its invoice list is an eight-column table, and that needs the
+width. It uses `table-layout:fixed` with a `colgroup` rather than intrinsic sizing: left to size itself, a
+`<select>` full of *Dominican Republic (DO)* and a native date input pushed the amount column off the
+edge. Fixed shares out exactly the width available, at any viewport.
 
-Panels 2 and 3 land side by side, which is what makes their factors directly comparable. **Panel 1 sits
-full width below the flow**: it is the one input block that is a table rather than label/field pairs, and
-seven columns cannot live in a 23em track. The calculations occupy the first screen; the invoice editor,
-filled once per trade, is below them with room to work.
-
-23em is measured, not guessed — narrower fits more columns but wraps the rows taller, and past about
-21em the extra column stops paying for itself.
+It collapses to two columns below 1240px and one below 820px, the invoice list keeping its own full-width
+row throughout.
 
 ### What a new deal or trade starts with
 
