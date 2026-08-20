@@ -239,6 +239,28 @@ Two caveats worth reading before go-live:
   carrying the workbook's visual grammar: yellow cells are editable inputs, grey cells are
   computed and show their source cell plus a formula tooltip on hover, and the purple italic
   column-C notes are inline help text.
+- **Supplier invoices as a list, each with its own item detail.** Panel 1 holds only the four
+  figures the pricing blocks read (B8, B9, B10 and the invoice count); the list itself opens as a
+  window from *Open invoice list*, so a trade with twenty invoices lays out like a trade with one.
+  Each invoice carries invoice number, supplier, jurisdiction, issue date, tenor, derived payment
+  date and total, and opens a **Detail** row holding its line items — item name, quantity, price
+  per item, and the line total those two give — plus **VAT, Freight Cost, Insurance Cost** and
+  **Other Costs**, applied one value each on top of the item subtotal. The build-up beside the
+  items writes that arithmetic out line by line, so a wrong total shows which line it is in.
+  Items are edited in place and deleted individually; the invoice total is derived from them and
+  becomes read-only once an invoice is itemised, since two places to key one number is how B10
+  ends up disagreeing with the lines under it.
+- **Two CSV uploads for invoice data**, because the detail arrives both ways. At the **invoice
+  group level**, one file carries several invoices *and* their items: rows sharing an invoice
+  number fold into one invoice, one item per row, and a group with no item rows falls back to its
+  `amount` cell — so itemised and flat invoices travel in the same file. Inside an open **Detail**
+  row, the same item columns load that one invoice's lines with no invoice columns needed. Both
+  readers sniff the delimiter, read amounts however the exporting system wrote them
+  (`850.000,00`, `R$ 850 000`), settle day-first vs month-first dates across the whole file, accept
+  any pair of quantity / price / line total that determines the third, and read a line named *VAT*,
+  *Freight*, *Insurance* or *Other costs* as that charge rather than as goods — which is how most
+  invoice extracts print them. Every row that cannot be read is reported with its reason rather
+  than dropped, and a stated invoice amount that disagrees with the detail is flagged, not used.
 - **Both SOFR curves** (`CME_TERM_SOFR`, `CME_TERM_SOFR_PF`) with editable pillars, an
   `EXACT_PILLAR / LINEAR_INTERP / LINEAR_EXTRAP` method badge, business date and source. Curve
   editing is gated to the **Rates Admin** role and every edit writes a `RATE_OVERRIDE` audit event.
@@ -295,6 +317,12 @@ These are places where the workbook and the spec disagree, and the spec wins.
    deal is affected; Bladex Days has always been ~180.
 3. **Supplier tenor.** `B9 = B8+30` hardcodes a business assumption. It is an editable field here,
    per `deal.supplier_invoice_tenor_days` in the Data Model tab.
+   The workbook also holds exactly one supplier invoice, keyed as a single amount in `B10`. Here a
+   trade carries a list of them, and each may be broken down into item lines plus VAT, freight,
+   insurance and other costs. None of that changes the arithmetic downstream: `B10` is the sum of
+   the invoice totals, `B8` the earliest issue date and `B9` the latest payment date, and the
+   parity tests assert that an invoice itemised to a given total prices bit-for-bit as the flat one
+   the golden master uses.
 4. **Blank identifiers.** The workbook prints `0` on the Offer File when Transaction Code or Trade
    Identifier are empty (visible in the source file). Both are required before a deal can be priced.
 5. **The client is a field, not a hardcoded name.** The workbook is a Cantu-only file. Here the client
