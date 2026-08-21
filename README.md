@@ -246,8 +246,16 @@ Two caveats worth reading before go-live:
   box under TradeCo Fee and both panels display what they read.
 - **Five pricing panels** in the same vertical order as the `Cantu` tab (*Spec – Overview §7*),
   carrying the workbook's visual grammar: yellow cells are editable inputs, grey cells are
-  computed and show their source cell plus a formula tooltip on hover, and the purple italic
-  column-C notes are inline help text.
+  computed and show their source cell plus a formula tooltip on hover.
+- **The workbook's column-C notes are comments on a field, not lines of the form.** Thirty of them
+  spelled out down a four-column screen was most of the ink on it, so each one collapses to a small
+  `i` beside its label and opens in a floating panel when the pointer — or the caret, for anyone
+  tabbing through — reaches its row. The panel is anchored to the row and ticks back at it, flips
+  above when the space below runs out, and follows the row on scroll rather than vanishing. The note
+  text stays in the DOM where it always was, so a screen reader still reads it inside its own label
+  and nothing is lost to anyone who was relying on it. Notes that are a table's own content — an
+  investor's description, a discount formula, a curve's *off-grid* marker — stay on the page: those
+  annotate data rather than label a field.
 - **Supplier invoices as a list, each with its own item detail.** Panel 1 holds only the four
   figures the pricing blocks read (B8, B9, B10 and the invoice count); the list itself opens as a
   window from *Open invoice list*, so a trade with twenty invoices lays out like a trade with one.

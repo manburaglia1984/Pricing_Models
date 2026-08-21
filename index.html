@@ -132,7 +132,35 @@ main{padding:18px 20px 60px;max-width:1500px;margin:0 auto}
 .row.head{border-bottom:1px solid var(--line-2);margin-top:4px}
 .row.wide{grid-template-columns:1fr}
 .row .lbl{font-size:13px;color:var(--ink);line-height:1.35}
-.row .note{display:block;font-size:11px;font-style:italic;color:var(--note);margin-top:1px;line-height:1.35}
+/* ---- field comments ----
+   The workbook's column-C notes are comments on a field, not lines of the form: thirty of them
+   down a four-column screen was most of the ink on it. The note keeps its place in the markup and
+   its text in the DOM — the dynamic ones are still written by id, the client/funder templating
+   still walks them, and one still reads inside its own label — but it collapses to the badge that
+   reveals it. font-size:0 is what takes the sentence out of the line while leaving it in
+   textContent, which is where #noteTip reads it from; the badge's own glyph sets its size back. */
+.row .note{display:inline-block;vertical-align:top;box-sizing:border-box;
+  width:14px;height:14px;margin:0 0 0 5px;overflow:hidden;font-size:0;
+  border:1px solid var(--note);border-radius:50%;color:var(--note);cursor:help;
+  opacity:.65;transition:opacity .12s,background .12s}
+.row .note::after{content:'i';display:block;font:italic 700 9.5px/12px var(--sans);text-align:center}
+/* Empty until something is rendered into it — no field, no comment, no badge. */
+.row .note:empty{display:none}
+.row:hover .note,.row:focus-within .note{opacity:1;background:var(--accent-soft)}
+/* The comment window itself. Body-level and fixed, so no card's overflow can clip it, and
+   pointer-transparent so it never stands between the pointer and the row underneath. */
+#noteTip{position:fixed;z-index:90;max-width:34ch;padding:7px 10px;
+  background:var(--panel);border:1px solid var(--note);border-radius:9px;
+  box-shadow:0 6px 22px rgba(16,24,40,.16);
+  font:italic 11.5px/1.5 var(--sans);color:var(--note);pointer-events:none}
+#noteTip[hidden]{display:none}
+/* A tick pointing back at the field. The panel is offset to the row's left edge and can sit over
+   the rows below it, so which field it belongs to has to be visible and not inferred. Two rotated
+   corners rather than a border triangle, so the panel's own outline carries through it. */
+#noteTip::before{content:'';position:absolute;left:14px;width:8px;height:8px;
+  background:var(--panel);border:1px solid var(--note);transform:rotate(45deg)}
+#noteTip.below::before{top:-5px;border-right:0;border-bottom:0}
+#noteTip.above::before{bottom:-5px;border-left:0;border-top:0}
 /* The same note treatment inside a table cell — the calendar and investor lists both use it, and
    .row .note alone left those rendering as a second line of full-weight body text. */
 td .note{display:block;font-size:11.5px;font-style:italic;color:var(--note);margin-top:1px;line-height:1.45}
@@ -4797,6 +4825,87 @@ rendering are server-side concerns from the spec and out of scope for a single H
 localStorage for the store, a role selector for SSO claims, Rates-Admin-gated manual curve entry for the feed, and
 browser print-to-PDF plus a pure-JS SHA-256 for document hashing.</p>`;
 }
+
+/* ---------------------------- field comments ----------------------------
+   One floating panel shows the comment belonging to whichever field the pointer or the caret is
+   on. Delegated from the document and reading the note's text at the moment it opens, so it needs
+   no wiring: a note rendered into a rebuilt row, or written by id after the fact, is picked up
+   with no registration step and nothing to keep in sync.
+   Anchored to the field's own row rather than to the pointer — a comment window that chases the
+   mouse is harder to read than one that sits still — and flipped above the row when the space
+   below it has run out. */
+const noteTip = (()=>{
+  const el=document.createElement('div');
+  el.id='noteTip'; el.setAttribute('role','tooltip'); el.hidden=true;
+  document.body.appendChild(el);
+  return el;
+})();
+let noteTipRow=null, noteTipTimer=null;
+/** The comment on the row an event landed in, or null. One per row, held inside its label. */
+function commentOn(target){
+  const row = target && target.closest && target.closest('.row');
+  if(!row) return null;
+  const note = row.querySelector(':scope > .lbl .note');
+  const text = note && note.textContent.trim();
+  return text ? {row, text} : null;
+}
+/** Put the open panel under its row, or over it when the space below has run out. Measured rather
+ *  than assumed, because the panel's height is whatever its sentence wraps to. */
+function placeNoteTip(){
+  if(!noteTipRow) return;
+  const r=noteTipRow.getBoundingClientRect();
+  // Scrolled out of sight: there is nothing left for the comment to be about.
+  if(r.bottom<0 || r.top>innerHeight){ closeNoteTip(); return; }
+  const t=noteTip.getBoundingClientRect(), gap=7;
+  let top = r.bottom+gap, below=true;
+  if(top+t.height > innerHeight-8){ top = Math.max(8, r.top-t.height-gap); below=false; }
+  let left = r.left;
+  if(left+t.width > innerWidth-8) left = Math.max(8, innerWidth-8-t.width);
+  noteTip.style.top=top+'px';
+  noteTip.style.left=left+'px';
+  noteTip.classList.toggle('below', below);
+  noteTip.classList.toggle('above', !below);
+}
+function openNoteTip(row, text){
+  noteTipRow=row;
+  noteTip.textContent=text;
+  noteTip.hidden=false;
+  placeNoteTip();
+}
+function closeNoteTip(){
+  clearTimeout(noteTipTimer); noteTipTimer=null;
+  noteTipRow=null; noteTip.hidden=true;
+}
+document.addEventListener('mouseover', e=>{
+  const hit=commentOn(e.target);
+  if(!hit){
+    // Left the row the comment belongs to. Rows without a comment close it too, so sweeping down
+    // a panel does not leave the last one hanging open over the field below it.
+    if(noteTipRow) closeNoteTip();
+    return;
+  }
+  if(hit.row===noteTipRow) return;                    // still inside it, or over its own comment
+  clearTimeout(noteTipTimer);
+  // A beat before it opens, so crossing a panel on the way somewhere else does not flash every
+  // comment in the column. Deliberate hovering never notices it.
+  noteTipTimer=setTimeout(()=>openNoteTip(hit.row, hit.text), 130);
+});
+// Keyboard and screen-reader users reach a field by tabbing to it, which is deliberate: no delay.
+document.addEventListener('focusin', e=>{
+  const hit=commentOn(e.target);
+  if(hit) openNoteTip(hit.row, hit.text); else if(noteTipRow) closeNoteTip();
+});
+document.addEventListener('focusout', e=>{
+  // Only if the caret is what was holding it open — otherwise a hover in progress loses its panel.
+  if(noteTipRow && noteTipRow.contains(e.target)) closeNoteTip();
+});
+/* Fixed to the viewport, so the panel has to be moved whenever its row moves — following it, not
+   vanishing. Closing on scroll instead would shut the panel the moment a keyboard user tabbed to a
+   field, since bringing that field into view is itself a scroll. */
+window.addEventListener('scroll', placeNoteTip, true);
+window.addEventListener('resize', placeNoteTip);
+document.addEventListener('mouseleave', closeNoteTip);
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeNoteTip(); });
 
 /* ---------------------------- events ---------------------------- */
 document.addEventListener('focusin', e=>{
