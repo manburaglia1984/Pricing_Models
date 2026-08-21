@@ -12,7 +12,7 @@ single self-contained file that works offline and can be emailed or dropped on a
 
 The calc engine reproduces **all 26 output cells** of the `Cantu` tab exactly, plus the
 `Offer File`, `SOFR Interpolation` and `BD Dates` derivations. Open the **Parity tests** tab and
-press *Run tests* — 39 assertions, each labelled with its source cell.
+press *Run tests* — 275 assertions, each labelled with its source cell.
 
 | | Workbook | This app |
 |---|---|---|
@@ -71,6 +71,7 @@ A **deal** holds everything its trades share. A **trade** is what gets priced, a
 | | Relevant Obligor — `Offer File!A3` |
 | Currency → base rate index + day count | The invoice/pricing blocks |
 | Pro forma invoices used, yes/no | Pro forma dates and margins, when used |
+| Agency fee charged, yes/no | The agency fee rate, when charged |
 | Associated jurisdictions | Lifecycle, rate snapshot, Offer File, audit |
 
 This matches the SharePoint layout, where `Trade 1 - DRC` holds SB01 / SB02 / SB03 under one facility.
@@ -235,6 +236,14 @@ Two caveats worth reading before go-live:
   curve is quoted or bound). Panel 2 is a leaf — panels 3 to 5 and the Offer File never read it — so
   B27:B53 stay bit-for-bit identical either way. The parity tests assert that on every downstream
   output. The pro forma dates and margins remain per trade, for deals that do use them.
+- **An agency fee set per deal, keyed once per trade.** Whether a facility carries one at all is a
+  deal-level switch, so every trade on a deal agrees on it. When off, the rate disappears from the
+  trade window entirely — the field on the Trade box, the mark-up component in panels 2 and 3, and
+  the payment leg in panel 5 — and reads as zero everywhere rather than being dropped from some
+  expressions and not others. Unlike the pro forma block this is *not* a leaf: `B18`/`B31` sit
+  inside `B32`, so turning it off genuinely reprices the trade, and flipping the switch voids the
+  rate snapshot of every trade on the deal. When on, the rate is keyed once on the **Trade Info**
+  box under TradeCo Fee and both panels display what they read.
 - **Five pricing panels** in the same vertical order as the `Cantu` tab (*Spec – Overview §7*),
   carrying the workbook's visual grammar: yellow cells are editable inputs, grey cells are
   computed and show their source cell plus a formula tooltip on hover, and the purple italic
@@ -330,6 +339,13 @@ These are places where the workbook and the spec disagree, and the spec wins.
    renamed: source-cell references such as `Cantu!B47` or `Cantu!A12:C23`. Those point at a sheet in
    the source workbook and must stay literal, or traceability breaks.
 6. **The Pro Forma block is optional**, where the workbook always computes it.
+   The **agency fee is optional too**, and set per deal — the workbook always charges one. It is
+   also keyed **once** rather than twice: `B18` (pro forma) and `B31` (TradeCo) are separate cells
+   in the workbook, but a facility charges one agency fee, so two fields only created the chance of
+   the two disagreeing. Both panels read the single rate and show it against their own cell
+   reference, exactly as they already did for the margin. A trade stored with the two keyed apart
+   migrates to the one that drove the payment leg — `B52` read the TradeCo rate — so it keeps the
+   figure it was actually paying out on.
 7. **Day count follows the currency** rather than being hardcoded to 360. USD is unaffected.
 8. **Jurisdictions are per deal and rule-derived**, replacing the ten fixed rows of `BD Dates!B4:B13` —
    which capped out at ten, could not vary by facility, and expired in 2027–2029.

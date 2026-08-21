@@ -428,6 +428,9 @@ code,.mono{font-family:var(--mono);font-size:12px}
         <div class="row"><div class="lbl">Funder<span class="note">Provides the funding and sets the margin. Names the Settlement Date, Margin and Cost of Funds fields below.</span></div><div class="cell"><input type="text" class="in" id="f_funder" data-trade="funder" list="funderList"><datalist id="funderList"></datalist></div></div>
         <div class="row"><div class="lbl">Relevant Obligor<span class="note">Offer File!A3 — may differ per trade.</span></div><div class="cell"><input type="text" class="in" id="f_obligor" data-trade="obligor"></div></div>
         <div class="row"><div class="lbl">TradeCo Fee<span class="note">This desk's own fee. Added to the investor's margin to give the Margin used by panels 2 and 3.</span></div><div class="cell suffix" data-suffix="%"><input type="number" class="in" id="f_tcFee" data-field="tcFee" step="0.00001"></div></div>
+        <!-- Keyed here rather than in panels 2 and 3, which used to hold one field each for the
+             same rate. Shown only when the deal charges one at all. -->
+        <div class="row" id="row_agencyFee"><div class="lbl">Agency Fee<span class="note">Read by both mark-ups (B18 and B31) and by the agency-fee payment leg (B52). Charged per the deal configuration.</span></div><div class="cell suffix" data-suffix="%"><input type="number" class="in" id="f_agencyFee" data-field="agencyFee" step="0.00001"></div></div>
         </div>
         </div>
     </div>
@@ -453,7 +456,7 @@ code,.mono{font-family:var(--mono);font-size:12px}
         <div class="row"><div class="lbl">Maturity Date</div><div class="cell"><span class="calc" id="o_pfMaturity" title="B15 = B13 + B14"><span class="f">B15</span>—</span></div></div>
         <div class="row"><div class="lbl"><span id="o_pfRateLabel">Base rate</span><span class="note">Issuance Date Pro Forma — the curve as at the Pro Forma Issue Date, interpolated at Funder Days</span></div><div class="cell"><span class="calc" id="o_pfRate" title="B16 = pro forma curve interpolated at B41"><span class="f">B16</span>—</span></div></div>
         <div class="row"><div class="lbl"><span data-tpl="Margin ({funder} Margin + TradeCo Fee)">Margin</span><span class="note">TradeCo Fee + the investor's margin (B44). Keyed on the Trade box and panel 4.</span></div><div class="cell"><span class="calc" id="o_pfMargin" title="B17 = TradeCo Fee + B44"><span class="f">B17</span>—</span></div></div>
-        <div class="row"><div class="lbl">Agency Fee</div><div class="cell suffix" data-suffix="%"><input type="number" class="in" id="f_pfAgency" data-field="pfAgencyFee" step="0.00001"></div></div>
+        <div class="row" id="row_pfAgency"><div class="lbl">Agency Fee<span class="note">Keyed on the Trade box.</span></div><div class="cell"><span class="calc" id="o_pfAgency" title="B18 = Agency Fee"><span class="f">B18</span>—</span></div></div>
         <div class="row"><div class="lbl">TradeCo Mark-up</div><div class="cell"><span class="calc" id="o_pfMarkup" title="B19 = B17 + B16 + B18"><span class="f">B19</span>—</span></div></div>
         <div class="row"><div class="lbl">Factor<span class="note" id="pfFactorNote"></span></div><div class="cell"><span class="calc" id="o_pfFactor" title="B20 = B19 × (B15 − B13) / basis"><span class="f">B20</span>—</span></div></div>
         <div class="row head"><div class="lbl">Total Invoice Amount — Invoice #1</div><div class="cell"><span class="calc" id="o_pfInv1" title="B21 = B10"><span class="f">B21</span>—</span></div></div>
@@ -469,7 +472,7 @@ code,.mono{font-family:var(--mono);font-size:12px}
         <div class="row"><div class="lbl">Maturity Date</div><div class="cell"><span class="calc" id="o_tcMaturity" title="B28 = B42 = B40 + B41"><span class="f">B28</span>—</span></div></div>
         <div class="row"><div class="lbl"><span id="o_tcRateLabel">Base rate</span><span class="note">Prior Funding — the curve as at the Trade Submission Date, interpolated at Funder Days</span></div><div class="cell"><span class="calc" id="o_tcRate" title="B29 = live curve interpolated at B41"><span class="f">B29</span>—</span></div></div>
         <div class="row"><div class="lbl"><span data-tpl="Margin ({funder} Margin + TradeCo Fee)">Margin</span><span class="note">TradeCo Fee + the investor's margin (B44). Keyed on the Trade box and panel 4.</span></div><div class="cell"><span class="calc" id="o_tcMargin" title="B30 = TradeCo Fee + B44"><span class="f">B30</span>—</span></div></div>
-        <div class="row"><div class="lbl">Agency Fee<span class="note">Also drives the agency-fee payment leg (B52)</span></div><div class="cell suffix" data-suffix="%"><input type="number" class="in" id="f_tcAgency" data-field="tcAgencyFee" step="0.00001"></div></div>
+        <div class="row" id="row_tcAgency"><div class="lbl">Agency Fee<span class="note">Keyed on the Trade box. Also drives the agency-fee payment leg (B52).</span></div><div class="cell"><span class="calc" id="o_tcAgency" title="B31 = Agency Fee"><span class="f">B31</span>—</span></div></div>
         <div class="row"><div class="lbl">TradeCo Mark-up</div><div class="cell"><span class="calc" id="o_tcMarkup" title="B32 = B30 + B29 + B31"><span class="f">B32</span>—</span></div></div>
         <div class="row"><div class="lbl">Factor<span class="note" id="tcFactorNote"></span></div><div class="cell"><span class="calc" id="o_tcFactor" title="B33 = B32 × (B28 − B40) / basis"><span class="f">B33</span>—</span></div></div>
         <div class="row head"><div class="lbl">Total Invoice Amount — Invoice #1</div><div class="cell"><span class="calc" id="o_tcInv1" title="B34 = B10"><span class="f">B34</span>—</span></div></div>
@@ -498,7 +501,7 @@ code,.mono{font-family:var(--mono);font-size:12px}
         <div class="body">
         <div class="row"><div class="lbl">Legal/Structuring Fees<span class="note">If applicable</span></div><div class="cell suffix" id="legalWrap" data-suffix="$"><input type="number" class="in" id="f_legalFees" data-field="legalFees" step="0.01"></div></div>
         <div class="row head"><div class="lbl" data-tpl="Payment to {client} Supplier (Supplier Invoice)">Payment to the client's Supplier (Supplier Invoice)</div><div class="cell"><span class="calc" id="o_paySupplier" title="B51 = B39 × (1 − B33) − B49"><span class="f">B51</span>—</span></div></div>
-        <div class="row"><div class="lbl" data-tpl="Payment to {client} (Agency Fee)">Payment to the client (Agency Fee)</div><div class="cell"><span class="calc" id="o_payAgency" title="B52 = B39 × B31 × B41 / basis"><span class="f">B52</span>—</span></div></div>
+        <div class="row" id="row_payAgency"><div class="lbl" data-tpl="Payment to {client} (Agency Fee)">Payment to the client (Agency Fee)</div><div class="cell"><span class="calc" id="o_payAgency" title="B52 = B39 × B31 × B41 / basis"><span class="f">B52</span>—</span></div></div>
         <div class="row"><div class="lbl">Payment to TradeCo (TradeCo Fee)</div><div class="cell"><span class="calc" id="o_payTradeCo" title="B53 = B47 − B51 − B52"><span class="f">B53</span>—</span></div></div>
         <div class="row"><div class="lbl"><b>Reconciliation</b> — legs vs IAA Purchase Price</div><div class="cell"><span class="calc strong" id="o_recon" title="B51 + B52 + B53 − B47 must be exactly 0">—</span></div></div>
         </div>
@@ -880,6 +883,8 @@ code,.mono{font-family:var(--mono);font-size:12px}
           <div class="row"><div class="lbl">Currency<span class="note" id="ccyNote">Selects the base rate index and the day-count basis.</span></div><div class="cell"><select class="in" id="d_currency" data-deal="currency"></select></div></div>
           <div class="row"><div class="lbl">TradeCo Pro Forma invoices<span class="note">When off, panel 2 is removed from every trade on this deal and excluded from pricing, validation and the rate snapshot.</span></div>
             <div class="cell"><label class="toggle" style="justify-content:flex-end;width:100%"><input type="checkbox" id="d_proforma" data-deal="proformaEnabled" checked><span id="proformaLabel">Used on this deal</span></label></div></div>
+          <div class="row"><div class="lbl">Agency Fee<span class="note">Whether this facility carries one at all. When off, the rate disappears from every trade on this deal and is excluded from both mark-ups and the agency-fee payment leg (B52).</span></div>
+            <div class="cell"><label class="toggle" style="justify-content:flex-end;width:100%"><input type="checkbox" id="d_agencyFee" data-deal="agencyFeeEnabled" checked><span id="agencyFeeLabel">Charged on this deal</span></label></div></div>
           <div class="row wide"><div class="lbl">Associated jurisdictions<span class="note">Holiday calendars every trade's maturity date is checked against. Replaces the fixed rows in BD Dates!B4:B13.</span>
             <div class="toolbar" style="margin:8px 0 4px">
               <select id="jurAdd" style="min-width:270px;text-align:left"></select>
@@ -1709,13 +1714,23 @@ function price(i, q){
   const tcFeeRate = D.of(i.tcFee);
   const tcMargin = tcFeeRate.add(investorMargin);                                        // B30 = fee + B44
 
+  /* B18 / B31 — one agency fee, read by both mark-ups and by the payment leg (B52).
+     The workbook keys it twice, once per panel, and this app did too; a facility charges one fee,
+     so keying it twice only created the chance of the two disagreeing. Whether it is charged at
+     all is a deal-level decision: when the deal says no, the rate reads as zero everywhere rather
+     than being dropped from some expressions and not others, which keeps every formula below
+     unchanged and the waterfall reconciling by construction. Unlike the pro forma block this is
+     not a leaf — it is inside B32, so turning it off genuinely reprices the trade. */
+  const agencyFeeOn = i.agencyFeeEnabled !== false;
+  const agencyFee = agencyFeeOn ? D.of(i.agencyFee||0) : ZERO;                           // B18 = B31
+
   const pfOn = i.pfEnabled !== false;
   let pfMaturityDate=null, pfRate=null, pfMarkup=null, pfDays=null, pfFactor=null,
       pfInvoice1=null, pfTotal=null, pfInvoice2=null;
   if(pfOn){
     pfMaturityDate = dAdd(i.pfIssueDate, Number(i.pfTenorDays));                         // B15
     pfRate   = D.of(q.pfRate);                                                           // B16
-    pfMarkup = tcMargin.add(pfRate).add(D.of(i.pfAgencyFee));                            // B19
+    pfMarkup = tcMargin.add(pfRate).add(agencyFee);                                      // B19
     pfDays   = dDiff(pfMaturityDate, i.pfIssueDate);
     const pf = grossUp(supplierAmount, pfMarkup, pfDays);
     pfFactor = pf.factor;                                                                // B20
@@ -1727,7 +1742,7 @@ function price(i, q){
   const tcMaturityDate = dAdd(i.bladexSettlementDate, Number(i.bladexDays));             // B28 = B42
   const tcTenorDays = Number(i.bladexDays) + dDiff(i.bladexSettlementDate, i.tcIssueDate); // B27
   const liveRate = D.of(q.liveRate);                                                     // B29
-  const tcMarkup = tcMargin.add(liveRate).add(D.of(i.tcAgencyFee));                       // B32
+  const tcMarkup = tcMargin.add(liveRate).add(agencyFee);                                 // B32
   const tcDays   = dDiff(tcMaturityDate, i.bladexSettlementDate);
   const tc = grossUp(supplierAmount, tcMarkup, tcDays);
   const tcFactor = tc.factor;                                                            // B33
@@ -1758,7 +1773,6 @@ function price(i, q){
   // the two factors above: a rate applied linearly becomes (1 + rate/12)^(days/30) − 1 compounded.
   // Only the split between this leg and the TradeCo residual moves — B51 and B47 are already fixed,
   // so the waterfall still reconciles by construction.
-  const agencyFee = D.of(i.tcAgencyFee);
   let payToCantuAgency;
   if(convention==='compound_monthly'){
     const monthlyFee = ONE.add(agencyFee.div(12));
@@ -1770,7 +1784,8 @@ function price(i, q){
   }
   const payToTradeCo = purchasePrice.sub(payToSupplier).sub(payToCantuAgency);           // B53
 
-  return { supplierPaymentDate, supplierAmount, pfOn, dayCountBasis:Number(i.dayCountBasis||360),
+  return { supplierPaymentDate, supplierAmount, pfOn, agencyFeeOn, agencyFee,
+    dayCountBasis:Number(i.dayCountBasis||360),
     supplierInvoiceCount:sup.count, supplierFirstIssueDate:sup.firstIssueDate,
     supplierGoods:sup.goods, supplierCharges:sup.charges, supplierVat:sup.vat,
     supplierFreight:sup.freight, supplierInsurance:sup.insurance, supplierOtherCosts:sup.otherCosts,
@@ -1812,6 +1827,7 @@ function validate(deal, trade, out, quotes, bd){
   const W=(rule,msg)=>warnings.push({rule,msg});
   const i=effectiveInputs(deal,trade);
   const pfOn = i.pfEnabled !== false;
+  const agencyOn = i.agencyFeeEnabled !== false;
   const CLIENT = clientLabel(deal);
   const FUNDER = funderLabel(trade);
   const ix = idxFor(deal.currency);
@@ -1903,7 +1919,7 @@ function validate(deal, trade, out, quotes, bd){
   // These five have no safe default. price() reads a blank as zero, which would quietly drop the
   // margin out of the markup and hand back a price that looks finished, so a blank blocks instead.
   const RATE_FIELDS = [['tcFee','TradeCo Fee',true], ['bladexMargin',FUNDER+' Margin',true],
-    ['pfAgencyFee','Pro Forma Agency Fee',pfOn], ['tcAgencyFee','TradeCo Agency Fee',true]];
+    ['agencyFee','Agency Fee',agencyOn]];
   /** A rate field as a number, or null when blank or unparseable — never silently zero. */
   const rateOf = k => { if(isBlankRate(i[k])) return null;
     try{ return D.of(i[k]); }catch(e){ return null; } };
@@ -2018,7 +2034,7 @@ function validate(deal, trade, out, quotes, bd){
   // put five acknowledgements in front of every new trade for figures nobody had typed yet.
   for(const [k,def,lbl,needed] of [['tcFee',MARKET_DEFAULTS.tcFee,'TradeCo Fee',true],
                             ['bladexMargin',MARKET_DEFAULTS.bladexMargin,FUNDER+' margin',true],
-                            ['pfAgencyFee',MARKET_DEFAULTS.agencyFee,'Pro Forma agency fee',pfOn],['tcAgencyFee',MARKET_DEFAULTS.agencyFee,'TradeCo agency fee',true]]){
+                            ['agencyFee',MARKET_DEFAULTS.agencyFee,'Agency Fee',agencyOn]]){
     const v = needed ? rateOf(k) : null;
     if(v && !v.eq(D.of(def)))
       W('NOTE.STANDARD_TERMS', lbl+' is '+pct(v)+', not the standing '+pct(D.of(def))+'. Confirm a pricing discussion with '+CLIENT+'/'+FUNDER+' took place.');
@@ -2069,8 +2085,8 @@ function addInvoiceItem(v){
  *  30-day tenor is the workbook's own hardcoded B9. */
 function blankTradeInputs(){
   return { supplierInvoices:[newSupplierInvoice()],
-    pfIssueDate:'', pfTenorDays:'', pfAgencyFee:'',
-    tcIssueDate:'', tcFee:'', tcAgencyFee:'',
+    pfIssueDate:'', pfTenorDays:'', agencyFee:'',
+    tcIssueDate:'', tcFee:'',
     bladexSettlementDate:'', bladexDays:'', bladexMargin:'', legalFees:'0' };
 }
 /** The worked example from Cantu Pricing Model 07222026.xlsx. It seeds a first run so the app
@@ -2081,7 +2097,7 @@ function workbookTradeInputs(){
       jurisdiction:'BR', issueDate:'2026-06-16', tenorDays:30, amount:'850000'})],
     pfIssueDate:'2026-06-22', pfTenorDays:180, tcIssueDate:'2026-07-16',
     bladexSettlementDate:'2026-07-16', bladexDays:180,
-    pfAgencyFee:MARKET_DEFAULTS.agencyFee, tcAgencyFee:MARKET_DEFAULTS.agencyFee,
+    agencyFee:MARKET_DEFAULTS.agencyFee,
     tcFee:MARKET_DEFAULTS.tcFee, bladexMargin:MARKET_DEFAULTS.bladexMargin };
 }
 /** A trade's inputs copied for a duplicate or a new version.
@@ -2098,6 +2114,7 @@ function copyTradeInputs(src){
 }
 function newDeal(who){
   return { id:uuid(), code:'', clientId:'', clientName:'', currency:'USD', proformaEnabled:true,
+    agencyFeeEnabled:true,
     jurisdictions:[], createdBy:who, createdAt:new Date().toISOString(), cancelled:false };
 }
 function newTrade(dealId, who){
@@ -2128,7 +2145,8 @@ function nextTradeIdentifier(deal){
  *  agrees on it; the pro forma dates and margins stay per trade. */
 function effectiveInputs(deal, trade){
   return { ...trade.inputs, currency:deal.currency, dayCountBasis:basisFor(deal.currency),
-    pfEnabled: deal.proformaEnabled !== false, discountConvention: conventionFor(trade),
+    pfEnabled: deal.proformaEnabled !== false, agencyFeeEnabled: deal.agencyFeeEnabled !== false,
+    discountConvention: conventionFor(trade),
     jurisdictions:deal.jurisdictions, transactionCode:deal.code, clientName:deal.clientName };
 }
 
@@ -2186,6 +2204,9 @@ function normalise(s){
     if(d.proformaEnabled===undefined)
       d.proformaEnabled = s.trades.filter(t=>t.dealId===d.id).some(t=>t.inputs.pfEnabled!==false) ||
                           !s.trades.some(t=>t.dealId===d.id);
+    // Whether a fee is charged is new; every deal stored before it was charging one, since the
+    // rate was a required field. Defaulting to true is what keeps those deals pricing unchanged.
+    if(d.agencyFeeEnabled===undefined) d.agencyFeeEnabled = true;
   }
   for(const t of s.trades){
     delete t.inputs.pfEnabled;
@@ -2196,6 +2217,13 @@ function normalise(s){
       t.inputs.tcFee = (isBlankRate(m)||isBlankRate(b)) ? '' : D.of(m).sub(D.of(b)).toFixed(12);
     }
     delete t.inputs.tcMargin; delete t.inputs.pfMargin;
+    /* The agency fee used to be keyed once per panel. It is one trade-level rate now, and the one
+       that survives is the one that drove the payment leg — B52 read tcAgencyFee, so a trade where
+       the two had drifted apart keeps the figure it was actually paying out on. */
+    if(t.inputs.agencyFee===undefined)
+      t.inputs.agencyFee = !isBlankRate(t.inputs.tcAgencyFee) ? t.inputs.tcAgencyFee
+                         : (t.inputs.pfAgencyFee ?? '');
+    delete t.inputs.pfAgencyFee; delete t.inputs.tcAgencyFee;
     // Panel 1 held exactly one invoice before; those flat fields become the first row.
     if(!Array.isArray(t.inputs.supplierInvoices))
       t.inputs.supplierInvoices = [newSupplierInvoice({
@@ -2250,6 +2278,7 @@ function migrateV1(v1){
     d.id=uuid(); d.code=old.inputs.transactionCode||''; d.clientId=old.inputs.clientId||'';
     d.clientName=old.inputs.clientName||''; d.currency=RATE_INDICES[old.inputs.currency]?old.inputs.currency:'USD';
     d.proformaEnabled = old.inputs.pfEnabled!==false;
+    d.agencyFeeEnabled = true;                  // v1 always carried the rate as a required field
     d.createdAt=old.createdAt||d.createdAt;
     d.jurisdictions=[...DEFAULT_JURISDICTIONS];   // v1 had no picker; it ran on BD Dates!B4:B13
     const t=newTrade(d.id, old.createdBy||'migrated');
@@ -2562,14 +2591,15 @@ const esc = s => String(s??'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>
 const setCalc = (id, text, bad) => { const el=$(id); if(!el) return;
   const f=el.querySelector('.f'); el.textContent=text; if(f) el.prepend(f); el.classList.toggle('bad', !!bad); };
 
-const PCT_FIELDS = new Set(['tcFee','pfAgencyFee','tcAgencyFee','bladexMargin']);
+const PCT_FIELDS = new Set(['tcFee','agencyFee','bladexMargin']);
 const INT_FIELDS = new Set(['pfTenorDays','bladexDays']);
 const TRADE_FIELD_IDS = {
-  pfIssueDate:'f_pfIssue', pfTenorDays:'f_pfTenor', pfAgencyFee:'f_pfAgency',
-  tcIssueDate:'f_tcIssue', tcFee:'f_tcFee', tcAgencyFee:'f_tcAgency',
+  pfIssueDate:'f_pfIssue', pfTenorDays:'f_pfTenor',
+  tcIssueDate:'f_tcIssue', tcFee:'f_tcFee', agencyFee:'f_agencyFee',
   bladexSettlementDate:'f_bladexSettle', bladexDays:'f_bladexDays', bladexMargin:'f_bladexMargin', legalFees:'f_legalFees'};
 const TRADE_TOP_IDS = { identifier:'f_tradeid', tradeDate:'f_tradeDate', funder:'f_funder', obligor:'f_obligor' };
-const DEAL_FIELD_IDS = { clientId:'d_client', code:'d_code', currency:'d_currency', proformaEnabled:'d_proforma' };
+const DEAL_FIELD_IDS = { clientId:'d_client', code:'d_code', currency:'d_currency',
+  proformaEnabled:'d_proforma', agencyFeeEnabled:'d_agencyFee' };
 
 function loadFormFromStore(){
   const d=currentDeal(), t=currentTrade();
@@ -2640,6 +2670,8 @@ function renderDealForm(){
   $('ccyNote').textContent = 'Base rate '+ix.name+' · day count ACT/'+ix.basis+
     (ix.basis!==360 ? ' — the workbook hardcodes /360; trades on this deal use /'+ix.basis+'.' : '');
   $('proformaLabel').textContent = d.proformaEnabled!==false ? 'Used on this deal' : 'Not used — panel 2 is hidden';
+  $('agencyFeeLabel').textContent = d.agencyFeeEnabled!==false
+    ? 'Charged on this deal' : 'Not charged — the rate is hidden and reads as zero';
   renderJurisdictionBox();
 }
 /** Jurisdictions: a dropdown to add, and the chosen ones as removable chips. */
@@ -2714,7 +2746,7 @@ function renderHeader(d,t,r){
     ? '— locked: a trade on this deal is approved or later'
     : '— applies to all '+tradesOf(d.id).length+' trade(s) on this deal';
   const tLocked = !t || LOCKED(t.state), pfOff = d.proformaEnabled===false;
-  const PF_INPUTS=['f_pfIssue','f_pfTenor','f_pfAgency'];
+  const PF_INPUTS=['f_pfIssue','f_pfTenor'];
   for(const id of [...Object.values(TRADE_FIELD_IDS), ...Object.values(TRADE_TOP_IDS)]){
     const el=$(id); if(!el) continue;
     el.disabled = tLocked || (pfOff && PF_INPUTS.includes(id));
@@ -3248,12 +3280,19 @@ function refreshSupplierCalcs(d,t,o){
     ' · total '+money(o?o.supplierAmount:sup.amount, ccy);
 }
 function renderPricing(d,t,r){
-  const o=r.out, ccy=d.currency, ix=idxFor(ccy), pfOn = d.proformaEnabled!==false;
+  const o=r.out, ccy=d.currency, ix=idxFor(ccy), pfOn = d.proformaEnabled!==false,
+        agencyOn = d.agencyFeeEnabled!==false;
   const basisNote='÷ '+ix.basis+' (ACT/'+ix.basis+', '+ix.name+')';
   $('pfFactorNote').textContent=basisNote; $('tcFactorNote').textContent=basisNote; $('iaaFactorNote').textContent=basisNote;
   $('legalWrap').dataset.suffix = ix.symbol.trim() || ccy;
   // Panel 2 exists only when the deal is configured to use pro forma invoices.
   $('card_pf').style.display = pfOn ? '' : 'none';
+  /* The agency fee is one deal-level decision showing in four places: the field on the Trade box,
+     the mark-up component in panels 2 and 3, and the payment leg in panel 5. A deal that charges
+     no fee shows none of them rather than four rows of zero. */
+  for(const id of ['row_agencyFee','row_pfAgency','row_tcAgency','row_payAgency']){
+    const el=$(id); if(el) el.style.display = agencyOn ? '' : 'none';
+  }
   /* Only a focused *field* must survive the rebuild — tearing an input out from under the caret is
      what the skip is for. A focused button must not stop it: adding an item leaves the button that
      added it holding focus, and skipping there is how the new row failed to appear at all. The
@@ -3270,6 +3309,7 @@ function renderPricing(d,t,r){
     ['Transaction Code', d.code ? esc(d.code) : '<span class="tiny">not set</span>'],
     ['Currency', esc(ccy)+' <span class="tiny">· '+esc(ix.name)+' · ACT/'+ix.basis+'</span>'],
     ['Pro forma invoices', pfOn ? '<span class="inline-tag ok">used</span>' : '<span class="inline-tag">not used</span>'],
+    ['Agency Fee', agencyOn ? '<span class="inline-tag ok">charged</span>' : '<span class="inline-tag">not charged</span>'],
     ['Jurisdictions', (d.jurisdictions||[]).length
       ? (d.jurisdictions||[]).map(j=>'<span class="inline-tag">'+esc(j)+'</span>').join(' ')
       : '<span class="inline-tag err">none selected</span>'],
@@ -3306,7 +3346,8 @@ function renderPricing(d,t,r){
   }
   $('topBanners').innerHTML = banners.map(([k,h])=>'<div class="banner '+k+'"><div>'+h+'</div></div>').join('');
 
-  const OUT_IDS=['o_pfMaturity','o_pfRate','o_pfMargin','o_pfMarkup','o_pfFactor','o_pfInv1','o_pfInv2','o_pfTotal','o_tcMargin',
+  const OUT_IDS=['o_pfMaturity','o_pfRate','o_pfMargin','o_pfAgency','o_tcAgency',
+    'o_pfMarkup','o_pfFactor','o_pfInv1','o_pfInv2','o_pfTotal','o_tcMargin',
     'o_tcTenor','o_tcMaturity','o_tcRate','o_tcMarkup','o_tcFactor','o_tcInv1','o_tcInv2','o_tcTotal','o_faceValue',
     'o_iaaMaturity','o_iaaRate','o_bladexCoF','o_iaaFactor','o_purchasePrice','o_paySupplier','o_payAgency','o_payTradeCo','o_recon'];
   if(o){
@@ -3314,6 +3355,9 @@ function renderPricing(d,t,r){
     setCalc('o_pfRate', pct(o.pfRate));
     setCalc('o_pfMargin', pct(o.tcMargin));
     setCalc('o_tcMargin', pct(o.tcMargin));
+    // One rate in both panels, which is the point of it having one home.
+    setCalc('o_pfAgency', pct(o.agencyFee));
+    setCalc('o_tcAgency', pct(o.agencyFee));
     setCalc('o_pfMarkup', pct(o.pfMarkup));
     setCalc('o_pfFactor', fac(o.pfFactor), !!o.pfFactor && o.pfFactor.gte(ONE));
     setCalc('o_pfInv1', money(o.pfInvoice1,ccy));
@@ -3878,7 +3922,8 @@ function renderDeals(){
     '<th class="n" title="Sum of the IAA Purchase Price (B47) of every settled trade, in the deal currency">Settled value</th>'+
     '<th class="n" title="Trades on this deal that have not settled: DRAFT, PRICED, APPROVED or ISSUED. Cancelled trades are excluded.">Not settled</th>'+
     '<th class="n" title="Sum of the IAA Purchase Price (B47) of every trade still to settle, in the deal currency">Not settled value</th>'+
-    '<th>Pro forma</th><th>Jurisdictions</th><th></th></tr></thead><tbody>'+
+    '<th>Pro forma</th><th title="Whether this facility carries an agency fee at all">Agency fee</th>'+
+    '<th>Jurisdictions</th><th></th></tr></thead><tbody>'+
     (store.deals.length?store.deals.map(d=>{
       const js=d.jurisdictions||[], tot=settlementTotals(d);
       book.settled.n+=tot.settled.n; book.settled.unpriced+=tot.settled.unpriced;
@@ -3893,17 +3938,18 @@ function renderDeals(){
         countCell(tot.open,'unsettled',cancNote(tot.cancelled))+
         '<td class="n">'+money(tot.open.value,d.currency)+'</td>'+
         '<td>'+(d.proformaEnabled!==false?'<span class="inline-tag ok">yes</span>':'<span class="inline-tag">no</span>')+'</td>'+
+        '<td>'+(d.agencyFeeEnabled!==false?'<span class="inline-tag ok">yes</span>':'<span class="inline-tag">no</span>')+'</td>'+
         '<td class="tiny">'+(js.length? esc(js.slice(0,4).join(', '))+(js.length>4?' +'+(js.length-4):'')
                                       : '<span class="inline-tag err">none</span>')+'</td>'+
         '<td class="n" style="white-space:nowrap">'+
           '<button class="btn sm" data-config-deal="'+d.id+'">Configure</button> '+
           '<button class="btn sm danger" data-delete-deal="'+d.id+'">Delete</button></td></tr>';
-    }).join('') : '<tr><td colspan="10" class="tiny">No deals. Use <b>New deal</b> to create one.</td></tr>')+'</tbody>'+
+    }).join('') : '<tr><td colspan="11" class="tiny">No deals. Use <b>New deal</b> to create one.</td></tr>')+'</tbody>'+
     (store.deals.length ? '<tfoot><tr class="booktotal">'+
       '<td colspan="3">All deals <span class="tiny">'+store.deals.length+' deal(s)</span></td>'+
       countCell(book.settled,'settled')+bookMoney(book.ccy,'settled')+
       countCell(book.open,'unsettled',cancNote(book.cancelled))+bookMoney(book.ccy,'open')+
-      '<td colspan="3"></td></tr></tfoot>' : '');
+      '<td colspan="4"></td></tr></tfoot>' : '');
 
   const showConfig = configOpen && !!cur;
   $('dealConfigCard').style.display = showConfig ? '' : 'none';
@@ -4021,10 +4067,10 @@ function renderAudit(){
 /* ---------------------------- parity tests ---------------------------- */
 const SOFR_LIVE=[{days:30,rate:'0.0364338'},{days:90,rate:'0.0372777'},{days:180,rate:'0.0387550'},{days:360,rate:'0.0403325'}];
 const SOFR_PF  =[{days:30,rate:'0.0364338'},{days:90,rate:'0.0372777'},{days:180,rate:'0.0385550'},{days:360,rate:'0.0403325'}];
-const GOLDEN_INPUTS = { pfEnabled:true, currency:'USD', dayCountBasis:360,
+const GOLDEN_INPUTS = { pfEnabled:true, agencyFeeEnabled:true, currency:'USD', dayCountBasis:360,
   supplierIssueDate:'2026-06-16', supplierTenorDays:30, supplierAmount:'850000',
-  pfIssueDate:'2026-06-22', pfTenorDays:180, pfAgencyFee:'0.001',
-  tcIssueDate:'2026-07-16', tcFee:'0.0065', tcAgencyFee:'0.001',
+  pfIssueDate:'2026-06-22', pfTenorDays:180, agencyFee:'0.001',
+  tcIssueDate:'2026-07-16', tcFee:'0.0065',
   bladexSettlementDate:'2026-07-16', bladexDays:180, bladexMargin:'0.0235', legalFees:'0' };
 
 function runTests(){
@@ -4356,6 +4402,84 @@ function runTests(){
   T('Trade inputs carry no pfEnabled', 'pfEnabled' in blankTradeInputs(),'false','moved to the deal');
   T('Deal basis reaches the trade', effectiveInputs({...dealOn,currency:'GBP'},stubTrade).dayCountBasis,'365','deal.currency');
 
+  /* ---- the agency fee: one rate, charged per the deal ----------------------------------------
+     It used to be keyed once per panel. Both mark-ups read the single field now, so B18 and B31
+     cannot drift apart, and whether it is charged at all is the deal's answer. */
+  T('One rate feeds both mark-ups',
+    o.pfMarkup.sub(o.pfRate).sub(o.tcMargin).toFixed(10),
+    o.tcMarkup.sub(o.liveRate).sub(o.tcMargin).toFixed(10),'B18 = B31');
+  T('The mark-ups carry the rate that was keyed',
+    o.tcMarkup.sub(o.liveRate).sub(o.tcMargin).toFixed(7),
+    D.of(GOLDEN_INPUTS.agencyFee).toFixed(7),'Cantu!B31');
+  T('The rate is reported for both panels to show', o.agencyFee.toFixed(7),'0.0010000','B18 / B31');
+  T('Trade inputs hold one agency fee',
+    ('agencyFee' in blankTradeInputs())+'/'+('pfAgencyFee' in blankTradeInputs())+'/'+
+    ('tcAgencyFee' in blankTradeInputs()),'true/false/false','one field, not two');
+
+  // Off, the rate reads as zero everywhere rather than being dropped from some expressions only.
+  const oNoFee=price({...GOLDEN_INPUTS, agencyFeeEnabled:false},{pfRate:pfQ.rate, liveRate:liveQ.rate});
+  T('Agency Fee off — the rate is zero', oNoFee.agencyFee.toFixed(7),'0.0000000','B18 / B31');
+  T('Agency Fee off — reported as not charged', String(oNoFee.agencyFeeOn),'false','deal.agencyFeeEnabled');
+  T('Agency Fee off — no payment leg', oNoFee.payToCantuAgency.toFixed(2),'0.00','Cantu!B52');
+  T('Agency Fee off — the mark-up drops by the fee',
+    o.tcMarkup.sub(oNoFee.tcMarkup).toFixed(7), D.of(GOLDEN_INPUTS.agencyFee).toFixed(7),'Cantu!B32');
+  T('Agency Fee off — the pro forma mark-up drops too',
+    o.pfMarkup.sub(oNoFee.pfMarkup).toFixed(7), D.of(GOLDEN_INPUTS.agencyFee).toFixed(7),'Cantu!B19');
+  // Unlike the pro forma block this is not a leaf: it sits inside B32, so it reprices the trade.
+  T('Agency Fee off — the price moves', String(oNoFee.purchasePrice.eq(o.purchasePrice)),'false','Cantu!B47');
+  T('Agency Fee off — a keyed rate is ignored',
+    price({...GOLDEN_INPUTS, agencyFeeEnabled:false, agencyFee:'0.05'},
+      {pfRate:pfQ.rate, liveRate:liveQ.rate}).purchasePrice.toFixed(10),
+    oNoFee.purchasePrice.toFixed(10),'deal.agencyFeeEnabled');
+  T('Agency Fee off — still reconciles', oNoFee.reconciliation.toFixed(10),'0.0000000000','B51+B52+B53−B47');
+  T('Agency Fee off — a blank rate prices',
+    price({...GOLDEN_INPUTS, agencyFeeEnabled:false, agencyFee:''},
+      {pfRate:pfQ.rate, liveRate:liveQ.rate}).purchasePrice.toFixed(2),
+    oNoFee.purchasePrice.toFixed(2),'no rate to key');
+
+  // Charged or not is the deal's answer, inherited by every trade on it.
+  T('Deal agency fee on → trade on', effectiveInputs(dealOn,stubTrade).agencyFeeEnabled,'true','deal.agencyFeeEnabled');
+  T('Deal agency fee off → trade off',
+    effectiveInputs({...dealOn, agencyFeeEnabled:false},stubTrade).agencyFeeEnabled,'false','deal.agencyFeeEnabled');
+  T('A new deal charges one', newDeal('x').agencyFeeEnabled,'true','newDeal()');
+
+  // Validation follows the switch: the rate is required only where it is charged.
+  const feeDeal=(on)=>({...newDeal('tester'), currency:'USD', jurisdictions:['BR'],
+    proformaEnabled:true, agencyFeeEnabled:on});
+  const feeRules=(on,rate)=>{
+    const tr=newTrade('d','tester');
+    tr.inputs={...workbookTradeInputs(), agencyFee:rate};
+    return validate(feeDeal(on), tr, null, null, null);
+  };
+  T('Charged and blank blocks',
+    String(feeRules(true,'').errors.some(x=>x.rule==='RATE.REQUIRED')),'true','RATE.REQUIRED');
+  T('Not charged and blank does not block',
+    String(feeRules(false,'').errors.some(x=>x.rule==='RATE.REQUIRED')),'false','RATE.REQUIRED');
+  T('Not charged and off-market does not warn',
+    String(feeRules(false,'0.05').warnings.some(x=>x.rule==='NOTE.STANDARD_TERMS')),'false','NOTE.STANDARD_TERMS');
+  T('Charged and off-market warns once',
+    feeRules(true,'0.05').warnings.filter(x=>x.rule==='NOTE.STANDARD_TERMS').length,'1','NOTE.STANDARD_TERMS');
+
+  /* Migration. The rate that drove the payment leg is the one that survives, so a trade where the
+     two panels had drifted apart keeps the figure it was actually paying out on. */
+  const migFee=(inputs)=>normalise({v:2, deals:[{id:'d'}], trades:[{dealId:'d', inputs}],
+    curves:{}, clients:defaultClients(), audit:[]});
+  T('Migration collapses two agency fees into one', (()=>{
+      const st=migFee({pfAgencyFee:'0.002', tcAgencyFee:'0.001', tcFee:'0.0065'});
+      const i=st.trades[0].inputs;
+      return i.agencyFee+'/'+('pfAgencyFee' in i)+'/'+('tcAgencyFee' in i);
+    })(),'0.001/false/false','normalise()');
+  T('Migration falls back to the pro forma rate when the other is blank',
+    migFee({pfAgencyFee:'0.002', tcAgencyFee:'', tcFee:'0.0065'}).trades[0].inputs.agencyFee,
+    '0.002','normalise()');
+  T('Migration leaves a deal charging its fee',
+    String(migFee({tcAgencyFee:'0.001', tcFee:'0.0065'}).deals[0].agencyFeeEnabled),'true','normalise()');
+  T('A migrated trade prices to the same number', (()=>{
+      const st=migFee({...GOLDEN_INPUTS, agencyFee:undefined, pfAgencyFee:'0.001', tcAgencyFee:'0.001'});
+      const i={...GOLDEN_INPUTS, ...st.trades[0].inputs};
+      return price(i,{pfRate:pfQ.rate, liveRate:liveQ.rate}).purchasePrice.toFixed(2);
+    })(),'853302.69','Cantu!B47');
+
   // Day-count basis travels with the currency
   T('USD basis is ACT/360', basisFor('USD'),'360','RATE_INDICES');
   T('GBP basis is ACT/365', basisFor('GBP'),'365','RATE_INDICES');
@@ -4505,13 +4629,13 @@ function runTests(){
       'Cantu!B51 — the supplier is made whole either way');
     // B52 accrues over the same funding period, so it compounds with everything else.
     T('Compound agency fee matches its formula', cmp.payToCantuAgency.toFixed(10),
-      cmp.faceValue.mul(ONE.add(D.of(GOLDEN_INPUTS.tcAgencyFee).div(12)).pow(D.of(180).div(30)).sub(ONE)).toFixed(10),
+      cmp.faceValue.mul(ONE.add(D.of(GOLDEN_INPUTS.agencyFee).div(12)).pow(D.of(180).div(30)).sub(ONE)).toFixed(10),
       'B52 = B39 × ((1+B31/12)^(days/30) − 1)');
     T('Convention reaches the agency leg', cmp.payToCantuAgency.eq(o.payToCantuAgency),'false','B52 follows the funder');
     T('Simple agency fee untouched', o.payToCantuAgency.toFixed(2),'440.36','Cantu!B52');
     T('Compound agency fee accrues over the funding period',
       cmp.payToCantuAgency.div(cmp.faceValue).toFixed(10),
-      ONE.add(D.of(GOLDEN_INPUTS.tcAgencyFee).div(12)).pow(D.of(180).div(30)).sub(ONE).toFixed(10),
+      ONE.add(D.of(GOLDEN_INPUTS.agencyFee).div(12)).pow(D.of(180).div(30)).sub(ONE).toFixed(10),
       'B52 ÷ B39 is the compound accrual factor');
     T('Compound still reconciles', cmp.reconciliation.toFixed(10),'0.0000000000','B51+B52+B53−B47');
     // Panel 2 is the same gross-up as panel 3, so it follows the convention too.
@@ -4533,8 +4657,8 @@ function runTests(){
     T('Margin is fee + investor margin', o.tcMargin.toFixed(10),
       o.tcFeeRate.add(o.investorMargin).toFixed(10),'B30 = TradeCo Fee + B44');
     T('Standing fee and margin still make 3%', o.tcMargin.toFixed(5),'0.03000','0.0065 + 0.0235');
-    T('Both panels read one margin', o.pfMarkup.sub(o.pfRate).sub(D.of(GOLDEN_INPUTS.pfAgencyFee)).toFixed(10),
-      o.tcMarkup.sub(o.liveRate).sub(D.of(GOLDEN_INPUTS.tcAgencyFee)).toFixed(10),'B17 = B30');
+    T('Both panels read one margin', o.pfMarkup.sub(o.pfRate).sub(D.of(GOLDEN_INPUTS.agencyFee)).toFixed(10),
+      o.tcMarkup.sub(o.liveRate).sub(D.of(GOLDEN_INPUTS.agencyFee)).toFixed(10),'B17 = B30');
     const bumped=price({...GOLDEN_INPUTS, bladexMargin:'0.03'},{pfRate:pfQ.rate, liveRate:liveQ.rate});
     T('Investor margin flows into the mark-up', bumped.tcMargin.toFixed(5),'0.03650','0.0065 + 0.03');
     T('Trade inputs carry no keyed margin', ('tcMargin' in blankTradeInputs())||('pfMargin' in blankTradeInputs()),
@@ -4618,6 +4742,7 @@ this tab prove it, and they run on every load whether or not anyone opens them.<
  ['B10','Total Supplier Invoice Amount','Σ invoice totals — what panels 2 to 5 price off'],
  ['B15','Pro Forma Maturity','B13 + B14'],
  ['B16','Pro Forma base rate','pro forma curve interpolated at B41'],
+ ['B18','Pro Forma Agency Fee','the trade\u2019s Agency Fee, or 0 when the deal charges none'],
  ['B19','Pro Forma Mark-up','B17 + B16 + B18'],
  ['B20','Pro Forma Factor','B19 × (B15 − B13) / basis'],
  ['B23','Pro Forma Total','B10 / (1 − B20)'],
@@ -4625,6 +4750,7 @@ this tab prove it, and they run on every load whether or not anyone opens them.<
  ['B27','TradeCo Tenor','B41 + (B40 − B26)'],
  ['B28','TradeCo Maturity','B42'],
  ['B29','TradeCo base rate','live curve interpolated at B41'],
+ ['B31','TradeCo Agency Fee','B18 \u2014 one rate, keyed on the Trade box'],
  ['B32','TradeCo Mark-up','B30 + B29 + B31'],
  ['B33','TradeCo Factor','B32 × (B28 − B40) / basis'],
  ['B36','TradeCo Total','B10 / (1 − B33)'],
@@ -4735,7 +4861,7 @@ document.addEventListener('change', e=>{
   const d=currentDeal(), t=currentTrade();
   if(el.dataset.deal){
     audit('deal',d.id,'UPDATE',el.dataset.deal, el.dataset.prev??null, String(d[el.dataset.deal]));
-    if(el.dataset.deal==='proformaEnabled') loadFormFromStore();
+    if(el.dataset.deal==='proformaEnabled' || el.dataset.deal==='agencyFeeEnabled') loadFormFromStore();
   }
   if(el.dataset.trade && t) audit('trade',t.id,'UPDATE',el.dataset.trade, el.dataset.prev??null, String(t[el.dataset.trade]));
   if(el.dataset.field && t) audit('trade',t.id,'UPDATE',el.dataset.field, el.dataset.prev??null, String(t.inputs[el.dataset.field]));
@@ -5696,7 +5822,7 @@ $('btnAuditCsv').onclick=()=>{ const scope=$('auditScope').value, t=currentTrade
 // in front of whoever is keying the trade, without a new trade carrying a rate nobody agreed —
 // and read from MARKET_DEFAULTS so the hint cannot drift from the value the warning compares to.
 for(const [id,def] of [['f_tcFee',MARKET_DEFAULTS.tcFee],
-                       ['f_pfAgency',MARKET_DEFAULTS.agencyFee], ['f_tcAgency',MARKET_DEFAULTS.agencyFee],
+                       ['f_agencyFee',MARKET_DEFAULTS.agencyFee],
                        ['f_bladexMargin',MARKET_DEFAULTS.bladexMargin]])
   $(id).placeholder = D.of(def).mul(100).toFixed(5);
 
