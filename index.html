@@ -243,6 +243,76 @@ details.help p{margin:7px 0 0;font-size:11.5px;color:var(--ink-3);line-height:1.
 /* One window, one set showing. The panes share #refModal so every table below keeps the id its
    existing render function already writes to. */
 .refpane{display:none} .refpane.active{display:block}
+.docpane{display:none} .docpane.active{display:block}
+/* The document picker: one card per document a trade can issue, chosen the way the reference menu
+   chooses a pane. Wide enough to say what each one is, because "Offer File" and "Invoice" are not
+   self-explanatory to whoever is issuing them for the first time. */
+.docpick{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:9px}
+.docpick button{text-align:left;background:var(--panel-2);border:1px solid var(--line);
+  border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:3px;cursor:pointer}
+.docpick button:hover{border-color:var(--accent)}
+.docpick button[aria-selected="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.docpick .t{font:600 13px/1.3 var(--sans);color:var(--ink)}
+.docpick button[aria-selected="true"] .t{color:var(--accent)}
+.docpick .d{font-size:11.5px;color:var(--ink-3);line-height:1.45}
+
+/* ---- the printed page ----
+   A4 at the width the Word form uses, on screen as well as on paper, so nothing about the layout
+   is a surprise when it comes out. Serif and black, because it is a document and not a screen. */
+.paperwrap{overflow-x:auto;padding:14px 0 4px;background:var(--panel-2);margin:11px -13px -10px;
+  border-top:1px solid var(--line)}
+.paper{width:210mm;min-height:120mm;box-sizing:border-box;padding:18mm 20mm;margin:0 auto 14px;
+  background:#fff;color:#000;box-shadow:0 3px 14px rgba(16,24,40,.18);
+  font:11pt/1.45 Georgia,"Times New Roman",serif}
+.paper h1{font:700 15pt/1.2 Georgia,serif;margin:0 0 14px;text-align:right;letter-spacing:.04em}
+.paper p{margin:0 0 9px}
+.paper .up{text-transform:uppercase}
+.paper table{width:100%;border-collapse:collapse;font:10pt/1.4 Georgia,serif;margin:0 0 12px}
+.paper td,.paper th{border:1px solid #000;padding:5px 7px;vertical-align:top;text-align:left;color:#000}
+.paper th{background:#eee;font-weight:700;text-transform:uppercase;font-size:9pt;letter-spacing:.02em}
+.paper td.n,.paper th.n{text-align:right;white-space:nowrap}
+.paper .blank{color:#a00;font-style:italic}
+.paper .tot td{font-weight:700}
+.paper .sep{margin:16px 0 10px;border:0;border-top:1px solid #000}
+.paper .foot{margin-top:16px;font-size:8.5pt;color:#333;border-top:1px solid #999;padding-top:5px}
+.paper .noborder td{border:0;padding:2px 0}
+
+/* ---- printing ----
+   Print the document and nothing else. Everything the app draws around it — the page header, the
+   views behind the overlay, the tabs, the picker, the toolbar, the other document's pane — is
+   chrome, and an invoice that goes out with a screenshot of the app around it is not the document
+   anyone asked for.
+   Hidden with display rather than visibility on purpose: a hidden element that still occupies its
+   space pushes the document down and prints blank pages ahead of it. And addressed by class rather
+   than by position in the tree — the overlay holding the document is nested inside <main>, so a
+   body > * rule hides the very thing it is meant to reveal. */
+@media print{
+  @page{size:A4;margin:16mm}
+  html,body{background:#fff !important}
+  header.top{display:none !important}
+  /* The views behind the overlay go; the overlay itself is a sibling of them and stays. */
+  main>*:not(.modal){display:none !important}
+  main{padding:0 !important}
+  /* The overlay's own fixed position and clipping would cut the document to one screenful. */
+  .modal.open{position:static !important;inset:auto !important;display:block !important;z-index:auto !important}
+  .modal.open>.backdrop{display:none !important}
+  .modal.open>.sheet{position:static !important;inset:auto !important;overflow:visible !important;
+    display:block !important;border:0 !important;box-shadow:none !important;border-radius:0 !important}
+  .modal .sheet>header{display:none !important}
+  .modal .sheet>.content{overflow:visible !important;padding:0 !important;display:block !important}
+  /* Inside the Documents pane, everything that is not the page itself. */
+  #tradeTabs,#tpane-pricing,#docPicker,#docpane-offer,#tcInvMissing,
+  .docpane .toolbar,.card>h2{display:none !important}
+  .card{border:0 !important;box-shadow:none !important;background:#fff !important;margin:0 !important}
+  .card .body{padding:0 !important}
+  .paperwrap{overflow:visible !important;padding:0 !important;margin:0 !important;
+    background:#fff !important;border:0 !important}
+  /* @page already carries the margin, so the on-screen paper's own padding would double it. */
+  .paper{width:auto !important;padding:0 !important;margin:0 !important;min-height:0 !important;
+    box-shadow:none !important}
+  /* A row split across a page break loses the line it was showing. */
+  .paper tr,.paper table{page-break-inside:avoid}
+}
 .taglist{display:flex;flex-wrap:wrap;gap:6px;padding:4px 0 2px}
 .taglist .tag{display:inline-flex;align-items:center;gap:5px;padding:3px 6px 3px 11px;border:1px solid var(--accent);
   background:var(--accent-soft);color:var(--accent);border-radius:999px;font-size:12.5px;font-weight:560}
@@ -427,13 +497,13 @@ code,.mono{font-family:var(--mono);font-size:12px}
       <div class="top-row" style="padding-bottom:9px">
         <button class="btn primary" id="btnPrice">Price trade</button>
         <button class="btn" id="btnApprove">Approve</button>
-        <button class="btn" id="btnIssue">Issue Offer File</button>
+        <button class="btn" id="btnIssue">Issue IAA Offer File</button>
         <button class="btn" id="btnSettle">Mark settled</button>
         <button class="btn danger" id="btnCancel">Cancel trade</button>
       </div>
       <nav class="tabs" id="tradeTabs">
         <button data-tpane="pricing" aria-selected="true">Pricing</button>
-        <button data-tpane="offer">Offer File</button>
+        <button data-tpane="offer">Documents</button>
       </nav>
     </header>
     <div class="content">
@@ -545,21 +615,51 @@ code,.mono{font-family:var(--mono);font-size:12px}
 </div><!-- /#tpane-pricing -->
 
 <div class="tpane" id="tpane-offer">
-  <div id="offerBanners"></div>
-  <div class="card">
-    <h2>IAA Offer File</h2>
-    <div class="body">
-      <div class="toolbar">
-        <button class="btn" id="btnCopyRow">Copy row (TSV)</button>
-        <button class="btn" id="btnCsv">Download CSV</button>
-        <button class="btn" id="btnDealCsv">Download deal CSV (all trades)</button>
-        <button class="btn" id="btnJson">Download JSON</button>
-        <button class="btn" id="btnPrint">Print / PDF</button>
+  <!-- Which document, then that document. A trade issues more than one, and they have nothing in
+       common but the trade they describe, so each gets its own pane rather than a shared layout. -->
+  <div class="card tight">
+    <h2>Documents<span class="tiny" style="text-transform:none;letter-spacing:0" id="docScopeNote"></span></h2>
+    <div class="body"><div class="docpick" id="docPicker"></div></div>
+  </div>
+
+  <div class="docpane active" id="docpane-offer">
+    <div id="offerBanners"></div>
+    <div class="card">
+      <h2>IAA Offer File</h2>
+      <div class="body">
+        <div class="toolbar">
+          <button class="btn" id="btnCopyRow">Copy row (TSV)</button>
+          <button class="btn" id="btnCsv">Download CSV</button>
+          <button class="btn" id="btnDealCsv">Download deal CSV (all trades)</button>
+          <button class="btn" id="btnJson">Download JSON</button>
+          <button class="btn" id="btnPrint">Print / PDF</button>
+        </div>
+        <div class="scroll"><table id="offerTable"></table></div>
       </div>
-      <div class="scroll"><table id="offerTable"></table></div>
+    </div>
+    <div class="card tight"><h2>Issued documents</h2><div class="body" id="issuedBox"></div></div>
+  </div>
+
+  <div class="docpane" id="docpane-tcinv">
+    <div class="card">
+      <h2>TradeCo Invoice<span class="tiny" style="text-transform:none;letter-spacing:0" id="tcInvSub"></span></h2>
+      <div class="body">
+        <div class="toolbar">
+          <label class="tiny" style="display:flex;align-items:center;gap:6px">Invoice
+            <select class="in" id="tcInvWhich" style="width:auto;text-align:left">
+              <option value="1">#1 — goods (B34)</option>
+              <option value="2">#2 — financial cost (B35)</option>
+            </select></label>
+          <button class="btn" id="btnTcInvDocx">Download Word (.docx)</button>
+          <button class="btn" id="btnTcInvPrint">Print / PDF</button>
+        </div>
+        <div id="tcInvMissing"></div>
+        <!-- The document itself, drawn as it prints. Everything outside it is hidden by the print
+             stylesheet, so what is on screen here is what comes out of the printer. -->
+        <div class="paperwrap"><div class="paper" id="tcInvPaper"></div></div>
+      </div>
     </div>
   </div>
-  <div class="card tight"><h2>Issued documents</h2><div class="body" id="issuedBox"></div></div>
 </div><!-- /#tpane-offer -->
 
     </div><!-- /.content -->
@@ -913,6 +1013,14 @@ code,.mono{font-family:var(--mono);font-size:12px}
             <div class="cell"><label class="toggle" style="justify-content:flex-end;width:100%"><input type="checkbox" id="d_proforma" data-deal="proformaEnabled" checked><span id="proformaLabel">Used on this deal</span></label></div></div>
           <div class="row"><div class="lbl">Agency Fee<span class="note">Whether this facility carries one at all. When off, the rate disappears from every trade on this deal and is excluded from both mark-ups and the agency-fee payment leg (B52).</span></div>
             <div class="cell"><label class="toggle" style="justify-content:flex-end;width:100%"><input type="checkbox" id="d_agencyFee" data-deal="agencyFeeEnabled" checked><span id="agencyFeeLabel">Charged on this deal</span></label></div></div>
+          <!-- Document text. Everything on the TradeCo invoice that varies by facility rather than
+               by trade: who it is billed to, and the agreement it is issued under. The rest of the
+               form is the same on every trade and lives in TC_INVOICE_FORM. -->
+          <div class="row"><div class="lbl">Invoice to<span class="note">Buyer's legal name as it should read on the TradeCo invoice. Left blank, the client's own name is used.</span></div><div class="cell"><input type="text" class="in" id="d_buyer" data-deal="buyerName" placeholder="the client's name"></div></div>
+          <div class="row wide"><div class="lbl">Invoice-to address<span class="note">Printed under the buyer's name on the TradeCo invoice. One line per line.</span>
+            <textarea class="in" id="d_buyerAddress" data-deal="buyerAddress" rows="3" style="margin-top:6px" placeholder="Street&#10;City, postcode&#10;Country"></textarea></div></div>
+          <div class="row"><div class="lbl">Issued under<span class="note">The agreement the TradeCo invoice is issued under, named in its opening line.</span></div><div class="cell"><input type="text" class="in" id="d_agreement" data-deal="agreementName" style="text-align:left"></div></div>
+          <div class="row"><div class="lbl">Agreement date<span class="note">Date of that agreement, quoted in the same line.</span></div><div class="cell"><input type="date" class="in" id="d_agreementDate" data-deal="agreementDate"></div></div>
           <div class="row wide"><div class="lbl">Associated jurisdictions<span class="note">Holiday calendars every trade's maturity date is checked against. Replaces the fixed rows in BD Dates!B4:B13.</span>
             <div class="toolbar" style="margin:8px 0 4px">
               <select id="jurAdd" style="min-width:270px;text-align:left"></select>
@@ -1383,6 +1491,31 @@ const findInvestor = name => { const n=String(name||'').trim().toLowerCase();
 const conventionFor = trade => conventionOf((findInvestor(trade&&trade.funder)||{}).discount);
 
 const RECEIVING_ACCOUNT_TEXT = 'See Part A (Receiving Account(s)) of Annex 2 (Accounts) to the IAA Addendum';
+
+/* ---------------------------- TradeCo invoice standard form ----------------------------
+   The parts of the attached template that are the same on every trade: who is issuing, and where
+   the money goes. Transcribed exactly as the Word form has them, and held as one object so the
+   form the app issues can be told apart from the deal-specific text around it.
+   The invoice will be tailored per deal, so everything that varies — the buyer, the agreement it
+   is issued under, the description of the goods — is a deal field and is not in here. */
+const TC_INVOICE_FORM = {
+  seller: 'SB TRADING COMPANY ALPHA LIMITED',
+  sellerAddress: ['C/O TC CITROEN WELLS LIMITED,', '5TH FLOOR, 3 DORSET RISE,',
+                  'LONDON, ENGLAND, EC4Y 8EN'],
+  sellerVat: '433064228',
+  sellerEmail: 'notices@silverbirchfinance.com',
+  // The receiving account on the form. Not derived from the deal's funder: an account number is
+  // never inferred, so if a trade funds elsewhere this block is edited in the Word file.
+  bank: [['Currency', null],                       // null → the deal's own currency
+         ['Bank', 'JP MORGAN CHASE BANK - NEW YORK'],
+         ['SWIFT', 'CHASUS33'],
+         ['CHIPS ABA', '021000021'],
+         ['Beneficiary', 'BANCO LATINOAMERICANO DE COMERCIO EXTERIOR, S.A. (SWIFT: BLAEPAPA)'],
+         ['Account Number', '935220822']],
+  governingLaw: 'THE GOVERNING LAW AND JURISDICTION PROVISIONS IN THE SALE AGREEMENT SHALL APPLY '+
+    'EQUALLY TO THIS INVOICE, including the notice of assignment and acknowledgment below.',
+  agreementDefault: 'LNG SALE AND PURCHASE AGREEMENT',
+};
 
 /* ---------------------------- calendars ----------------------------
    Business days are derived from rules per jurisdiction rather than transcribed tables,
@@ -2143,6 +2276,7 @@ function copyTradeInputs(src){
 function newDeal(who){
   return { id:uuid(), code:'', clientId:'', clientName:'', currency:'USD', proformaEnabled:true,
     agencyFeeEnabled:true,
+    buyerName:'', buyerAddress:'', agreementName:TC_INVOICE_FORM.agreementDefault, agreementDate:'',
     jurisdictions:[], createdBy:who, createdAt:new Date().toISOString(), cancelled:false };
 }
 function newTrade(dealId, who){
@@ -2235,6 +2369,10 @@ function normalise(s){
     // Whether a fee is charged is new; every deal stored before it was charging one, since the
     // rate was a required field. Defaulting to true is what keeps those deals pricing unchanged.
     if(d.agencyFeeEnabled===undefined) d.agencyFeeEnabled = true;
+    // The document text is new. Blank is the honest default for the buyer and the agreement date —
+    // neither can be inferred — and the invoice reports them as missing rather than inventing them.
+    for(const f of ['buyerName','buyerAddress','agreementDate']) if(d[f]===undefined) d[f]='';
+    if(d.agreementName===undefined) d.agreementName = TC_INVOICE_FORM.agreementDefault;
   }
   for(const t of s.trades){
     delete t.inputs.pfEnabled;
@@ -2613,6 +2751,80 @@ function offerPayload(deal, trade, r){
     receivingAccount:RECEIVING_ACCOUNT_TEXT };
 }
 
+/* ---------------------------- TradeCo invoice ----------------------------
+   Panel 3 produces two TradeCo invoices — the goods at B34, which is the supplier total, and the
+   financial cost at B35 — and they sum to the B36 the trade is priced on. So the document set is
+   two invoices on one form, not one, and the pair reconciling to B36 is what the tests assert.
+
+   Invoice #1 is the trade's supplier invoices read back out: every item line they carry becomes a
+   line here, the freight, insurance and other costs become lines of their own, and the VAT sits in
+   the form's TOTAL VAT row where the form puts it. A supplier invoice with no item detail
+   contributes one line for its keyed amount rather than being dropped — its money is in B10 either
+   way, and a line saying so is what keeps the net total equal to it.
+
+   The per-line VAT column stays at zero, as the Word form's own sample row has it: VAT is held per
+   invoice and not per item, and splitting one figure across the lines would put an allocation
+   nobody agreed on a document that goes to a counterparty. */
+const numLabel = d => { let x=d.toFixed(6);
+  if(x.includes('.')) x=x.replace(/0+$/,'').replace(/\.$/,'');
+  return x===''||x==='-' ? '0' : x; };
+
+function tcInvoiceDoc(deal, trade, out, which){
+  const i = effectiveInputs(deal, trade), sup = supplierTotals(i), ccy = deal.currency;
+  const lines=[], missing=[];
+  let vat = ZERO;
+
+  if(which===1){
+    for(const v of (i.supplierInvoices||[])){
+      const b = invoiceBreakdown(v);
+      const ref = String(v.invoiceNumber||'').trim();
+      if(b.itemised) for(const l of b.lines){
+        const name = String(l.item.name||'').trim();
+        lines.push({kind:'goods', description: name || 'Item'+(ref?' on invoice '+ref:''),
+          qty: numLabel(D.of(l.item.qty||0)), unitPrice: D.of(l.item.unitPrice||0), net: l.lineTotal});
+      }
+      // No item detail to read out: the invoice's own amount stands as one line, so the net total
+      // still comes to B34 and the document says plainly that the breakdown was not given.
+      else if(b.goods.gt(ZERO))
+        lines.push({kind:'goods', description:'Goods'+(ref?' per invoice '+ref:''),
+          qty:'1', unitPrice:b.goods, net:b.goods});
+    }
+    // The charges, from the trade summary rather than from any one invoice — the form has no rows
+    // of its own for freight, insurance or other costs, and a line each is how an invoice states them.
+    for(const [amt,label] of [[sup.freight,'Freight'],[sup.insurance,'Insurance'],
+        [sup.otherCosts,'Other costs']])
+      if(amt.gt(ZERO)) lines.push({kind:'charge', description:label, qty:'1', unitPrice:amt, net:amt});
+    vat = sup.vat;
+    if(!lines.length) missing.push('The trade carries no supplier invoice with a value, so the invoice has no lines.');
+  } else {
+    const fin = out ? out.tcInvoice2 : null;
+    if(fin && fin.gt(ZERO))
+      lines.push({kind:'finance', description:'Financial cost', qty:'1', unitPrice:fin, net:fin});
+    else missing.push('The financial cost (Cantu!B35) is not priced yet, so this invoice has no line.');
+  }
+  const netTotal = lines.reduce((a,l)=>a.add(l.net), ZERO);
+  for(const l of lines){ l.vat = ZERO; l.gross = l.net; }
+
+  const ident = String(trade.identifier||'').trim();
+  const buyer = String(deal.buyerName||'').trim() || clientLabel(deal);
+  const address = String(deal.buyerAddress||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+  if(!ident) missing.push('The trade has no identifier, so the invoice cannot be numbered.');
+  if(!address.length) missing.push('The deal has no invoice-to address.');
+  if(!isValidDate(deal.agreementDate)) missing.push('The deal has no agreement date.');
+  if(!isValidDate(i.tcIssueDate)) missing.push('The trade has no TradeCo Issue Date, which is the invoice date.');
+  const paymentDate = out ? out.tcMaturityDate : null;
+  if(!isValidDate(paymentDate)) missing.push('The payment date comes from B28, which is not priced yet.');
+
+  return { which, currency:ccy, form:TC_INVOICE_FORM,
+    // Two invoices on one trade, numbered off its identifier so the pair is traceable to it.
+    number: ident ? ident+'-0'+which : '',
+    title: which===1 ? 'TradeCo Invoice #1 — goods' : 'TradeCo Invoice #2 — financial cost',
+    sourceCell: which===1 ? 'Cantu!B34' : 'Cantu!B35',
+    buyer, address, agreementName:String(deal.agreementName||'').trim() || TC_INVOICE_FORM.agreementDefault,
+    agreementDate: deal.agreementDate, issueDate: i.tcIssueDate, paymentDate,
+    lines, netTotal, vat, total: netTotal.add(vat), missing };
+}
+
 /* ---------------------------- rendering ---------------------------- */
 const $ = id => document.getElementById(id);
 const esc = s => String(s??'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -2627,7 +2839,9 @@ const TRADE_FIELD_IDS = {
   bladexSettlementDate:'f_bladexSettle', bladexDays:'f_bladexDays', bladexMargin:'f_bladexMargin', legalFees:'f_legalFees'};
 const TRADE_TOP_IDS = { identifier:'f_tradeid', tradeDate:'f_tradeDate', funder:'f_funder', obligor:'f_obligor' };
 const DEAL_FIELD_IDS = { clientId:'d_client', code:'d_code', currency:'d_currency',
-  proformaEnabled:'d_proforma', agencyFeeEnabled:'d_agencyFee' };
+  proformaEnabled:'d_proforma', agencyFeeEnabled:'d_agencyFee',
+  buyerName:'d_buyer', buyerAddress:'d_buyerAddress', agreementName:'d_agreement',
+  agreementDate:'d_agreementDate' };
 
 function loadFormFromStore(){
   const d=currentDeal(), t=currentTrade();
@@ -2758,7 +2972,7 @@ function render(){
   const r=computeAll(d,t);
   applyNaming(clientLabel(d), funderLabel(t));
   renderHeader(d,t,r); renderDealForm(); renderFunderList(); renderPricing(d,t,r);
-  renderRates(); renderClients(); renderInvestors(); renderRefMenu(); renderOffer(d,t,r);
+  renderRates(); renderClients(); renderInvestors(); renderRefMenu(); renderDocuments(d,t,r);
   renderDeals(); renderAudit(); renderAbout();
   save();
 }
@@ -3892,6 +4106,91 @@ async function syncClientsFromMonday(){
   }finally{ btn.disabled=false; btn.textContent='Refresh from monday.com'; }
 }
 
+/* ---------------------------- documents ----------------------------
+   A trade issues more than one document off the same numbers. The picker names them, each has its
+   own pane, and which one is open is view state — not saved, and not part of the trade. */
+let docChoice='offer', tcInvWhich=1;
+const DOCUMENTS = [
+  {key:'offer', name:'IAA Offer File',
+   desc:'The 12-field record dispatched to the funder. Hashed and stored on the trade at ISSUED.'},
+  {key:'tcinv', name:'TradeCo Invoice',
+   desc:'The invoice TradeCo issues to the buyer, off the trade’s own supplier invoices. Two of them: the goods (B34) and the financial cost (B35).'},
+];
+function showDocPane(name){
+  docChoice = DOCUMENTS.some(x=>x.key===name) ? name : 'offer';
+  for(const el of document.querySelectorAll('#tpane-offer .docpane'))
+    el.classList.toggle('active', el.id==='docpane-'+docChoice);
+  for(const b of document.querySelectorAll('#docPicker button'))
+    b.setAttribute('aria-selected', String(b.dataset.doc===docChoice));
+}
+function renderDocuments(d,t,r){
+  $('docPicker').innerHTML = DOCUMENTS.map(x=>
+    '<button data-doc="'+x.key+'" aria-selected="'+(x.key===docChoice)+'">'+
+      '<span class="t">'+esc(x.name)+'</span><span class="d">'+esc(x.desc)+'</span></button>').join('');
+  $('docScopeNote').textContent = t
+    ? '— for trade '+(t.identifier||'(untitled)')+', state '+t.state
+    : '— no trade selected';
+  showDocPane(docChoice);
+  renderOffer(d,t,r);
+  renderTcInvoice(d,t,r);
+}
+
+/** The invoice drawn as it prints: the attached Word form, in the same order and with the same
+ *  wording. Money is written with its currency code the way the form writes it. */
+function renderTcInvoice(d,t,r){
+  const paper=$('tcInvPaper'); if(!paper) return;
+  const sel=$('tcInvWhich'); if(sel) sel.value=String(tcInvWhich);
+  if(!t){ paper.innerHTML='<p>No trade selected.</p>'; $('tcInvMissing').innerHTML=''; $('tcInvSub').textContent=''; return; }
+  const doc=tcInvoiceDoc(d,t,r.out,tcInvWhich), F=doc.form;
+  const amt = v => esc(doc.currency+' '+Number(v.toFixed(2)).toLocaleString('en-US',
+    {minimumFractionDigits:2, maximumFractionDigits:2}));
+  // A field the deal has not been given is named in place rather than left as an empty gap, so a
+  // document that went out unfinished is obvious on the page and not only in the checklist above.
+  const need = label => '<span class="blank">['+esc(label)+']</span>';
+  const date = (v,label) => isValidDate(v) ? esc(fmtLong(v)) : need(label);
+
+  $('tcInvSub').textContent = ' — '+doc.title+' · '+doc.sourceCell+
+    (doc.number ? ' · '+doc.number : '')+' · '+amt(doc.total).replace(/&amp;/g,'&');
+  $('tcInvMissing').innerHTML = doc.missing.length
+    ? '<div class="banner warn"><div><b>'+doc.missing.length+' thing(s) still to fill in.</b><ul style="margin:5px 0 0 16px">'+
+      doc.missing.map(m=>'<li>'+esc(m)+'</li>').join('')+'</ul></div></div>'
+    : '<div class="banner ok"><div><b>Complete.</b> Every field the form asks for is filled.</div></div>';
+
+  paper.innerHTML =
+    '<h1>INVOICE</h1>'+
+    '<table><tr>'+
+      '<td style="width:58%"><b class="up">Invoice from:</b><br>'+esc(F.seller)+'<br>'+
+        F.sellerAddress.map(esc).join('<br>')+
+        '<br><br>VAT NUMBER: '+esc(F.sellerVat)+'<br>EMAIL: '+esc(F.sellerEmail)+'</td>'+
+      '<td><b class="up">Invoice to:</b><br>'+esc(doc.buyer)+'<br>'+
+        (doc.address.length ? doc.address.map(esc).join('<br>') : need('invoice-to address'))+'</td>'+
+    '</tr></table>'+
+    '<p><b>INVOICE NUMBER: '+(doc.number ? esc(doc.number) : need('trade identifier'))+'</b></p>'+
+    '<p class="up">Issued under the '+esc(doc.agreementName)+' between '+esc(F.seller)+
+      ' as seller and '+esc(doc.buyer)+' as buyer dated '+date(doc.agreementDate,'agreement date')+
+      ' (“the Sale Agreement”)</p>'+
+    '<p><b>INVOICE DATE: '+date(doc.issueDate,'TradeCo Issue Date')+'</b></p>'+
+    '<table><thead><tr><th>Description</th><th class="n">Quantity</th><th class="n">Unit price</th>'+
+      '<th class="n">Net amount</th><th class="n">VAT</th><th class="n">Gross amount</th></tr></thead><tbody>'+
+    (doc.lines.length ? doc.lines.map(l=>'<tr><td>'+esc(l.description)+'</td>'+
+      '<td class="n">'+esc(l.qty)+'</td><td class="n">'+amt(l.unitPrice)+'</td>'+
+      '<td class="n">'+amt(l.net)+'</td><td class="n">0</td><td class="n">'+amt(l.gross)+'</td></tr>').join('')
+     : '<tr><td colspan="6">'+need('no lines — the trade has nothing to invoice')+'</td></tr>')+
+    '<tr class="tot"><td colspan="3" style="border:0"></td><td colspan="2">TOTAL VAT</td>'+
+      '<td class="n">'+amt(doc.vat)+'</td></tr>'+
+    '<tr class="tot"><td colspan="3" style="border:0"></td><td colspan="2">TOTAL PAYABLE</td>'+
+      '<td class="n">'+amt(doc.total)+'</td></tr>'+
+    '</tbody></table>'+
+    '<p><b>PAYMENT DATE: '+date(doc.paymentDate,'B28 — not priced')+'</b></p>'+
+    '<p><b class="up">Pay to bank account details:</b></p>'+
+    '<table>'+F.bank.map(([k,v])=>'<tr><td style="width:24%"><b>'+esc(k)+':</b></td><td>'+
+      esc(v===null ? doc.currency : v)+'</td></tr>').join('')+'</table>'+
+    '<p>'+esc(F.governingLaw)+'</p>'+
+    '<hr class="sep">'+
+    '<div class="foot">Invoice TradeCo to '+esc(doc.buyer)+' — trade '+
+      (doc.number ? esc(doc.number) : '—')+'</div>';
+}
+
 function renderOffer(d,t,r){
   if(!t){ $('offerBanners').innerHTML='<div class="banner warn"><div>No trade selected.</div></div>';
     $('offerTable').innerHTML=''; $('issuedBox').innerHTML=''; return; }
@@ -4502,6 +4801,85 @@ function runTests(){
     '0.002','normalise()');
   T('Migration leaves a deal charging its fee',
     String(migFee({tcAgencyFee:'0.001', tcFee:'0.0065'}).deals[0].agencyFeeEnabled),'true','normalise()');
+  /* ---- the TradeCo invoice ---------------------------------------------------------------
+     The document is the trade's own numbers read back out, so what the tests check is that it
+     cannot drift from them: the lines come to the cell the trade is priced on, and the pair of
+     invoices comes to B36. */
+  const invDeal = {...newDeal('tester'), code:'SC-T', currency:'USD', jurisdictions:['BR'],
+    clientName:'Cantu Store', buyerName:'Gas Natural Atlantico S.A.',
+    buyerAddress:'Avenida Balboa 100\nPanama City', agreementDate:'2026-05-04'};
+  const invTrade = (()=>{ const t=newTrade(invDeal.id,'tester');
+    t.identifier='SC-T-01';
+    t.inputs={...workbookTradeInputs(), supplierInvoices:[
+      newSupplierInvoice({invoiceNumber:'F-1', name:'Um', jurisdiction:'BR', issueDate:'2026-06-16',
+        tenorDays:30, amount:'',
+        items:[newInvoiceItem({name:'Cotton yarn', qty:'10000', unitPrice:'72.50'}),
+               newInvoiceItem({name:'Dye lot', qty:'500', unitPrice:'180'})],
+        vat:'38000', freight:'4200', insurance:'1800', otherCosts:'0'}),
+      newSupplierInvoice({invoiceNumber:'F-2', name:'Dois', jurisdiction:'BR', issueDate:'2026-06-16',
+        tenorDays:30, amount:'250000'})]};
+    return t; })();
+  const invOut = price(effectiveInputs(invDeal, invTrade), {pfRate:pfQ.rate, liveRate:liveQ.rate});
+  const inv1 = tcInvoiceDoc(invDeal, invTrade, invOut, 1);
+  const inv2 = tcInvoiceDoc(invDeal, invTrade, invOut, 2);
+  // 725,000 + 90,000 goods on F-1, 250,000 flat on F-2, then freight and insurance as their own
+  // lines: 1,071,000 net, and 38,000 of VAT on top of it.
+  T('Every supplier item becomes a line',
+    inv1.lines.filter(l=>l.kind==='goods').map(l=>l.description).join(' / '),
+    'Cotton yarn / Dye lot / Goods per invoice F-2','TradeCo invoice #1');
+  T('A supplier invoice with no items still contributes its amount',
+    inv1.lines.find(l=>l.description==='Goods per invoice F-2').net.toFixed(2),'250000.00','no item detail');
+  T('The charges come from the summary as their own lines',
+    inv1.lines.filter(l=>l.kind==='charge').map(l=>l.description+' '+l.net.toFixed(2)).join(' / '),
+    'Freight 4200.00 / Insurance 1800.00','trade summary');
+  T('A zero charge gets no line',
+    String(inv1.lines.some(l=>l.description==='Other costs')),'false','trade summary');
+  T('VAT is the summary VAT, not a per-line split',
+    inv1.vat.toFixed(2)+'/'+inv1.lines.every(l=>l.vat.eq(ZERO)),'38000.00/true','TOTAL VAT');
+  T('Net plus VAT is the invoice total',
+    inv1.netTotal.add(inv1.vat).toFixed(2), inv1.total.toFixed(2),'TOTAL PAYABLE');
+  T('Invoice #1 comes to B34', inv1.total.toFixed(2), invOut.tcInvoice1.toFixed(2),'Cantu!B34');
+  T('Invoice #1 comes to the supplier total', inv1.total.toFixed(2),
+    invOut.supplierAmount.toFixed(2),'Cantu!B10 = B34');
+  T('Invoice #2 is the financial cost', inv2.total.toFixed(2), invOut.tcInvoice2.toFixed(2),'Cantu!B35');
+  T('Invoice #2 carries one line',
+    inv2.lines.length+'/'+(inv2.lines[0]||{}).description,'1/Financial cost','Cantu!B35');
+  T('The pair comes to B36', inv1.total.add(inv2.total).toFixed(2),
+    invOut.tcTotal.toFixed(2),'B34 + B35 = B36');
+  T('The invoices are numbered off the trade',
+    inv1.number+' / '+inv2.number,'SC-T-01-01 / SC-T-01-02','trade identifier');
+  T('The dates come from panel 3',
+    inv1.issueDate+' → '+inv1.paymentDate,'2026-07-16 → 2027-01-12','B26 / B28');
+  T('A complete deal leaves nothing to fill in', inv1.missing.length,'0','document checklist');
+  T('A deal with no buyer address says so',
+    tcInvoiceDoc({...invDeal, buyerAddress:''}, invTrade, invOut, 1)
+      .missing.filter(m=>/address/.test(m)).length,'1','document checklist');
+  T('The buyer falls back to the client',
+    tcInvoiceDoc({...invDeal, buyerName:''}, invTrade, invOut, 1).buyer,'Cantu Store','invoice to');
+  T('An unpriced trade cannot invoice its financial cost',
+    tcInvoiceDoc(invDeal, invTrade, null, 2).missing.some(m=>/B35/.test(m))+'','true','document checklist');
+
+  // The .docx is written by hand, so the parts it must contain are asserted rather than assumed.
+  const parts = tcInvoiceDocx(inv1), names = parts.map(x=>x[0]);
+  T('The .docx carries the parts Word needs',
+    ['[Content_Types].xml','_rels/.rels','word/document.xml','word/styles.xml']
+      .every(n=>names.includes(n))+'','true','docx package');
+  T('Its document part is well-formed XML', (()=>{
+      const xml=parts.find(x=>x[0]==='word/document.xml')[1];
+      const doc=new DOMParser().parseFromString(xml,'application/xml');
+      return doc.getElementsByTagName('parsererror').length ? 'malformed' : 'ok';
+    })(),'ok','docx package');
+  T('Its lines are the lines on screen', (()=>{
+      const xml=parts.find(x=>x[0]==='word/document.xml')[1];
+      return inv1.lines.every(l=>xml.includes(xesc(l.description)))+'';
+    })(),'true','docx package');
+  T('Its total is the total on screen', (()=>{
+      const xml=parts.find(x=>x[0]==='word/document.xml')[1];
+      return xml.includes('USD 1,109,000.00') ? 'present' : 'missing';
+    })(),'present','TOTAL PAYABLE');
+  T('CRC-32 of a known string', crc32(new TextEncoder().encode('123456789')).toString(16),
+    'cbf43926','ZIP checksum');
+
   T('A migrated trade prices to the same number', (()=>{
       const st=migFee({...GOLDEN_INPUTS, agencyFee:undefined, pfAgencyFee:'0.001', tcAgencyFee:'0.001'});
       const i={...GOLDEN_INPUTS, ...st.trades[0].inputs};
@@ -5584,6 +5962,194 @@ $('themeBtn').onclick=()=>{ const cur=document.documentElement.getAttribute('dat
   const next = cur==='dark' ? 'light' : cur==='light' ? '' : 'dark';
   if(next) document.documentElement.setAttribute('data-theme',next); else document.documentElement.removeAttribute('data-theme'); };
 
+/* ---------------------------- .docx writer ----------------------------
+   A .docx is a ZIP of XML parts. This app ships as one file with no libraries and no build step,
+   so the ZIP is written by hand. Every member is stored rather than deflated: that needs nothing
+   but a CRC-32, and on a one-page invoice it costs a few kilobytes against pulling in a deflate
+   implementation. Four parts is all Word needs to open a document.
+
+   Print-to-PDF gives a document to send; this gives one to edit, which is what an invoice going to
+   a counterparty for signature actually needs. */
+const CRC_TABLE = (()=>{ const t=new Uint32Array(256);
+  for(let n=0;n<256;n++){ let c=n;
+    for(let k=0;k<8;k++) c = (c & 1) ? (0xEDB88320 ^ (c>>>1)) : (c>>>1);
+    t[n]=c>>>0; }
+  return t; })();
+function crc32(bytes){
+  let c=0xFFFFFFFF;
+  for(let i=0;i<bytes.length;i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xFF] ^ (c>>>8);
+  return (c ^ 0xFFFFFFFF)>>>0;
+}
+/** files: [[path, text], …] → a Blob of a ZIP with stored (uncompressed) members. */
+function zipStored(files){
+  const enc=new TextEncoder(), body=[], central=[], now=new Date();
+  const dosTime = ((now.getHours()<<11) | (now.getMinutes()<<5) | (now.getSeconds()>>1)) & 0xFFFF;
+  const dosDate = (((now.getFullYear()-1980)<<9) | ((now.getMonth()+1)<<5) | now.getDate()) & 0xFFFF;
+  let offset=0;
+  for(const [name,text] of files){
+    const nameB=enc.encode(name), data=enc.encode(text), crc=crc32(data);
+    const lh=new DataView(new ArrayBuffer(30));
+    lh.setUint32(0,0x04034b50,true);                 // local file header
+    lh.setUint16(4,20,true); lh.setUint16(6,0,true); lh.setUint16(8,0,true);   // v2.0, no flags, stored
+    lh.setUint16(10,dosTime,true); lh.setUint16(12,dosDate,true);
+    lh.setUint32(14,crc,true); lh.setUint32(18,data.length,true); lh.setUint32(22,data.length,true);
+    lh.setUint16(26,nameB.length,true); lh.setUint16(28,0,true);
+    body.push(new Uint8Array(lh.buffer), nameB, data);
+    const cd=new DataView(new ArrayBuffer(46));
+    cd.setUint32(0,0x02014b50,true);                 // central directory entry
+    cd.setUint16(4,20,true); cd.setUint16(6,20,true); cd.setUint16(8,0,true); cd.setUint16(10,0,true);
+    cd.setUint16(12,dosTime,true); cd.setUint16(14,dosDate,true);
+    cd.setUint32(16,crc,true); cd.setUint32(20,data.length,true); cd.setUint32(24,data.length,true);
+    cd.setUint16(28,nameB.length,true); cd.setUint16(30,0,true); cd.setUint16(32,0,true);
+    cd.setUint16(34,0,true); cd.setUint16(36,0,true); cd.setUint32(38,0,true);
+    cd.setUint32(42,offset,true);
+    central.push(new Uint8Array(cd.buffer), nameB);
+    offset += 30 + nameB.length + data.length;
+  }
+  const cdSize = central.reduce((a,x)=>a+x.length, 0);
+  const end=new DataView(new ArrayBuffer(22));
+  end.setUint32(0,0x06054b50,true);                  // end of central directory
+  end.setUint16(8,files.length,true); end.setUint16(10,files.length,true);
+  end.setUint32(12,cdSize,true); end.setUint32(16,offset,true);
+  return new Blob([...body, ...central, new Uint8Array(end.buffer)],
+    {type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+}
+function downloadDocx(name, files){
+  const a=document.createElement('a'); a.href=URL.createObjectURL(zipStored(files)); a.download=name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+
+/* ---- WordprocessingML, only as much of it as this one form uses ---- */
+const xesc = v => String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+  .replace(/"/g,'&quot;');
+/** One run. o: {b} bold, {u} uppercase, {sz} half-points, {i} italic, {color}. */
+function wRun(text, o){
+  o=o||{};
+  const rPr = '<w:rPr>'+(o.b?'<w:b/>':'')+(o.i?'<w:i/>':'')+
+    (o.color?'<w:color w:val="'+o.color+'"/>':'')+
+    (o.sz?'<w:sz w:val="'+o.sz+'"/>':'')+'</w:rPr>';
+  const t = o.u ? String(text??'').toUpperCase() : text;
+  // xml:space matters: the form leans on trailing spaces between a label and its value.
+  return '<w:r>'+rPr+'<w:t xml:space="preserve">'+xesc(t)+'</w:t></w:r>';
+}
+function wPara(runs, o){
+  o=o||{};
+  // The children of w:pPr are ordered by the schema, not by preference: pBdr, then spacing, then
+  // jc. Word opens a file with them out of order, but it is invalid and other readers reject it.
+  const pPr='<w:pPr>'+
+    (o.rule?'<w:pBdr><w:bottom w:val="single" w:sz="6" w:space="1" w:color="000000"/></w:pBdr>':'')+
+    '<w:spacing w:after="'+(o.after===undefined?120:o.after)+'" w:line="252" w:lineRule="auto"/>'+
+    (o.align?'<w:jc w:val="'+o.align+'"/>':'')+
+    '</w:pPr>';
+  return '<w:p>'+pPr+(Array.isArray(runs)?runs.join(''):runs||'')+'</w:p>';
+}
+/** rows: [[cell, …], …] where a cell is {runs, w, span, bg, align, noBorder}. widths in twips. */
+function wTable(rows, widths){
+  const grid=widths.map(w=>'<w:gridCol w:w="'+w+'"/>').join('');
+  const total=widths.reduce((a,b)=>a+b,0);
+  const cellXml = c => {
+    const w = c.span ? widths.slice(c.i, c.i+c.span).reduce((a,b)=>a+b,0) : widths[c.i];
+    const bd = c.noBorder
+      ? '<w:tcBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:bottom w:val="nil"/><w:right w:val="nil"/></w:tcBorders>'
+      : '';
+    return '<w:tc><w:tcPr><w:tcW w:w="'+w+'" w:type="dxa"/>'+
+      (c.span?'<w:gridSpan w:val="'+c.span+'"/>':'')+
+      (c.bg?'<w:shd w:val="clear" w:color="auto" w:fill="'+c.bg+'"/>':'')+bd+
+      '</w:tcPr>'+(c.paras||wPara(c.runs, {after:0, align:c.align}))+'</w:tc>';
+  };
+  return '<w:tbl><w:tblPr><w:tblW w:w="'+total+'" w:type="dxa"/>'+
+    '<w:tblBorders>'+['top','left','bottom','right','insideH','insideV']
+      .map(k=>'<w:'+k+' w:val="single" w:sz="6" w:space="0" w:color="000000"/>').join('')+
+    '</w:tblBorders></w:tblPr><w:tblGrid>'+grid+'</w:tblGrid>'+
+    rows.map(cells=>{
+      let i=0;
+      return '<w:tr>'+cells.map(c=>{ const out=cellXml({...c, i}); i += c.span||1; return out; }).join('')+'</w:tr>';
+    }).join('')+
+    '</w:tbl>';
+}
+/** The TradeCo invoice as the four parts of a .docx, in the order and wording of the Word form. */
+function tcInvoiceDocx(doc){
+  const F=doc.form, W=9026;                                    // A4 less 1" margins, in twips
+  const money = v => doc.currency+' '+Number(v.toFixed(2)).toLocaleString('en-US',
+    {minimumFractionDigits:2, maximumFractionDigits:2});
+  const date = (v,label) => isValidDate(v) ? fmtLong(v) : '['+label+']';
+  const cell = (text,o)=>({runs:wRun(text,o), align:(o&&o.align)||undefined, bg:o&&o.bg, span:o&&o.span,
+    noBorder:o&&o.noBorder});
+  const lines = doc.lines.length
+    ? doc.lines.map(l=>[cell(l.description), cell(l.qty,{align:'right'}),
+        cell(money(l.unitPrice),{align:'right'}), cell(money(l.net),{align:'right'}),
+        cell('0',{align:'right'}), cell(money(l.gross),{align:'right'})])
+    : [[{runs:wRun('[no lines — the trade has nothing to invoice]'), span:6}]];
+
+  const bodyXml =
+    wPara(wRun('INVOICE',{b:true, sz:'30'}), {align:'right', after:240})+
+    wTable([[
+      {paras:[wPara(wRun('INVOICE FROM:',{b:true}),{after:0}),
+              wPara(wRun(F.seller),{after:0}),
+              ...F.sellerAddress.map(l=>wPara(wRun(l),{after:0})),
+              wPara(wRun('VAT NUMBER: '+F.sellerVat),{after:0}),
+              wPara(wRun('EMAIL: '+F.sellerEmail),{after:0})].join('')},
+      {paras:[wPara(wRun('INVOICE TO:',{b:true}),{after:0}),
+              wPara(wRun(doc.buyer),{after:0}),
+              ...(doc.address.length?doc.address:['[invoice-to address]']).map(l=>wPara(wRun(l),{after:0}))].join('')}
+    ]], [5529, 3497])+
+    wPara(wRun('INVOICE NUMBER: '+(doc.number||'[trade identifier]'),{b:true}))+
+    wPara(wRun('Issued under the '+doc.agreementName+' between '+F.seller+' as seller and '+
+      doc.buyer+' as buyer dated '+date(doc.agreementDate,'agreement date')+
+      ' (“the Sale Agreement”)',{u:true}))+
+    wPara(wRun('INVOICE DATE: '+date(doc.issueDate,'TradeCo Issue Date'),{b:true}))+
+    wTable([
+      ['Description','Quantity','Unit price','Net amount','VAT','Gross amount'].map((h,k)=>
+        cell(h,{b:true, u:true, bg:'EEEEEE', align:k?'right':'left'})),
+      ...lines,
+      [cell('',{span:3, noBorder:true}), cell('TOTAL VAT',{b:true, span:2}),
+       cell(money(doc.vat),{b:true, align:'right'})],
+      [cell('',{span:3, noBorder:true}), cell('TOTAL PAYABLE',{b:true, span:2}),
+       cell(money(doc.total),{b:true, align:'right'})],
+    ], [2600, 1000, 1400, 1400, 700, 1926])+
+    wPara(wRun('PAYMENT DATE: '+date(doc.paymentDate,'B28 — not priced'),{b:true}))+
+    wPara(wRun('PAY TO BANK ACCOUNT DETAILS:',{b:true, u:true}))+
+    wTable(F.bank.map(([k,v])=>[cell(k+':',{b:true}), cell(v===null?doc.currency:v)]), [2200, 6826])+
+    wPara(wRun(F.governingLaw))+
+    wPara(wRun(''),{rule:true, after:200})+
+    wPara(wRun('Invoice TradeCo to '+doc.buyer+' — trade '+(doc.number||'—'),{sz:'17', color:'444444'}));
+
+  const documentXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+    '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'+
+    '<w:body>'+bodyXml+
+    '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/>'+
+    '<w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="708" w:footer="708" w:gutter="0"/>'+
+    '</w:sectPr></w:body></w:document>';
+
+  const stylesXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+    '<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'+
+    '<w:docDefaults><w:rPrDefault><w:rPr>'+
+    '<w:rFonts w:ascii="Georgia" w:hAnsi="Georgia" w:cs="Georgia"/><w:sz w:val="22"/>'+
+    '</w:rPr></w:rPrDefault></w:docDefaults>'+
+    '<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style>'+
+    '</w:styles>';
+
+  return [
+    ['[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+      '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'+
+      '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'+
+      '<Default Extension="xml" ContentType="application/xml"/>'+
+      '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'+
+      '<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>'+
+      '</Types>'],
+    ['_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
+      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>'+
+      '</Relationships>'],
+    ['word/_rels/document.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
+      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'+
+      '</Relationships>'],
+    ['word/document.xml', documentXml],
+    ['word/styles.xml', stylesXml],
+  ];
+}
+
 function download(name, text, type){
   const b=new Blob([text],{type:type||'text/plain;charset=utf-8'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=name;
@@ -5611,6 +6177,21 @@ $('btnJson').onclick=()=>{ const d=currentDeal(), t=currentTrade(); if(!t) retur
     trade:{id:t.id, identifier:t.identifier, version:t.versionNo, state:t.state},
     rateQuotes:t.rateQuotes||r.quotes}, null, 2), 'application/json'); };
 $('btnPrint').onclick=()=>window.print();
+/* The picker switches panes without a re-render: which document is open is view state, and the
+   panes are all drawn already. */
+$('docPicker').addEventListener('click', e=>{
+  const b=e.target.closest('button[data-doc]'); if(b) showDocPane(b.dataset.doc);
+});
+$('tcInvWhich').onchange=e=>{ tcInvWhich = Number(e.target.value)===2 ? 2 : 1;
+  const d=currentDeal(), t=currentTrade();
+  if(d) renderTcInvoice(d,t,computeAll(d,t));
+};
+$('btnTcInvPrint').onclick=()=>window.print();
+$('btnTcInvDocx').onclick=()=>{
+  const d=currentDeal(), t=currentTrade(); if(!d||!t) return;
+  const doc=tcInvoiceDoc(d,t,computeAll(d,t).out,tcInvWhich);
+  downloadDocx('tradeco-invoice-'+slug(doc.number||t.identifier||'untitled')+'.docx', tcInvoiceDocx(doc));
+};
 $('btnExportAll').onclick=()=>download('pricing-store.json', JSON.stringify(store,null,2),'application/json');
 $('importFile').onchange=e=>{ const f=e.target.files[0]; if(!f) return;
   const rd=new FileReader(); rd.onload=()=>{ try{ const s=JSON.parse(rd.result);

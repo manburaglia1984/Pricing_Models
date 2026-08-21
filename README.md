@@ -12,7 +12,7 @@ single self-contained file that works offline and can be emailed or dropped on a
 
 The calc engine reproduces **all 26 output cells** of the `Cantu` tab exactly, plus the
 `Offer File`, `SOFR Interpolation` and `BD Dates` derivations. Open the **Parity tests** tab and
-press *Run tests* — 275 assertions, each labelled with its source cell.
+press *Run tests* — 297 assertions, each labelled with its source cell.
 
 | | Workbook | This app |
 |---|---|---|
@@ -46,7 +46,7 @@ trade:
   Issue, Mark settled, Cancel, Duplicate, New version, Edit deal configuration);
 - a **Pricing** pane — the deal's configuration read-only, the trade's own fields, the five panels and the
   validation / rate-quote / business-day / summary rail;
-- an **Offer File** pane, since the Offer File describes one trade and belongs with it.
+- a **Documents** pane, since every document a trade issues describes that trade and belongs with it.
 
 Close it with the Close button, `Esc`, or a click on the backdrop. It is an in-page overlay rather than a
 real browser window: a popup would be blocked by default and could not share state with the page.
@@ -72,6 +72,7 @@ A **deal** holds everything its trades share. A **trade** is what gets priced, a
 | Currency → base rate index + day count | The invoice/pricing blocks |
 | Pro forma invoices used, yes/no | Pro forma dates and margins, when used |
 | Agency fee charged, yes/no | The agency fee rate, when charged |
+| Invoice-to name and address, and the agreement the TradeCo invoice is issued under | The invoice's own numbers, dates and number |
 | Associated jurisdictions | Lifecycle, rate snapshot, Offer File, audit |
 
 This matches the SharePoint layout, where `Trade 1 - DRC` holds SB01 / SB02 / SB03 under one facility.
@@ -104,7 +105,7 @@ terms it was issued with, and the Offer File tab shows that stored payload rathe
 flagging "Deal amended since issue" when the current configuration would produce a different record.
 The unlock lasts for the session only; reloading restores the guard.
 
-*Download deal CSV* in the workspace's Offer File pane emits one Offer File row per trade, which is what
+*Download deal CSV* in the workspace's Documents pane emits one Offer File row per trade, which is what
 the workbook's single-row `Offer File` tab had to be re-copied by hand to produce.
 
 ## Base rate management
@@ -288,8 +289,33 @@ Two caveats worth reading before go-live:
   inputs locked from APPROVED, and versioning for post-approval changes.
 - **Validation** split into blocking errors and acknowledgeable warnings; acknowledgement requires
   a reason and is itself an audit event.
+- **A Documents pane per trade**, since a trade issues more than one document off the same numbers.
+  A picker names them and each has its own pane.
 - **IAA Offer File** — the 12-field record with its source-cell mapping, exportable as TSV, CSV,
   JSON or print-to-PDF, hashed with SHA-256 and stored immutably on the deal at ISSUED.
+- **TradeCo Invoice** — the invoice TradeCo issues to the buyer, built from the trade's own supplier
+  invoices. Every item line they carry becomes a line on it; freight, insurance and other costs
+  become lines of their own from the trade summary; and the VAT sits in the form's TOTAL VAT row,
+  where the form puts it. Per-line VAT stays at zero as the Word form's own sample row has it —
+  VAT is held per invoice, not per item, and splitting one figure across the lines would put an
+  allocation nobody agreed on a document that goes to a counterparty. A supplier invoice with no
+  item detail contributes one line for its keyed amount rather than being dropped.
+
+  Panel 3 produces **two** TradeCo invoices, so the pane does too: the goods at `B34`, which is the
+  supplier total, and the financial cost at `B35`. The parity tests assert that each comes to its
+  own cell and that the pair comes to the `B36` the trade is priced on.
+
+  It renders on screen exactly as it prints — a print stylesheet drops the app around it, so the
+  page that comes out is the document and not a screenshot of the tool — and downloads as a **.docx**
+  that can be edited and sent. The `.docx` is written by hand: the app ships as one file with no
+  libraries, so it packs its own ZIP with stored (uncompressed) members, which needs nothing but a
+  CRC-32. The output validates against the OOXML schema.
+
+  The form's fixed parts — the seller, its VAT number, the receiving account — are transcribed from
+  the standard form. Everything that varies by facility is a deal field: who the invoice is billed
+  to, their address, and the agreement it is issued under. That is the seam the per-deal templates
+  will grow along. A field the deal has not been given is named in red on the page and listed above
+  it, rather than left as a silent gap.
 - **Append-only audit log** at field-level granularity — who changed what, when, from what to what,
   and why. No hard deletes anywhere: cancelling is a soft-delete.
 
