@@ -12,7 +12,7 @@ single self-contained file that works offline and can be emailed or dropped on a
 
 The calc engine reproduces **all 26 output cells** of the `Cantu` tab exactly, plus the
 `Offer File`, `SOFR Interpolation` and `BD Dates` derivations. Open the **Parity tests** tab and
-press *Run tests* — 341 assertions, each labelled with its source cell.
+press *Run tests* — 349 assertions, each labelled with its source cell.
 
 | | Workbook | This app |
 |---|---|---|
@@ -301,8 +301,11 @@ Two caveats worth reading before go-live:
   at all. Cancelled trades are not a baseline — they are the ones that did not happen.
 - **One way of writing a figure, everywhere it is written.** Money carries thousands separators and
   two decimals, rates five. That holds for the fields those are typed into as well as the cells they
-  are computed in: a rate or an amount is rewritten in that shape once the field is left, never
-  while it is being typed, and an amount keyed as `1,234.5` is stored as `1234.5`. An empty field
+  are computed in, on the trade screen and in the supplier-invoice window alike — invoice amounts,
+  prices per item, VAT, freight, insurance and other costs. A rate or an amount is rewritten in that
+  shape once the field is left, never while it is being typed, and an amount keyed as `1,234.5` is
+  stored as `1234.5`. A **quantity** is not on that list: it is a count, and two decimals would
+  print 10,000.00 of a thing nobody counts that way. An empty field
   shows a greyed **zero** rather than a suggested figure — it used to show standing market terms,
   which put a number nobody had agreed in front of whoever was keying the trade and read as a value
   already entered.

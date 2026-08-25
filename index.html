@@ -3316,6 +3316,17 @@ function renderHeader(d,t,r){
     (t?' · version '+t.versionNo+' · created by '+esc(t.createdBy):'')+'</small>';
 }
 
+/* The invoice window's own money cells. A quantity is not on this list: it is a count, and forcing
+   two decimals onto it would print 10,000.00 of a thing nobody counts that way. */
+const SUP_MONEY_FIELDS = new Set(['amount','unitPrice','vat','freight','insurance','otherCosts']);
+/** An invoice or item field as its cell shows it — amounts separated and to two places, everything
+ *  else as stored. Blank stays blank, so the greyed 0.00 is what says what an empty cell is worth. */
+function supFieldText(field, raw){
+  if(!SUP_MONEY_FIELDS.has(field)) return raw ?? '';
+  const clean=readAmount(raw);
+  return clean==='' ? '' : amt2(D.of(clean));
+}
+
 /* Panel 1 is a list, so it is rebuilt rather than bound field-by-field. The rebuild is skipped
    while a cell holds focus — otherwise the render that every keystroke triggers would tear the
    input out from under the caret — and the derived cells are refreshed in place instead. */
@@ -3355,9 +3366,14 @@ function renderSupplierInvoices(d,t){
       }).join('')+'</select>';
   };
   const txt=(v,field,type,extra)=>locked
-    ? esc(field==='amount' ? money(D.of(v.amount||0),ccy) : (v[field]===''||v[field]==null ? '—' : String(v[field])))
+    // A locked cell holds no input to show the value, so it writes it out — money separated and to
+    // two places, a date the way every other date in the app is written rather than as the ISO the
+    // field stores, which is what put 2026-06-16 in one column and 16-Jul-26 in the next.
+    ? esc(SUP_MONEY_FIELDS.has(field) ? money(D.of(readAmount(v[field])||0),ccy)
+        : type==='date' ? fmtShort(v[field])
+        : (v[field]===''||v[field]==null ? '—' : String(v[field])))
     : '<input type="'+type+'" class="in" data-sup-id="'+esc(v.id)+'" data-sup-field="'+field+'" value="'+
-      esc(v[field]??'')+'"'+(extra||'')+'>';
+      esc(supFieldText(field, v[field]))+'"'+(extra||'')+'>';
   /* An itemised invoice's Amount is arithmetic, so it is shown as a calc and not as a field: two
      places to key one number is how the total the blocks price off ends up disagreeing with the
      lines under it. An invoice with no items keeps the field — that is where its goods figure
@@ -3366,7 +3382,7 @@ function renderSupplierInvoices(d,t){
     ? '<span class="calc strong" data-sup-total="'+esc(v.id)+'" title="'+esc(b.itemCount+' item line(s)'+
         (b.charges.gt(ZERO)?' + VAT, freight, insurance and other costs':'')+' — edit it under Detail')+'">—</span>'
     : (locked ? esc(money(b.total,ccy))
-             : txt(v,'amount','number',' min="0" step="0.01" style="text-align:right"')+
+             : txt(v,'amount','text',' inputmode="decimal" placeholder="0.00" style="text-align:right"')+
                (b.charges.gt(ZERO) ? '<span class="calc" data-sup-total="'+esc(v.id)+
                  '" style="margin-top:3px" title="Amount + VAT, freight, insurance and other costs">—</span>' : ''));
   /* The disclosure doubles as the summary of what is inside it: how many lines, and whether any
@@ -3391,12 +3407,13 @@ function renderSupplierInvoices(d,t){
     (b.lines.length ? b.lines.map(l=>{
       const it=l.item;
       const f=(field,type,extra)=>locked
-        ? esc(it[field]===''||it[field]==null ? '—' : String(it[field]))
+        ? esc(SUP_MONEY_FIELDS.has(field) ? money(D.of(readAmount(it[field])||0),ccy)
+            : (it[field]===''||it[field]==null ? '—' : String(it[field])))
         : '<input type="'+type+'" class="in" data-sup-id="'+esc(v.id)+'" data-sup-item="'+esc(it.id)+
-          '" data-sup-field="'+field+'" value="'+esc(it[field]??'')+'"'+(extra||'')+'>';
+          '" data-sup-field="'+field+'" value="'+esc(supFieldText(field, it[field]))+'"'+(extra||'')+'>';
       return '<tr><td>'+f('name','text',' placeholder="What was supplied"')+'</td>'+
         '<td class="n">'+f('qty','number',' min="0" step="any" style="text-align:right"')+'</td>'+
-        '<td class="n">'+f('unitPrice','number',' min="0" step="0.01" style="text-align:right"')+'</td>'+
+        '<td class="n">'+f('unitPrice','text',' inputmode="decimal" placeholder="0.00" style="text-align:right"')+'</td>'+
         '<td class="n"><span class="calc" data-sup-line="'+esc(it.id)+'" title="Qty &times; price per item">—</span></td>'+
         (locked?'':'<td class="n"><button class="btn sm danger" data-sup-item-remove="'+esc(it.id)+
           '" data-sup-id="'+esc(v.id)+'" title="Remove this item" aria-label="Remove item">&times;</button></td>')+
@@ -3412,9 +3429,9 @@ function renderSupplierInvoices(d,t){
       '<button class="btn sm" data-sup-item-template="'+esc(v.id)+'">Item CSV template</button>'+
       '</div>');
   const chargeCell=(v,f)=>locked
-    ? '<span class="calc">'+esc(money(D.of(v[f]||0),ccy))+'</span>'
-    : '<input type="number" class="in" data-sup-id="'+esc(v.id)+'" data-sup-field="'+f+
-      '" value="'+esc(v[f]??'')+'" min="0" step="0.01" placeholder="0.00">';
+    ? '<span class="calc">'+esc(money(D.of(readAmount(v[f])||0),ccy))+'</span>'
+    : '<input type="text" inputmode="decimal" class="in" data-sup-id="'+esc(v.id)+'" data-sup-field="'+f+
+      '" value="'+esc(supFieldText(f, v[f]))+'" placeholder="0.00">';
   const chargesBlock=v=>'<h3>Charges on top of the items</h3><div class="charges">'+
     [['vat','VAT ('+sym+')'],['freight','Freight cost'],['insurance','Insurance cost'],
      ['otherCosts','Other costs']]
@@ -5282,6 +5299,19 @@ function runTests(){
   T('A cleared amount stores blank, not zero',
     JSON.stringify(readField('legalFees',{type:'text', value:''})),'""','readField()');
   // Midday and no zone, so the assertion holds wherever the browser's clock is set.
+  // The invoice window writes money the same way the trade window does, and stores it the same way.
+  T('An invoice amount cell shows separators', supFieldText('amount','850000'),'850,000.00','supFieldText()');
+  T('A price-per-item cell shows two places', supFieldText('unitPrice','72.5'),'72.50','supFieldText()');
+  T('A charge cell shows separators', supFieldText('vat','38000'),'38,000.00','supFieldText()');
+  T('A blank money cell stays blank',
+    JSON.stringify([supFieldText('amount',''), supFieldText('vat',null)]),'["",""]','supFieldText()');
+  T('A quantity is left as it was keyed', supFieldText('qty','10000'),'10000','not a money field');
+  T('An invoice number is left alone', supFieldText('invoiceNumber','INV-0001'),'INV-0001','not a money field');
+  T('A cell keyed with separators reads back as a number',
+    invoiceTotal({amount:readAmount('1,234,567.50')}).toFixed(2),'1234567.50','readAmount()');
+  T('Every money field of the invoice window is covered',
+    [...SUP_MONEY_FIELDS].sort().join(','),
+    'amount,freight,insurance,otherCosts,unitPrice,vat','SUP_MONEY_FIELDS');
   T('A stamp is written like every other date',
     fmtStamp('2027-01-12T12:30:00'),'12-Jan-27 12:30','fmtStamp()');
   T('An unreadable stamp is a dash, not Invalid Date', fmtStamp('nonsense'),'—','fmtStamp()');
@@ -5958,7 +5988,11 @@ document.addEventListener('input', e=>{
     const target = el.dataset.supItem
       ? (v.items||[]).find(x=>String(x.id)===el.dataset.supItem) : v;
     if(!target) return;
-    target[el.dataset.supField] = el.dataset.supField==='tenorDays' ? Number(el.value||0) : el.value;
+    const f=el.dataset.supField;
+    // The separators the cell shows are how it is read, not what it holds.
+    target[f] = f==='tenorDays' ? Number(el.value||0)
+              : SUP_MONEY_FIELDS.has(f) ? readAmount(el.value)
+              : el.value;
     voidPricedSnapshot(t);
     render(); return;
   }
@@ -6205,8 +6239,16 @@ $('supInvImportFile').onchange=e=>{
   };
   rd.readAsText(f);
 };
-/* Rebuild once focus actually leaves panel 1, for the same reason the curve table does. */
-$('supInvTable').addEventListener('focusout', ()=>{
+/* Rebuild once focus actually leaves panel 1, for the same reason the curve table does — and
+   rewrite the cell just left in the shape the app writes money, since tabbing to the next cell in
+   the same table is not a rebuild and would otherwise leave 1234.5 sitting where 1,234.50 belongs. */
+$('supInvTable').addEventListener('focusout', e=>{
+  const el=e.target, t=currentTrade();
+  if(el && el.dataset && SUP_MONEY_FIELDS.has(el.dataset.supField) && t && !LOCKED(t.state)){
+    const v=(t.inputs.supplierInvoices||[]).find(x=>String(x.id)===el.dataset.supId);
+    const target = v && (el.dataset.supItem ? (v.items||[]).find(x=>String(x.id)===el.dataset.supItem) : v);
+    if(target) el.value = supFieldText(el.dataset.supField, target[el.dataset.supField]);
+  }
   setTimeout(()=>{ if(!$('supInvTable').contains(document.activeElement)) render(); }, 0);
 });
 $('tradeTabs').addEventListener('click', e=>{
