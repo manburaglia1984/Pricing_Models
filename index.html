@@ -201,6 +201,17 @@ input:disabled,select:disabled{opacity:.6;cursor:not-allowed}
 .modal{position:fixed;inset:0;z-index:60;display:none}
 /* The invoice list opens from inside the trade workspace, so it has to sit above it. */
 #invModal{z-index:70}
+/* The deal configuration opens from the deals screen and from a trade, and the trade workspace
+   closes as it opens, so the two never stack — but it sits above the reference windows either way. */
+#dealModal{z-index:65}
+/* The rows were laid out for a card down the side of the deals screen: a 148px value column and
+   whatever was left for the label. Across a whole window that leaves a gulf between the two and
+   still truncates the selects, so the form is capped to a readable measure and the value column
+   given room for its longest option rather than its shortest. */
+#dealModal .content{max-width:900px;margin:0 auto;width:100%}
+#dealModal .row{grid-template-columns:minmax(0,1fr) minmax(0,330px);gap:14px}
+#dealModal .row.wide{grid-template-columns:1fr}
+#dealModal select.in,#dealModal input.in{text-overflow:ellipsis}
 .modal.open{display:block}
 .modal .backdrop{position:absolute;inset:0;background:rgba(8,12,18,.55)}
 .modal .sheet{position:absolute;inset:22px;background:var(--bg);border:1px solid var(--line-2);
@@ -244,6 +255,15 @@ details.help p{margin:7px 0 0;font-size:11.5px;color:var(--ink-3);line-height:1.
    existing render function already writes to. */
 .refpane{display:none} .refpane.active{display:block}
 .docpane{display:none} .docpane.active{display:block}
+/* An entity's accounts, in a row under the entity. Framed so the nested table reads as belonging
+   to the row above it rather than as more columns of the list. */
+#tcoTable tr.tcoacct>td{background:var(--panel-2);padding:10px 12px 12px;border-bottom:2px solid var(--line-2)}
+#tcoTable tr.tcoacct:hover>td{background:var(--panel-2)}
+table.acct{font-size:12.5px;background:var(--panel);border:1px solid var(--line);border-radius:9px;
+  overflow:hidden}
+table.acct th,table.acct td{padding:5px 7px}
+table.acct tbody tr:last-child>td{border-bottom:0}
+table.acct .in{padding:3px 6px;font-size:12.5px;text-align:left;min-width:0;width:100%}
 /* The document picker: one card per document a trade can issue, chosen the way the reference menu
    chooses a pane. Wide enough to say what each one is, because "Offer File" and "Invoice" are not
    self-explanatory to whoever is issuing them for the first time. */
@@ -300,6 +320,9 @@ details.help p{margin:7px 0 0;font-size:11.5px;color:var(--ink-3);line-height:1.
     display:block !important;border:0 !important;box-shadow:none !important;border-radius:0 !important}
   .modal .sheet>header{display:none !important}
   .modal .sheet>.content{overflow:visible !important;padding:0 !important;display:block !important}
+  /* Only the overlay holding the document. The others are addressed by id rather than left to the
+     .open rule above, so a window someone happened to leave open cannot print behind the invoice. */
+  #dealModal,#refModal,#invModal{display:none !important}
   /* Inside the Documents pane, everything that is not the page itself. */
   #tradeTabs,#tpane-pricing,#docPicker,#docpane-offer,#tcInvMissing,
   .docpane .toolbar,.card>h2{display:none !important}
@@ -693,6 +716,12 @@ code,.mono{font-family:var(--mono);font-size:12px}
       <span class="d">The calendars a maturity date is checked against, and where to add a country this build does not ship.</span>
       <span class="m" id="refMetaJur"></span>
     </button>
+    <button class="reftile" data-ref="tradecos">
+      <span class="mk">◈</span>
+      <span class="t">TradeCos</span>
+      <span class="d">The entities that issue the TradeCo invoice — their registration details and the accounts they are paid into.</span>
+      <span class="m" id="refMetaTradecos"></span>
+    </button>
     <button class="reftile" data-ref="investors">
       <span class="mk">£</span>
       <span class="t">Investors</span>
@@ -747,6 +776,63 @@ code,.mono{font-family:var(--mono);font-size:12px}
       </div>
       <div class="card tight"><h2>Totals the pricing blocks read</h2>
         <div class="body"><div id="supInvTotals2"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ DEAL CONFIGURATION (opened from a deal row or from a trade) ============ -->
+<!-- A window rather than a card beside the deal list: it carries the client, the currency, three
+     billing switches, the issuing entity and its account, four blocks of document text and the
+     jurisdiction picker, which is more than fits down one side of a screen. Same overlay treatment
+     as the trade workspace, so the two read as the same kind of thing. -->
+<div class="modal" id="dealModal" role="dialog" aria-modal="true" aria-labelledby="dealModalTitle">
+  <div class="backdrop" data-close-deal></div>
+  <div class="sheet">
+    <header>
+      <div class="top-row">
+        <h1 id="dealModalTitle">Deal configuration<small id="dealModalSub"></small></h1>
+        <div class="spacer"></div>
+        <span class="tiny" id="dealScopeNote"></span>
+        <button class="btn" data-close-deal>Close</button>
+      </div>
+    </header>
+    <div class="content">
+      <div class="card deal" id="dealConfigCard">
+        <h2>Configuration</h2>
+        <div class="body">
+          <div id="dealLockBox"></div>
+          <div class="row"><div class="lbl">Client<span class="note" id="clientNote">From the monday.com Global Pipeline. Drives every client-named label in this model.</span></div><div class="cell"><select class="in" id="d_client" data-deal="clientId"></select></div></div>
+          <div class="row"><div class="lbl">Transaction Code<span class="note">Cantu!B4 — identifies the facility. Every trade on this deal carries it.</span></div><div class="cell"><input type="text" class="in" id="d_code" data-deal="code"></div></div>
+          <div class="row"><div class="lbl">Currency<span class="note" id="ccyNote">Selects the base rate index and the day-count basis.</span></div><div class="cell"><select class="in" id="d_currency" data-deal="currency"></select></div></div>
+          <div class="row"><div class="lbl">TradeCo Pro Forma invoices<span class="note">When off, panel 2 is removed from every trade on this deal and excluded from pricing, validation and the rate snapshot.</span></div>
+            <div class="cell"><label class="toggle" style="justify-content:flex-end;width:100%"><input type="checkbox" id="d_proforma" data-deal="proformaEnabled" checked><span id="proformaLabel">Used on this deal</span></label></div></div>
+          <div class="row"><div class="lbl">Agency Fee<span class="note">Whether this facility carries one at all. When off, the rate disappears from every trade on this deal and is excluded from both mark-ups and the agency-fee payment leg (B52).</span></div>
+            <div class="cell"><label class="toggle" style="justify-content:flex-end;width:100%"><input type="checkbox" id="d_agencyFee" data-deal="agencyFeeEnabled" checked><span id="agencyFeeLabel">Charged on this deal</span></label></div></div>
+          <div class="row"><div class="lbl">TradeCo invoices per trade<span class="note">How this client wants to be billed. Two is the workbook's own split — the amount and the financial cost on separate invoices. One bills them together, on a single invoice for the same total. It changes only how the amount is documented; every figure the trade prices on is untouched.</span></div>
+            <div class="cell"><select class="in" id="d_tcInvoiceCount" data-deal="tcInvoiceCount" style="text-align:left">
+              <option value="2">Two — amount, then financial cost</option>
+              <option value="1">One — billed together</option>
+            </select></div></div>
+          <!-- Document text. Everything on the TradeCo invoice that varies by facility rather than
+               by trade: who issues it, where it is paid, who it is billed to, and the agreement it
+               is issued under. Only the wording is the same on every trade. -->
+          <div class="row"><div class="lbl">Issued by (TradeCo)<span class="note">The entity the TradeCo invoice is issued from. Its name, address and tax number fill the invoice's INVOICE FROM block. Maintained in Settings → TradeCos.</span></div><div class="cell"><select class="in" id="d_tradeco" data-deal="tradecoId" style="text-align:left"></select></div></div>
+          <div class="row"><div class="lbl">Paid into<span class="note">Which of that entity's accounts the invoice asks to be paid into. Only this account is printed, and it is never inferred — no account, no bank block.</span></div><div class="cell"><select class="in" id="d_tradecoAccount" data-deal="tradecoAccountId" style="text-align:left"></select></div></div>
+          <div class="row"><div class="lbl">Invoice to<span class="note">Buyer's legal name as it should read on the TradeCo invoice. Left blank, the client's own name is used.</span></div><div class="cell"><input type="text" class="in" id="d_buyer" data-deal="buyerName" placeholder="the client's name"></div></div>
+          <div class="row wide"><div class="lbl">Invoice-to address<span class="note">Printed under the buyer's name on the TradeCo invoice. One line per line.</span>
+            <textarea class="in" id="d_buyerAddress" data-deal="buyerAddress" rows="3" style="margin-top:6px" placeholder="Street&#10;City, postcode&#10;Country"></textarea></div></div>
+          <div class="row"><div class="lbl">Issued under<span class="note">The agreement the TradeCo invoice is issued under, named in its opening line.</span></div><div class="cell"><input type="text" class="in" id="d_agreement" data-deal="agreementName" style="text-align:left"></div></div>
+          <div class="row"><div class="lbl">Agreement date<span class="note">Date of that agreement, quoted in the same line.</span></div><div class="cell"><input type="date" class="in" id="d_agreementDate" data-deal="agreementDate"></div></div>
+          <div class="row wide"><div class="lbl">Associated jurisdictions<span class="note">Holiday calendars every trade's maturity date is checked against. Replaces the fixed rows in BD Dates!B4:B13.</span>
+            <div class="toolbar" style="margin:8px 0 4px">
+              <select id="jurAdd" style="min-width:270px;text-align:left"></select>
+              <span class="tiny" id="jurCount"></span>
+              <button class="btn sm" id="btnJurClear">Clear all</button>
+              <button class="btn sm" id="btnJurNew" title="Add a country this build does not ship, on the Reference data tab">+ New jurisdiction</button>
+            </div>
+            <div class="taglist" id="jurisdictionBox"></div></div></div>
+        </div>
       </div>
     </div>
   </div>
@@ -947,6 +1033,55 @@ code,.mono{font-family:var(--mono);font-size:12px}
   </div>
 </div>
 
+<!-- ---- TradeCos ---- -->
+<div class="refpane" id="refpane-tradecos">
+  <div class="card">
+    <h2>TradeCos</h2>
+    <div class="body">
+      <div class="toolbar">
+        <button class="btn" id="btnTcoAddToggle">+ Add TradeCo</button>
+        <span class="tiny" id="tcoAddNote"></span>
+      </div>
+      <div class="card tight" id="tcoAddCard" style="display:none;margin:0 0 12px;background:var(--panel-2)"><div class="body">
+        <div class="toolbar" style="margin:0 0 8px">
+          <div class="field-inline" style="flex:1 1 260px"><label for="tco_name">Name</label>
+            <input type="text" id="tco_name" placeholder="SB Trading Company beta Limited" style="flex:1 1 190px"></div>
+          <div class="field-inline" style="flex:1 1 220px"><label for="tco_jurisdiction">Incorporated in</label>
+            <select id="tco_jurisdiction" style="flex:1 1 150px;text-align:left"></select></div>
+        </div>
+        <div class="toolbar" style="margin:0 0 8px">
+          <div class="field-inline" style="flex:1 1 200px"><label for="tco_companyNumber">Company no.</label>
+            <input type="text" id="tco_companyNumber" placeholder="12345678" style="flex:1 1 120px"></div>
+          <div class="field-inline" style="flex:1 1 200px"><label for="tco_taxId">Tax ID / VAT</label>
+            <input type="text" id="tco_taxId" placeholder="433064228" style="flex:1 1 120px"></div>
+          <div class="field-inline" style="flex:1 1 240px"><label for="tco_email">Email</label>
+            <input type="text" id="tco_email" placeholder="notices@…" style="flex:1 1 160px"></div>
+        </div>
+        <div class="row wide" style="border:0;padding:0;margin:0 0 8px">
+          <div class="lbl">Registered address<span class="note">Printed under the name in the invoice's INVOICE FROM block. One line per line.</span>
+            <textarea class="in" id="tco_address" rows="3" style="margin-top:6px;text-align:left" placeholder="C/O …&#10;Street&#10;City, postcode"></textarea></div>
+        </div>
+        <div class="row wide" style="border:0;padding:0;margin:0 0 8px">
+          <div class="lbl">Note<span class="note">Anything the next person needs to know about this entity. Not printed.</span>
+            <input type="text" class="in" id="tco_note" style="margin-top:6px;text-align:left" placeholder="what it is used for, who administers it"></div>
+        </div>
+        <div class="toolbar" style="margin:0">
+          <button class="btn primary" id="btnTcoSave">Add TradeCo</button>
+          <button class="btn" id="btnTcoCancel">Cancel</button>
+          <span class="tiny">Bank accounts are added to the entity once it exists.</span>
+        </div>
+      </div></div>
+      <div class="scroll"><table id="tcoTable"></table></div>
+      <details class="help">
+        <summary>What a TradeCo is used for</summary>
+        <p>A TradeCo is the entity the <b>TradeCo invoice</b> is issued <i>from</i>. Its name, registered address and tax number fill that document's <code>INVOICE FROM</code> block, and the account a deal names fills the <code>PAY TO BANK ACCOUNT DETAILS</code> block. A deal picks one entity and one of its accounts in the deal configuration.</p>
+        <p>An entity can hold <b>any number of accounts</b> — a facility funded in USD through New York and one funded in EUR through Frankfurt are the same company and two accounts. Only the account a deal names is printed, and it is never inferred: no account, no bank block, and the invoice says so rather than guessing.</p>
+        <p>Removing a TradeCo is refused while a deal still names it. Editing one changes every invoice not yet issued that it appears on — an <b>issued</b> Offer File keeps the payload it was dispatched with either way.</p>
+      </details>
+    </div>
+  </div>
+</div>
+
 <!-- ---- Audit log ---- -->
 <div class="refpane" id="refpane-audit">
   <div class="card">
@@ -992,7 +1127,6 @@ code,.mono{font-family:var(--mono);font-size:12px}
       <div class="scroll"><table id="dealTable"></table></div>
     </div>
   </div>
-  <div id="dealsSplit">
       <div class="card tight">
         <h2>Trades on this deal <span class="tiny" style="text-transform:none;letter-spacing:0" id="dealTradesFor"></span></h2>
         <div class="body">
@@ -1001,42 +1135,6 @@ code,.mono{font-family:var(--mono);font-size:12px}
           <div id="dealTradesBox"></div>
         </div>
       </div>
-      <div class="card deal" id="dealConfigCard">
-        <h2>Deal configuration <span class="tiny" style="text-transform:none;letter-spacing:0" id="dealScopeNote"></span>
-          <span class="src"><button class="btn sm" id="btnCloseConfig">Close</button></span></h2>
-        <div class="body">
-          <div id="dealLockBox"></div>
-          <div class="row"><div class="lbl">Client<span class="note" id="clientNote">From the monday.com Global Pipeline. Drives every client-named label in this model.</span></div><div class="cell"><select class="in" id="d_client" data-deal="clientId"></select></div></div>
-          <div class="row"><div class="lbl">Transaction Code<span class="note">Cantu!B4 — identifies the facility. Every trade on this deal carries it.</span></div><div class="cell"><input type="text" class="in" id="d_code" data-deal="code"></div></div>
-          <div class="row"><div class="lbl">Currency<span class="note" id="ccyNote">Selects the base rate index and the day-count basis.</span></div><div class="cell"><select class="in" id="d_currency" data-deal="currency"></select></div></div>
-          <div class="row"><div class="lbl">TradeCo Pro Forma invoices<span class="note">When off, panel 2 is removed from every trade on this deal and excluded from pricing, validation and the rate snapshot.</span></div>
-            <div class="cell"><label class="toggle" style="justify-content:flex-end;width:100%"><input type="checkbox" id="d_proforma" data-deal="proformaEnabled" checked><span id="proformaLabel">Used on this deal</span></label></div></div>
-          <div class="row"><div class="lbl">Agency Fee<span class="note">Whether this facility carries one at all. When off, the rate disappears from every trade on this deal and is excluded from both mark-ups and the agency-fee payment leg (B52).</span></div>
-            <div class="cell"><label class="toggle" style="justify-content:flex-end;width:100%"><input type="checkbox" id="d_agencyFee" data-deal="agencyFeeEnabled" checked><span id="agencyFeeLabel">Charged on this deal</span></label></div></div>
-          <div class="row"><div class="lbl">TradeCo invoices per trade<span class="note">How this client wants to be billed. Two is the workbook's own split — the amount and the financial cost on separate invoices. One bills them together, on a single invoice for the same total. It changes only how the amount is documented; every figure the trade prices on is untouched.</span></div>
-            <div class="cell"><select class="in" id="d_tcInvoiceCount" data-deal="tcInvoiceCount" style="text-align:left">
-              <option value="2">Two — amount, then financial cost</option>
-              <option value="1">One — billed together</option>
-            </select></div></div>
-          <!-- Document text. Everything on the TradeCo invoice that varies by facility rather than
-               by trade: who it is billed to, and the agreement it is issued under. The rest of the
-               form is the same on every trade and lives in TC_INVOICE_FORM. -->
-          <div class="row"><div class="lbl">Invoice to<span class="note">Buyer's legal name as it should read on the TradeCo invoice. Left blank, the client's own name is used.</span></div><div class="cell"><input type="text" class="in" id="d_buyer" data-deal="buyerName" placeholder="the client's name"></div></div>
-          <div class="row wide"><div class="lbl">Invoice-to address<span class="note">Printed under the buyer's name on the TradeCo invoice. One line per line.</span>
-            <textarea class="in" id="d_buyerAddress" data-deal="buyerAddress" rows="3" style="margin-top:6px" placeholder="Street&#10;City, postcode&#10;Country"></textarea></div></div>
-          <div class="row"><div class="lbl">Issued under<span class="note">The agreement the TradeCo invoice is issued under, named in its opening line.</span></div><div class="cell"><input type="text" class="in" id="d_agreement" data-deal="agreementName" style="text-align:left"></div></div>
-          <div class="row"><div class="lbl">Agreement date<span class="note">Date of that agreement, quoted in the same line.</span></div><div class="cell"><input type="date" class="in" id="d_agreementDate" data-deal="agreementDate"></div></div>
-          <div class="row wide"><div class="lbl">Associated jurisdictions<span class="note">Holiday calendars every trade's maturity date is checked against. Replaces the fixed rows in BD Dates!B4:B13.</span>
-            <div class="toolbar" style="margin:8px 0 4px">
-              <select id="jurAdd" style="min-width:270px;text-align:left"></select>
-              <span class="tiny" id="jurCount"></span>
-              <button class="btn sm" id="btnJurClear">Clear all</button>
-              <button class="btn sm" id="btnJurNew" title="Add a country this build does not ship, on the Reference data tab">+ New jurisdiction</button>
-            </div>
-            <div class="taglist" id="jurisdictionBox"></div></div></div>
-        </div>
-      </div>
-  </div>
 </section>
 
 <!-- ================= AUDIT ================= -->
@@ -1498,29 +1596,72 @@ const conventionFor = trade => conventionOf((findInvestor(trade&&trade.funder)||
 const RECEIVING_ACCOUNT_TEXT = 'See Part A (Receiving Account(s)) of Annex 2 (Accounts) to the IAA Addendum';
 
 /* ---------------------------- TradeCo invoice standard form ----------------------------
-   The parts of the attached template that are the same on every trade: who is issuing, and where
-   the money goes. Transcribed exactly as the Word form has them, and held as one object so the
-   form the app issues can be told apart from the deal-specific text around it.
-   The invoice will be tailored per deal, so everything that varies — the buyer, the agreement it
-   is issued under, the description of the goods — is a deal field and is not in here. */
+   What is left of the attached template once everything that varies has been taken out of it: the
+   wording, and nothing about who is issuing or where the money goes. Those were transcribed here
+   when there was one TradeCo; they are register entries now, chosen per deal. */
 const TC_INVOICE_FORM = {
-  seller: 'SB TRADING COMPANY ALPHA LIMITED',
-  sellerAddress: ['C/O TC CITROEN WELLS LIMITED,', '5TH FLOOR, 3 DORSET RISE,',
-                  'LONDON, ENGLAND, EC4Y 8EN'],
-  sellerVat: '433064228',
-  sellerEmail: 'notices@silverbirchfinance.com',
-  // The receiving account on the form. Not derived from the deal's funder: an account number is
-  // never inferred, so if a trade funds elsewhere this block is edited in the Word file.
-  bank: [['Currency', null],                       // null → the deal's own currency
-         ['Bank', 'JP MORGAN CHASE BANK - NEW YORK'],
-         ['SWIFT', 'CHASUS33'],
-         ['CHIPS ABA', '021000021'],
-         ['Beneficiary', 'BANCO LATINOAMERICANO DE COMERCIO EXTERIOR, S.A. (SWIFT: BLAEPAPA)'],
-         ['Account Number', '935220822']],
   governingLaw: 'THE GOVERNING LAW AND JURISDICTION PROVISIONS IN THE SALE AGREEMENT SHALL APPLY '+
     'EQUALLY TO THIS INVOICE, including the notice of assignment and acknowledgment below.',
   agreementDefault: 'LNG SALE AND PURCHASE AGREEMENT',
 };
+
+/* ---------------------------- TradeCos ----------------------------
+   The issuing entities. A TradeCo is who the invoice is *from*: its legal name, where it is
+   incorporated, its address, its registered and tax numbers, and the accounts it can be paid into.
+   Held as a register rather than on each deal because one entity issues across many facilities, and
+   a company number that has to be re-keyed per deal is a company number that will disagree with
+   itself. A deal picks the entity and which of its accounts to be paid into.
+
+   Seeded with the entity on the attached form, so the invoice it already produced still produces
+   the same document and there is a worked example to copy. */
+const SEED_TRADECOS = [
+  {id:'sbtc-alpha', name:'SB Trading Company alpha Limited', jurisdiction:'GB',
+   address:'C/O TC Citroen Wells Limited,\n5th Floor, 3 Dorset Rise,\nLondon, England, EC4Y 8EN',
+   companyNumber:'', taxId:'433064228', email:'notices@silverbirchfinance.com',
+   note:'The issuing entity on the standard TradeCo invoice form. Its company number is not on that '+
+        'form — add it before the invoice goes out.',
+   accounts:[
+     {id:'sbtc-alpha-usd', label:'Bladex USD — JP Morgan New York', currency:'USD',
+      bank:'JP MORGAN CHASE BANK - NEW YORK', swift:'CHASUS33', aba:'021000021', iban:'',
+      beneficiary:'BANCO LATINOAMERICANO DE COMERCIO EXTERIOR, S.A. (SWIFT: BLAEPAPA)',
+      accountNumber:'935220822',
+      note:'The receiving account printed on the standard form.'},
+   ]},
+];
+const tradecoList = () => (store.tradecos && store.tradecos.list) || [];
+const findTradeco = id => tradecoList().find(x=>String(x.id)===String(id)) || null;
+/** The account a deal is paid into: the one it names, or nothing. Never guessed — an account number
+ *  is the one field on the form that must not be inferred from anything. */
+function findTradecoAccount(tc, accountId){
+  const list = (tc && Array.isArray(tc.accounts)) ? tc.accounts : [];
+  return list.find(a=>String(a.id)===String(accountId)) || null;
+}
+/** The TradeCo and account a deal issues on, either or both possibly missing. */
+const tradecoFor = deal => {
+  const tc = findTradeco(deal && deal.tradecoId);
+  return {tradeco:tc, account:findTradecoAccount(tc, deal && deal.tradecoAccountId)};
+};
+const tradecoLabel = tc => (tc && String(tc.name||'').trim()) || 'TradeCo';
+/** The entity a new deal starts on: the only one there is, or none. With one entity on the register
+ *  there is no decision to make, and making it anyway is a step that gets skipped and then shows up
+ *  as an invoice with no seller. With two there is a real choice, so it stays unmade. */
+const defaultTradecoId = () => tradecoList().length===1 ? tradecoList()[0].id : '';
+const defaultAccountId = tcId => {
+  const tc=findTradeco(tcId);
+  return tc && tc.accounts.length===1 ? tc.accounts[0].id : '';
+};
+/** An entity's address as the lines the form prints. */
+const addressLines = v => String(v||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+/** The pay-to block for one account, in the order the Word form has it. A row with nothing in it is
+ *  dropped rather than printed empty — an account outside the US has no CHIPS ABA, and a US one has
+ *  no IBAN. Currency is the invoice's, not the account's: it is what the payer is being asked for. */
+function accountRows(account, currency){
+  if(!account) return [];
+  return [['Currency', currency], ['Bank', account.bank], ['SWIFT', account.swift],
+          ['CHIPS ABA', account.aba], ['IBAN', account.iban],
+          ['Beneficiary', account.beneficiary], ['Account Number', account.accountNumber]]
+    .filter(([,v])=>String(v||'').trim());
+}
 
 /* ---------------------------- calendars ----------------------------
    Business days are derived from rules per jurisdiction rather than transcribed tables,
@@ -2280,7 +2421,7 @@ function copyTradeInputs(src){
 }
 function newDeal(who){
   return { id:uuid(), code:'', clientId:'', clientName:'', currency:'USD', proformaEnabled:true,
-    agencyFeeEnabled:true, tcInvoiceCount:2,
+    agencyFeeEnabled:true, tcInvoiceCount:2, tradecoId:'', tradecoAccountId:'',
     buyerName:'', buyerAddress:'', agreementName:TC_INVOICE_FORM.agreementDefault, agreementDate:'',
     jurisdictions:[], createdBy:who, createdAt:new Date().toISOString(), cancelled:false };
 }
@@ -2339,18 +2480,26 @@ function defaultCurves(){
   return out;
 }
 function defaultInvestors(){ return { list:SEED_INVESTORS.map(i=>({...i})) }; }
+function defaultTradecos(){
+  return { list:SEED_TRADECOS.map(t=>({...t, accounts:t.accounts.map(a=>({...a}))})) };
+}
 function defaultClients(){
   return { source:{...MONDAY_SOURCE, syncedAt:null, via:'seeded'}, list:SEED_CLIENTS.map(c=>({...c})) };
 }
 
 let store = load();
 refreshCalendars();     // fold the book's own jurisdictions in before anything renders
+/* Every store reaches the app through normalise(), whatever it came from. A fresh seed and a v1
+   migration used to skip it, which meant each new field had to be added to three places and was one
+   forgotten line away from booting without it — the TradeCo register was missing on a first run for
+   exactly that reason. normalise() only fills what is absent, so running it over a store that is
+   already current changes nothing. */
 function load(){
   try{ const raw=localStorage.getItem(LS_KEY);
     if(raw){ const s=JSON.parse(raw); if(s && s.deals && s.trades) return normalise(s); } }catch(e){}
   try{ const v1=localStorage.getItem(LS_KEY_V1);
-    if(v1){ const m=migrateV1(JSON.parse(v1)); if(m) return m; } }catch(e){}
-  return seedStore();
+    if(v1){ const m=migrateV1(JSON.parse(v1)); if(m) return normalise(m); } }catch(e){}
+  return normalise(seedStore());
 }
 function normalise(s){
   if(!s.clients || !s.clients.list || !s.clients.list.length) s.clients=defaultClients();
@@ -2361,6 +2510,21 @@ function normalise(s){
     if(!Array.isArray(i.currencies)) i.currencies=[];   // empty = capability unknown, so unchecked
     i.discount=conventionOf(i.discount);                // anything unrecognised falls back to simple
     delete i.margin;                                    // a standing margin belonged to the trade
+  }
+  /* The register is new. A book written before it gets the seeded entity, and every entry is
+     brought up to the current shape — a TradeCo with no accounts array is one nobody can be paid
+     through, which the deal's account dropdown and the invoice's checklist both need to see. */
+  if(!s.tradecos || !Array.isArray(s.tradecos.list)) s.tradecos=defaultTradecos();
+  for(const tc of s.tradecos.list){
+    if(!tc.id) tc.id=uuid();
+    for(const f of ['name','jurisdiction','address','companyNumber','taxId','email','note'])
+      if(tc[f]===undefined) tc[f]='';
+    if(!Array.isArray(tc.accounts)) tc.accounts=[];
+    for(const a of tc.accounts){
+      if(!a.id) a.id=uuid();
+      for(const f of ['label','currency','bank','swift','aba','iban','beneficiary','accountNumber','note'])
+        if(a[f]===undefined) a[f]='';
+    }
   }
   // An empty jurisdiction list is left empty: on a new deal it is a selection not yet made,
   // and the validation rail already flags it. Only a migrated v1 record gets the four
@@ -2378,6 +2542,23 @@ function normalise(s){
     // neither can be inferred — and the invoice reports them as missing rather than inventing them.
     // Two is what every deal stored before this was doing, since it was the only way to bill.
     d.tcInvoiceCount = Number(d.tcInvoiceCount)===1 ? 1 : 2;
+    /* Which entity issues, and which of its accounts. A deal stored before the register takes the
+       only entity there is when there is only one — that is what its invoices were already saying —
+       and is left unset when there is a choice to make, because guessing which company issued a
+       facility is not a migration's job. */
+    if(d.tradecoId===undefined)
+      d.tradecoId = s.tradecos.list.length===1 ? s.tradecos.list[0].id : '';
+    // An entity that is no longer on the register is not this deal's issuer, whatever it stored.
+    else if(d.tradecoId && !s.tradecos.list.some(x=>String(x.id)===String(d.tradecoId)))
+      d.tradecoId='';
+    if(d.tradecoAccountId===undefined){
+      const tc=s.tradecos.list.find(x=>String(x.id)===String(d.tradecoId));
+      d.tradecoAccountId = tc && tc.accounts.length===1 ? tc.accounts[0].id : '';
+    }
+    // An account that no longer belongs to the chosen entity is not an account of this deal's.
+    const tcSel=s.tradecos.list.find(x=>String(x.id)===String(d.tradecoId));
+    if(!tcSel || !tcSel.accounts.some(a=>String(a.id)===String(d.tradecoAccountId)))
+      d.tradecoAccountId='';
     for(const f of ['buyerName','buyerAddress','agreementDate']) if(d[f]===undefined) d[f]='';
     if(d.agreementName===undefined) d.agreementName = TC_INVOICE_FORM.agreementDefault;
   }
@@ -2478,13 +2659,15 @@ function migrateV1(v1){
 function seedStore(){
   const who='m.buraglia';
   const d=newDeal(who); d.code='SC DRC-CANTU'; d.jurisdictions=[...DEFAULT_JURISDICTIONS];
+  // The seeded deal issues on the seeded entity, so the worked example produces a whole invoice.
+  d.tradecoId=SEED_TRADECOS[0].id; d.tradecoAccountId=SEED_TRADECOS[0].accounts[0].id;
   const seed=SEED_CLIENTS.find(c=>/^cantu/i.test(c.name));
   if(seed){ d.clientId=seed.id; d.clientName=seed.name; }
   const t=newTrade(d.id, who); t.identifier='DRC-CANTU-SB01'; t.tradeDate=WORKBOOK_CURVE_DATE;
   t.funder='Bladex'; t.obligor='Gripmaster'; t.inputs=workbookTradeInputs();
   return { v:2, deals:[d], trades:[t], currentDealId:d.id, currentTradeId:t.id,
     curves:defaultCurves(), clients:defaultClients(), investors:defaultInvestors(),
-    jurisdictions:[], audit:[] };
+    tradecos:defaultTradecos(), jurisdictions:[], audit:[] };
 }
 const save = () => { try{ localStorage.setItem(LS_KEY, JSON.stringify(store)); }catch(e){ console.warn('Persist failed', e); } };
 const actor = () => ({ name:(document.getElementById('actorName').value||'unknown').trim(),
@@ -2824,6 +3007,30 @@ function tcInvoiceDoc(deal, trade, out, which){
   const netTotal = lines.reduce((a,l)=>a.add(l.net), ZERO);
   for(const l of lines){ l.vat = ZERO; l.gross = l.net; }
 
+  /* Who the invoice is from, and where it is paid. Both come off the register through the deal, so
+     an entity's details are keyed once and every facility issuing on it says the same thing. */
+  const {tradeco, account} = tradecoFor(deal);
+  const seller = {
+    name: tradeco ? String(tradeco.name||'').trim() : '',
+    address: tradeco ? addressLines(tradeco.address) : [],
+    companyNumber: tradeco ? String(tradeco.companyNumber||'').trim() : '',
+    taxId: tradeco ? String(tradeco.taxId||'').trim() : '',
+    email: tradeco ? String(tradeco.email||'').trim() : '',
+    jurisdiction: tradeco ? String(tradeco.jurisdiction||'').trim() : '',
+  };
+  const bank = accountRows(account, ccy);
+  if(!tradeco) missing.push('The deal names no TradeCo, so the invoice has nobody to be issued from.');
+  else {
+    if(!seller.address.length) missing.push('“'+seller.name+'” has no registered address.');
+    if(!seller.taxId) missing.push('“'+seller.name+'” has no tax ID, which the form prints as its VAT number.');
+    if(!account) missing.push('The deal names no bank account on “'+seller.name+'”, so the invoice has no pay-to block.');
+    // The account's own currency disagreeing with the invoice's is the kind of thing that is only
+    // ever noticed after the money has gone to the wrong place.
+    else if(String(account.currency||'').trim() &&
+            String(account.currency).trim().toUpperCase()!==String(ccy).toUpperCase())
+      missing.push('The named account is held in '+String(account.currency).trim().toUpperCase()+
+        ' but this invoice is in '+ccy+'.');
+  }
   const ident = String(trade.identifier||'').trim();
   const buyer = String(deal.buyerName||'').trim() || clientLabel(deal);
   const address = String(deal.buyerAddress||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
@@ -2834,7 +3041,8 @@ function tcInvoiceDoc(deal, trade, out, which){
   const paymentDate = out ? out.tcMaturityDate : null;
   if(!isValidDate(paymentDate)) missing.push('The payment date comes from B28, which is not priced yet.');
 
-  return { which, count, currency:ccy, form:TC_INVOICE_FORM,
+  return { which, count, currency:ccy, form:TC_INVOICE_FORM, seller, bank,
+    tradecoName: seller.name, accountLabel: account ? String(account.label||'').trim() : '',
     // Numbered off the trade identifier, so a pair of invoices is traceable to the one trade.
     number: ident ? ident+'-0'+which : '',
     title: count===1 ? 'TradeCo Invoice — amount and financial cost'
@@ -2861,6 +3069,7 @@ const TRADE_FIELD_IDS = {
 const TRADE_TOP_IDS = { identifier:'f_tradeid', tradeDate:'f_tradeDate', funder:'f_funder', obligor:'f_obligor' };
 const DEAL_FIELD_IDS = { clientId:'d_client', code:'d_code', currency:'d_currency',
   proformaEnabled:'d_proforma', agencyFeeEnabled:'d_agencyFee', tcInvoiceCount:'d_tcInvoiceCount',
+  tradecoId:'d_tradeco', tradecoAccountId:'d_tradecoAccount',
   buyerName:'d_buyer', buyerAddress:'d_buyerAddress', agreementName:'d_agreement',
   agreementDate:'d_agreementDate' };
 
@@ -2870,6 +3079,9 @@ function loadFormFromStore(){
   if(!d) return;
   for(const [f,id] of Object.entries(DEAL_FIELD_IDS)){ const el=$(id); if(!el) continue;
     if(el.type==='checkbox') el.checked = d[f]!==false; else el.value=d[f]??''; }
+  // After the loop, so the two linked selects settle their own values against the options they
+  // actually offer — an id left over from a removed entity must not survive as a select value.
+  renderTradecoOptions();
   if(!t) return;
   for(const [f,id] of Object.entries(TRADE_TOP_IDS)){ const el=$(id); if(el) el.value=t[f]??''; }
   for(const [f,id] of Object.entries(TRADE_FIELD_IDS)){
@@ -2904,6 +3116,29 @@ function renderClientOptions(){
       rows.map(c=>'<option value="'+esc(c.id)+'">'+esc(c.name)+(c.country?' · '+esc(c.country):'')+'</option>').join('')+'</optgroup>';
   }
   sel.innerHTML=html; sel.value=keep;
+}
+/* The entity, and then its own accounts. The second list is rebuilt from the first every render,
+   which is what keeps a deal from naming an account belonging to a different company. */
+function renderTradecoOptions(){
+  const d=currentDeal(); if(!d) return;
+  const sel=$('d_tradeco'), asel=$('d_tradecoAccount');
+  if(!sel||!asel) return;
+  const list=tradecoList().slice().sort((a,b)=>String(a.name).localeCompare(String(b.name)));
+  sel.innerHTML='<option value="">— none —</option>'+list.map(tc=>
+    '<option value="'+esc(tc.id)+'">'+esc(tc.name||'(unnamed)')+
+    (tc.jurisdiction?' ('+esc(tc.jurisdiction)+')':'')+'</option>').join('');
+  sel.value = findTradeco(d.tradecoId) ? d.tradecoId : '';
+  const tc=findTradeco(d.tradecoId), accounts=(tc&&tc.accounts)||[];
+  asel.innerHTML = !tc
+    ? '<option value="">— name a TradeCo first —</option>'
+    : (accounts.length
+        ? '<option value="">— none —</option>'+accounts.map(a=>
+            '<option value="'+esc(a.id)+'">'+
+            esc(String(a.label||'').trim() || (a.bank||'(unlabelled account)'))+
+            (a.currency?' · '+esc(a.currency):'')+'</option>').join('')
+        : '<option value="">— this TradeCo has no accounts —</option>');
+  asel.value = findTradecoAccount(tc, d.tradecoAccountId) ? d.tradecoAccountId : '';
+  asel.disabled = !tc || !accounts.length;
 }
 function renderCurrencyOptions(){
   const sel=$('d_currency'); const keep=sel.value;
@@ -2993,7 +3228,7 @@ function render(){
   const r=computeAll(d,t);
   applyNaming(clientLabel(d), funderLabel(t));
   renderHeader(d,t,r); renderDealForm(); renderFunderList(); renderPricing(d,t,r);
-  renderRates(); renderClients(); renderInvestors(); renderRefMenu(); renderDocuments(d,t,r);
+  renderRates(); renderClients(); renderInvestors(); renderTradecos(); renderRefMenu(); renderDocuments(d,t,r);
   renderDeals(); renderAudit(); renderAbout();
   save();
 }
@@ -3005,6 +3240,10 @@ function renderHeader(d,t,r){
     (t ? 'trade '+(t.identifier||'(untitled)')+' v'+t.versionNo+' · created by '+t.createdBy : 'no trades yet');
   const dLocked=!dealEditable(d);
   for(const id of Object.values(DEAL_FIELD_IDS)){ const el=$(id); if(el) el.disabled=dLocked; }
+  // The account list has its own reason to be disabled — no entity, or an entity with no accounts —
+  // so it is settled after the blanket lock rather than before it.
+  renderTradecoOptions();
+  if(dLocked){ const a=$('d_tradecoAccount'); if(a) a.disabled=true; }
   $('dealScopeNote').textContent = dLocked
     ? '— locked: a trade on this deal is approved or later'
     : '— applies to all '+tradesOf(d.id).length+' trade(s) on this deal';
@@ -3880,6 +4119,7 @@ const REF_SETS = {
   clients:   {title:'Clients',                 sub:'The client book from the monday.com Global Pipeline'},
   jur:       {title:'Jurisdictions & Holiday Calendars', sub:'Calendars a maturity date is checked against'},
   investors: {title:'Investors',               sub:'Funding counterparties a trade can name as its Funder'},
+  tradecos:  {title:'TradeCos',                sub:'The entities that issue the TradeCo invoice, and the accounts they are paid into'},
   audit:     {title:'Audit log',               sub:'Append-only — every change, who made it and why'},
   about:     {title:'Spec & traceability',     sub:'What this model is, its cell map, and the parity suite'},
 };
@@ -3917,6 +4157,9 @@ function renderRefMenu(){
   $('refMetaJur').textContent = ALL_JURISDICTIONS.length+' jurisdictions'+(added?' · '+added+' added here':'');
   $('refMetaInvestors').textContent = inv.length+' investor(s) · '+
     inv.filter(i=>i.status==='Active').length+' active';
+  const tcos=tradecoList();
+  $('refMetaTradecos').textContent = tcos.length+' TradeCo(s) · '+
+    tcos.reduce((a,t)=>a+(t.accounts||[]).length,0)+' account(s)';
   const log=store.audit||[];
   $('refMetaAudit').textContent = log.length+' entr'+(log.length===1?'y':'ies')+
     (log.length ? ' · last '+new Date(log[log.length-1].at).toLocaleDateString() : '');
@@ -3958,6 +4201,91 @@ function bookCell(acc, key){
 }
 
 /** Investors. Add and remove only, like the jurisdictions: a party list is not a spreadsheet. */
+/* ---------------------------- TradeCos ----------------------------
+   The entity list, each row showing its registration details, the deals issuing on it, and its
+   accounts. Accounts are edited in place in the row that owns them rather than in a window of their
+   own: there are five short fields per account and the thing being checked is that they match a
+   bank mandate sitting beside the screen. */
+const tcoDealsUsing = id => store.deals.filter(d=>String(d.tradecoId)===String(id));
+let tcoEditing = null;            // the entity the form is editing, or null when it is adding
+const TCO_FIELDS = ['name','jurisdiction','address','companyNumber','taxId','email','note'];
+const TCO_ACCOUNT_FIELDS = ['label','currency','bank','swift','aba','iban','beneficiary','accountNumber','note'];
+
+function renderTradecos(){
+  const admin = actor().role==='Rates Admin';
+  const list = tradecoList().slice().sort((a,b)=>String(a.name).localeCompare(String(b.name)));
+  // The incorporation dropdown offers every calendar the build ships, since where a company is
+  // registered is not the same question as which calendars a deal checks its dates against.
+  const jurSel=$('tco_jurisdiction');
+  if(jurSel && jurSel.options.length!==ALL_JURISDICTIONS.length+1){
+    jurSel.innerHTML='<option value="">— not set —</option>'+
+      REGIONS.map(region=>{
+        const codes=ALL_JURISDICTIONS.filter(c=>CALENDARS[c].region===region);
+        return codes.length ? '<optgroup label="'+esc(region)+'">'+codes.map(c=>
+          '<option value="'+c+'">'+esc(CALENDARS[c].name)+' ('+c+')</option>').join('')+'</optgroup>' : '';
+      }).join('');
+  }
+  const acctRow = (tc,a) => {
+    const f=(field,type,extra)=>admin
+      ? '<input type="'+type+'" class="in" data-tco-acct="'+esc(a.id)+'" data-tco-id="'+esc(tc.id)+
+        '" data-tco-afield="'+field+'" value="'+esc(a[field]??'')+'"'+(extra||'')+'>'
+      : esc(a[field]||'—');
+    return '<tr><td>'+f('label','text',' placeholder="what this account is for"')+'</td>'+
+      '<td>'+f('currency','text',' placeholder="USD" style="text-align:left"')+'</td>'+
+      '<td>'+f('bank','text',' placeholder="bank and branch"')+'</td>'+
+      '<td>'+f('swift','text',' placeholder="SWIFT/BIC"')+'</td>'+
+      '<td>'+f('aba','text',' placeholder="ABA"')+'</td>'+
+      '<td>'+f('iban','text',' placeholder="IBAN"')+'</td>'+
+      '<td>'+f('beneficiary','text',' placeholder="account holder as the bank has it"')+'</td>'+
+      '<td>'+f('accountNumber','text',' placeholder="account number"')+'</td>'+
+      '<td class="n">'+(admin?'<button class="btn sm danger" data-tco-acct-remove="'+esc(a.id)+
+        '" data-tco-id="'+esc(tc.id)+'" title="Remove this account">&times;</button>':'')+'</td></tr>';
+  };
+  const accounts = tc => '<div class="scroll"><table class="acct"><thead><tr>'+
+      ['Account','Ccy','Bank','SWIFT','ABA','IBAN','Beneficiary','Number',''].map(h=>'<th>'+h+'</th>').join('')+
+      '</tr></thead><tbody>'+
+      ((tc.accounts||[]).length ? tc.accounts.map(a=>acctRow(tc,a)).join('')
+        : '<tr><td colspan="9" class="tiny">No accounts — a deal issuing on this entity has no bank block to print.</td></tr>')+
+      '</tbody></table></div>'+
+      (admin?'<div class="toolbar" style="margin:8px 0 0"><button class="btn sm" data-tco-acct-add="'+
+        esc(tc.id)+'">+ Add bank account</button></div>':'');
+
+  $('tcoTable').innerHTML='<thead><tr><th>TradeCo</th><th>Incorporated</th><th>Company no.</th>'+
+    '<th>Tax ID</th><th class="n">Accounts</th><th class="n">Deals</th><th></th></tr></thead><tbody>'+
+    (list.length ? list.map(tc=>{
+      const used=tcoDealsUsing(tc.id).length, addr=addressLines(tc.address);
+      return '<tr><td>'+esc(tc.name||'(unnamed)')+
+        (addr.length?'<span class="tiny" style="display:block">'+addr.map(esc).join(' · ')+'</span>':'')+
+        (tc.email?'<span class="tiny" style="display:block">'+esc(tc.email)+'</span>':'')+
+        (tc.note?'<span class="note" style="display:block;max-width:46ch">'+esc(tc.note)+'</span>':'')+'</td>'+
+        '<td>'+(tc.jurisdiction
+          ? esc((CALENDARS[tc.jurisdiction]||{}).name||tc.jurisdiction)+' <span class="tiny">'+esc(tc.jurisdiction)+'</span>'
+          : '<span class="inline-tag warn">not set</span>')+'</td>'+
+        '<td class="mono tiny">'+(tc.companyNumber?esc(tc.companyNumber):'<span class="inline-tag warn">not set</span>')+'</td>'+
+        '<td class="mono tiny">'+(tc.taxId?esc(tc.taxId):'<span class="inline-tag warn">not set</span>')+'</td>'+
+        '<td class="n">'+(tc.accounts||[]).length+'</td>'+
+        '<td class="n">'+used+'</td>'+
+        '<td class="n" style="white-space:nowrap">'+
+          (admin?'<button class="btn sm" data-tco-edit="'+esc(tc.id)+'">Edit</button> '+
+                 '<button class="btn sm danger" data-tco-delete="'+esc(tc.id)+'">Remove</button>':'')+
+        '</td></tr>'+
+        '<tr class="tcoacct"><td colspan="7">'+accounts(tc)+'</td></tr>';
+    }).join('') : '<tr><td colspan="7" class="tiny">No TradeCos yet. Use <b>+ Add TradeCo</b>.</td></tr>')+
+    '</tbody>';
+  $('btnTcoAddToggle').disabled = !admin;
+  $('tcoAddNote').textContent = admin
+    ? 'A deal picks one of these as the entity its TradeCo invoice is issued from.'
+    : 'Adding or editing a TradeCo requires the Rates Admin role.';
+  if(!admin) showTcoAdd(false);
+}
+function showTcoAdd(on, tc){
+  tcoEditing = on && tc ? tc.id : null;
+  $('tcoAddCard').style.display = on ? '' : 'none';
+  for(const f of TCO_FIELDS){ const el=$('tco_'+f); if(el) el.value = on && tc ? (tc[f]??'') : ''; }
+  $('btnTcoSave').textContent = tcoEditing ? 'Save changes' : 'Add TradeCo';
+  if(on){ const n=$('tco_name'); if(n) n.focus(); }
+}
+
 function renderInvestors(){
   const admin = actor().role==='Rates Admin';
   const rows = investorList().slice().sort((a,b)=>
@@ -4214,14 +4542,19 @@ function renderTcInvoice(d,t,r){
   paper.innerHTML =
     '<h1>INVOICE</h1>'+
     '<table><tr>'+
-      '<td style="width:58%"><b class="up">Invoice from:</b><br>'+esc(F.seller)+'<br>'+
-        F.sellerAddress.map(esc).join('<br>')+
-        '<br><br>VAT NUMBER: '+esc(F.sellerVat)+'<br>EMAIL: '+esc(F.sellerEmail)+'</td>'+
+      '<td style="width:58%"><b class="up">Invoice from:</b><br>'+
+        (doc.seller.name ? esc(doc.seller.name) : need('no TradeCo named on this deal'))+'<br>'+
+        (doc.seller.address.length ? doc.seller.address.map(esc).join('<br>') : need('registered address'))+
+        '<br><br>'+
+        (doc.seller.companyNumber ? 'COMPANY NUMBER: '+esc(doc.seller.companyNumber)+'<br>' : '')+
+        'VAT NUMBER: '+(doc.seller.taxId ? esc(doc.seller.taxId) : need('tax ID'))+
+        (doc.seller.email ? '<br>EMAIL: '+esc(doc.seller.email) : '')+'</td>'+
       '<td><b class="up">Invoice to:</b><br>'+esc(doc.buyer)+'<br>'+
         (doc.address.length ? doc.address.map(esc).join('<br>') : need('invoice-to address'))+'</td>'+
     '</tr></table>'+
     '<p><b>INVOICE NUMBER: '+(doc.number ? esc(doc.number) : need('trade identifier'))+'</b></p>'+
-    '<p class="up">Issued under the '+esc(doc.agreementName)+' between '+esc(F.seller)+
+    '<p class="up">Issued under the '+esc(doc.agreementName)+' between '+
+      (doc.seller.name ? esc(doc.seller.name) : need('no TradeCo named on this deal'))+
       ' as seller and '+esc(doc.buyer)+' as buyer dated '+date(doc.agreementDate,'agreement date')+
       ' (“the Sale Agreement”)</p>'+
     '<p><b>INVOICE DATE: '+date(doc.issueDate,'TradeCo Issue Date')+'</b></p>'+
@@ -4238,11 +4571,13 @@ function renderTcInvoice(d,t,r){
     '</tbody></table>'+
     '<p><b>PAYMENT DATE: '+date(doc.paymentDate,'B28 — not priced')+'</b></p>'+
     '<p><b class="up">Pay to bank account details:</b></p>'+
-    '<table>'+F.bank.map(([k,v])=>'<tr><td style="width:24%"><b>'+esc(k)+':</b></td><td>'+
-      esc(v===null ? doc.currency : v)+'</td></tr>').join('')+'</table>'+
+    (doc.bank.length
+      ? '<table>'+doc.bank.map(([k,v])=>'<tr><td style="width:24%"><b>'+esc(k)+':</b></td><td>'+
+          esc(v)+'</td></tr>').join('')+'</table>'
+      : '<p>'+need('no bank account named on this deal')+'</p>')+
     '<p>'+esc(F.governingLaw)+'</p>'+
     '<hr class="sep">'+
-    '<div class="foot">Invoice TradeCo to '+esc(doc.buyer)+' — trade '+
+    '<div class="foot">Invoice '+esc(doc.seller.name||'TradeCo')+' to '+esc(doc.buyer)+' — trade '+
       (doc.number ? esc(doc.number) : '—')+'</div>';
 }
 
@@ -4335,9 +4670,12 @@ function renderDeals(){
       countCell(book.open,'unsettled',cancNote(book.cancelled))+bookMoney(book.ccy,'open')+
       '<td colspan="5"></td></tr></tfoot>' : '');
 
+  // The configuration is a window now, so nothing on the deals screen changes shape when it opens.
   const showConfig = configOpen && !!cur;
-  $('dealConfigCard').style.display = showConfig ? '' : 'none';
-  $('dealsSplit').className = showConfig ? 'grid2' : '';
+  $('dealModal').classList.toggle('open', showConfig);
+  document.body.style.overflow = (showConfig || modalOpen || invOpen || refOpen) ? 'hidden' : '';
+  if(showConfig) $('dealModalSub').textContent = ' — '+(cur.code||'(untitled deal)')+
+    ' · '+clientLabel(cur)+' · '+tradesOf(cur.id).length+' trade(s)';
 
   $('dealTradesFor').textContent = cur ? '— '+(cur.code||'(untitled deal)') : '';
   $('btnNewTradeFromDeals').disabled = !cur;
@@ -4864,7 +5202,8 @@ function runTests(){
      invoices comes to B36. */
   const invDeal = {...newDeal('tester'), code:'SC-T', currency:'USD', jurisdictions:['BR'],
     clientName:'Cantu Store', buyerName:'Gas Natural Atlantico S.A.',
-    buyerAddress:'Avenida Balboa 100\nPanama City', agreementDate:'2026-05-04'};
+    buyerAddress:'Avenida Balboa 100\nPanama City', agreementDate:'2026-05-04',
+    tradecoId:'sbtc-alpha', tradecoAccountId:'sbtc-alpha-usd'};
   const invTrade = (()=>{ const t=newTrade(invDeal.id,'tester');
     t.identifier='SC-T-01';
     t.inputs={...workbookTradeInputs(), supplierInvoices:[
@@ -4955,6 +5294,64 @@ function runTests(){
   T('Billing on one does not move B36',
     price(effectiveInputs(oneDeal, invTrade),{pfRate:pfQ.rate, liveRate:liveQ.rate}).tcTotal.toFixed(10),
     invOut.tcTotal.toFixed(10),'Cantu!B36');
+
+  /* ---- the TradeCo register -----------------------------------------------------------------
+     The entity the invoice is issued from is data now, so what the tests hold is that the document
+     reads it rather than carrying a copy, and that an entity or account nobody chose is reported
+     rather than guessed at. */
+  T('The register seeds the entity on the standard form',
+    (findTradeco('sbtc-alpha')||{}).name,'SB Trading Company alpha Limited','SEED_TRADECOS');
+  T('The invoice takes its seller from the register',
+    inv1.seller.name+' / '+inv1.seller.taxId,
+    'SB Trading Company alpha Limited / 433064228','INVOICE FROM');
+  T('The seller address is the register address, line by line',
+    inv1.seller.address.join(' | '),
+    'C/O TC Citroen Wells Limited, | 5th Floor, 3 Dorset Rise, | London, England, EC4Y 8EN','INVOICE FROM');
+  T('The pay-to block is the named account',
+    inv1.bank.map(([k])=>k).join(','),
+    'Currency,Bank,SWIFT,CHIPS ABA,Beneficiary,Account Number','PAY TO BANK ACCOUNT DETAILS');
+  T('Its currency is the invoice currency, not the account label',
+    inv1.bank.find(r=>r[0]==='Currency')[1],'USD','PAY TO BANK ACCOUNT DETAILS');
+  T('The account number is the one on the register',
+    inv1.bank.find(r=>r[0]==='Account Number')[1],'935220822','PAY TO BANK ACCOUNT DETAILS');
+  // A blank row is dropped rather than printed empty: a US account has no IBAN and a European one
+  // has no CHIPS ABA, and the form should show neither as an empty line.
+  T('An empty account row is not printed',
+    accountRows({bank:'B', swift:'S', aba:'', iban:'', beneficiary:'', accountNumber:'1'},'EUR')
+      .map(([k])=>k).join(','),'Currency,Bank,SWIFT,Account Number','accountRows()');
+  T('No account means no block at all', accountRows(null,'USD').length,'0','accountRows()');
+  T('A deal naming no TradeCo says so',
+    tcInvoiceDoc({...invDeal, tradecoId:''}, invTrade, invOut, 1)
+      .missing.filter(m=>/names no TradeCo/.test(m)).length,'1','document checklist');
+  T('A deal naming no account says so',
+    tcInvoiceDoc({...invDeal, tradecoAccountId:''}, invTrade, invOut, 1)
+      .missing.filter(m=>/no bank account/.test(m)).length,'1','document checklist');
+  T('An account in the wrong currency is flagged', (()=>{
+      const tc=findTradeco('sbtc-alpha'), a=findTradecoAccount(tc,'sbtc-alpha-usd');
+      const was=a.currency; a.currency='EUR';
+      const out=tcInvoiceDoc(invDeal, invTrade, invOut, 1).missing.filter(m=>/held in EUR/.test(m)).length;
+      a.currency=was;
+      return out;
+    })(),'1','document checklist');
+  T('An entity with no tax ID is flagged', (()=>{
+      const tc=findTradeco('sbtc-alpha'), was=tc.taxId; tc.taxId='';
+      const out=tcInvoiceDoc(invDeal, invTrade, invOut, 1).missing.filter(m=>/no tax ID/.test(m)).length;
+      tc.taxId=was; return out;
+    })(),'1','document checklist');
+  T('An account is found only on its own entity',
+    String(findTradecoAccount(findTradeco('sbtc-alpha'),'not-an-account')),'null','findTradecoAccount()');
+  T('Migration gives a book with no register the seeded one', (()=>{
+      const st=normalise({v:2, deals:[{id:'d'}], trades:[], curves:{},
+        clients:defaultClients(), audit:[]});
+      return st.tradecos.list.length+'/'+st.deals[0].tradecoId+'/'+st.deals[0].tradecoAccountId;
+    })(),'1/sbtc-alpha/sbtc-alpha-usd','normalise()');
+  T('Migration drops an account that is not on the chosen entity', (()=>{
+      const st=normalise({v:2, deals:[{id:'d', tradecoId:'sbtc-alpha', tradecoAccountId:'stale'}],
+        trades:[], curves:{}, clients:defaultClients(), audit:[]});
+      return st.deals[0].tradecoAccountId==='' ? 'cleared' : st.deals[0].tradecoAccountId;
+    })(),'cleared','normalise()');
+  T('An address splits on its own lines',
+    addressLines(' A \n\n B \r\n C ').join('|'),'A|B|C','addressLines()');
 
   // The .docx is written by hand, so the parts it must contain are asserted rather than assumed.
   const parts = tcInvoiceDocx(inv1), names = parts.map(x=>x[0]);
@@ -5423,6 +5820,12 @@ document.addEventListener('input', e=>{
     d[f] = el.type==='checkbox' ? el.checked : el.value;
     if(f==='clientId'){ const c=findClient(el.value); d.clientName=c?c.name:''; }
     if(f==='currency') curveChoice=null;   // the curve tab follows the deal again
+    // An account belongs to one entity, so changing the entity drops it rather than carrying a
+    // reference to another company's bank details into this deal's invoices.
+    if(f==='tradecoId' && !findTradecoAccount(findTradeco(d.tradecoId), d.tradecoAccountId)){
+      const tc=findTradeco(d.tradecoId), only=tc && tc.accounts.length===1 ? tc.accounts[0].id : '';
+      d.tradecoAccountId = only;
+    }
     revertPricedTrades(d, 'Deal configuration edited ('+f+') — rate snapshot voided.');
     render(); return;
   }
@@ -5455,7 +5858,7 @@ document.addEventListener('change', e=>{
   const d=currentDeal(), t=currentTrade();
   if(el.dataset.deal){
     audit('deal',d.id,'UPDATE',el.dataset.deal, el.dataset.prev??null, String(d[el.dataset.deal]));
-    if(el.dataset.deal==='proformaEnabled' || el.dataset.deal==='agencyFeeEnabled') loadFormFromStore();
+    if(['proformaEnabled','agencyFeeEnabled','tradecoId'].includes(el.dataset.deal)) loadFormFromStore();
   }
   if(el.dataset.trade && t) audit('trade',t.id,'UPDATE',el.dataset.trade, el.dataset.prev??null, String(t[el.dataset.trade]));
   if(el.dataset.field && t) audit('trade',t.id,'UPDATE',el.dataset.field, el.dataset.prev??null, String(t.inputs[el.dataset.field]));
@@ -5732,7 +6135,8 @@ $('dealTradesBox').addEventListener('click', e=>{
   const bt=e.target.closest('button[data-open-trade]'); if(bt) openTrade(bt.dataset.openTrade);
 });
 $('btnEditDeal').onclick=()=>{ configOpen=true; closeTradeModal(); showTab('deals'); };
-$('btnCloseConfig').onclick=()=>{ configOpen=false; render(); };
+function closeDealConfig(){ configOpen=false; showJurEdit(null); render(); }
+$('dealModal').addEventListener('click', e=>{ if(e.target.closest('[data-close-deal]')) closeDealConfig(); });
 $('dealLockBox').addEventListener('click', e=>{ if(e.target.closest('#btnUnlockDeal')) unlockDealConfig(); });
 $('btnNewTradeFromDeals').onclick=()=>{ if(createTrade()) openTradeModal(); };
 /* ---------------------------- adding a jurisdiction ---------------------------- */
@@ -5981,6 +6385,112 @@ $('refMenu').addEventListener('click', e=>{
 $('refModal').addEventListener('click', e=>{ if(e.target.closest('[data-close-ref]')) closeRef(); });
 // Esc closes whichever window is on top: the trade workspace sits above the reference ones.
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !modalOpen && !invOpen && refOpen) closeRef(); });
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape' && !invOpen && !refOpen && configOpen) closeDealConfig();
+});
+/* ---- TradeCos ---- */
+$('btnTcoAddToggle').onclick=()=>showTcoAdd($('tcoAddCard').style.display==='none'||!!tcoEditing, null);
+$('btnTcoCancel').onclick=()=>showTcoAdd(false);
+$('btnTcoSave').onclick=()=>{
+  if(actor().role!=='Rates Admin') return alert('Adding or editing a TradeCo requires the Rates Admin role.');
+  const f={}; for(const k of TCO_FIELDS) f[k]=String(($('tco_'+k)||{}).value||'').trim();
+  if(!f.name) return alert('A TradeCo needs a name — it is what the invoice is issued from.');
+  const clash=tradecoList().find(x=>String(x.id)!==String(tcoEditing) &&
+    String(x.name).trim().toLowerCase()===f.name.toLowerCase());
+  if(clash) return alert('“'+f.name+'” is already on the register.');
+  if(tcoEditing){
+    const tc=findTradeco(tcoEditing); if(!tc) return;
+    for(const k of TCO_FIELDS){
+      if(String(tc[k]??'')===f[k]) continue;
+      audit('tradeco',tc.id,'UPDATE',k,String(tc[k]??''),f[k]);
+      tc[k]=f[k];
+    }
+  } else {
+    const tc={id:uuid(), ...f, accounts:[]};
+    store.tradecos.list.push(tc);
+    audit('tradeco',tc.id,'CREATE',null,null,tc.name,
+      'Entity that a deal can issue its TradeCo invoice from.');
+  }
+  showTcoAdd(false); save(); render();
+};
+$('tcoTable').addEventListener('click', e=>{
+  const admin = actor().role==='Rates Admin';
+  const ed=e.target.closest('button[data-tco-edit]');
+  if(ed){ const tc=findTradeco(ed.dataset.tcoEdit); if(tc) showTcoAdd(true, tc); return; }
+  const del=e.target.closest('button[data-tco-delete]');
+  if(del){
+    if(!admin) return alert('Removing a TradeCo requires the Rates Admin role.');
+    const tc=findTradeco(del.dataset.tcoDelete); if(!tc) return;
+    // A deal still issuing on it would lose the entity its invoices name, so this is refused
+    // rather than cascaded — the same rule the investor list applies.
+    const used=tcoDealsUsing(tc.id);
+    if(used.length) return alert('“'+tc.name+'” is named by '+used.length+' deal(s): '+
+      used.map(d=>d.code||'(untitled)').join(', ')+'.\n\nPoint those deals at another TradeCo first.');
+    if(!confirm('Remove “'+tc.name+'” and its '+(tc.accounts||[]).length+' account(s) from the register?')) return;
+    store.tradecos.list=tradecoList().filter(x=>String(x.id)!==String(tc.id));
+    audit('tradeco',tc.id,'DELETE',null,tc.name,null,'Removed from the register.');
+    if(String(tcoEditing)===String(tc.id)) showTcoAdd(false);
+    save(); render(); return;
+  }
+  const add=e.target.closest('button[data-tco-acct-add]');
+  if(add){
+    if(!admin) return alert('Adding a bank account requires the Rates Admin role.');
+    const tc=findTradeco(add.dataset.tcoAcctAdd); if(!tc) return;
+    const a={id:uuid()}; for(const k of TCO_ACCOUNT_FIELDS) a[k]='';
+    (tc.accounts ||= []).push(a);
+    audit('tradeco',tc.id,'CREATE','account#'+tc.accounts.length,null,'(empty account)',
+      'Fill it in before a deal is pointed at it.');
+    save(); render(); return;
+  }
+  const rm=e.target.closest('button[data-tco-acct-remove]');
+  if(rm){
+    if(!admin) return alert('Removing a bank account requires the Rates Admin role.');
+    const tc=findTradeco(rm.dataset.tcoId); if(!tc) return;
+    const list=tc.accounts||[], n=list.findIndex(x=>String(x.id)===rm.dataset.tcoAcctRemove);
+    if(n<0) return;
+    const a=list[n];
+    // A deal paid into this account must not keep a reference to an account that no longer exists.
+    const paid=store.deals.filter(d=>String(d.tradecoAccountId)===String(a.id));
+    const filled=[a.label,a.bank,a.accountNumber].some(x=>String(x||'').trim());
+    if((filled || paid.length) && !confirm('Remove this account?'+
+      (a.label?'\n\n'+a.label:'')+
+      (paid.length?'\n\n'+paid.length+' deal(s) are paid into it and will be left with no account: '+
+        paid.map(d=>d.code||'(untitled)').join(', ')+'.':''))) return;
+    list.splice(n,1);
+    for(const d of paid) d.tradecoAccountId='';
+    audit('tradeco',tc.id,'DELETE','account#'+(n+1),
+      [a.label,a.bank,a.accountNumber].filter(Boolean).join(' · ')||'(empty account)', null,
+      paid.length?'Cleared it from '+paid.length+' deal(s).':null);
+    save(); render(); return;
+  }
+});
+/* Account cells commit as they are typed, like every other in-place table in the app. The audit
+   entry is written on change rather than on input, so one edit is one entry and not one per key. */
+$('tcoTable').addEventListener('input', e=>{
+  const el=e.target;
+  if(!el.dataset || !el.dataset.tcoAfield) return;
+  if(actor().role!=='Rates Admin') return;
+  const tc=findTradeco(el.dataset.tcoId); if(!tc) return;
+  const a=findTradecoAccount(tc, el.dataset.tcoAcct); if(!a) return;
+  a[el.dataset.tcoAfield]=el.value;
+  save(); renderDocuments(currentDeal(), currentTrade(), computeAll(currentDeal(), currentTrade()));
+});
+$('tcoTable').addEventListener('focusin', e=>{
+  const el=e.target; if(!el.dataset || !el.dataset.tcoAfield) return;
+  const tc=findTradeco(el.dataset.tcoId), a=tc && findTradecoAccount(tc, el.dataset.tcoAcct);
+  if(a) el.dataset.prev=String(a[el.dataset.tcoAfield]??'');
+});
+$('tcoTable').addEventListener('change', e=>{
+  const el=e.target; if(!el.dataset || !el.dataset.tcoAfield) return;
+  const tc=findTradeco(el.dataset.tcoId); if(!tc) return;
+  const a=findTradecoAccount(tc, el.dataset.tcoAcct); if(!a) return;
+  const n=(tc.accounts||[]).indexOf(a)+1;
+  if(el.dataset.prev!==undefined && el.dataset.prev===String(a[el.dataset.tcoAfield]??'')) return;
+  audit('tradeco',tc.id,'UPDATE','account#'+n+'.'+el.dataset.tcoAfield,
+    el.dataset.prev??null, String(a[el.dataset.tcoAfield]??''));
+  render();
+});
+
 $('btnInvAddToggle').onclick=()=>showInvAdd($('invAddCard').style.display==='none'||!!invEditing, null);
 $('btnInvCancel').onclick=()=>showInvAdd(false);
 $('btnInvSave').onclick=saveInvestorFromForm;
@@ -6039,7 +6549,9 @@ $('clientTable').addEventListener('click', e=>{
 
 $('btnPrice').onclick=doPrice; $('btnApprove').onclick=doApprove; $('btnIssue').onclick=doIssue;
 $('btnSettle').onclick=doSettle; $('btnCancel').onclick=doCancel;
-$('btnNewDeal').onclick=()=>{ const d=newDeal(actor().name); store.deals.push(d);
+$('btnNewDeal').onclick=()=>{ const d=newDeal(actor().name);
+  d.tradecoId=defaultTradecoId(); d.tradecoAccountId=defaultAccountId(d.tradecoId);
+  store.deals.push(d);
   store.currentDealId=d.id; store.currentTradeId=null; curveChoice=null;
   configOpen=true;                             // a new deal opens straight into configuration
   audit('deal',d.id,'CREATE',null,null,'new deal');
@@ -6192,16 +6704,20 @@ function tcInvoiceDocx(doc){
     wPara(wRun('INVOICE',{b:true, sz:'30'}), {align:'right', after:240})+
     wTable([[
       {paras:[wPara(wRun('INVOICE FROM:',{b:true}),{after:0}),
-              wPara(wRun(F.seller),{after:0}),
-              ...F.sellerAddress.map(l=>wPara(wRun(l),{after:0})),
-              wPara(wRun('VAT NUMBER: '+F.sellerVat),{after:0}),
-              wPara(wRun('EMAIL: '+F.sellerEmail),{after:0})].join('')},
+              wPara(wRun(doc.seller.name||'[no TradeCo named on this deal]'),{after:0}),
+              ...(doc.seller.address.length?doc.seller.address:['[registered address]'])
+                .map(l=>wPara(wRun(l),{after:0})),
+              ...(doc.seller.companyNumber
+                ? [wPara(wRun('COMPANY NUMBER: '+doc.seller.companyNumber),{after:0})] : []),
+              wPara(wRun('VAT NUMBER: '+(doc.seller.taxId||'[tax ID]')),{after:0}),
+              ...(doc.seller.email ? [wPara(wRun('EMAIL: '+doc.seller.email),{after:0})] : [])].join('')},
       {paras:[wPara(wRun('INVOICE TO:',{b:true}),{after:0}),
               wPara(wRun(doc.buyer),{after:0}),
               ...(doc.address.length?doc.address:['[invoice-to address]']).map(l=>wPara(wRun(l),{after:0}))].join('')}
     ]], [5529, 3497])+
     wPara(wRun('INVOICE NUMBER: '+(doc.number||'[trade identifier]'),{b:true}))+
-    wPara(wRun('Issued under the '+doc.agreementName+' between '+F.seller+' as seller and '+
+    wPara(wRun('Issued under the '+doc.agreementName+' between '+
+      (doc.seller.name||'[no TradeCo named on this deal]')+' as seller and '+
       doc.buyer+' as buyer dated '+date(doc.agreementDate,'agreement date')+
       ' (“the Sale Agreement”)',{u:true}))+
     wPara(wRun('INVOICE DATE: '+date(doc.issueDate,'TradeCo Issue Date'),{b:true}))+
@@ -6216,10 +6732,13 @@ function tcInvoiceDocx(doc){
     ], [2600, 1000, 1400, 1400, 700, 1926])+
     wPara(wRun('PAYMENT DATE: '+date(doc.paymentDate,'B28 — not priced'),{b:true}))+
     wPara(wRun('PAY TO BANK ACCOUNT DETAILS:',{b:true, u:true}))+
-    wTable(F.bank.map(([k,v])=>[cell(k+':',{b:true}), cell(v===null?doc.currency:v)]), [2200, 6826])+
+    (doc.bank.length
+      ? wTable(doc.bank.map(([k,v])=>[cell(k+':',{b:true}), cell(v)]), [2200, 6826])
+      : wPara(wRun('[no bank account named on this deal]')))+
     wPara(wRun(F.governingLaw))+
     wPara(wRun(''),{rule:true, after:200})+
-    wPara(wRun('Invoice TradeCo to '+doc.buyer+' — trade '+(doc.number||'—'),{sz:'17', color:'444444'}));
+    wPara(wRun('Invoice '+(doc.seller.name||'TradeCo')+' to '+doc.buyer+' — trade '+
+      (doc.number||'—'),{sz:'17', color:'444444'}));
 
   const documentXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
     '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'+

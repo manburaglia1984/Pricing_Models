@@ -12,7 +12,7 @@ single self-contained file that works offline and can be emailed or dropped on a
 
 The calc engine reproduces **all 26 output cells** of the `Cantu` tab exactly, plus the
 `Offer File`, `SOFR Interpolation` and `BD Dates` derivations. Open the **Parity tests** tab and
-press *Run tests* — 311 assertions, each labelled with its source cell.
+press *Run tests* — 327 assertions, each labelled with its source cell.
 
 | | Workbook | This app |
 |---|---|---|
@@ -35,9 +35,11 @@ are **Deals**, **Reference data**, **Audit log**, **Parity tests** and **Spec & 
 header carries no deal or trade controls at all.
 
 **Deals** is the landing tab. Click any deal row to select it and *Trades on this deal* below updates to
-that deal's trades. Row actions are **Configure** and **Delete**; the configuration panel opens on the
-right only when Configure is clicked, closes from its own button, and always shows whichever deal is
-selected.
+that deal's trades. Row actions are **Configure** and **Delete**. **Configure** opens the deal
+configuration as its own **window**, the same overlay treatment as the trade workspace: it carries the
+client, the currency, three billing switches, the issuing entity and its account, four blocks of
+document text and the jurisdiction picker, which is more than fits down one side of a screen. Close it
+with its own button, `Esc`, or a click on the backdrop.
 
 **Open** on a trade raises the **trade workspace** — a full overlay carrying everything specific to that
 trade:
@@ -74,6 +76,7 @@ A **deal** holds everything its trades share. A **trade** is what gets priced, a
 | Agency fee charged, yes/no | The agency fee rate, when charged |
 | Invoice-to name and address, and the agreement the TradeCo invoice is issued under | The invoice's own numbers, dates and number |
 | TradeCo invoices per trade — one or two | The amounts on them |
+| The TradeCo that issues, and the account it is paid into | — |
 | Associated jurisdictions | Lifecycle, rate snapshot, Offer File, audit |
 
 This matches the SharePoint layout, where `Trade 1 - DRC` holds SB01 / SB02 / SB03 under one facility.
@@ -326,11 +329,29 @@ Two caveats worth reading before go-live:
   libraries, so it packs its own ZIP with stored (uncompressed) members, which needs nothing but a
   CRC-32. The output validates against the OOXML schema.
 
-  The form's fixed parts — the seller, its VAT number, the receiving account — are transcribed from
-  the standard form. Everything that varies by facility is a deal field: who the invoice is billed
-  to, their address, and the agreement it is issued under. That is the seam the per-deal templates
-  will grow along. A field the deal has not been given is named in red on the page and listed above
-  it, rather than left as a silent gap.
+  **Who issues it comes from the TradeCo register** (below), and where it is paid from the account
+  that entity's deal names. Everything else that varies by facility is a deal field: who the invoice
+  is billed to, their address, and the agreement it is issued under. Only the wording is fixed. A
+  field the deal has not been given is named in red on the page and listed above it, rather than
+  left as a silent gap.
+- **A TradeCo register**, in *Settings → TradeCos*. A TradeCo is the entity the TradeCo invoice is
+  issued *from*: its legal name, jurisdiction of incorporation, registered address, company number
+  and tax ID fill that document's `INVOICE FROM` block. Each entity holds **any number of bank
+  accounts** — a facility funded in USD through New York and one funded in EUR through Frankfurt are
+  the same company and two accounts — and a deal names one entity and one of its accounts.
+
+  It is a register rather than a set of deal fields because one entity issues across many
+  facilities, and a company number that has to be re-keyed per deal is a company number that will
+  disagree with itself. Only the account a deal names is printed, and it is never inferred: no
+  account, no bank block, and the invoice says so. An account is dropped when the deal's entity
+  changes, since an account belongs to one company. Rows that would print empty are left out, so a
+  US account shows no IBAN line and a European one no CHIPS ABA. An account held in a currency other
+  than the invoice's is flagged — the kind of thing only noticed after the money has gone somewhere
+  else. Removing an entity is refused while a deal names it; removing an account warns which deals
+  it leaves with none. Editing is gated to the **Rates Admin** role and every change is audited.
+
+  It is seeded with the entity and account on the attached standard form, so the invoice it already
+  produced still produces the same document and there is a worked example to copy.
 - **Append-only audit log** at field-level granularity — who changed what, when, from what to what,
   and why. No hard deletes anywhere: cancelling is a soft-delete.
 
