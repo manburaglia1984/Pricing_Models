@@ -12,7 +12,7 @@ single self-contained file that works offline and can be emailed or dropped on a
 
 The calc engine reproduces **all 26 output cells** of the `Cantu` tab exactly, plus the
 `Offer File`, `SOFR Interpolation` and `BD Dates` derivations. Open the **Parity tests** tab and
-press *Run tests* — 327 assertions, each labelled with its source cell.
+press *Run tests* — 341 assertions, each labelled with its source cell.
 
 | | Workbook | This app |
 |---|---|---|
@@ -295,7 +295,17 @@ Two caveats worth reading before go-live:
   snapshot frozen and bound at PRICED, four-eyes approval (an approver who is not the originator),
   inputs locked from APPROVED, and versioning for post-approval changes.
 - **Validation** split into blocking errors and acknowledgeable warnings; acknowledgement requires
-  a reason and is itself an audit event.
+  a reason and is itself an audit event. A rate is checked against **the last trade on the same
+  deal**, not against a market-wide figure: a number this desk agreed once is what makes the next
+  one worth a second look. The first trade on a deal has no baseline, so its rates are not checked
+  at all. Cancelled trades are not a baseline — they are the ones that did not happen.
+- **One way of writing a figure, everywhere it is written.** Money carries thousands separators and
+  two decimals, rates five. That holds for the fields those are typed into as well as the cells they
+  are computed in: a rate or an amount is rewritten in that shape once the field is left, never
+  while it is being typed, and an amount keyed as `1,234.5` is stored as `1234.5`. An empty field
+  shows a greyed **zero** rather than a suggested figure — it used to show standing market terms,
+  which put a number nobody had agreed in front of whoever was keying the trade and read as a value
+  already entered.
 - **A Documents pane per trade**, since a trade issues more than one document off the same numbers.
   A picker names them and each has its own pane.
 - **IAA Offer File** — the 12-field record with its source-cell mapping, exportable as TSV, CSV,

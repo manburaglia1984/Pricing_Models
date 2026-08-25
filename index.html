@@ -212,6 +212,9 @@ input:disabled,select:disabled{opacity:.6;cursor:not-allowed}
 #dealModal .row{grid-template-columns:minmax(0,1fr) minmax(0,330px);gap:14px}
 #dealModal .row.wide{grid-template-columns:1fr}
 #dealModal select.in,#dealModal input.in{text-overflow:ellipsis}
+/* Two rows on the Trade box hold names rather than figures — a funder and an obligor are legal
+   entities, and 148px of a column sized for "0.65000" cuts them in half. */
+.row.wideval{grid-template-columns:minmax(0,1fr) minmax(0,250px)}
 .modal.open{display:block}
 .modal .backdrop{position:absolute;inset:0;background:rgba(8,12,18,.55)}
 .modal .sheet{position:absolute;inset:22px;background:var(--bg);border:1px solid var(--line-2);
@@ -546,8 +549,8 @@ code,.mono{font-family:var(--mono);font-size:12px}
         <div class="body">
         <div class="row"><div class="lbl">Trade Identifier<span class="note">Unique within the deal. Offer File column D.</span></div><div class="cell"><input type="text" class="in" id="f_tradeid" data-trade="identifier"></div></div>
         <div class="row"><div class="lbl">Trade Submission Date<span class="note">Date the trade is submitted. Selects the base rate curve — the latest one published on or before this date.</span></div><div class="cell"><input type="date" class="in" id="f_tradeDate" data-trade="tradeDate"></div></div>
-        <div class="row"><div class="lbl">Funder<span class="note">Provides the funding and sets the margin. Names the Settlement Date, Margin and Cost of Funds fields below.</span></div><div class="cell"><input type="text" class="in" id="f_funder" data-trade="funder" list="funderList"><datalist id="funderList"></datalist></div></div>
-        <div class="row"><div class="lbl">Relevant Obligor<span class="note">Offer File!A3 — may differ per trade.</span></div><div class="cell"><input type="text" class="in" id="f_obligor" data-trade="obligor"></div></div>
+        <div class="row wideval"><div class="lbl">Funder<span class="note">Provides the funding and sets the margin. Names the Settlement Date, Margin and Cost of Funds fields below.</span></div><div class="cell"><input type="text" class="in" id="f_funder" data-trade="funder" list="funderList"><datalist id="funderList"></datalist></div></div>
+        <div class="row wideval"><div class="lbl">Relevant Obligor<span class="note">Offer File!A3 — may differ per trade.</span></div><div class="cell"><input type="text" class="in" id="f_obligor" data-trade="obligor"></div></div>
         <div class="row"><div class="lbl">TradeCo Fee<span class="note">This desk's own fee. Added to the investor's margin to give the Margin used by panels 2 and 3.</span></div><div class="cell suffix" data-suffix="%"><input type="number" class="in" id="f_tcFee" data-field="tcFee" step="0.00001"></div></div>
         <!-- Keyed here rather than in panels 2 and 3, which used to hold one field each for the
              same rate. Shown only when the deal charges one at all. -->
@@ -620,7 +623,7 @@ code,.mono{font-family:var(--mono);font-size:12px}
         <div class="card">
         <h2>5 — Payment waterfall</h2>
         <div class="body">
-        <div class="row"><div class="lbl">Legal/Structuring Fees<span class="note">If applicable</span></div><div class="cell suffix" id="legalWrap" data-suffix="$"><input type="number" class="in" id="f_legalFees" data-field="legalFees" step="0.01"></div></div>
+        <div class="row"><div class="lbl">Legal/Structuring Fees<span class="note">If applicable</span></div><div class="cell suffix" id="legalWrap" data-suffix="$"><input type="text" inputmode="decimal" class="in" id="f_legalFees" data-field="legalFees" style="text-align:right"></div></div>
         <div class="row head"><div class="lbl" data-tpl="Payment to {client} Supplier (Supplier Invoice)">Payment to the client's Supplier (Supplier Invoice)</div><div class="cell"><span class="calc" id="o_paySupplier" title="B51 = B39 × (1 − B33) − B49"><span class="f">B51</span>—</span></div></div>
         <div class="row" id="row_payAgency"><div class="lbl" data-tpl="Payment to {client} (Agency Fee)">Payment to the client (Agency Fee)</div><div class="cell"><span class="calc" id="o_payAgency" title="B52 = B39 × B31 × B41 / basis"><span class="f">B52</span>—</span></div></div>
         <div class="row"><div class="lbl">Payment to TradeCo (TradeCo Fee)</div><div class="cell"><span class="calc" id="o_payTradeCo" title="B53 = B47 − B51 − B52"><span class="f">B53</span>—</span></div></div>
@@ -1239,6 +1242,15 @@ const fmtLong = s => isValidDate(s) ? new Intl.DateTimeFormat('en-US',
   {weekday:'long',year:'numeric',month:'long',day:'numeric',timeZone:'UTC'}).format(new Date(dParse(s))) : '—';
 const fmtShort = s => isValidDate(s) ? new Intl.DateTimeFormat('en-GB',
   {day:'2-digit',month:'short',year:'2-digit',timeZone:'UTC'}).format(new Date(dParse(s))).replace(/ /g,'-') : '—';
+/** A stamp written the way this app writes a date, with the time after it. toLocaleString() put
+ *  05/13/2026, 14:02 beside a 13-May-26 two rows up, which is two formats for one kind of thing. */
+const fmtStamp = iso => { const d=new Date(iso);
+  if(isNaN(d)) return '—';
+  const p2=n=>String(n).padStart(2,'0');
+  // Local throughout. Taking the date off toISOString() and the time off the local clock reads as
+  // one stamp but is two, and they disagree either side of midnight anywhere but UTC.
+  return fmtShort(d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate()))+
+    ' '+p2(d.getHours())+':'+p2(d.getMinutes()); };
 const todayISO = () => dFmt(Date.now());
 
 /* ---------------------------- currencies & base rates ----------------------------
@@ -1878,8 +1890,11 @@ const refreshCalendars = () => installCustomCalendars(store.jurisdictions);
 installCustomCalendars([]);        // the shipped calendars; the book's own fold in once loaded
 
 /* ---------------------------- formatting ---------------------------- */
-const money = (d,ccy) => d==null ? '—'
-  : (idxFor(ccy).symbol || (ccy+' ')) + Number(d.toFixed(2)).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+/** Money as it is written everywhere in this app: thousands separated, always two decimals.
+ *  amt2 is the same figure without its currency symbol, for the fields it is typed into. */
+const amt2 = d => Number(d.toFixed(2)).toLocaleString('en-US',
+  {minimumFractionDigits:2, maximumFractionDigits:2});
+const money = (d,ccy) => d==null ? '—' : (idxFor(ccy).symbol || (ccy+' ')) + amt2(d);
 const pct = (d,dp=5) => d==null?'—':d.mul(100).toFixed(dp)+'%';
 const fac = d => d==null?'—':d.toFixed(7);
 
@@ -2336,15 +2351,24 @@ function validate(deal, trade, out, quotes, bd){
     W('NOTE.TC_ISSUE','TradeCo Issue Date differs from the Bladex Settlement Date, so B27 ('+(out?out.tcTenorDays:'?')+'d) no longer equals Bladex Days ('+i.bladexDays+'d).');
   if(pfOn && Number(i.pfTenorDays)!==Number(i.bladexDays)+2 && Number(i.pfTenorDays)!==Number(i.bladexDays))
     W('NOTE.PF_TENOR','Pro Forma tenor is '+i.pfTenorDays+'d. The workbook note suggests Bladex Days + 2 ('+(Number(i.bladexDays)+2)+'d).');
-  // Only a rate that has been entered can depart from the standing terms. An empty field is
-  // already a blocking RATE.REQUIRED above; warning that it "is 0%, not 3%" on top of that would
-  // put five acknowledgements in front of every new trade for figures nobody had typed yet.
-  for(const [k,def,lbl,needed] of [['tcFee',MARKET_DEFAULTS.tcFee,'TradeCo Fee',true],
-                            ['bladexMargin',MARKET_DEFAULTS.bladexMargin,FUNDER+' margin',true],
-                            ['agencyFee',MARKET_DEFAULTS.agencyFee,'Agency Fee',agencyOn]]){
+  /* A rate is checked against the last trade on the same facility, not against a market-wide
+     figure. A number this desk agreed once is what makes the next one worth a second look; a
+     constant in the source is not, and one that happened to match the seeded trade read as though
+     the check were comparing trades when it was comparing to itself.
+     The first trade on a deal has nothing behind it, so its rates are not checked at all — there is
+     no baseline to depart from, and inventing one is what this replaces. */
+  const prevTrade = previousTradeOn(deal, trade);
+  if(prevTrade) for(const [k,lbl,needed] of [['tcFee','TradeCo Fee',true],
+                            ['bladexMargin',FUNDER+' margin',true],
+                            ['agencyFee','Agency Fee',agencyOn]]){
     const v = needed ? rateOf(k) : null;
-    if(v && !v.eq(D.of(def)))
-      W('NOTE.STANDARD_TERMS', lbl+' is '+pct(v)+', not the standing '+pct(D.of(def))+'. Confirm a pricing discussion with '+CLIENT+'/'+FUNDER+' took place.');
+    const was = prevTrade.inputs[k];
+    // Only a rate that has been entered can have moved. An empty field is already a blocking
+    // RATE.REQUIRED above, and a previous trade that never carried the rate is no baseline either.
+    if(v && !isBlankRate(was) && !v.eq(D.of(was)))
+      W('NOTE.RATE_MOVED', lbl+' is '+pct(v)+', where '+
+        (prevTrade.identifier||'the previous trade')+' priced at '+pct(D.of(was))+
+        '. Confirm a pricing discussion with '+CLIENT+'/'+FUNDER+' took place.');
   }
   if(D.of(i.legalFees||0).gt(ZERO))
     W('NOTE.LEGAL_FEES','Legal/Structuring Fees of '+money(D.of(i.legalFees),deal.currency)+' are deducted from the supplier leg (B51) and therefore land in the TradeCo residual (B53).');
@@ -2809,6 +2833,14 @@ const LOCKED = s => ['APPROVED','ISSUED','SETTLED','CANCELLED'].includes(s);
  *  documentation choice — B23 and B36 are the same figure either way — so this is read by the
  *  panels and the document pane and by nothing in the calc engine. */
 const tcInvoiceCountOf = deal => Number(deal && deal.tcInvoiceCount)===1 ? 1 : 2;
+/** The trade before this one on its deal, in the order the deal's own trade list shows them.
+ *  Cancelled trades are not a baseline — they are the ones that did not happen. */
+function previousTradeOn(deal, trade){
+  if(!deal || !trade) return null;
+  const list = sortedTrades(deal.id).filter(t=>!t.cancelled);
+  const n = list.findIndex(t=>t.id===trade.id);
+  return n>0 ? list[n-1] : null;
+}
 const dealBlockers = deal => tradesOf(deal.id).filter(t=>['APPROVED','ISSUED','SETTLED'].includes(t.state));
 /** Deliberately unlocked deals, for this session only — reloading restores the guard. */
 const unlockedDeals = new Set();
@@ -3061,6 +3093,10 @@ const setCalc = (id, text, bad) => { const el=$(id); if(!el) return;
   const f=el.querySelector('.f'); el.textContent=text; if(f) el.prepend(f); el.classList.toggle('bad', !!bad); };
 
 const PCT_FIELDS = new Set(['tcFee','agencyFee','bladexMargin']);
+/** Fields holding an amount rather than a rate. They are text inputs rather than number inputs
+ *  because a number input cannot show a thousands separator, and an eight-figure legal fee keyed
+ *  without one is the kind of thing that is read wrong once. */
+const MONEY_FIELDS = new Set(['legalFees']);
 const INT_FIELDS = new Set(['pfTenorDays','bladexDays']);
 const TRADE_FIELD_IDS = {
   pfIssueDate:'f_pfIssue', pfTenorDays:'f_pfTenor',
@@ -3088,10 +3124,10 @@ function loadFormFromStore(){
     const el=$(id); if(!el) continue;
     const raw=t.inputs[f];
     if(el.type==='checkbox') el.checked = raw!==false;
-    // A blank rate field stays blank. Rendering it as 0.00000 would put a figure nobody agreed
-    // in front of the user, and 0% is a real rate — it cannot double as "not entered yet".
-    else if(PCT_FIELDS.has(f)) el.value = isBlankRate(raw) ? '' : D.of(raw).mul(100).toFixed(5);
-    else el.value = raw ?? '';
+    // A blank rate or amount stays blank. Rendering it as 0.00000 would put a figure nobody agreed
+    // in front of the user, and 0% is a real rate — it cannot double as "not entered yet". The
+    // greyed placeholder is what shows what an empty field is worth.
+    else el.value = fieldText(f, raw);
   }
 }
 /** Blank means not entered. Kept separate from zero, which is a rate a deal could genuinely carry. */
@@ -3101,7 +3137,19 @@ function readField(field, el){
   // Clearing the field writes blank back, not 0 — otherwise a cleared margin silently becomes 0%.
   if(PCT_FIELDS.has(field)) return isBlankRate(el.value) ? '' : D.of(el.value).div(100).toFixed(12);
   if(INT_FIELDS.has(field)) return Number(el.value||0);
+  // The separators the field shows are not part of the number, so they never reach the store.
+  if(MONEY_FIELDS.has(field)) return readAmount(el.value);
   return el.value;
+}
+/** A field's stored value as the field shows it: rates to five places, amounts separated and to
+ *  two. Blank stays blank — the placeholder is what says what a blank field is worth. */
+function fieldText(field, raw){
+  if(PCT_FIELDS.has(field)) return isBlankRate(raw) ? '' : D.of(raw).mul(100).toFixed(5);
+  if(MONEY_FIELDS.has(field)){
+    const clean=readAmount(raw);
+    return clean==='' ? '' : amt2(D.of(clean));
+  }
+  return raw ?? '';
 }
 function renderClientOptions(){
   const sel=$('d_client'); const keep=sel.value; const list=clientList();
@@ -3844,7 +3892,7 @@ function renderPricing(d,t,r){
   if(t && t.state==='DRAFT') banners.push(['info','<b>Indicative.</b> This trade is a DRAFT priced off the live curve — no rate snapshot is bound yet.']);
   if(t && t.rateQuotes) banners.push(['ok','<b>Rate snapshot bound.</b> '+esc(ix.name)+' live '+pct(D.of(t.rateQuotes.live.rate))+
     (t.rateQuotes.pf ? ' · pro forma '+pct(D.of(t.rateQuotes.pf.rate)) : '')+
-    ' · quoted '+new Date(t.rateQuotes.live.quotedAt).toLocaleString()+'. Re-pricing this trade will always reproduce these numbers.']);
+    ' · quoted '+fmtStamp(t.rateQuotes.live.quotedAt)+'. Re-pricing this trade will always reproduce these numbers.']);
   if(r.quotes && t && !t.rateQuotes){
     const age=dDiff(todayISO(), r.quotes.live.businessDate);
     if(age>1) banners.push(['warn','<b>Stale rates.</b> The live '+esc(ix.name)+' curve business date is '+fmtShort(r.quotes.live.businessDate)+' ('+age+' days old).']);
@@ -3950,7 +3998,7 @@ function renderPricing(d,t,r){
     ['Face value (B39)', o?money(o.faceValue,ccy):'—'],
     ['Purchase price (B47)', o?money(o.purchasePrice,ccy):'—'],
     ['Discount', o?money(o.faceValue.sub(o.purchasePrice),ccy):'—'],
-    ['Gross yield to '+esc(funderLabel(t)), o?pct(o.iaaFactor.div(ONE.sub(o.iaaFactor)).mul(D.of(ix.basis)).div(D.of(o.tcDays||1)),4):'—'],
+    ['Gross yield to '+esc(funderLabel(t)), o?pct(o.iaaFactor.div(ONE.sub(o.iaaFactor)).mul(D.of(ix.basis)).div(D.of(o.tcDays||1))):'—'],
     ['TradeCo net fee (B53)', o?money(o.payToTradeCo,ccy):'—'],
     [esc(clientLabel(d))+' agency fee (B52)', o?money(o.payToCantuAgency,ccy):'—'],
     ['Tenor', o?o.tcDays+' days':'—'],
@@ -4162,7 +4210,7 @@ function renderRefMenu(){
     tcos.reduce((a,t)=>a+(t.accounts||[]).length,0)+' account(s)';
   const log=store.audit||[];
   $('refMetaAudit').textContent = log.length+' entr'+(log.length===1?'y':'ies')+
-    (log.length ? ' · last '+new Date(log[log.length-1].at).toLocaleDateString() : '');
+    (log.length ? ' · last '+fmtShort(String(log[log.length-1].at).slice(0,10)) : '');
   $('refMetaAbout').textContent = testSummaryLine();
   if(refOpen) $('refRoleNote').textContent = actor().role==='Rates Admin'
     ? 'Rates Admin — edits are audited' : 'Read-only as '+actor().role;
@@ -4414,7 +4462,7 @@ function renderClients(){
   const active=list.filter(c=>ACTIVE_STATUSES.includes(c.status)).length;
   $('clientSourceBox').innerHTML='<b>'+list.length+'</b> clients · <b>'+active+'</b> active · '+
     esc(src.boardName||'—')+' · '+
-    (src.syncedAt ? 'refreshed '+new Date(src.syncedAt).toLocaleDateString()+' ('+esc(src.via||'')+')'
+    (src.syncedAt ? 'refreshed '+fmtShort(String(src.syncedAt).slice(0,10))+' ('+esc(src.via||'')+')'
                   : 'as captured when this file was built');
   const f=($('clientFilter').value||'').toLowerCase().trim();
   const rows=list.filter(c=>!f || c.name.toLowerCase().includes(f) || (c.country||'').toLowerCase().includes(f))
@@ -4602,7 +4650,7 @@ function renderOffer(d,t,r){
     }).join('')+'</tbody>';
   $('issuedBox').innerHTML = t.offerFiles.length===0 ? '<p class="tiny">Nothing issued yet.</p>' :
     '<table><thead><tr><th>Issued at</th><th>By</th><th>SHA-256</th></tr></thead><tbody>'+
-    t.offerFiles.map(f=>'<tr><td>'+new Date(f.issuedAt).toLocaleString()+'</td><td>'+esc(f.issuedBy)+'</td><td class="mono tiny">'+f.documentSha256+'</td></tr>').join('')+'</tbody></table>';
+    t.offerFiles.map(f=>'<tr><td>'+fmtStamp(f.issuedAt)+'</td><td>'+esc(f.issuedBy)+'</td><td class="mono tiny">'+f.documentSha256+'</td></tr>').join('')+'</tbody></table>';
 }
 
 /** Whether the configuration panel is open. It always shows the currently selected deal. */
@@ -4780,7 +4828,7 @@ function renderAudit(){
     return t && a.entityId===t.id;
   }).slice().reverse();
   $('auditTable').innerHTML='<thead><tr><th>When</th><th>Actor</th><th>Role</th><th>Entity</th><th>Action</th><th>Field</th><th>From</th><th>To</th><th>Reason</th></tr></thead><tbody>'+
-    (rows.length?rows.map(a=>'<tr><td class="tiny">'+new Date(a.at).toLocaleString()+'</td><td>'+esc(a.actor)+'</td><td class="tiny">'+esc(a.role)+'</td>'+
+    (rows.length?rows.map(a=>'<tr><td class="tiny">'+fmtStamp(a.at)+'</td><td>'+esc(a.actor)+'</td><td class="tiny">'+esc(a.role)+'</td>'+
       '<td class="tiny">'+esc(a.entityType)+'</td><td class="mono tiny">'+esc(a.action)+'</td><td class="mono tiny">'+esc(a.field??'')+'</td>'+
       '<td class="tiny">'+esc(a.oldValue??'')+'</td><td class="tiny">'+esc(a.newValue??'')+'</td><td class="tiny">'+esc(a.reason??'')+'</td></tr>').join('')
      :'<tr><td colspan="9" class="tiny">No events.</td></tr>')+'</tbody>';
@@ -5177,10 +5225,66 @@ function runTests(){
     String(feeRules(true,'').errors.some(x=>x.rule==='RATE.REQUIRED')),'true','RATE.REQUIRED');
   T('Not charged and blank does not block',
     String(feeRules(false,'').errors.some(x=>x.rule==='RATE.REQUIRED')),'false','RATE.REQUIRED');
-  T('Not charged and off-market does not warn',
-    String(feeRules(false,'0.05').warnings.some(x=>x.rule==='NOTE.STANDARD_TERMS')),'false','NOTE.STANDARD_TERMS');
-  T('Charged and off-market warns once',
-    feeRules(true,'0.05').warnings.filter(x=>x.rule==='NOTE.STANDARD_TERMS').length,'1','NOTE.STANDARD_TERMS');
+  /* A rate is checked against the last trade on the same facility, and a first trade has no
+     baseline. Run over trades actually on the store, since that is where the previous one is. */
+  const ratesOn = (rows, which) => {
+    const d = {...newDeal('tester'), id:'rate-deal', currency:'USD', jurisdictions:['BR'],
+      proformaEnabled:true, agencyFeeEnabled:true};
+    const made = rows.map((r,k)=>{
+      const t=newTrade('rate-deal','tester');
+      t.identifier='RT-0'+(k+1); t.cancelled=!!r.cancelled;
+      t.inputs={...workbookTradeInputs(), ...r.inputs};
+      return t;
+    });
+    store.trades.push(...made);
+    try{ return validate(d, made[which], null, null, null); }
+    finally{ store.trades = store.trades.filter(t=>!made.includes(t)); }
+  };
+  const moved = r => r.warnings.filter(x=>x.rule==='NOTE.RATE_MOVED');
+  T('A first trade has no rate baseline',
+    moved(ratesOn([{inputs:{tcFee:'0.05'}}], 0)).length,'0','NOTE.RATE_MOVED');
+  T('A second trade at the same rates says nothing',
+    moved(ratesOn([{inputs:{}},{inputs:{}}], 1)).length,'0','NOTE.RATE_MOVED');
+  T('A rate that moved is flagged once, naming the trade it moved from',
+    moved(ratesOn([{inputs:{}},{inputs:{tcFee:'0.05'}}], 1))
+      .map(w=>w.msg.replace(/Confirm.*/,'').trim()).join(''),
+    'TradeCo Fee is 5.00000%, where RT-01 priced at 0.65000%.','NOTE.RATE_MOVED');
+  T('Every rate that moved is flagged',
+    moved(ratesOn([{inputs:{}},{inputs:{tcFee:'0.05', bladexMargin:'0.04', agencyFee:'0.002'}}], 1)).length,
+    '3','NOTE.RATE_MOVED');
+  T('A cancelled trade is not a baseline',
+    moved(ratesOn([{inputs:{}, cancelled:true},{inputs:{tcFee:'0.05'}}], 1)).length,'0','NOTE.RATE_MOVED');
+  T('A previous trade that never carried the rate is not a baseline',
+    moved(ratesOn([{inputs:{tcFee:''}},{inputs:{tcFee:'0.05'}}], 1))
+      .filter(w=>/TradeCo Fee/.test(w.msg)).length,'0','NOTE.RATE_MOVED');
+  T('An agency fee the deal does not charge is not checked', (()=>{
+      const d={...newDeal('tester'), id:'rate-deal2', currency:'USD', jurisdictions:['BR'],
+        proformaEnabled:true, agencyFeeEnabled:false};
+      const made=[{},{agencyFee:'0.05'}].map((inp,k)=>{
+        const t=newTrade('rate-deal2','tester'); t.identifier='RX-0'+(k+1);
+        t.inputs={...workbookTradeInputs(), ...inp}; return t; });
+      store.trades.push(...made);
+      try{ return validate(d, made[1], null, null, null)
+        .warnings.filter(x=>x.rule==='NOTE.RATE_MOVED' && /Agency/.test(x.msg)).length; }
+      finally{ store.trades = store.trades.filter(t=>!made.includes(t)); }
+    })(),'0','NOTE.RATE_MOVED');
+  T('The standing-terms check is gone',
+    String(feeRules(true,'0.05').warnings.some(x=>x.rule==='NOTE.STANDARD_TERMS')),'false','no market-wide baseline');
+
+  /* ---- how a figure is written, wherever it is written ---- */
+  T('Money carries separators and two places', amt2(D.of('1234567.5')),'1,234,567.50','amt2()');
+  T('A rate field shows five places', fieldText('tcFee','0.0065'),'0.65000','fieldText()');
+  T('An amount field shows separators', fieldText('legalFees','1234.5'),'1,234.50','fieldText()');
+  T('A blank field stays blank, not zero',
+    JSON.stringify([fieldText('tcFee',''), fieldText('legalFees','')]),'["",""]','fieldText()');
+  T('An amount keyed with separators is stored without them',
+    readField('legalFees',{type:'text', value:'1,234.50'}),'1234.50','readField()');
+  T('A cleared amount stores blank, not zero',
+    JSON.stringify(readField('legalFees',{type:'text', value:''})),'""','readField()');
+  // Midday and no zone, so the assertion holds wherever the browser's clock is set.
+  T('A stamp is written like every other date',
+    fmtStamp('2027-01-12T12:30:00'),'12-Jan-27 12:30','fmtStamp()');
+  T('An unreadable stamp is a dash, not Invalid Date', fmtStamp('nonsense'),'—','fmtStamp()');
 
   /* Migration. The rate that drove the payment leg is the one that survives, so a trade where the
      two panels had drifted apart keeps the figure it was actually paying out on. */
@@ -5788,6 +5892,18 @@ window.addEventListener('scroll', placeNoteTip, true);
 window.addEventListener('resize', placeNoteTip);
 document.addEventListener('mouseleave', closeNoteTip);
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeNoteTip(); });
+
+/* A rate or an amount is rewritten in the form the app writes it — five places, or separated and
+   to two — once the field is left. Not while it is being typed: reformatting under the caret moves
+   it, and "1,2" is not a number anybody meant to key. */
+document.addEventListener('focusout', e=>{
+  const el=e.target;
+  if(!el.dataset || !el.dataset.field) return;
+  const f=el.dataset.field;
+  if(!PCT_FIELDS.has(f) && !MONEY_FIELDS.has(f)) return;
+  const t=currentTrade(); if(!t || LOCKED(t.state)) return;
+  el.value = fieldText(f, t.inputs[f]);
+});
 
 /* ---------------------------- events ---------------------------- */
 document.addEventListener('focusin', e=>{
@@ -7134,13 +7250,12 @@ $('btnAuditCsv').onclick=()=>{ const scope=$('auditScope').value, t=currentTrade
   download('audit-log.csv', head.join(',')+'\n'+rows.map(a=>head.map(h=>csvCell(a[h])).join(',')).join('\n')+'\n','text/csv'); };
 
 /* ---------------------------- boot ---------------------------- */
-// The standing market terms become placeholders on the five rate fields. The expected figure stays
-// in front of whoever is keying the trade, without a new trade carrying a rate nobody agreed —
-// and read from MARKET_DEFAULTS so the hint cannot drift from the value the warning compares to.
-for(const [id,def] of [['f_tcFee',MARKET_DEFAULTS.tcFee],
-                       ['f_agencyFee',MARKET_DEFAULTS.agencyFee],
-                       ['f_bladexMargin',MARKET_DEFAULTS.bladexMargin]])
-  $(id).placeholder = D.of(def).mul(100).toFixed(5);
+/* An empty rate or amount field shows what it is worth while empty, which is nothing. It used to
+   show the standing market terms instead, which put a figure nobody had agreed in front of whoever
+   was keying the trade and read as a value already entered. Greyed zero says the same thing the
+   field means — and in the shape the field will take once something is keyed into it. */
+for(const id of ['f_tcFee','f_agencyFee','f_bladexMargin']) $(id).placeholder='0.00000';
+$('f_legalFees').placeholder='0.00';
 
 loadFormFromStore();
 render();
