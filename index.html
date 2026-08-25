@@ -140,10 +140,10 @@ main{padding:18px 20px 60px;max-width:1500px;margin:0 auto}
    reveals it. font-size:0 is what takes the sentence out of the line while leaving it in
    textContent, which is where #noteTip reads it from; the badge's own glyph sets its size back. */
 .row .note{display:inline-block;vertical-align:top;box-sizing:border-box;
-  width:14px;height:14px;margin:0 0 0 5px;overflow:hidden;font-size:0;
+  width:15px;height:15px;margin:0 0 0 5px;overflow:hidden;font-size:0;
   border:1px solid var(--note);border-radius:50%;color:var(--note);cursor:help;
   opacity:.65;transition:opacity .12s,background .12s}
-.row .note::after{content:'i';display:block;font:italic 700 9.5px/12px var(--sans);text-align:center}
+.row .note::after{content:'i';display:block;font:italic 700 10px/13px var(--sans);text-align:center}
 /* Empty until something is rendered into it — no field, no comment, no badge. */
 .row .note:empty{display:none}
 .row:hover .note,.row:focus-within .note{opacity:1;background:var(--accent-soft)}
@@ -157,7 +157,7 @@ main{padding:18px 20px 60px;max-width:1500px;margin:0 auto}
 /* A tick pointing back at the field. The panel is offset to the row's left edge and can sit over
    the rows below it, so which field it belongs to has to be visible and not inferred. Two rotated
    corners rather than a border triangle, so the panel's own outline carries through it. */
-#noteTip::before{content:'';position:absolute;left:14px;width:8px;height:8px;
+#noteTip::before{content:'';position:absolute;left:var(--tick,14px);width:8px;height:8px;
   background:var(--panel);border:1px solid var(--note);transform:rotate(45deg)}
 #noteTip.below::before{top:-5px;border-right:0;border-bottom:0}
 #noteTip.above::before{bottom:-5px;border-left:0;border-top:0}
@@ -557,9 +557,9 @@ code,.mono{font-family:var(--mono);font-size:12px}
         <div class="row" id="row_pfAgency"><div class="lbl">Agency Fee<span class="note">Keyed on the Trade box.</span></div><div class="cell"><span class="calc" id="o_pfAgency" title="B18 = Agency Fee"><span class="f">B18</span>—</span></div></div>
         <div class="row"><div class="lbl">TradeCo Mark-up</div><div class="cell"><span class="calc" id="o_pfMarkup" title="B19 = B17 + B16 + B18"><span class="f">B19</span>—</span></div></div>
         <div class="row"><div class="lbl">Factor<span class="note" id="pfFactorNote"></span></div><div class="cell"><span class="calc" id="o_pfFactor" title="B20 = B19 × (B15 − B13) / basis"><span class="f">B20</span>—</span></div></div>
-        <div class="row head"><div class="lbl">Total Invoice Amount — Invoice #1</div><div class="cell"><span class="calc" id="o_pfInv1" title="B21 = B10"><span class="f">B21</span>—</span></div></div>
-        <div class="row"><div class="lbl">Financial Cost — Invoice #2</div><div class="cell"><span class="calc" id="o_pfInv2" title="B22 = B23 − B21"><span class="f">B22</span>—</span></div></div>
-        <div class="row"><div class="lbl"><b>Total TradeCo Invoices Amount</b></div><div class="cell"><span class="calc strong" id="o_pfTotal" title="B23 = B10 / (1 − B20)"><span class="f">B23</span>—</span></div></div>
+        <div class="row head"><div class="lbl" id="lbl_pfInv1">Total Invoice Amount — Invoice #1</div><div class="cell"><span class="calc" id="o_pfInv1" title="B21 = B10"><span class="f">B21</span>—</span></div></div>
+        <div class="row"><div class="lbl" id="lbl_pfInv2">Financial Cost — Invoice #2</div><div class="cell"><span class="calc" id="o_pfInv2" title="B22 = B23 − B21"><span class="f">B22</span>—</span></div></div>
+        <div class="row"><div class="lbl" id="lbl_pfTotal"><b>Total TradeCo Invoices Amount</b></div><div class="cell"><span class="calc strong" id="o_pfTotal" title="B23 = B10 / (1 − B20)"><span class="f">B23</span>—</span></div></div>
         </div>
         </div>
         <div class="card">
@@ -573,9 +573,9 @@ code,.mono{font-family:var(--mono);font-size:12px}
         <div class="row" id="row_tcAgency"><div class="lbl">Agency Fee<span class="note">Keyed on the Trade box. Also drives the agency-fee payment leg (B52).</span></div><div class="cell"><span class="calc" id="o_tcAgency" title="B31 = Agency Fee"><span class="f">B31</span>—</span></div></div>
         <div class="row"><div class="lbl">TradeCo Mark-up</div><div class="cell"><span class="calc" id="o_tcMarkup" title="B32 = B30 + B29 + B31"><span class="f">B32</span>—</span></div></div>
         <div class="row"><div class="lbl">Factor<span class="note" id="tcFactorNote"></span></div><div class="cell"><span class="calc" id="o_tcFactor" title="B33 = B32 × (B28 − B40) / basis"><span class="f">B33</span>—</span></div></div>
-        <div class="row head"><div class="lbl">Total Invoice Amount — Invoice #1</div><div class="cell"><span class="calc" id="o_tcInv1" title="B34 = B10"><span class="f">B34</span>—</span></div></div>
-        <div class="row"><div class="lbl">Financial Cost — Invoice #2</div><div class="cell"><span class="calc" id="o_tcInv2" title="B35 = B36 − B34"><span class="f">B35</span>—</span></div></div>
-        <div class="row"><div class="lbl"><b>Total TradeCo Invoices Amount</b></div><div class="cell"><span class="calc strong" id="o_tcTotal" title="B36 = B10 / (1 − B33)"><span class="f">B36</span>—</span></div></div>
+        <div class="row head"><div class="lbl" id="lbl_tcInv1">Total Invoice Amount — Invoice #1</div><div class="cell"><span class="calc" id="o_tcInv1" title="B34 = B10"><span class="f">B34</span>—</span></div></div>
+        <div class="row"><div class="lbl" id="lbl_tcInv2">Financial Cost — Invoice #2</div><div class="cell"><span class="calc" id="o_tcInv2" title="B35 = B36 − B34"><span class="f">B35</span>—</span></div></div>
+        <div class="row"><div class="lbl" id="lbl_tcTotal"><b>Total TradeCo Invoices Amount</b></div><div class="cell"><span class="calc strong" id="o_tcTotal" title="B36 = B10 / (1 − B33)"><span class="f">B36</span>—</span></div></div>
         </div>
         </div>
     </div>
@@ -1013,6 +1013,11 @@ code,.mono{font-family:var(--mono);font-size:12px}
             <div class="cell"><label class="toggle" style="justify-content:flex-end;width:100%"><input type="checkbox" id="d_proforma" data-deal="proformaEnabled" checked><span id="proformaLabel">Used on this deal</span></label></div></div>
           <div class="row"><div class="lbl">Agency Fee<span class="note">Whether this facility carries one at all. When off, the rate disappears from every trade on this deal and is excluded from both mark-ups and the agency-fee payment leg (B52).</span></div>
             <div class="cell"><label class="toggle" style="justify-content:flex-end;width:100%"><input type="checkbox" id="d_agencyFee" data-deal="agencyFeeEnabled" checked><span id="agencyFeeLabel">Charged on this deal</span></label></div></div>
+          <div class="row"><div class="lbl">TradeCo invoices per trade<span class="note">How this client wants to be billed. Two is the workbook's own split — the amount and the financial cost on separate invoices. One bills them together, on a single invoice for the same total. It changes only how the amount is documented; every figure the trade prices on is untouched.</span></div>
+            <div class="cell"><select class="in" id="d_tcInvoiceCount" data-deal="tcInvoiceCount" style="text-align:left">
+              <option value="2">Two — amount, then financial cost</option>
+              <option value="1">One — billed together</option>
+            </select></div></div>
           <!-- Document text. Everything on the TradeCo invoice that varies by facility rather than
                by trade: who it is billed to, and the agreement it is issued under. The rest of the
                form is the same on every trade and lives in TC_INVOICE_FORM. -->
@@ -2275,7 +2280,7 @@ function copyTradeInputs(src){
 }
 function newDeal(who){
   return { id:uuid(), code:'', clientId:'', clientName:'', currency:'USD', proformaEnabled:true,
-    agencyFeeEnabled:true,
+    agencyFeeEnabled:true, tcInvoiceCount:2,
     buyerName:'', buyerAddress:'', agreementName:TC_INVOICE_FORM.agreementDefault, agreementDate:'',
     jurisdictions:[], createdBy:who, createdAt:new Date().toISOString(), cancelled:false };
 }
@@ -2371,6 +2376,8 @@ function normalise(s){
     if(d.agencyFeeEnabled===undefined) d.agencyFeeEnabled = true;
     // The document text is new. Blank is the honest default for the buyer and the agreement date —
     // neither can be inferred — and the invoice reports them as missing rather than inventing them.
+    // Two is what every deal stored before this was doing, since it was the only way to bill.
+    d.tcInvoiceCount = Number(d.tcInvoiceCount)===1 ? 1 : 2;
     for(const f of ['buyerName','buyerAddress','agreementDate']) if(d[f]===undefined) d[f]='';
     if(d.agreementName===undefined) d.agreementName = TC_INVOICE_FORM.agreementDefault;
   }
@@ -2615,6 +2622,10 @@ const LOCKED = s => ['APPROVED','ISSUED','SETTLED','CANCELLED'].includes(s);
 /** Trades that make editing the deal consequential: signed off or dispatched.
  *  A merely PRICED trade is not one — nothing has been agreed, so editing the deal
  *  just voids its snapshot and returns it to DRAFT (see revertPricedTrades). */
+/** How many TradeCo invoices a deal bills on: 1 or 2, never anything else. The split is a
+ *  documentation choice — B23 and B36 are the same figure either way — so this is read by the
+ *  panels and the document pane and by nothing in the calc engine. */
+const tcInvoiceCountOf = deal => Number(deal && deal.tcInvoiceCount)===1 ? 1 : 2;
 const dealBlockers = deal => tradesOf(deal.id).filter(t=>['APPROVED','ISSUED','SETTLED'].includes(t.state));
 /** Deliberately unlocked deals, for this session only — reloading restores the guard. */
 const unlockedDeals = new Set();
@@ -2773,8 +2784,15 @@ function tcInvoiceDoc(deal, trade, out, which){
   const i = effectiveInputs(deal, trade), sup = supplierTotals(i), ccy = deal.currency;
   const lines=[], missing=[];
   let vat = ZERO;
+  /* A deal billing on one invoice puts both halves on it: the goods lines and their charges, then
+     the financial cost as a further line. Its total is B34 + B35, which is the B36 the trade is
+     priced on either way — the split is how the amount is documented, never what it is. */
+  const count = tcInvoiceCountOf(deal);
+  if(count===1) which = 1;
+  const wantGoods = which===1;
+  const wantFinance = count===1 || which===2;
 
-  if(which===1){
+  if(wantGoods){
     for(const v of (i.supplierInvoices||[])){
       const b = invoiceBreakdown(v);
       const ref = String(v.invoiceNumber||'').trim();
@@ -2796,11 +2814,12 @@ function tcInvoiceDoc(deal, trade, out, which){
       if(amt.gt(ZERO)) lines.push({kind:'charge', description:label, qty:'1', unitPrice:amt, net:amt});
     vat = sup.vat;
     if(!lines.length) missing.push('The trade carries no supplier invoice with a value, so the invoice has no lines.');
-  } else {
+  }
+  if(wantFinance){
     const fin = out ? out.tcInvoice2 : null;
     if(fin && fin.gt(ZERO))
       lines.push({kind:'finance', description:'Financial cost', qty:'1', unitPrice:fin, net:fin});
-    else missing.push('The financial cost (Cantu!B35) is not priced yet, so this invoice has no line.');
+    else missing.push('The financial cost (Cantu!B35) is not priced yet, so it is missing from this invoice.');
   }
   const netTotal = lines.reduce((a,l)=>a.add(l.net), ZERO);
   for(const l of lines){ l.vat = ZERO; l.gross = l.net; }
@@ -2815,11 +2834,13 @@ function tcInvoiceDoc(deal, trade, out, which){
   const paymentDate = out ? out.tcMaturityDate : null;
   if(!isValidDate(paymentDate)) missing.push('The payment date comes from B28, which is not priced yet.');
 
-  return { which, currency:ccy, form:TC_INVOICE_FORM,
-    // Two invoices on one trade, numbered off its identifier so the pair is traceable to it.
+  return { which, count, currency:ccy, form:TC_INVOICE_FORM,
+    // Numbered off the trade identifier, so a pair of invoices is traceable to the one trade.
     number: ident ? ident+'-0'+which : '',
-    title: which===1 ? 'TradeCo Invoice #1 — goods' : 'TradeCo Invoice #2 — financial cost',
-    sourceCell: which===1 ? 'Cantu!B34' : 'Cantu!B35',
+    title: count===1 ? 'TradeCo Invoice — amount and financial cost'
+         : which===1 ? 'TradeCo Invoice #1 — goods'
+         : 'TradeCo Invoice #2 — financial cost',
+    sourceCell: count===1 ? 'Cantu!B36' : which===1 ? 'Cantu!B34' : 'Cantu!B35',
     buyer, address, agreementName:String(deal.agreementName||'').trim() || TC_INVOICE_FORM.agreementDefault,
     agreementDate: deal.agreementDate, issueDate: i.tcIssueDate, paymentDate,
     lines, netTotal, vat, total: netTotal.add(vat), missing };
@@ -2839,7 +2860,7 @@ const TRADE_FIELD_IDS = {
   bladexSettlementDate:'f_bladexSettle', bladexDays:'f_bladexDays', bladexMargin:'f_bladexMargin', legalFees:'f_legalFees'};
 const TRADE_TOP_IDS = { identifier:'f_tradeid', tradeDate:'f_tradeDate', funder:'f_funder', obligor:'f_obligor' };
 const DEAL_FIELD_IDS = { clientId:'d_client', code:'d_code', currency:'d_currency',
-  proformaEnabled:'d_proforma', agencyFeeEnabled:'d_agencyFee',
+  proformaEnabled:'d_proforma', agencyFeeEnabled:'d_agencyFee', tcInvoiceCount:'d_tcInvoiceCount',
   buyerName:'d_buyer', buyerAddress:'d_buyerAddress', agreementName:'d_agreement',
   agreementDate:'d_agreementDate' };
 
@@ -3535,6 +3556,25 @@ function renderPricing(d,t,r){
   for(const id of ['row_agencyFee','row_pfAgency','row_tcAgency','row_payAgency']){
     const el=$(id); if(el) el.style.display = agencyOn ? '' : 'none';
   }
+  /* One invoice or two is a billing choice, so it moves the labels and nothing else: B21/B34 and
+     B22/B35 are the same two figures whichever way the client is billed, and B23/B36 is their sum.
+     Billing on one makes that sum the invoice and the two above it its components; billing on two
+     makes each of them an invoice and the sum a total. Relabelled rather than hidden — the split
+     is what the financial cost is, and a client billed on one still wants to see it. */
+  const nInv = tcInvoiceCountOf(d);
+  for(const pfx of ['pf','tc']){
+    const l1=$('lbl_'+pfx+'Inv1'), l2=$('lbl_'+pfx+'Inv2'), lt=$('lbl_'+pfx+'Total');
+    if(!l1||!l2||!lt) continue;
+    if(nInv===1){
+      l1.textContent='Amount — of which goods';
+      l2.textContent='Amount — of which financial cost';
+      lt.innerHTML='<b>Total Invoice Amount — Invoice #1</b>';
+    } else {
+      l1.textContent='Total Invoice Amount — Invoice #1';
+      l2.textContent='Financial Cost — Invoice #2';
+      lt.innerHTML='<b>Total TradeCo Invoices Amount</b>';
+    }
+  }
   /* Only a focused *field* must survive the rebuild — tearing an input out from under the caret is
      what the skip is for. A focused button must not stop it: adding an item leaves the button that
      added it holding focus, and skipping there is how the new row failed to appear at all. The
@@ -3552,6 +3592,7 @@ function renderPricing(d,t,r){
     ['Currency', esc(ccy)+' <span class="tiny">· '+esc(ix.name)+' · ACT/'+ix.basis+'</span>'],
     ['Pro forma invoices', pfOn ? '<span class="inline-tag ok">used</span>' : '<span class="inline-tag">not used</span>'],
     ['Agency Fee', agencyOn ? '<span class="inline-tag ok">charged</span>' : '<span class="inline-tag">not charged</span>'],
+    ['TradeCo invoices', '<span class="inline-tag">'+(tcInvoiceCountOf(d)===1?'one':'two')+' per trade</span>'],
     ['Jurisdictions', (d.jurisdictions||[]).length
       ? (d.jurisdictions||[]).map(j=>'<span class="inline-tag">'+esc(j)+'</span>').join(' ')
       : '<span class="inline-tag err">none selected</span>'],
@@ -4112,9 +4153,13 @@ async function syncClientsFromMonday(){
 let docChoice='offer', tcInvWhich=1;
 const DOCUMENTS = [
   {key:'offer', name:'IAA Offer File',
-   desc:'The 12-field record dispatched to the funder. Hashed and stored on the trade at ISSUED.'},
+   desc: () => 'The 12-field record dispatched to the funder. Hashed and stored on the trade at ISSUED.'},
   {key:'tcinv', name:'TradeCo Invoice',
-   desc:'The invoice TradeCo issues to the buyer, off the trade’s own supplier invoices. Two of them: the goods (B34) and the financial cost (B35).'},
+   // How many there are is the deal's answer, so the card says which one this deal bills on.
+   desc: d => 'The invoice TradeCo issues to the buyer, off the trade’s own supplier invoices. '+
+     (tcInvoiceCountOf(d)===1
+       ? 'One of them, billing the amount and the financial cost together (B36).'
+       : 'Two of them: the goods (B34) and the financial cost (B35).')},
 ];
 function showDocPane(name){
   docChoice = DOCUMENTS.some(x=>x.key===name) ? name : 'offer';
@@ -4126,7 +4171,7 @@ function showDocPane(name){
 function renderDocuments(d,t,r){
   $('docPicker').innerHTML = DOCUMENTS.map(x=>
     '<button data-doc="'+x.key+'" aria-selected="'+(x.key===docChoice)+'">'+
-      '<span class="t">'+esc(x.name)+'</span><span class="d">'+esc(x.desc)+'</span></button>').join('');
+      '<span class="t">'+esc(x.name)+'</span><span class="d">'+esc(x.desc(d))+'</span></button>').join('');
   $('docScopeNote').textContent = t
     ? '— for trade '+(t.identifier||'(untitled)')+', state '+t.state
     : '— no trade selected';
@@ -4139,7 +4184,17 @@ function renderDocuments(d,t,r){
  *  wording. Money is written with its currency code the way the form writes it. */
 function renderTcInvoice(d,t,r){
   const paper=$('tcInvPaper'); if(!paper) return;
-  const sel=$('tcInvWhich'); if(sel) sel.value=String(tcInvWhich);
+  // The picker offers what the deal bills on, and nothing else: a client billed on one invoice has
+  // no second one to choose, and leaving the choice there is how a #2 gets sent that should not be.
+  const nInv=tcInvoiceCountOf(d), sel=$('tcInvWhich');
+  if(nInv===1) tcInvWhich=1;
+  if(sel){
+    sel.innerHTML = nInv===1
+      ? '<option value="1">One invoice — amount and financial cost (B36)</option>'
+      : '<option value="1">#1 — goods (B34)</option><option value="2">#2 — financial cost (B35)</option>';
+    sel.value=String(tcInvWhich);
+    sel.disabled = nInv===1;
+  }
   if(!t){ paper.innerHTML='<p>No trade selected.</p>'; $('tcInvMissing').innerHTML=''; $('tcInvSub').textContent=''; return; }
   const doc=tcInvoiceDoc(d,t,r.out,tcInvWhich), F=doc.form;
   const amt = v => esc(doc.currency+' '+Number(v.toFixed(2)).toLocaleString('en-US',
@@ -4250,6 +4305,7 @@ function renderDeals(){
     '<th class="n" title="Trades on this deal that have not settled: DRAFT, PRICED, APPROVED or ISSUED. Cancelled trades are excluded.">Not settled</th>'+
     '<th class="n" title="Sum of the IAA Purchase Price (B47) of every trade still to settle, in the deal currency">Not settled value</th>'+
     '<th>Pro forma</th><th title="Whether this facility carries an agency fee at all">Agency fee</th>'+
+    '<th class="n" title="How many TradeCo invoices each trade on this deal is billed on">TC inv.</th>'+
     '<th>Jurisdictions</th><th></th></tr></thead><tbody>'+
     (store.deals.length?store.deals.map(d=>{
       const js=d.jurisdictions||[], tot=settlementTotals(d);
@@ -4266,17 +4322,18 @@ function renderDeals(){
         '<td class="n">'+money(tot.open.value,d.currency)+'</td>'+
         '<td>'+(d.proformaEnabled!==false?'<span class="inline-tag ok">yes</span>':'<span class="inline-tag">no</span>')+'</td>'+
         '<td>'+(d.agencyFeeEnabled!==false?'<span class="inline-tag ok">yes</span>':'<span class="inline-tag">no</span>')+'</td>'+
+        '<td class="n">'+tcInvoiceCountOf(d)+'</td>'+
         '<td class="tiny">'+(js.length? esc(js.slice(0,4).join(', '))+(js.length>4?' +'+(js.length-4):'')
                                       : '<span class="inline-tag err">none</span>')+'</td>'+
         '<td class="n" style="white-space:nowrap">'+
           '<button class="btn sm" data-config-deal="'+d.id+'">Configure</button> '+
           '<button class="btn sm danger" data-delete-deal="'+d.id+'">Delete</button></td></tr>';
-    }).join('') : '<tr><td colspan="11" class="tiny">No deals. Use <b>New deal</b> to create one.</td></tr>')+'</tbody>'+
+    }).join('') : '<tr><td colspan="12" class="tiny">No deals. Use <b>New deal</b> to create one.</td></tr>')+'</tbody>'+
     (store.deals.length ? '<tfoot><tr class="booktotal">'+
       '<td colspan="3">All deals <span class="tiny">'+store.deals.length+' deal(s)</span></td>'+
       countCell(book.settled,'settled')+bookMoney(book.ccy,'settled')+
       countCell(book.open,'unsettled',cancNote(book.cancelled))+bookMoney(book.ccy,'open')+
-      '<td colspan="4"></td></tr></tfoot>' : '');
+      '<td colspan="5"></td></tr></tfoot>' : '');
 
   const showConfig = configOpen && !!cur;
   $('dealConfigCard').style.display = showConfig ? '' : 'none';
@@ -4859,6 +4916,46 @@ function runTests(){
   T('An unpriced trade cannot invoice its financial cost',
     tcInvoiceDoc(invDeal, invTrade, null, 2).missing.some(m=>/B35/.test(m))+'','true','document checklist');
 
+  /* Billing on one invoice instead of two. The split is a documentation choice, so what the tests
+     hold is that the single invoice carries both halves and comes to the same B36 the pair did. */
+  const oneDeal = {...invDeal, tcInvoiceCount:1};
+  const invOne = tcInvoiceDoc(oneDeal, invTrade, invOut, 1);
+  T('One invoice comes to B36', invOne.total.toFixed(2), invOut.tcTotal.toFixed(2),'Cantu!B36');
+  T('One invoice is the two added up', invOne.total.toFixed(2),
+    inv1.total.add(inv2.total).toFixed(2),'B34 + B35');
+  T('One invoice keeps every goods line',
+    invOne.lines.filter(l=>l.kind==='goods').length, inv1.lines.filter(l=>l.kind==='goods').length,
+    'one invoice');
+  T('One invoice keeps the charge lines',
+    invOne.lines.filter(l=>l.kind==='charge').length, inv1.lines.filter(l=>l.kind==='charge').length,
+    'one invoice');
+  T('One invoice carries the financial cost as a line',
+    invOne.lines.filter(l=>l.kind==='finance').map(l=>l.net.toFixed(2)).join(''),
+    invOut.tcInvoice2.toFixed(2),'one invoice');
+  T('One invoice keeps the summary VAT', invOne.vat.toFixed(2), inv1.vat.toFixed(2),'TOTAL VAT');
+  T('One invoice is numbered once', invOne.number,'SC-T-01-01','one invoice');
+  T('One invoice says which cell it is', invOne.sourceCell,'Cantu!B36','one invoice');
+  T('Asking for #2 on a one-invoice deal gives the one',
+    tcInvoiceDoc(oneDeal, invTrade, invOut, 2).total.toFixed(2),
+    invOne.total.toFixed(2),'no second invoice to issue');
+  T('The count is read as one or two and nothing else',
+    [tcInvoiceCountOf({tcInvoiceCount:1}), tcInvoiceCountOf({tcInvoiceCount:'1'}),
+     tcInvoiceCountOf({tcInvoiceCount:2}), tcInvoiceCountOf({}), tcInvoiceCountOf(null),
+     tcInvoiceCountOf({tcInvoiceCount:7})].join(','),'1,1,2,2,2,2','deal.tcInvoiceCount');
+  T('A new deal bills on two', newDeal('x').tcInvoiceCount,'2','newDeal()');
+  T('Migration leaves a stored deal billing on two', (()=>{
+      const st=normalise({v:2, deals:[{id:'d'}], trades:[], curves:{},
+        clients:defaultClients(), audit:[]});
+      return st.deals[0].tcInvoiceCount;
+    })(),'2','normalise()');
+  // The choice is documentation, so it must not reach a single number the trade prices on.
+  T('Billing on one does not move the price',
+    price({...GOLDEN_INPUTS},{pfRate:pfQ.rate, liveRate:liveQ.rate}).purchasePrice.toFixed(10),
+    o.purchasePrice.toFixed(10),'Cantu!B47');
+  T('Billing on one does not move B36',
+    price(effectiveInputs(oneDeal, invTrade),{pfRate:pfQ.rate, liveRate:liveQ.rate}).tcTotal.toFixed(10),
+    invOut.tcTotal.toFixed(10),'Cantu!B36');
+
   // The .docx is written by hand, so the parts it must contain are asserted rather than assumed.
   const parts = tcInvoiceDocx(inv1), names = parts.map(x=>x[0]);
   T('The .docx carries the parts Word needs',
@@ -5218,64 +5315,74 @@ const noteTip = (()=>{
   document.body.appendChild(el);
   return el;
 })();
-let noteTipRow=null, noteTipTimer=null;
-/** The comment on the row an event landed in, or null. One per row, held inside its label. */
-function commentOn(target){
+let noteTipAnchor=null, noteTipTimer=null;
+/** The comment behind a badge the pointer is on, or null. The badge is the whole target: pointing
+ *  at a field's label or its input is not asking for its comment, and treating it as though it were
+ *  opened a panel every time the pointer crossed a panel on its way somewhere else. */
+function commentOnBadge(target){
+  const badge = target && target.closest && target.closest('.row .note');
+  const text = badge && badge.textContent.trim();
+  return text ? {badge, text} : null;
+}
+/** The comment belonging to a focused field — the badge in its own row. Focus is the keyboard's
+ *  only way to reach a comment, since a 14px badge is not a tab stop and should not become one. */
+function commentOnField(target){
   const row = target && target.closest && target.closest('.row');
-  if(!row) return null;
-  const note = row.querySelector(':scope > .lbl .note');
-  const text = note && note.textContent.trim();
-  return text ? {row, text} : null;
+  const badge = row && row.querySelector(':scope > .lbl .note');
+  const text = badge && badge.textContent.trim();
+  return text ? {badge, text} : null;
 }
 /** Put the open panel under its row, or over it when the space below has run out. Measured rather
  *  than assumed, because the panel's height is whatever its sentence wraps to. */
+/** Put the open panel under the badge it belongs to, or over it when the space below has run out.
+ *  Measured rather than assumed, because the panel's height is whatever its sentence wraps to. */
 function placeNoteTip(){
-  if(!noteTipRow) return;
-  const r=noteTipRow.getBoundingClientRect();
+  if(!noteTipAnchor) return;
+  const r=noteTipAnchor.getBoundingClientRect();
   // Scrolled out of sight: there is nothing left for the comment to be about.
   if(r.bottom<0 || r.top>innerHeight){ closeNoteTip(); return; }
   const t=noteTip.getBoundingClientRect(), gap=7;
   let top = r.bottom+gap, below=true;
   if(top+t.height > innerHeight-8){ top = Math.max(8, r.top-t.height-gap); below=false; }
-  let left = r.left;
-  if(left+t.width > innerWidth-8) left = Math.max(8, innerWidth-8-t.width);
+  // Lined up so the tick sits under the badge, not under the row: the badge is what was pointed at.
+  const mid = r.left + r.width/2;
+  let left = mid - 18;
+  if(left+t.width > innerWidth-8) left = innerWidth-8-t.width;
+  if(left < 8) left = 8;
   noteTip.style.top=top+'px';
   noteTip.style.left=left+'px';
+  // Where the panel had to be pushed off the badge to stay on screen, the tick follows the badge.
+  noteTip.style.setProperty('--tick', Math.min(Math.max(mid-left-4, 10), Math.max(t.width-18, 10))+'px');
   noteTip.classList.toggle('below', below);
   noteTip.classList.toggle('above', !below);
 }
-function openNoteTip(row, text){
-  noteTipRow=row;
+function openNoteTip(badge, text){
+  noteTipAnchor=badge;
   noteTip.textContent=text;
   noteTip.hidden=false;
   placeNoteTip();
 }
 function closeNoteTip(){
   clearTimeout(noteTipTimer); noteTipTimer=null;
-  noteTipRow=null; noteTip.hidden=true;
+  noteTipAnchor=null; noteTip.hidden=true;
 }
 document.addEventListener('mouseover', e=>{
-  const hit=commentOn(e.target);
-  if(!hit){
-    // Left the row the comment belongs to. Rows without a comment close it too, so sweeping down
-    // a panel does not leave the last one hanging open over the field below it.
-    if(noteTipRow) closeNoteTip();
-    return;
-  }
-  if(hit.row===noteTipRow) return;                    // still inside it, or over its own comment
+  const hit=commentOnBadge(e.target);
+  if(!hit){ if(noteTipAnchor) closeNoteTip(); return; }
+  if(hit.badge===noteTipAnchor) return;               // already open for this one
   clearTimeout(noteTipTimer);
-  // A beat before it opens, so crossing a panel on the way somewhere else does not flash every
-  // comment in the column. Deliberate hovering never notices it.
-  noteTipTimer=setTimeout(()=>openNoteTip(hit.row, hit.text), 130);
+  // A beat, so crossing one badge on the way to another does not flash it open.
+  noteTipTimer=setTimeout(()=>openNoteTip(hit.badge, hit.text), 90);
 });
 // Keyboard and screen-reader users reach a field by tabbing to it, which is deliberate: no delay.
 document.addEventListener('focusin', e=>{
-  const hit=commentOn(e.target);
-  if(hit) openNoteTip(hit.row, hit.text); else if(noteTipRow) closeNoteTip();
+  const hit=commentOnField(e.target);
+  if(hit) openNoteTip(hit.badge, hit.text); else if(noteTipAnchor) closeNoteTip();
 });
 document.addEventListener('focusout', e=>{
   // Only if the caret is what was holding it open — otherwise a hover in progress loses its panel.
-  if(noteTipRow && noteTipRow.contains(e.target)) closeNoteTip();
+  const row=noteTipAnchor && noteTipAnchor.closest('.row');
+  if(row && row.contains(e.target)) closeNoteTip();
 });
 /* Fixed to the viewport, so the panel has to be moved whenever its row moves — following it, not
    vanishing. Closing on scroll instead would shut the panel the moment a keyboard user tabbed to a

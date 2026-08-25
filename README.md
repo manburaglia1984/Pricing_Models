@@ -12,7 +12,7 @@ single self-contained file that works offline and can be emailed or dropped on a
 
 The calc engine reproduces **all 26 output cells** of the `Cantu` tab exactly, plus the
 `Offer File`, `SOFR Interpolation` and `BD Dates` derivations. Open the **Parity tests** tab and
-press *Run tests* — 297 assertions, each labelled with its source cell.
+press *Run tests* — 311 assertions, each labelled with its source cell.
 
 | | Workbook | This app |
 |---|---|---|
@@ -73,6 +73,7 @@ A **deal** holds everything its trades share. A **trade** is what gets priced, a
 | Pro forma invoices used, yes/no | Pro forma dates and margins, when used |
 | Agency fee charged, yes/no | The agency fee rate, when charged |
 | Invoice-to name and address, and the agreement the TradeCo invoice is issued under | The invoice's own numbers, dates and number |
+| TradeCo invoices per trade — one or two | The amounts on them |
 | Associated jurisdictions | Lifecycle, rate snapshot, Offer File, audit |
 
 This matches the SharePoint layout, where `Trade 1 - DRC` holds SB01 / SB02 / SB03 under one facility.
@@ -250,8 +251,11 @@ Two caveats worth reading before go-live:
   computed and show their source cell plus a formula tooltip on hover.
 - **The workbook's column-C notes are comments on a field, not lines of the form.** Thirty of them
   spelled out down a four-column screen was most of the ink on it, so each one collapses to a small
-  `i` beside its label and opens in a floating panel when the pointer — or the caret, for anyone
-  tabbing through — reaches its row. The panel is anchored to the row and ticks back at it, flips
+  `i` beside its label and opens in a floating panel when the pointer reaches **that badge** — not
+  the row, since pointing at a field is not asking for its comment, and treating it as though it
+  were opened a panel every time the pointer crossed a panel on its way somewhere else. A caret
+  landing in a field opens its comment too, that being the keyboard's only way to reach one: a 14px
+  badge is not a tab stop and should not become one. The panel is anchored to the row and ticks back at it, flips
   above when the space below runs out, and follows the row on scroll rather than vanishing. The note
   text stays in the DOM where it always was, so a screen reader still reads it inside its own label
   and nothing is lost to anyone who was relying on it. Notes that are a table's own content — an
@@ -301,9 +305,20 @@ Two caveats worth reading before go-live:
   allocation nobody agreed on a document that goes to a counterparty. A supplier invoice with no
   item detail contributes one line for its keyed amount rather than being dropped.
 
-  Panel 3 produces **two** TradeCo invoices, so the pane does too: the goods at `B34`, which is the
-  supplier total, and the financial cost at `B35`. The parity tests assert that each comes to its
-  own cell and that the pair comes to the `B36` the trade is priced on.
+  **How many invoices a trade is billed on is set per deal.** The workbook splits the amount from
+  the financial cost — the goods at `B34` and the financial cost at `B35` — and some clients want
+  exactly that. Others want one invoice for the two together, so the deal chooses: *Two — amount,
+  then financial cost*, or *One — billed together*, whose single invoice carries the goods lines,
+  their charges **and** the financial cost as a further line, and comes to `B34 + B35`.
+
+  That is the same `B36` the trade is priced on either way. The choice is how the amount is
+  documented and never what it is, so it reaches no figure in the calc engine: panels 2 and 3 show
+  the same three numbers whichever way the deal bills, and only their labels change — billing on
+  one makes the sum the invoice and the two above it its components, billing on two makes each of
+  them an invoice and the sum a total. The financial cost stays on screen either way, because a
+  client billed on one still wants to see what it is. The parity tests assert each invoice comes to
+  its own cell, that the single invoice equals the pair, and that neither billing choice moves
+  `B36` or `B47`.
 
   It renders on screen exactly as it prints — a print stylesheet drops the app around it, so the
   page that comes out is the document and not a screenshot of the tool — and downloads as a **.docx**
