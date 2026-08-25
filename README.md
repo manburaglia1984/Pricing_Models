@@ -12,7 +12,7 @@ single self-contained file that works offline and can be emailed or dropped on a
 
 The calc engine reproduces **all 26 output cells** of the `Cantu` tab exactly, plus the
 `Offer File`, `SOFR Interpolation` and `BD Dates` derivations. Open the **Parity tests** tab and
-press *Run tests* — 349 assertions, each labelled with its source cell.
+press *Run tests* — 351 assertions, each labelled with its source cell.
 
 | | Workbook | This app |
 |---|---|---|
@@ -355,7 +355,13 @@ Two caveats worth reading before go-live:
 
   It is a register rather than a set of deal fields because one entity issues across many
   facilities, and a company number that has to be re-keyed per deal is a company number that will
-  disagree with itself. Only the account a deal names is printed, and it is never inferred: no
+  disagree with itself.
+
+  The list is **one line per entity** — name, where it is incorporated, its two numbers, and how
+  many accounts and deals it carries. Its accounts open in a **window of their own**, a labelled
+  card each: nine fields per account against seven columns of entity is a table nobody can read.
+  The entity's own note collapses to an `i` beside its name and opens on hover, the same badge the
+  form fields use. Only the account a deal names is printed, and it is never inferred: no
   account, no bank block, and the invoice says so. An account is dropped when the deal's entity
   changes, since an account belongs to one company. Rows that would print empty are left out, so a
   US account shows no IBAN line and a European one no CHIPS ABA. An account held in a currency other

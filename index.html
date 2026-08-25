@@ -139,14 +139,17 @@ main{padding:18px 20px 60px;max-width:1500px;margin:0 auto}
    still walks them, and one still reads inside its own label — but it collapses to the badge that
    reveals it. font-size:0 is what takes the sentence out of the line while leaving it in
    textContent, which is where #noteTip reads it from; the badge's own glyph sets its size back. */
-.row .note{display:inline-block;vertical-align:top;box-sizing:border-box;
+/* .note.tip is the same badge outside a form row — a comment on a list entry rather than on a
+   field. The notes that are a table's own content stay as they were and are not given the class. */
+.row .note,.note.tip{display:inline-block;vertical-align:top;box-sizing:border-box;
   width:15px;height:15px;margin:0 0 0 5px;overflow:hidden;font-size:0;
   border:1px solid var(--note);border-radius:50%;color:var(--note);cursor:help;
   opacity:.65;transition:opacity .12s,background .12s}
-.row .note::after{content:'i';display:block;font:italic 700 10px/13px var(--sans);text-align:center}
+.row .note::after,.note.tip::after{content:'i';display:block;
+  font:italic 700 10px/13px var(--sans);text-align:center}
 /* Empty until something is rendered into it — no field, no comment, no badge. */
-.row .note:empty{display:none}
-.row:hover .note,.row:focus-within .note{opacity:1;background:var(--accent-soft)}
+.row .note:empty,.note.tip:empty{display:none}
+.row:hover .note,.row:focus-within .note,tr:hover .note.tip{opacity:1;background:var(--accent-soft)}
 /* The comment window itself. Body-level and fixed, so no card's overflow can clip it, and
    pointer-transparent so it never stands between the pointer and the row underneath. */
 #noteTip{position:fixed;z-index:90;max-width:34ch;padding:7px 10px;
@@ -204,6 +207,20 @@ input:disabled,select:disabled{opacity:.6;cursor:not-allowed}
 /* The deal configuration opens from the deals screen and from a trade, and the trade workspace
    closes as it opens, so the two never stack — but it sits above the reference windows either way. */
 #dealModal{z-index:65}
+/* Opened from inside the reference window, so it has to sit above it. */
+#tcoAcctModal{z-index:75}
+#tcoAcctModal .content{max-width:1000px;margin:0 auto;width:100%}
+/* One card per account: a labelled grid rather than a row of a table, because what is being
+   checked is that nine fields match a bank mandate sitting beside the screen. */
+.acctcard{border:1px solid var(--line);border-radius:11px;background:var(--panel-2);
+  padding:11px 13px 13px;margin:0 0 11px}
+.acctcard>.hd{display:flex;align-items:center;gap:9px;margin:0 0 10px}
+.acctcard>.hd .t{font:600 13.5px/1.3 var(--sans);color:var(--ink)}
+.acctcard>.hd .spacer{flex:1}
+.acctcard .fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:9px 12px}
+.acctcard label{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--ink-2)}
+.acctcard label.wide{grid-column:1/-1}
+.acctcard .in{text-align:left;padding:4px 7px;font-size:12.5px}
 /* The rows were laid out for a card down the side of the deals screen: a 148px value column and
    whatever was left for the label. Across a whole window that leaves a gulf between the two and
    still truncates the selects, so the form is capped to a readable measure and the value column
@@ -779,6 +796,35 @@ code,.mono{font-family:var(--mono);font-size:12px}
       </div>
       <div class="card tight"><h2>Totals the pricing blocks read</h2>
         <div class="body"><div id="supInvTotals2"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ BANK ACCOUNTS (opened from a TradeCo in the register) ============ -->
+<!-- Nine fields per account against seven columns of entity is a table nobody can read. The list
+     keeps one line per entity and the accounts open here, a card each, labelled. -->
+<div class="modal" id="tcoAcctModal" role="dialog" aria-modal="true" aria-labelledby="tcoAcctTitle">
+  <div class="backdrop" data-close-tcoacct></div>
+  <div class="sheet">
+    <header>
+      <div class="top-row">
+        <h1 id="tcoAcctTitle">Bank accounts<small id="tcoAcctSub"></small></h1>
+        <div class="spacer"></div>
+        <span class="tiny" id="tcoAcctRole"></span>
+        <button class="btn" data-close-tcoacct>Close</button>
+      </div>
+    </header>
+    <div class="content">
+      <div class="card">
+        <h2>Accounts</h2>
+        <div class="body">
+          <div class="toolbar">
+            <button class="btn" id="btnTcoAcctAdd">+ Add bank account</button>
+            <span class="tiny">A deal names one of these, and only the one it names is printed on its invoice.</span>
+          </div>
+          <div id="tcoAcctList"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -1664,6 +1710,8 @@ const defaultAccountId = tcId => {
 };
 /** An entity's address as the lines the form prints. */
 const addressLines = v => String(v||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+/** The same address on one line. Each line's own trailing comma goes, or joining them prints two. */
+const addressOneLine = v => addressLines(v).map(x=>x.replace(/[,;]+$/,'')).join(', ');
 /** The pay-to block for one account, in the order the Word form has it. A row with nothing in it is
  *  dropped rather than printed empty — an account outside the US has no CHIPS ABA, and a US one has
  *  no IBAN. Currency is the invoice's, not the account's: it is what the payer is being asked for. */
@@ -4204,6 +4252,7 @@ function openRef(name){
   render();
 }
 function closeRef(){
+  if(tcoAcctOpen){ tcoAcctOpen=null; $('tcoAcctModal').classList.remove('open'); }
   refOpen = null;
   $('refModal').classList.remove('open');
   document.body.style.overflow='';
@@ -4276,8 +4325,15 @@ let tcoEditing = null;            // the entity the form is editing, or null whe
 const TCO_FIELDS = ['name','jurisdiction','address','companyNumber','taxId','email','note'];
 const TCO_ACCOUNT_FIELDS = ['label','currency','bank','swift','aba','iban','beneficiary','accountNumber','note'];
 
+/** Which entity's accounts are open, or null. View state: not saved, and not part of the entity. */
+let tcoAcctOpen = null;
+
 function renderTradecos(){
   const admin = actor().role==='Rates Admin';
+  // Whether the accounts window is open is render()'s business; what is inside it is not.
+  const openTc = findTradeco(tcoAcctOpen);
+  if(tcoAcctOpen && !openTc) closeTcoAccounts();
+  $('tcoAcctModal').classList.toggle('open', !!openTc);
   const list = tradecoList().slice().sort((a,b)=>String(a.name).localeCompare(String(b.name)));
   // The incorporation dropdown offers every calendar the build ships, since where a company is
   // registered is not the same question as which calendars a deal checks its dates against.
@@ -4290,51 +4346,27 @@ function renderTradecos(){
           '<option value="'+c+'">'+esc(CALENDARS[c].name)+' ('+c+')</option>').join('')+'</optgroup>' : '';
       }).join('');
   }
-  const acctRow = (tc,a) => {
-    const f=(field,type,extra)=>admin
-      ? '<input type="'+type+'" class="in" data-tco-acct="'+esc(a.id)+'" data-tco-id="'+esc(tc.id)+
-        '" data-tco-afield="'+field+'" value="'+esc(a[field]??'')+'"'+(extra||'')+'>'
-      : esc(a[field]||'—');
-    return '<tr><td>'+f('label','text',' placeholder="what this account is for"')+'</td>'+
-      '<td>'+f('currency','text',' placeholder="USD" style="text-align:left"')+'</td>'+
-      '<td>'+f('bank','text',' placeholder="bank and branch"')+'</td>'+
-      '<td>'+f('swift','text',' placeholder="SWIFT/BIC"')+'</td>'+
-      '<td>'+f('aba','text',' placeholder="ABA"')+'</td>'+
-      '<td>'+f('iban','text',' placeholder="IBAN"')+'</td>'+
-      '<td>'+f('beneficiary','text',' placeholder="account holder as the bank has it"')+'</td>'+
-      '<td>'+f('accountNumber','text',' placeholder="account number"')+'</td>'+
-      '<td class="n">'+(admin?'<button class="btn sm danger" data-tco-acct-remove="'+esc(a.id)+
-        '" data-tco-id="'+esc(tc.id)+'" title="Remove this account">&times;</button>':'')+'</td></tr>';
-  };
-  const accounts = tc => '<div class="scroll"><table class="acct"><thead><tr>'+
-      ['Account','Ccy','Bank','SWIFT','ABA','IBAN','Beneficiary','Number',''].map(h=>'<th>'+h+'</th>').join('')+
-      '</tr></thead><tbody>'+
-      ((tc.accounts||[]).length ? tc.accounts.map(a=>acctRow(tc,a)).join('')
-        : '<tr><td colspan="9" class="tiny">No accounts — a deal issuing on this entity has no bank block to print.</td></tr>')+
-      '</tbody></table></div>'+
-      (admin?'<div class="toolbar" style="margin:8px 0 0"><button class="btn sm" data-tco-acct-add="'+
-        esc(tc.id)+'">+ Add bank account</button></div>':'');
-
+  /* One line per entity. Its accounts open in their own window and its note is a badge, so the
+     list answers "which entities are there" without also being every fact about each of them. */
   $('tcoTable').innerHTML='<thead><tr><th>TradeCo</th><th>Incorporated</th><th>Company no.</th>'+
     '<th>Tax ID</th><th class="n">Accounts</th><th class="n">Deals</th><th></th></tr></thead><tbody>'+
     (list.length ? list.map(tc=>{
-      const used=tcoDealsUsing(tc.id).length, addr=addressLines(tc.address);
+      const used=tcoDealsUsing(tc.id).length, addr=addressOneLine(tc.address), n=(tc.accounts||[]).length;
       return '<tr><td>'+esc(tc.name||'(unnamed)')+
-        (addr.length?'<span class="tiny" style="display:block">'+addr.map(esc).join(' · ')+'</span>':'')+
-        (tc.email?'<span class="tiny" style="display:block">'+esc(tc.email)+'</span>':'')+
-        (tc.note?'<span class="note" style="display:block;max-width:46ch">'+esc(tc.note)+'</span>':'')+'</td>'+
+        (tc.note?'<span class="note tip">'+esc(tc.note)+'</span>':'')+
+        (addr?'<span class="tiny" style="display:block">'+esc(addr)+'</span>':'')+'</td>'+
         '<td>'+(tc.jurisdiction
           ? esc((CALENDARS[tc.jurisdiction]||{}).name||tc.jurisdiction)+' <span class="tiny">'+esc(tc.jurisdiction)+'</span>'
           : '<span class="inline-tag warn">not set</span>')+'</td>'+
         '<td class="mono tiny">'+(tc.companyNumber?esc(tc.companyNumber):'<span class="inline-tag warn">not set</span>')+'</td>'+
         '<td class="mono tiny">'+(tc.taxId?esc(tc.taxId):'<span class="inline-tag warn">not set</span>')+'</td>'+
-        '<td class="n">'+(tc.accounts||[]).length+'</td>'+
+        '<td class="n">'+(n||'<span class="inline-tag warn">none</span>')+'</td>'+
         '<td class="n">'+used+'</td>'+
         '<td class="n" style="white-space:nowrap">'+
+          '<button class="btn sm" data-tco-accounts="'+esc(tc.id)+'">Accounts</button> '+
           (admin?'<button class="btn sm" data-tco-edit="'+esc(tc.id)+'">Edit</button> '+
                  '<button class="btn sm danger" data-tco-delete="'+esc(tc.id)+'">Remove</button>':'')+
-        '</td></tr>'+
-        '<tr class="tcoacct"><td colspan="7">'+accounts(tc)+'</td></tr>';
+        '</td></tr>';
     }).join('') : '<tr><td colspan="7" class="tiny">No TradeCos yet. Use <b>+ Add TradeCo</b>.</td></tr>')+
     '</tbody>';
   $('btnTcoAddToggle').disabled = !admin;
@@ -4343,6 +4375,68 @@ function renderTradecos(){
     : 'Adding or editing a TradeCo requires the Rates Admin role.';
   if(!admin) showTcoAdd(false);
 }
+
+/** One entity's accounts, a labelled card each.
+ *
+ *  Called on purpose — opening the window, adding or removing an account, changing role — and never
+ *  from render(). Rebuilding these cards as a side effect of any other change destroys the input
+ *  being typed into: the replacement is a different element, so the keystrokes after it land on a
+ *  node that is no longer in the document and are silently lost. What has to stay live while
+ *  someone types is written in place instead, the way the derived cells of panel 1 are. */
+function renderTcoAccounts(){
+  const box=$('tcoAcctList'); if(!box) return;
+  const tc=findTradeco(tcoAcctOpen);
+  // The entity can be removed while its window is open; the window goes with it.
+  if(tcoAcctOpen && !tc){ closeTcoAccounts(); return; }
+  if(!tc){ box.innerHTML=''; return; }
+  const admin = actor().role==='Rates Admin';
+  $('tcoAcctSub').textContent = ' — '+tcoLabelOf(tc);
+  $('tcoAcctRole').textContent = admin ? 'Rates Admin — edits are audited' : 'Read-only as '+actor().role;
+  $('btnTcoAcctAdd').disabled = !admin;
+  const FIELDS=[['label','What this account is for','e.g. USD funding — New York'],
+    ['currency','Currency','USD'], ['bank','Bank','bank and branch'],
+    ['swift','SWIFT / BIC','CHASUS33'], ['aba','CHIPS ABA','021000021'],
+    ['iban','IBAN','DE89…'], ['beneficiary','Beneficiary','account holder as the bank has it'],
+    ['accountNumber','Account number','935220822']];
+  const field=(a,f,label,ph,wide)=>'<label'+(wide?' class="wide"':'')+'>'+esc(label)+
+    (admin
+      ? '<input type="text" class="in" data-tco-acct="'+esc(a.id)+'" data-tco-id="'+esc(tc.id)+
+        '" data-tco-afield="'+f+'" value="'+esc(a[f]??'')+'" placeholder="'+esc(ph)+'">'
+      : '<span class="calc" style="text-align:left">'+esc(a[f]||'—')+'</span>')+'</label>';
+  const paidBy = a => store.deals.filter(d=>String(d.tradecoAccountId)===String(a.id));
+  box.innerHTML = (tc.accounts||[]).length
+    ? tc.accounts.map((a,k)=>{
+        const on=paidBy(a);
+        return '<div class="acctcard"><div class="hd">'+
+          '<span class="t">'+esc(String(a.label||'').trim() || a.bank || 'Account '+(k+1))+'</span>'+
+          (a.currency?'<span class="inline-tag">'+esc(String(a.currency).toUpperCase())+'</span>':'')+
+          (on.length?'<span class="inline-tag ok" title="'+esc(on.map(d=>d.code||'(untitled)').join(', '))+
+            '">'+on.length+' deal'+(on.length===1?'':'s')+'</span>':'')+
+          '<span class="spacer"></span>'+
+          (admin?'<button class="btn sm danger" data-tco-acct-remove="'+esc(a.id)+'" data-tco-id="'+
+            esc(tc.id)+'">Remove</button>':'')+
+          '</div><div class="fields">'+
+          FIELDS.map(([f,label,ph])=>field(a,f,label,ph)).join('')+
+          field(a,'note','Note — not printed','what this account is used for, who authorises it',true)+
+          '</div></div>';
+      }).join('')
+    : '<p class="tiny">No accounts on this entity. A deal issuing on it has no bank block to print.</p>';
+}
+function openTcoAccounts(id){
+  if(!findTradeco(id)) return;
+  tcoAcctOpen=id;
+  document.body.style.overflow='hidden';
+  render();
+  renderTcoAccounts();
+}
+function closeTcoAccounts(){
+  tcoAcctOpen=null;
+  $('tcoAcctModal').classList.remove('open');
+  document.body.style.overflow = (refOpen||modalOpen||invOpen||configOpen) ? 'hidden' : '';
+  render();
+}
+const tcoLabelOf = tc => (tc && String(tc.name||'').trim()) || '(unnamed TradeCo)';
+
 function showTcoAdd(on, tc){
   tcoEditing = on && tc ? tc.id : null;
   $('tcoAddCard').style.display = on ? '' : 'none';
@@ -5484,6 +5578,11 @@ function runTests(){
         trades:[], curves:{}, clients:defaultClients(), audit:[]});
       return st.deals[0].tradecoAccountId==='' ? 'cleared' : st.deals[0].tradecoAccountId;
     })(),'cleared','normalise()');
+  T('An address on one line drops each line’s own comma',
+    addressOneLine('C/O TC Citroen Wells Limited,\n5th Floor, 3 Dorset Rise,\nLondon EC4Y 8EN'),
+    'C/O TC Citroen Wells Limited, 5th Floor, 3 Dorset Rise, London EC4Y 8EN','addressOneLine()');
+  T('An address on one line is blank when there is none',
+    JSON.stringify(addressOneLine('')),'""','addressOneLine()');
   T('An address splits on its own lines',
     addressLines(' A \n\n B \r\n C ').join('|'),'A|B|C','addressLines()');
 
@@ -5851,7 +5950,7 @@ let noteTipAnchor=null, noteTipTimer=null;
  *  at a field's label or its input is not asking for its comment, and treating it as though it were
  *  opened a panel every time the pointer crossed a panel on its way somewhere else. */
 function commentOnBadge(target){
-  const badge = target && target.closest && target.closest('.row .note');
+  const badge = target && target.closest && target.closest('.row .note, .note.tip');
   const text = badge && badge.textContent.trim();
   return text ? {badge, text} : null;
 }
@@ -6030,7 +6129,7 @@ document.addEventListener('change', e=>{
   if(el.id==='jurAdd' && el.value){ setJurisdictions(el.value, true); }
   if(el.id==='curvePicker'){ curveChoice=el.value; renderRates(); }
   if(el.id==='auditScope') renderAudit();
-  if(el.id==='actorRole') render();
+  if(el.id==='actorRole'){ render(); renderTcoAccounts(); }
 });
 
 document.getElementById('tabs').addEventListener('click', e=>{
@@ -6542,7 +6641,12 @@ $('refMenu').addEventListener('click', e=>{
 });
 $('refModal').addEventListener('click', e=>{ if(e.target.closest('[data-close-ref]')) closeRef(); });
 // Esc closes whichever window is on top: the trade workspace sits above the reference ones.
-document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !modalOpen && !invOpen && refOpen) closeRef(); });
+document.addEventListener('keydown', e=>{
+  if(e.key!=='Escape') return;
+  // Topmost first: the accounts window sits above the reference window it was opened from.
+  if(tcoAcctOpen) return closeTcoAccounts();
+  if(!modalOpen && !invOpen && refOpen) closeRef();
+});
 document.addEventListener('keydown', e=>{
   if(e.key==='Escape' && !invOpen && !refOpen && configOpen) closeDealConfig();
 });
@@ -6590,16 +6694,24 @@ $('tcoTable').addEventListener('click', e=>{
     if(String(tcoEditing)===String(tc.id)) showTcoAdd(false);
     save(); render(); return;
   }
-  const add=e.target.closest('button[data-tco-acct-add]');
-  if(add){
-    if(!admin) return alert('Adding a bank account requires the Rates Admin role.');
-    const tc=findTradeco(add.dataset.tcoAcctAdd); if(!tc) return;
-    const a={id:uuid()}; for(const k of TCO_ACCOUNT_FIELDS) a[k]='';
-    (tc.accounts ||= []).push(a);
-    audit('tradeco',tc.id,'CREATE','account#'+tc.accounts.length,null,'(empty account)',
-      'Fill it in before a deal is pointed at it.');
-    save(); render(); return;
-  }
+  const acc=e.target.closest('button[data-tco-accounts]');
+  if(acc){ openTcoAccounts(acc.dataset.tcoAccounts); return; }
+});
+/* The accounts window. Its own listener, because its cards are not in the entity list any more. */
+$('btnTcoAcctAdd').onclick=()=>{
+  if(actor().role!=='Rates Admin') return alert('Adding a bank account requires the Rates Admin role.');
+  const tc=findTradeco(tcoAcctOpen); if(!tc) return;
+  const a={id:uuid()}; for(const k of TCO_ACCOUNT_FIELDS) a[k]='';
+  (tc.accounts ||= []).push(a);
+  audit('tradeco',tc.id,'CREATE','account#'+tc.accounts.length,null,'(empty account)',
+    'Fill it in before a deal is pointed at it.');
+  save(); render(); renderTcoAccounts();
+  const box=document.querySelector('[data-tco-acct="'+CSS.escape(String(a.id))+'"]');
+  if(box) box.focus();
+};
+$('tcoAcctModal').addEventListener('click', e=>{
+  if(e.target.closest('[data-close-tcoacct]')) return closeTcoAccounts();
+  const admin = actor().role==='Rates Admin';
   const rm=e.target.closest('button[data-tco-acct-remove]');
   if(rm){
     if(!admin) return alert('Removing a bank account requires the Rates Admin role.');
@@ -6619,26 +6731,32 @@ $('tcoTable').addEventListener('click', e=>{
     audit('tradeco',tc.id,'DELETE','account#'+(n+1),
       [a.label,a.bank,a.accountNumber].filter(Boolean).join(' · ')||'(empty account)', null,
       paid.length?'Cleared it from '+paid.length+' deal(s).':null);
-    save(); render(); return;
+    save(); render(); renderTcoAccounts(); return;
   }
 });
 /* Account cells commit as they are typed, like every other in-place table in the app. The audit
    entry is written on change rather than on input, so one edit is one entry and not one per key. */
-$('tcoTable').addEventListener('input', e=>{
+/* Account cells are addressed by what they are rather than by where they sit, so moving them out
+   of the entity list and into their own window changed nothing about how they are saved. */
+document.addEventListener('input', e=>{
   const el=e.target;
   if(!el.dataset || !el.dataset.tcoAfield) return;
   if(actor().role!=='Rates Admin') return;
   const tc=findTradeco(el.dataset.tcoId); if(!tc) return;
   const a=findTradecoAccount(tc, el.dataset.tcoAcct); if(!a) return;
   a[el.dataset.tcoAfield]=el.value;
-  save(); renderDocuments(currentDeal(), currentTrade(), computeAll(currentDeal(), currentTrade()));
+  save();
+  // The card's own heading follows its label as it is typed — written into, not rebuilt around.
+  const card=el.closest('.acctcard'), hd=card && card.querySelector('.hd .t');
+  if(hd) hd.textContent = String(a.label||'').trim() || a.bank || 'Account';
+  renderDocuments(currentDeal(), currentTrade(), computeAll(currentDeal(), currentTrade()));
 });
-$('tcoTable').addEventListener('focusin', e=>{
+document.addEventListener('focusin', e=>{
   const el=e.target; if(!el.dataset || !el.dataset.tcoAfield) return;
   const tc=findTradeco(el.dataset.tcoId), a=tc && findTradecoAccount(tc, el.dataset.tcoAcct);
   if(a) el.dataset.prev=String(a[el.dataset.tcoAfield]??'');
 });
-$('tcoTable').addEventListener('change', e=>{
+document.addEventListener('change', e=>{
   const el=e.target; if(!el.dataset || !el.dataset.tcoAfield) return;
   const tc=findTradeco(el.dataset.tcoId); if(!tc) return;
   const a=findTradecoAccount(tc, el.dataset.tcoAcct); if(!a) return;
@@ -6646,6 +6764,7 @@ $('tcoTable').addEventListener('change', e=>{
   if(el.dataset.prev!==undefined && el.dataset.prev===String(a[el.dataset.tcoAfield]??'')) return;
   audit('tradeco',tc.id,'UPDATE','account#'+n+'.'+el.dataset.tcoAfield,
     el.dataset.prev??null, String(a[el.dataset.tcoAfield]??''));
+  el.dataset.prev=String(a[el.dataset.tcoAfield]??'');   // one entry per edit, not per visit
   render();
 });
 
