@@ -14,7 +14,7 @@ To keep the data somewhere the browser cannot lose it, see **[Keeping the data](
 
 The calc engine reproduces **all 26 output cells** of the `Cantu` tab exactly, plus the
 `Offer File`, `SOFR Interpolation` and `BD Dates` derivations. Open the **Parity tests** tab and
-press *Run tests* — 39 assertions, each labelled with its source cell.
+press *Run tests* — 351 assertions, each labelled with its source cell.
 
 | | Workbook | This app |
 |---|---|---|
