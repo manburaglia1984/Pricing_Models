@@ -101,6 +101,14 @@ input:disabled,select:disabled{opacity:.6;cursor:not-allowed}
 .suffix{position:relative}
 .suffix::after{content:attr(data-suffix);position:absolute;right:9px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--ink-3);pointer-events:none}
 .suffix input{padding-right:24px}
+/* Read-only because someone else holds the pen. The controls are genuinely disabled by
+   roGuard(); this only makes that legible, and stops the file-input labels (whose click
+   reaches a hidden input) from looking live. */
+body.readonly main label.btn{pointer-events:none;opacity:.45}
+body.readonly main .card h2 .src button{opacity:.45}
+body.readonly #roBar{display:flex}
+#roBar{display:none;position:sticky;top:0;z-index:40;gap:9px;align-items:center;padding:7px 12px;
+  background:var(--warn-bg);color:var(--warn);border-bottom:1px solid var(--warn);font-size:12.8px}
 #persistChip .dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;background:var(--ink-3);vertical-align:middle}
 #persistChip.ok .dot{background:var(--ok)} #persistChip.warn .dot{background:var(--warn)}
 #persistChip.err .dot{background:var(--err)} #persistChip.info .dot{background:var(--accent)}
@@ -201,6 +209,8 @@ code,.mono{font-family:var(--mono);font-size:12px}
 </header>
 
 <main>
+<div id="roBar"><b>Read-only.</b><span id="roBarWho"></span>
+  <button class="btn sm" data-ro="1" id="roBarTake">Take the pen</button></div>
 <!-- ================= PRICING ================= -->
 <!-- ============ TRADE WORKSPACE (opened from a deal's trade list) ============ -->
 <div class="modal" id="tradeModal" role="dialog" aria-modal="true" aria-labelledby="tradeModalTitle">
@@ -412,19 +422,26 @@ code,.mono{font-family:var(--mono);font-size:12px}
     <h2>Where this data is saved <span class="src">Storage</span></h2>
     <div class="body">
       <div id="persistBox"></div>
-      <p class="tiny" style="margin:10px 0 0"><b>Link a data file</b> writes every change straight to a JSON file
+      <p class="tiny" style="margin:10px 0 0"><b>Use a shared folder</b> is the one for two people. Point it at a
+      OneDrive- or SharePoint-synced folder and the store lives there, with at most two people in at once and
+      exactly one of them holding the pen — everyone else is read-only, following the editor's saves. Every save
+      re-reads the file and refuses if it moved underneath, snapshots into <code>backups/</code>, and the folder is
+      watched for the conflict copies that mean two writes collided. Sync cannot arbitrate two writers on one
+      document, so the app does it instead.</p>
+      <p class="tiny" style="margin:6px 0 0"><b>Link a data file</b> writes every change straight to a JSON file
       you choose, through the browser's File System Access API — Chrome and Edge only, and the browser asks once per
       session before it may write. For any other browser, run <code>node sync-server.mjs</code> in this folder and open
       the address it prints: this page then reads and writes <code>data/pricing-store.json</code>, and the server keeps
       a timestamped copy of every change in <code>data/backups</code>. Either way this browser keeps its own copy too,
       so a failed write never costs a keystroke.</p>
-      <p class="tiny" style="margin:6px 0 0"><b>For several people on one store</b>, run <em>one</em> server with
-      <code>--host 0.0.0.0</code> and have everyone open it — one file, one process writing it, each page picking the
-      others' saves up within seconds. Do not instead put <code>data/</code> in a OneDrive- or SharePoint-synced folder
-      and run a server each: sync is last-writer-wins across machines, so two people at once means one of them finds
-      their day in a conflict copy. Every write carries a hash of the file it was based on, so that arrangement at
-      least fails loudly rather than silently — but one server is the arrangement that works. Sharing this HTML file
-      itself through SharePoint is fine; it holds no data.</p>
+      <p class="tiny" style="margin:6px 0 0"><b>For two people editing different deals at the same moment</b>, a
+      shared folder is not enough — the pen is per file, not per deal, so the second person waits. That needs
+      <em>one</em> server with
+      <code>--host 0.0.0.0</code> on an always-on machine, with everyone opening it — one file, one process writing
+      it, each page picking the others' saves up within seconds. What does <em>not</em> work is a synced
+      <code>data/</code> folder with a server each: nothing arbitrates between them, so two people at once means one
+      finds their day in a conflict copy. Sharing this HTML file itself through SharePoint is fine; it holds no
+      data.</p>
     </div>
   </div>
   <div class="card">
@@ -1454,11 +1471,14 @@ function seedStore(){
    Writes go to localStorage synchronously and to the sink debounced, so a linked
    sink never slows typing down and a failed sink write never costs the keystroke. */
 const SYNC_URL='api/store', SYNC_REV='api/rev', SYNC_API='cantu-pricing-store';
-const IDB_NAME='cantu-pricing-model', IDB_STORE='handles', HANDLE_KEY='storeFile';
+const IDB_NAME='cantu-pricing-model', IDB_STORE='handles', HANDLE_KEY='storeFile', DIR_KEY='storeFolder';
 const FS_OK = typeof window.showSaveFilePicker==='function' && typeof window.showOpenFilePicker==='function';
 const blankSink = () => ({ mode:'local', label:'', handle:null, rev:'', savedAt:null, dirty:false,
                            pending:false, needsPermission:false, error:'', recovered:false,
-                           remoteRev:'', pulledFrom:'' });
+                           remoteRev:'', pulledFrom:'',
+                           // folder mode: the pen, who else is in, and what sync left behind
+                           dir:null, role:'', wantPen:false, claimSeen:false, editorWho:'',
+                           others:[], fileHash:'', conflictCopies:[] });
 let sink = blankSink();
 
 /* A file handle survives a reload only in IndexedDB — it is not JSON-serialisable,
@@ -1516,6 +1536,7 @@ async function flush(){
   sink.pending=true; sink.error=''; renderPersistence();
   try{
     if(sink.mode==='file') await fileWrite(sink.handle, text);
+    else if(sink.mode==='folder') await folderWrite(text, false);
     else await serverWrite(text, false);
     sink.savedAt=stamp;
     if(store.savedAt===stamp) sink.dirty=false; else setTimeout(flush,0);
@@ -1633,6 +1654,15 @@ async function initPersistence(){
     await reconcile(srv.store, bootSavedAt);
     startPolling(); renderPersistence(); return;
   }
+  const dir=await idbRead(DIR_KEY);
+  if(dir){
+    sink={...blankSink(), mode:'folder', dir,
+          label:(dir.name||'the shared folder')+'/'+STORE_NAME, wantPen:true};
+    let perm='prompt';
+    try{ perm=await dir.queryPermission({mode:'readwrite'}); }catch(e){ perm='prompt'; }
+    if(perm==='granted') await joinFolder(bootSavedAt); else sink.needsPermission=true;
+    renderPersistence(); return;
+  }
   const handle=await idbRead(HANDLE_KEY);
   if(handle){
     sink={...blankSink(), mode:'file', handle, label:handle.name||'the linked file'};
@@ -1657,6 +1687,17 @@ async function openLinkedFile(booting){
    persistent, so a reload often needs one click. requestPermission must be called
    from inside a gesture, which is why this is a button and not part of boot. */
 async function reconnectFile(){
+  if(sink.mode==='folder'){
+    try{
+      if(await sink.dir.requestPermission({mode:'readwrite'})!=='granted'){
+        sink.error='Permission to use '+sink.label+' was declined, so this data is still in this browser only.';
+        return renderPersistence();
+      }
+    }catch(e){ sink.error=e.message||String(e); return renderPersistence(); }
+    sink.needsPermission=false;
+    await joinFolder(bootSavedAt);
+    return renderPersistence();
+  }
   try{
     if(await sink.handle.requestPermission({mode:'readwrite'})!=='granted'){
       sink.error='Permission to write '+sink.label+' was declined, so this data is still in this browser only.';
@@ -1665,6 +1706,298 @@ async function reconnectFile(){
   }catch(e){ sink.error=e.message||String(e); return renderPersistence(); }
   await openLinkedFile();
   if(!sink.error) await flush();
+}
+
+
+/* ===================== shared-folder sink =====================
+   The record is a JSON file in a OneDrive- or SharePoint-synced folder, so it is backed
+   up and reachable from every machine without a server, an Azure subscription or an
+   install. What sync cannot do is arbitrate two writers: it is last-writer-wins across
+   machines with no locking, and the store is one document, so two people saving at once
+   means one of them loses a day's work to a conflict copy.
+
+   So this mode does the arbitrating itself, in a second file beside the store:
+
+     - at most MAX_SESSIONS people may have the model open at all;
+     - exactly one of them holds the pen. Everyone else is read-only, by disabled
+       controls rather than by good intentions;
+     - the pen is claimed, then confirmed one heartbeat later, because a lock written on
+       one machine is not visible on another until sync carries it. The confirm window is
+       what stops two people both believing they claimed it first;
+     - every save re-reads the file and refuses if its hash moved, so if the window is
+       beaten anyway the write is stopped rather than silently applied;
+     - every save also drops a timestamped snapshot in backups/, so even a lost write is
+       recoverable;
+     - and the folder is watched for OneDrive's conflict copies, which is the one signal
+       that says the arbitration failed. Being told immediately beats finding out weeks
+       later.
+
+   None of that makes a synced folder a database. It makes it safe enough for two people
+   who are not editing the same thing at the same moment, which is what it is for. */
+const STORE_NAME='pricing-store.json', LOCK_NAME='pricing-store.lock.json', BACKUP_DIR='backups';
+const DIR_OK = typeof window.showDirectoryPicker==='function';
+const MAX_SESSIONS = 2;
+const BEAT_MS = 15000;      // how often each session refreshes its presence
+const SEEN_STALE_MS = 90000; // a session unheard from this long is treated as gone
+const KEEP_SNAPSHOTS = 200;
+const SESSION_ID = uuid();
+let beatTimer=null;
+
+async function dirFileHandle(dir, name, create){
+  try{ return await dir.getFileHandle(name, {create:!!create}); }catch(e){ return null; }
+}
+async function dirRead(dir, name){
+  const h=await dirFileHandle(dir, name, false);
+  if(!h) return null;
+  try{ return await (await h.getFile()).text(); }catch(e){ return null; }
+}
+async function dirWrite(dir, name, text){
+  const h=await dirFileHandle(dir, name, true);
+  if(!h) throw new Error('Could not open '+name+' for writing');
+  const w=await h.createWritable();
+  try{ await w.write(text); } finally{ await w.close(); }
+}
+
+/* ---- presence and the pen ----
+   One coordination file, not two: every extra file is another sync race. The editor is
+   derived from its contents by a rule both machines apply identically — earliest claim
+   wins, ties broken by session id — so once sync settles, everyone agrees who holds the
+   pen without anyone having to be told. */
+const liveSessions = (list, now) =>
+  (Array.isArray(list) ? list : []).filter(s => s && s.id && now - Date.parse(s.seenAt||0) < SEEN_STALE_MS);
+/** Earliest claim wins; the id is a stable tiebreak so both sides pick the same winner. */
+function penHolder(sessions){
+  const claims=sessions.filter(s=>s.claimedAt).sort((a,b)=>
+    a.claimedAt===b.claimedAt ? String(a.id).localeCompare(String(b.id))
+                              : String(a.claimedAt).localeCompare(String(b.claimedAt)));
+  return claims[0]||null;
+}
+async function beat(){
+  if(sink.mode!=='folder' || !sink.dir) return;
+  const now=Date.now();
+  let lock={};
+  const raw=await dirRead(sink.dir, LOCK_NAME);
+  if(raw){ try{ lock=JSON.parse(raw)||{}; }catch(e){ lock={}; } }
+
+  const live=liveSessions(lock.sessions, now);
+  const mine=live.find(s=>s.id===SESSION_ID);
+  const others=live.filter(s=>s.id!==SESSION_ID);
+
+  // The cap is on people in the room, not on writers. Refusing to join at all is the
+  // only honest way to enforce it — a session that joined anyway would be a third
+  // heartbeat in the file whatever the UI said.
+  if(!mine && others.length >= MAX_SESSIONS){
+    sink.role='full'; sink.editorWho=(penHolder(others)||{}).who||'';
+    sink.others=others.map(s=>s.who||'someone');
+    stopEditing(); renderPersistence(); return;
+  }
+
+  const me = mine || {id:SESSION_ID, who:whoAmI(), claimedAt:null};
+  me.who=whoAmI(); me.seenAt=new Date(now).toISOString();
+  if(sink.wantPen && !penHolder(others) && !me.claimedAt) me.claimedAt=me.seenAt;
+  if(!sink.wantPen) me.claimedAt=null;
+
+  const next=[...others, me];
+  const holder=penHolder(next);
+  const held = holder && holder.id===SESSION_ID;
+
+  /* Claimed, but not yet trusted. A claim written here is not visible on the other
+     machine until sync carries it, so the pen only becomes real one heartbeat later —
+     by which time a competing claim would have arrived and the earliest-wins rule
+     would have settled it. */
+  if(held){
+    sink.role = (sink.claimSeen || !others.length) ? 'editor' : 'claiming';
+    sink.claimSeen = true;
+  } else {
+    sink.role='reader';
+    sink.claimSeen=false;
+  }
+  sink.editorWho = holder ? (holder.who||'someone') : '';
+  sink.others = others.map(s=>s.who||'someone');
+  if(sink.role!=='editor') stopEditing();
+
+  try{ await dirWrite(sink.dir, LOCK_NAME,
+    JSON.stringify({v:1, updatedAt:me.seenAt, sessions:next}, null, 2)); }
+  catch(e){ sink.error='Could not update '+LOCK_NAME+': '+(e.message||e); }
+
+  if(sink.role!=='editor') await pullFolder();
+  await scanForConflictCopies();
+  renderPersistence();
+}
+/** A read-only session should follow the editor's saves rather than sit on the copy it
+ *  happened to open with — otherwise "read-only" means "stale", and the reader is worse
+ *  off than if they had the file emailed to them. Never mid-interaction, same rule as
+ *  the server sink. */
+async function pullFolder(){
+  let read;
+  try{ read=await folderRead(); }catch(e){ return; }
+  if(!storeIsSane(read.store) || read.hash===sink.fileHash) return;
+  if(!safeToAdopt()) return;
+  const who=read.store.lastActor||'';
+  sink.fileHash=read.hash; sink.remoteRev='';
+  adopt(read.store); sink.pulledFrom=who;
+}
+const whoAmI = () => { try{ return actor().name||'someone'; }catch(e){ return 'someone'; } };
+/** Stop trying to write, but never discard what is already in hand: a session whose
+ *  machine slept can wake as a reader still holding real changes, and dropping them
+ *  silently would be the exact data loss this mode exists to prevent. The card raises
+ *  it instead, with a backup copy one click away. */
+function stopEditing(){ clearTimeout(flushTimer); }
+
+/** Hand the pen over deliberately, rather than making the other person wait out a timeout. */
+async function releasePen(){
+  sink.wantPen=false; sink.claimSeen=false;
+  await flush();                       // get anything outstanding down first
+  await beat();
+}
+async function takePen(){
+  if(sink.role==='editor') return;
+  if(sink.editorWho && !confirm(sink.editorWho+' holds the pen right now. Queue for it?\n\n'+
+      'They keep it until they hand it over or close the model; you will pick it up the '+
+      'moment they do.')) return;
+  sink.wantPen=true; sink.claimSeen=false;
+  await beat();
+}
+
+/* ---- the store itself ---- */
+async function folderRead(){
+  const text=await dirRead(sink.dir, STORE_NAME);
+  if(text==null) return {store:null, hash:''};
+  const trimmed=text.trim();
+  if(!trimmed) return {store:null, hash:sha256(text)};
+  try{ return {store:JSON.parse(trimmed), hash:sha256(text)}; }
+  catch(e){ throw new Error(STORE_NAME+' is not valid JSON: '+(e.message||e)); }
+}
+async function folderWrite(text, force){
+  if(sink.role!=='editor' && !force)
+    throw new Error('This session does not hold the pen, so it cannot save.');
+  const current=await dirRead(sink.dir, STORE_NAME);
+  const currentHash = current==null ? '' : sha256(current);
+  if(!force && sink.fileHash && currentHash && currentHash!==sink.fileHash){
+    sink.remoteRev=currentHash.slice(0,12);
+    throw new Error('The shared file changed since this session last read it — the other person '+
+      'saved, or OneDrive has just brought their copy down. Reload to take that copy, or '+
+      'force-save to overwrite it.');
+  }
+  await dirWrite(sink.dir, STORE_NAME, text);
+  sink.fileHash=sha256(text);
+  sink.remoteRev='';
+  await snapshot(text);
+}
+async function snapshot(text){
+  try{
+    const bdir=await sink.dir.getDirectoryHandle(BACKUP_DIR, {create:true});
+    const stamp=new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
+    await dirWrite(bdir, 'pricing-store-'+stamp+'.json', text);
+    const names=[];
+    for await (const name of bdir.keys()) if(/^pricing-store-.*\.json$/.test(name)) names.push(name);
+    names.sort();
+    for(const name of names.slice(0, Math.max(0, names.length-KEEP_SNAPSHOTS)))
+      await bdir.removeEntry(name).catch(()=>{});
+  }catch(e){ console.warn('Snapshot failed', e); }   // never fail a save over a backup
+}
+
+/* OneDrive names a conflict copy after the machine or person that lost, and leaves it
+   in the folder. It is the only outward sign that two writes collided, so surface it
+   loudly — the data is all still there, but somebody's work is in the wrong file. */
+async function scanForConflictCopies(){
+  try{
+    const found=[];
+    for await (const name of sink.dir.keys())
+      if(/^pricing-store.*\.json$/i.test(name) && name!==STORE_NAME && name!==LOCK_NAME) found.push(name);
+    sink.conflictCopies=found;
+  }catch(e){ sink.conflictCopies=[]; }
+}
+
+async function linkFolder(){
+  if(!DIR_OK) return alert('This browser cannot open a folder — Chrome and Edge can. '+
+    'Use "Link a data file…" instead, or the local sync server.');
+  let dir;
+  try{ dir=await window.showDirectoryPicker({mode:'readwrite', id:'pricing-store'}); }
+  catch(e){ if(e.name!=='AbortError') alert('Could not open that folder: '+(e.message||e)); return; }
+  const was = sink.mode==='local' ? 'this browser only' : sink.label;
+  clearInterval(pollTimer); clearInterval(beatTimer);
+  sink={...blankSink(), mode:'folder', dir, label:(dir.name||'the shared folder')+'/'+STORE_NAME,
+        wantPen:true, claimSeen:false};
+  await idbWrite(HANDLE_KEY, null);
+  await idbWrite(DIR_KEY, dir);
+  await joinFolder(bootSavedAt);
+  if(sink.mode==='folder' && !sink.error)
+    audit('store','-','UPDATE','storage', was, 'shared folder: '+sink.label,
+      'Linked a shared folder, with one editor at a time');
+  renderPersistence();
+}
+
+/** Read the store, settle who holds the pen, and start heartbeating. */
+async function joinFolder(basis){
+  sink.error='';
+  try{
+    await beat();                                   // establishes role before anything is written
+    if(sink.role==='full'){ startBeating(); return; }
+    const {store:incoming, hash}=await folderRead();
+    sink.fileHash=hash;
+    if(storeIsSane(incoming)){
+      // A reader never pushes, and an editor only pushes a copy that is genuinely newer.
+      if(sink.role!=='editor' || !basis || (incoming.savedAt||'') >= basis) adopt(incoming);
+      else { sink.recovered=true; sink.dirty=true; await flush(); }
+    } else if(sink.role==='editor'){
+      sink.dirty=true; await flush();               // empty folder: seed it
+    }
+  }catch(e){ sink.error=e.message||String(e); }
+  startBeating();
+}
+function startBeating(){
+  clearInterval(beatTimer);
+  if(sink.mode==='folder') beatTimer=setInterval(beat, BEAT_MS);
+}
+async function reloadFromFolder(){
+  let read;
+  try{ read=await folderRead(); }catch(e){ return alert(e.message||String(e)); }
+  if(!storeIsSane(read.store)) return alert('The shared file holds no store yet — nothing to reload.');
+  if(!confirm('Reload '+read.store.deals.length+' deal(s) from the shared file, discarding anything '+
+              'this session has not managed to save?')) return;
+  sink.fileHash=read.hash; sink.remoteRev=''; sink.error='';
+  adopt(read.store); renderPersistence();
+}
+async function unlinkFolder(){
+  if(!confirm('Stop using '+sink.label+'?\n\nThe folder stays as it is, but from then on this data '+
+              'lives in this browser only — and that is the copy that goes missing.')) return;
+  const was=sink.label;
+  sink.wantPen=false;
+  try{ await beat(); }catch(e){}          // drop out of the roster on the way out
+  clearInterval(beatTimer);
+  await idbWrite(DIR_KEY, null);
+  sink=blankSink();
+  audit('store','-','UPDATE','storage','shared folder: '+was,'this browser only','Unlinked the shared folder');
+  renderPersistence();
+}
+
+/* ---- read-only enforcement ----
+   A lock nobody can feel is decoration. When this session does not hold the pen, every
+   control that could change the store is genuinely disabled; what stays live is
+   navigation, the storage card, and everything that only reads — exports, the audit CSV,
+   print. Re-applied at the end of every render, because render() sets `disabled` on the
+   lifecycle buttons itself and would otherwise hand them back. */
+const RO_LIVE = ['#tabs','#themeBtn','#persistChip','#persistBox','#actorName','#actorRole',
+  '#btnExportAll','#btnAuditCsv','#auditScope','#btnCurveExport','#btnCurveTemplate','#btnClientExport',
+  '#btnPrint','[data-close-modal]','[data-config-deal]','[data-open-trade]','#btnCloseConfig','[data-ro]'].join(',');
+const readOnly = () => sink.mode==='folder' && sink.role!=='editor';
+function roGuard(){
+  const ro=readOnly();
+  document.body.classList.toggle('readonly', ro);
+  const bar=document.getElementById('roBarWho'), take=document.getElementById('roBarTake');
+  if(bar) bar.textContent = sink.role==='full'
+    ? 'The model is already open by '+MAX_SESSIONS+' people ('+sink.others.join(' and ')+'), so this '+
+      'session has not joined. Nothing here is being saved to the shared folder.'
+    : (sink.editorWho||'Someone else')+' holds the pen'+(sink.wantPen
+        ? ' — you are queued and will pick it up when they hand it over.'
+        : '. Everything that could change a deal is disabled.');
+  if(take) take.style.display = (sink.role==='reader' && !sink.wantPen) ? '' : 'none';
+  for(const el of document.querySelectorAll('main button, main input, main select, main textarea')){
+    if(el.closest(RO_LIVE)) continue;
+    if(ro){ if(!el.disabled) el.dataset.roOff='1'; el.disabled=true; }
+    else if(el.dataset.roOff){ delete el.dataset.roOff; el.disabled=false; }
+  }
 }
 
 const NO_FS = 'This browser cannot write files directly — Chrome and Edge can. '+
@@ -1679,7 +2012,8 @@ async function linkNewFile(){
   try{ handle=await window.showSaveFilePicker({suggestedName:DEFAULT_FILE, types:JSON_PICKER}); }
   catch(e){ if(e.name!=='AbortError') alert('Could not link a file: '+(e.message||e)); return; }
   const was = sink.mode==='local' ? 'this browser only' : sink.label;
-  clearInterval(pollTimer);
+  clearInterval(pollTimer); clearInterval(beatTimer);
+  await idbWrite(DIR_KEY, null);
   sink={...blankSink(), mode:'file', handle, label:handle.name||DEFAULT_FILE, dirty:true};
   await idbWrite(HANDLE_KEY, handle);
   await flush();
@@ -1731,7 +2065,7 @@ async function unlinkFile(){
   if(!confirm('Stop saving to '+sink.label+'?\n\nThe file stays where it is, but from then on this data lives in '+
               'this browser only — and that is the copy that goes missing.')) return;
   const was=sink.label;
-  clearInterval(pollTimer);
+  clearInterval(pollTimer); clearInterval(beatTimer);
   await idbWrite(HANDLE_KEY, null);
   sink=blankSink();
   audit('store','-','UPDATE','storage','file: '+was,'this browser only','Unlinked the data file');
@@ -1762,7 +2096,16 @@ const backupNow = () => download('pricing-store-'+new Date().toISOString().repla
 
 const PERSIST_ACTS = { linkNew:linkNewFile, linkOpen:linkExistingFile, unlink:unlinkFile,
   reconnect:reconnectFile, flush:()=>{ sink.dirty=true; flush(); }, reload:reloadFromServer,
-  force:forceSave, backup:backupNow };
+  force:forceSave, backup:backupNow,
+  linkFolder, unlinkFolder, reloadFolder:reloadFromFolder, takePen, releasePen,
+  forceFolder:async()=>{
+    if(!confirm('Overwrite the shared file with what is open in this session?\n\nWhatever the other '+
+                'person saved since is lost, except in the snapshots under '+BACKUP_DIR+'.')) return;
+    sink.pending=true; sink.error=''; renderPersistence();
+    try{ await folderWrite(storeText(), true); sink.dirty=false; sink.savedAt=store.savedAt; }
+    catch(e){ sink.error=e.message||String(e); }
+    finally{ sink.pending=false; renderPersistence(); }
+  } };
 
 function renderPersistence(){
   const box=document.getElementById('persistBox'); if(!box) return;
@@ -1776,6 +2119,35 @@ function renderPersistence(){
   } else if(sink.error){
     cls='err'; chip='Save failed'; head='Could not save to '+sink.label;
     note=esc(sink.error)+' Nothing is lost yet — this browser still holds the change — but fix this or save a backup copy.';
+  } else if(sink.mode==='folder' && sink.conflictCopies.length){
+    /* Sync lost a race and wrote somebody's work to a second file. Nothing is gone, but
+       it is in the wrong place, and only a person can decide which copy is right. */
+    cls='err'; chip='Conflict copy'; head='OneDrive left a conflict copy in the folder';
+    note='Found '+sink.conflictCopies.map(esc).join(', ')+' beside the store. That means two saves '+
+      'collided and one person\u2019s work went into that file instead. Nothing is lost — open it, '+
+      'compare, and import whichever is right — but do it before working on further.';
+  } else if(sink.mode==='folder' && sink.role==='full'){
+    cls='err'; chip='In use'; head='The model is already open by '+MAX_SESSIONS+' people';
+    note='Currently '+sink.others.map(esc).join(' and ')+'. This session has not joined, and is not '+
+      'saving anywhere but this browser. Wait for one of them to close it — this checks every '+
+      Math.round(BEAT_MS/1000)+' seconds.';
+  } else if(readOnly() && sink.dirty){
+    /* Held the pen, lost it, still carrying changes. Never silently discarded — but they
+       cannot go to the shared file either, so say so and offer the exit. */
+    cls='err'; chip='Unsaved'; head='This session has changes it can no longer save';
+    note='The pen is with '+(esc(sink.editorWho)||'someone else')+' now, so these changes cannot go to '+
+      'the shared file. Save a backup copy, then take the pen and import it, or re-enter them.';
+  } else if(sink.mode==='folder' && sink.role==='claiming'){
+    cls='info'; chip='Claiming'; head='Claiming the pen…';
+    note='Waiting one heartbeat to be sure nobody else claimed it at the same moment — a lock written '+
+      'on another machine takes a few seconds to arrive through sync. Editing unlocks in a moment.';
+  } else if(sink.mode==='folder' && sink.role==='reader'){
+    cls='warn'; chip='Read-only'; head=(esc(sink.editorWho)||'Someone else')+' holds the pen';
+    note='This session is read-only — everything that could change the store is disabled, so the two '+
+      'of you cannot overwrite each other. It follows their saves, so what you are looking at stays '+
+      'current within a few seconds. '+(sink.wantPen
+        ? 'You are queued: the pen comes here the moment they hand it over or close the model.'
+        : 'Press <b>Take the pen</b> to queue for it.');
   } else if(sink.remoteRev){
     /* A newer revision has been seen but could not be taken: something is focused here, or
        a trade is open. Saying so beats swapping the store out from under whoever is typing. */
@@ -1792,7 +2164,8 @@ function renderPersistence(){
   } else if(sink.dirty || sink.pending){
     cls='info'; chip='Saving…'; head='Saving to '+sink.label+'…';
   } else {
-    cls='ok'; chip='Saved'; head='Saved to '+sink.label+(when?' at '+when:'');
+    cls='ok'; chip = sink.mode==='folder' ? 'Editing' : 'Saved';
+    head = (sink.mode==='folder' ? 'Editing '+sink.label : 'Saved to '+sink.label)+(when?' — saved at '+when:'');
     note = sink.mode==='server'
       ? 'The sync server writes it and keeps a timestamped copy in data/backups on every change. '+
         'Other people\u2019s saves to it are picked up here within a few seconds.'
@@ -1801,13 +2174,32 @@ function renderPersistence(){
       if(sink.pulledFrom) note += ' Currently showing '+esc(sink.pulledFrom)+'\u2019s save.';
       else if(store.lastActor) note += ' Last saved by '+esc(store.lastActor)+'.';
     }
+    if(sink.mode==='folder'){
+      note = 'You hold the pen, so this session is the only one that can save. Every change is written '+
+        'to the shared file and snapshotted under '+BACKUP_DIR+'/. '+
+        (sink.others.length ? esc(sink.others.join(' and '))+' also has it open, read-only. '
+                            : 'Nobody else has it open. ')+
+        'Hand the pen over when you are done rather than making them wait it out.';
+    }
     if(sink.recovered) note += ' This browser held changes the record was missing — a save that never landed last '+
       'session — and those were written back to it.';
   }
 
   if(sink.needsPermission) B('reconnect','primary','Reconnect '+sink.label);
   if(sink.mode==='local'){
-    if(FS_OK){ B('linkNew','primary','Link a data file…'); B('linkOpen','','Open an existing data file…'); }
+    if(DIR_OK) B('linkFolder','primary','Use a shared folder…');
+    if(FS_OK){ B('linkNew', DIR_OK?'':'primary', 'Link a data file…'); B('linkOpen','','Open an existing data file…'); }
+  } else if(sink.mode==='folder'){
+    if(sink.role==='editor'){
+      if(sink.dirty || sink.error) B('flush','primary','Save now');
+      B('releasePen','','Hand the pen over');
+    } else if(sink.role!=='full'){
+      B('takePen', sink.wantPen?'':'primary', sink.wantPen?'Queued for the pen':'Take the pen');
+    }
+    B('reloadFolder','','Reload from the shared file');
+    if(sink.error && sink.role==='editor') B('forceFolder','','Force save (overwrite)');
+    B('linkFolder','','Use a different folder…');
+    B('unlinkFolder','','Stop using this folder');
   } else if(sink.mode==='file'){
     if(!sink.needsPermission){
       if(sink.dirty || sink.error) B('flush','primary','Save now');
@@ -1826,6 +2218,7 @@ function renderPersistence(){
     '<div class="toolbar" style="margin-bottom:0">'+acts.join('')+'</div>';
   for(const b of box.querySelectorAll('[data-act]')) b.onclick=PERSIST_ACTS[b.dataset.act];
 
+  roGuard();          // the role can change without a render, and the gate follows the role
   const tag=document.getElementById('persistChip');
   if(tag){ tag.className='btn sm '+cls;
     tag.innerHTML='<span class="dot"></span>'+esc(chip);
@@ -1833,6 +2226,10 @@ function renderPersistence(){
 }
 /* A debounced write can still be in flight when the tab goes away. */
 window.addEventListener('beforeunload', e=>{ if(sink.mode!=='local' && sink.dirty){ e.preventDefault(); e.returnValue=''; } });
+/* Closing the tab should free the pen immediately rather than making the other person
+   wait out the staleness timeout. Best-effort: the browser gives no time for a proper
+   write here, so the timeout stays as the guarantee. */
+window.addEventListener('pagehide', ()=>{ if(sink.mode==='folder' && sink.role==='editor'){ sink.wantPen=false; beat(); } });
 document.addEventListener('visibilitychange', ()=>{
   if(document.visibilityState==='hidden') flush(); else pollRemote(); });
 const actor = () => ({ name:(document.getElementById('actorName').value||'unknown').trim(),
@@ -2195,7 +2592,7 @@ function render(){
     $('dealContextBox').innerHTML=''; closeTradeModal_silent();
     for(const id of ['btnPrice','btnApprove','btnIssue','btnSettle','btnCancel','btnNewTradeFromDeals','btnDupTrade','btnVersion'])
       { const el=$(id); if(el) el.disabled=true; }
-    save(); return;
+    save(); roGuard(); return;
   }
   const t=currentTrade();
   const r=computeAll(d,t);
@@ -2203,7 +2600,7 @@ function render(){
   renderHeader(d,t,r); renderDealForm(); renderFunderList(); renderPricing(d,t,r);
   renderRates(); renderClients(); renderOffer(d,t,r);
   renderDeals(); renderAudit(); renderAbout();
-  save();
+  save(); roGuard();
 }
 
 function renderHeader(d,t,r){
@@ -3002,6 +3399,15 @@ a file-or-localStorage store (below), a role selector for SSO claims, Rates-Admi
 feed, and browser print-to-PDF plus a pure-JS SHA-256 for document hashing.</p>
 
 <h3 style="margin:18px 0 6px">Storage</h3>
+<p>The <b>shared folder</b> sink is the two-person answer. A synced folder cannot arbitrate two writers — sync is
+last-writer-wins across machines and the store is one document — so the app arbitrates instead, in a lock file beside
+the store: at most two sessions may join, exactly one holds the pen, and the rest are read-only by disabled controls
+while following the editor's saves. The pen is claimed and then confirmed a heartbeat later, since a lock written on
+one machine is invisible on another until sync carries it; a claim goes stale after 90 seconds so a closed laptop
+never locks anyone out. Every save re-reads the file and refuses if its hash moved, snapshots into
+<code>backups/</code>, and the folder is watched for the conflict copies that are the one outward sign two writes
+collided. The pen is per file, not per deal, so simultaneous editing of <em>different</em> deals still needs one
+server or a real database.</p>
 <p>localStorage is treated as a cache, never the record: clearing site data, a private window or a different browser
 wipes it. The record is whichever sink is linked on the <b>Deals</b> tab — a JSON file on this machine written through
 the File System Access API, or <code>data/pricing-store.json</code> owned by the zero-dependency
@@ -3405,6 +3811,7 @@ render();
 runTests();
 $('persistChip').onclick=()=>{ document.querySelector('#tabs button[data-view="deals"]').click();
   $('persistBox').scrollIntoView({behavior:'smooth', block:'center'}); };
+$('roBarTake').onclick=takePen;
 renderPersistence();
 // Linking a file or a sync server is async and may replace the store, so it runs
 // after the first paint rather than blocking it.

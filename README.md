@@ -364,7 +364,42 @@ a store kept only there goes missing. The **Deals** tab opens with a *Where this
 showing which of three places is currently the record, and how to change it. Neither of the first two
 involves a database, a network or an install.
 
-### 1. A JSON file on this machine — Chrome and Edge
+### 1. A shared folder, one editor at a time — Chrome and Edge
+
+The interim answer for two people, and the one to use if you have a OneDrive- or
+SharePoint-synced folder. Press **Use a shared folder…**, pick the synced folder, and the store
+lives in it as `pricing-store.json` — backed up and reachable from every machine with no server,
+no Azure subscription and nothing to install.
+
+What sync cannot do is arbitrate two writers: it is last-writer-wins across machines with no
+locking, and the store is one document, so two people saving at once means one of them loses a
+day's work to a conflict copy. So this mode arbitrates itself, in a second file beside the store:
+
+- **At most two people** may have the model open. A third is refused, told who has it, and saves
+  nowhere but its own browser until a slot frees.
+- **Exactly one of them holds the pen.** Everyone else is read-only — genuinely, by disabled
+  controls, with a banner naming who is editing. Navigation, exports, the audit CSV and printing
+  stay live.
+- **The read-only session follows the editor's saves**, so it stays current within a few seconds
+  rather than showing whatever it opened with.
+- **Hand the pen over** when you are done. If a machine sleeps or a browser dies, its claim goes
+  stale after 90 seconds and the pen becomes claimable — nobody is locked out by a closed laptop.
+- **Every save re-reads the file first** and refuses if its hash moved. If the arbitration is
+  beaten anyway — the window is a few seconds of sync latency — the write is stopped, not silently
+  applied, and you get *Reload* or *Force save*.
+- **Every save snapshots** into `backups/` inside the same folder, so even a lost write is
+  recoverable.
+- **The folder is watched for OneDrive conflict copies.** They are the one outward sign that two
+  writes collided, and being told immediately beats finding out weeks later.
+
+Honest about the limit: the pen is claimed and then confirmed one heartbeat later, because a lock
+written on one machine is not visible on another until sync carries it. That confirm window is what
+stops two people both believing they claimed first, and the hash check is the backstop if it is
+beaten. None of this makes a synced folder a database — it makes it safe enough for two people who
+are not editing the same thing at the same moment. For genuine simultaneous editing of different
+deals, see *Several people on one store* below, or the SQL path.
+
+### 2. A JSON file on this machine — Chrome and Edge
 
 Press **Link a data file…**, choose where it goes, and every change from then on is written straight
 to that file through the browser's File System Access API. **Open an existing data file…** goes the
@@ -381,7 +416,7 @@ Two things to know:
 Put the file in a OneDrive- or SharePoint-synced folder and it is versioned and backed up as a side
 effect, without the app itself ever touching a network.
 
-### 2. A local sync server — any browser, and shared copies
+### 3. A local sync server — any browser, and shared copies
 
 ```
 node sync-server.mjs            # http://127.0.0.1:8787
@@ -396,7 +431,7 @@ keeps a timestamped copy of every change in `data/backups` (the last 200; `--kee
 change that). It binds to loopback unless you pass `--host`, and there is no authentication — so
 `--host` belongs only on a network you trust.
 
-### 3. Browser only — the fallback
+### 4. Browser only — the fallback
 
 What the app did before, and still does until a sink is linked. **Save a backup copy** downloads a
 timestamped snapshot at any time, and *Export all data (JSON)* / *Import JSON* still work as they
@@ -457,16 +492,25 @@ so other people's saves appear within a few seconds without anyone reloading. A 
 the store out from under you: while a field is focused or a trade workspace is open it shows
 *Someone else has saved* and waits, then picks the change up when you are done.
 
-### Why not a synced folder
+### Synced folders: the arbitrated way and the wrong way
 
-Putting `data/` in a OneDrive- or SharePoint-synced folder and running a server each **does not**
-give you a shared store. Sync is last-writer-wins across machines with no locking, and the store is
-one JSON document, so two people working at once means one of them finds their whole day in a
-`pricing-store-LAPTOP-XYZ.json` conflict copy. The `data/backups` churn syncs too — hundreds of
-near-identical files.
+Sync is last-writer-wins across machines with no locking, and the store is one JSON document. Two
+writers therefore need arbitrating by *something*, and there are only two honest answers.
 
-The revision check makes that arrangement fail loudly rather than silently — see below — and it is
-fine if only one person ever has it open at a time. It is not a substitute for one server.
+**The arbitrated way — option 1 above.** The app itself caps the room at two, gives exactly one
+person the pen, makes everyone else genuinely read-only, re-reads the file before every save and
+refuses if it moved, snapshots each save, and watches for conflict copies. That is safe enough for
+two people who are not editing the same thing at the same moment.
+
+**The wrong way — a synced `data/` folder with a sync server each.** Each server owns its own local
+copy and knows nothing of the others, so nothing arbitrates: two people at once means one of them
+finds their whole day in a `pricing-store-LAPTOP-XYZ.json` conflict copy. The `data/backups` churn
+syncs too — hundreds of near-identical files. The revision check makes it fail loudly rather than
+silently, but do not build on it.
+
+**What a synced folder still cannot do** is let two people edit *different deals simultaneously*.
+The pen is per-file, not per-deal, so the second person waits. That is the constraint that argues
+for one sync server on a always-on host, or for the SQL path.
 
 Sharing `index.html` itself through SharePoint is unrelated and perfectly fine: it is a static file
 with no data in it.
