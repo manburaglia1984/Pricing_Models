@@ -6,6 +6,8 @@ in that workbook.
 Open `index.html` in any modern browser. No server, no build step, no network access — it is a
 single self-contained file that works offline and can be emailed or dropped on a share.
 
+To keep the data somewhere the browser cannot lose it, see **[Keeping the data](#keeping-the-data)**.
+
 ---
 
 ## Parity with the workbook
@@ -316,7 +318,7 @@ HTML file. Their local stand-ins:
 
 | Spec component | Stand-in here |
 |---|---|
-| PostgreSQL `NUMERIC(20,10)` | BigInt fixed-point decimal + `localStorage` |
+| PostgreSQL `NUMERIC(20,10)` | BigInt fixed-point decimal + a local JSON file (see [Keeping the data](#keeping-the-data)) |
 | OIDC SSO role claims | Role selector in the header |
 | CME daily rate fetch | Rates-Admin-gated manual curve entry (the spec's override path) |
 | Annual calendar refresh job | Static calendars + a forward-coverage warning under 180 days |
@@ -354,11 +356,71 @@ Consequences, and what to check when those tabs are available:
 
 Everything above is surfaced in-app under the **Spec & traceability** tab.
 
+## Keeping the data
+
+`localStorage` is treated as a cache, never the record. It is wiped by "clear site data" and by
+browser cleanup, it is per-browser and per-profile, and a private window never had it — which is why
+a store kept only there goes missing. The **Deals** tab opens with a *Where this data is saved* card
+showing which of three places is currently the record, and how to change it. Neither of the first two
+involves a database, a network or an install.
+
+### 1. A JSON file on this machine — Chrome and Edge
+
+Press **Link a data file…**, choose where it goes, and every change from then on is written straight
+to that file through the browser's File System Access API. **Open an existing data file…** goes the
+other way: it loads a store someone else exported or a colleague put on a share, and keeps writing to
+it. The choice is remembered, so the next session reconnects to the same file.
+
+Two things to know:
+
+- The browser asks for permission again at the start of each session before a page may write a file.
+  Until you press **Reconnect**, changes are held in the browser only — the card says so plainly, and
+  the header chip turns amber.
+- Firefox and Safari do not implement this API. They get option 2.
+
+Put the file in a OneDrive- or SharePoint-synced folder and it is versioned and backed up as a side
+effect, without the app itself ever touching a network.
+
+### 2. A local sync server — any browser, and shared copies
+
+```
+node sync-server.mjs            # http://127.0.0.1:8787
+node sync-server.mjs --port 9000 --data ./store --host 0.0.0.0
+```
+
+Open the address it prints. The page finds the API on its own and switches over. Nothing to install —
+`sync-server.mjs` has no dependencies and needs only Node 18 or newer. It owns
+`data/pricing-store.json`, writes it via a temp file and a rename so a crash cannot truncate it, and
+keeps a timestamped copy of every change in `data/backups` (the last 200; `--keep` changes that).
+It binds to loopback unless you pass `--host`, and there is no authentication — so `--host` belongs
+only on a network you trust.
+
+Because a file served this way can be open in more than one tab or to more than one person, every
+write carries the revision it was based on. A write from a stale tab is refused rather than applied,
+and the card offers the two honest ways out: **Reload from the server** (take the record, lose this
+tab's unsaved work) or **Force save** (overwrite the record; the previous content stays in
+`data/backups`). Backing out of either prompt leaves the tab still conflicting, so cancelling can
+never turn into an overwrite.
+
+### 3. Browser only — the fallback
+
+What the app did before, and still does until a sink is linked. **Save a backup copy** downloads a
+timestamped snapshot at any time, and *Export all data (JSON)* / *Import JSON* still work as they
+always did.
+
+### How the two copies are kept straight
+
+Every save writes `localStorage` inline and the linked sink debounced, so a linked sink never slows
+typing and a failed write never costs a keystroke. Each store carries a `savedAt` stamp, and on load
+the sink wins unless the browser copy is demonstrably newer — which happens only when a crash landed
+between the two writes. In that case the browser copy is pushed out to the sink and the card says so.
+A save that would write identical data is dropped whole, so a plain page refresh neither bumps the
+revision nor litters the backups.
+
 ## Data handling
 
 An earlier single-level store (`cantu-pricing-model-v1`) is migrated automatically on first load: each
 flat record becomes one deal carrying one trade, and the migration itself is written to the audit log.
 
-Deals live in this browser's `localStorage` only — nothing is transmitted anywhere. Use
-*Deals → Export all data* to move a deal set between machines. Note that browser storage is not a
-system of record: it is cleared by "clear site data" and is not backed up.
+Nothing is transmitted anywhere: the file sink is a local file, and the sync server binds to loopback
+by default. Use *Deals → Export all data* to move a deal set between machines.

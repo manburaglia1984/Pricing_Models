@@ -1,0 +1,2 @@
+# Written by sync-server.mjs — the local store and its backups are data, not source.
+data/

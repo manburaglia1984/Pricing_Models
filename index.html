@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
 <title>Pricing Model</title>
 <style>
 :root{
@@ -100,6 +101,9 @@ input:disabled,select:disabled{opacity:.6;cursor:not-allowed}
 .suffix{position:relative}
 .suffix::after{content:attr(data-suffix);position:absolute;right:9px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--ink-3);pointer-events:none}
 .suffix input{padding-right:24px}
+#persistChip .dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;background:var(--ink-3);vertical-align:middle}
+#persistChip.ok .dot{background:var(--ok)} #persistChip.warn .dot{background:var(--warn)}
+#persistChip.err .dot{background:var(--err)} #persistChip.info .dot{background:var(--accent)}
 .inline-tag{display:inline-block;font:600 10.5px/1.5 var(--mono);padding:1px 6px;border-radius:4px;border:1px solid var(--line-2);color:var(--ink-2);background:var(--panel-2);white-space:nowrap}
 .inline-tag.ok{color:var(--ok);border-color:var(--ok);background:var(--ok-bg)}
 .inline-tag.warn{color:var(--warn);border-color:var(--warn);background:var(--warn-bg)}
@@ -184,7 +188,8 @@ code,.mono{font-family:var(--mono);font-size:12px}
         <option>Rates Admin</option><option>Auditor</option>
       </select>
     </div>
-    <button class="btn sm" id="themeBtn" title="Cycle system / dark / light theme">Theme</button>
+    <button class="btn sm" id="persistChip" title="Where this data is saved"><span class="dot"></span>Browser only</button>
+  <button class="btn sm" id="themeBtn" title="Cycle system / dark / light theme">Theme</button>
   </div>
   <nav class="tabs" id="tabs">
     <button data-view="deals" aria-selected="true">Deals</button>
@@ -404,6 +409,19 @@ code,.mono{font-family:var(--mono);font-size:12px}
 <!-- ================= DEALS (configuration) ================= -->
 <section class="view active" id="view-deals">
   <div class="card">
+    <h2>Where this data is saved <span class="src">Storage</span></h2>
+    <div class="body">
+      <div id="persistBox"></div>
+      <p class="tiny" style="margin:10px 0 0">Nothing here leaves this machine. <b>Link a data file</b> writes every
+      change straight to a JSON file you choose, through the browser's File System Access API — Chrome and Edge only,
+      and the browser asks once per session before it may write. For any other browser, or to share one file between
+      people, run <code>node sync-server.mjs</code> in this folder and open the address it prints: this page then reads
+      and writes <code>data/pricing-store.json</code> and the server keeps a timestamped copy of every change in
+      <code>data/backups</code>. Either way this browser keeps its own copy as well, so a failed write never costs a
+      keystroke.</p>
+    </div>
+  </div>
+  <div class="card">
     <h2>All deals</h2>
     <div class="body">
           <div class="toolbar">
@@ -411,7 +429,7 @@ code,.mono{font-family:var(--mono);font-size:12px}
             <button class="btn" id="btnExportAll">Export all data (JSON)</button>
             <label class="btn" style="display:inline-flex;align-items:center">Import JSON<input type="file" id="importFile" accept="application/json" style="display:none"></label>
           </div>
-          <p class="tiny" style="margin:0 0 10px">Configure a deal here, then open one of its trades to price it. Stored in this browser only — nothing is hard-deleted, cancel is a soft-delete.</p>
+          <p class="tiny" style="margin:0 0 10px">Configure a deal here, then open one of its trades to price it. Saved wherever the card above says — nothing is hard-deleted, cancel is a soft-delete.</p>
       <div class="scroll"><table id="dealTable"></table></div>
     </div>
   </div>
@@ -1322,12 +1340,23 @@ function defaultClients(){
   return { source:{...MONDAY_SOURCE, syncedAt:null, via:'seeded'}, list:SEED_CLIENTS.map(c=>({...c})) };
 }
 
+let bootFromCache=false, bootMigrated=false;
 let store = load();
+/* The moment this store was last written, as it was *read* — boot itself calls save(),
+   which would otherwise stamp a bare seed store with "now" and let it win a timestamp
+   race against the real record on disk. A seed store has no claim on anything. */
+const bootSavedAt = bootFromCache ? (store.savedAt || null) : null;
+/* The store minus its own timestamp, which moves on every save: two shapes being equal
+   means nothing has actually changed. Seeding it from a store read back unchanged keeps a
+   plain refresh from moving `savedAt` and drifting ahead of the record on disk. A fresh
+   seed and a v1 migration do need writing out, so they start with no shape. */
+const storeShape = () => JSON.stringify({...store, savedAt:null});
+let lastShape = (bootFromCache && !bootMigrated) ? storeShape() : null;
 function load(){
   try{ const raw=localStorage.getItem(LS_KEY);
-    if(raw){ const s=JSON.parse(raw); if(s && s.deals && s.trades) return normalise(s); } }catch(e){}
+    if(raw){ const s=JSON.parse(raw); if(s && s.deals && s.trades){ bootFromCache=true; return normalise(s); } } }catch(e){}
   try{ const v1=localStorage.getItem(LS_KEY_V1);
-    if(v1){ const m=migrateV1(JSON.parse(v1)); if(m) return m; } }catch(e){}
+    if(v1){ const m=migrateV1(JSON.parse(v1)); if(m){ bootFromCache=bootMigrated=true; return m; } } }catch(e){}
   return seedStore();
 }
 function normalise(s){
@@ -1401,7 +1430,337 @@ function seedStore(){
   return { v:2, deals:[d], trades:[t], currentDealId:d.id, currentTradeId:t.id,
     curves:defaultCurves(), clients:defaultClients(), audit:[] };
 }
-const save = () => { try{ localStorage.setItem(LS_KEY, JSON.stringify(store)); }catch(e){ console.warn('Persist failed', e); } };
+/* ========================== persistence ==========================
+   localStorage is a cache, never the record: browser cleanup, "clear site data",
+   a private window or simply a different browser all wipe it, which is how a store
+   kept only there goes missing. The record is whichever sink is linked below —
+
+     file    a JSON file on this machine, written through the File System Access
+             API (Chrome/Edge). Put it in a OneDrive/SharePoint-synced folder and
+             it is backed up and shareable without any of it leaving the machine
+             unless that folder already syncs.
+     server  the zero-dependency local sync server in sync-server.mjs, for the
+             browsers that lack the file API and for sharing one file between
+             people. It owns data/pricing-store.json and keeps timestamped
+             backups beside it.
+     local   no sink linked — localStorage only, i.e. the old behaviour.
+
+   Writes go to localStorage synchronously and to the sink debounced, so a linked
+   sink never slows typing down and a failed sink write never costs the keystroke. */
+const SYNC_URL='api/store', SYNC_API='cantu-pricing-store';
+const IDB_NAME='cantu-pricing-model', IDB_STORE='handles', HANDLE_KEY='storeFile';
+const FS_OK = typeof window.showSaveFilePicker==='function' && typeof window.showOpenFilePicker==='function';
+const blankSink = () => ({ mode:'local', label:'', handle:null, rev:0, savedAt:null,
+                           dirty:false, pending:false, needsPermission:false, error:'', recovered:false });
+let sink = blankSink();
+
+/* A file handle survives a reload only in IndexedDB — it is not JSON-serialisable,
+   so localStorage cannot hold it. Every failure here is non-fatal: worst case the
+   file has to be picked again next session. */
+function idbOpen(){
+  return new Promise((res,rej)=>{ let rq;
+    try{ rq=indexedDB.open(IDB_NAME,1); }catch(e){ return rej(e); }
+    rq.onupgradeneeded=()=>{ const db=rq.result;
+      if(!db.objectStoreNames.contains(IDB_STORE)) db.createObjectStore(IDB_STORE); };
+    rq.onsuccess=()=>res(rq.result); rq.onerror=()=>rej(rq.error||new Error('IndexedDB unavailable')); });
+}
+async function idbWrite(key, val){
+  try{ const db=await idbOpen();
+    await new Promise((res,rej)=>{ const tx=db.transaction(IDB_STORE,'readwrite');
+      if(val===null) tx.objectStore(IDB_STORE).delete(key); else tx.objectStore(IDB_STORE).put(val,key);
+      tx.oncomplete=res; tx.onerror=()=>rej(tx.error); });
+    db.close(); return true;
+  }catch(e){ console.warn('Could not remember the data file', e); return false; }
+}
+async function idbRead(key){
+  try{ const db=await idbOpen();
+    const v=await new Promise((res,rej)=>{ const tx=db.transaction(IDB_STORE,'readonly');
+      const rq=tx.objectStore(IDB_STORE).get(key); rq.onsuccess=()=>res(rq.result); rq.onerror=()=>rej(rq.error); });
+    db.close(); return v||null;
+  }catch(e){ return null; }
+}
+
+const storeText = () => JSON.stringify(store, null, 2);
+let flushTimer=null;
+/** Persist. localStorage is instant so it happens inline; the sink is debounced. A save
+ *  that would write the same data is dropped whole — otherwise a page refresh alone would
+ *  bump the revision, drop an identical file in the backups, and stale out the revision
+ *  held by any other tab open on the same store. */
+const save = () => {
+  const shape = storeShape();
+  if(shape === lastShape) return;
+  lastShape = shape;
+  store.savedAt = new Date().toISOString();
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(store)); }catch(e){ console.warn('Persist failed', e); }
+  if(sink.mode==='local'){ renderPersistence(); return; }
+  sink.dirty=true; renderPersistence();
+  clearTimeout(flushTimer); flushTimer=setTimeout(flush, 700);
+};
+/** Write the store to the linked sink. `savedAt` doubles as the write's identity:
+ *  if it moved while the write was in flight the store is still dirty afterwards. */
+async function flush(){
+  clearTimeout(flushTimer);
+  if(sink.mode==='local' || sink.pending || !sink.dirty) return;
+  const stamp=store.savedAt, text=storeText();
+  sink.pending=true; sink.error=''; renderPersistence();
+  try{
+    if(sink.mode==='file') await fileWrite(sink.handle, text);
+    else await serverWrite(text, false);
+    sink.savedAt=stamp;
+    if(store.savedAt===stamp) sink.dirty=false; else setTimeout(flush,0);
+  }catch(e){
+    sink.error = e && e.message ? e.message : String(e);
+    if(e && e.name==='NotAllowedError') sink.needsPermission=true;
+  }finally{ sink.pending=false; renderPersistence(); }
+}
+async function fileWrite(handle, text){
+  const w=await handle.createWritable();
+  try{ await w.write(text); } finally{ await w.close(); }
+}
+/** The server refuses a write whose base revision is stale, so two tabs (or two
+ *  people) cannot silently overwrite each other. `force` is the deliberate override. */
+async function serverWrite(text, force){
+  const res=await fetch(SYNC_URL,{ method:'PUT', headers:{'content-type':'application/json'},
+    body:'{"rev":'+sink.rev+',"force":'+(force?'true':'false')+',"store":'+text+'}' });
+  if(res.status===409){
+    const j=await res.json().catch(()=>({}));
+    // Deliberately do NOT take the server's revision here: adopting it would disarm the
+    // guard, and the next save — a keystroke, or this tab merely losing focus — would
+    // overwrite the very copy this tab was just told it had lost to. Only reloading or
+    // force-saving, both of which the user asks for, may move the revision on.
+    throw new Error('The data file changed underneath this tab (it is now at revision '+
+      (j.rev??'?')+'). Reload from the server to pick that up, or force-save to overwrite it.');
+  }
+  if(!res.ok) throw new Error('The sync server answered '+res.status+' '+res.statusText+'.');
+  const j=await res.json();
+  sink.rev=j.rev??sink.rev;
+}
+/** Is this page being served by sync-server.mjs? Only http(s) can be. */
+async function probeServer(){
+  if(!/^https?:$/.test(location.protocol)) return null;
+  try{
+    const res=await fetch(SYNC_URL,{ headers:{accept:'application/json'}, cache:'no-store' });
+    if(!res.ok) return null;
+    const j=await res.json();
+    return j && j.api===SYNC_API ? j : null;
+  }catch(e){ return null; }
+}
+
+const storeIsSane = s => !!(s && Array.isArray(s.deals) && Array.isArray(s.trades));
+/** Replace what is open with a store read off the sink, and repaint everything. */
+function adopt(incoming){
+  store = normalise(incoming);
+  sink.dirty=false; sink.savedAt=store.savedAt||null; lastShape=storeShape();
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(store)); }catch(e){}
+  renderClientOptions(); loadFormFromStore(); render();
+}
+/** The sink is the record and normally wins. It only loses to a browser copy that is
+ *  demonstrably newer — a crash between the synchronous localStorage write and the
+ *  debounced sink write leaves the sink behind, and that work is worth pushing out.
+ *  `basis` is the browser copy's claim: the stamp as loaded at boot, or the live stamp
+ *  when reconnecting mid-session. Null means it has no claim, so the sink wins. */
+async function reconcile(incoming, basis){
+  if(storeIsSane(incoming)){
+    if(!basis || (incoming.savedAt||'') >= basis){ adopt(incoming); return; }
+    sink.recovered=true; sink.dirty=true; await flush(); return;
+  }
+  sink.dirty=true; await flush();                    // sink is empty or unreadable
+}
+
+async function initPersistence(){
+  const srv=await probeServer();
+  if(srv){
+    sink={...blankSink(), mode:'server', label:srv.file||'the local sync server', rev:srv.rev||0};
+    await reconcile(srv.store, bootSavedAt);
+    renderPersistence(); return;
+  }
+  const handle=await idbRead(HANDLE_KEY);
+  if(handle){
+    sink={...blankSink(), mode:'file', handle, label:handle.name||'the linked file'};
+    let perm='prompt';
+    try{ perm=await handle.queryPermission({mode:'readwrite'}); }catch(e){ perm='prompt'; }
+    if(perm==='granted') await openLinkedFile(true); else sink.needsPermission=true;
+  }
+  renderPersistence();
+}
+/** Read the linked file and reconcile. Assumes permission is already granted.
+ *  At boot the browser copy's claim is its loaded stamp; reconnecting later in the
+ *  session, everything since is real work and its live stamp is the claim. */
+async function openLinkedFile(booting){
+  sink.needsPermission=false; sink.error='';
+  try{
+    const text=(await (await sink.handle.getFile()).text()).trim();
+    await reconcile(text ? JSON.parse(text) : null, booting ? bootSavedAt : (store.savedAt||null));
+  }catch(e){ sink.error='Could not read '+sink.label+': '+(e.message||e); }
+  renderPersistence();
+}
+/* Chrome only keeps a write grant for the session unless the user makes it
+   persistent, so a reload often needs one click. requestPermission must be called
+   from inside a gesture, which is why this is a button and not part of boot. */
+async function reconnectFile(){
+  try{
+    if(await sink.handle.requestPermission({mode:'readwrite'})!=='granted'){
+      sink.error='Permission to write '+sink.label+' was declined, so this data is still in this browser only.';
+      return renderPersistence();
+    }
+  }catch(e){ sink.error=e.message||String(e); return renderPersistence(); }
+  await openLinkedFile();
+  if(!sink.error) await flush();
+}
+
+const NO_FS = 'This browser cannot write files directly — Chrome and Edge can. '+
+  'Use the local sync server instead: run "node sync-server.mjs" from this folder and open the address it prints.';
+const DEFAULT_FILE='pricing-store.json';
+const JSON_PICKER=[{description:'Pricing model data', accept:{'application/json':['.json']}}];
+
+/** Choose where the record lives, and write it there now. */
+async function linkNewFile(){
+  if(!FS_OK) return alert(NO_FS);
+  let handle;
+  try{ handle=await window.showSaveFilePicker({suggestedName:DEFAULT_FILE, types:JSON_PICKER}); }
+  catch(e){ if(e.name!=='AbortError') alert('Could not link a file: '+(e.message||e)); return; }
+  const was = sink.mode==='local' ? 'this browser only' : sink.label;
+  sink={...blankSink(), mode:'file', handle, label:handle.name||DEFAULT_FILE, dirty:true};
+  await idbWrite(HANDLE_KEY, handle);
+  await flush();
+  if(!sink.error){
+    audit('store','-','UPDATE','storage', was, 'file: '+sink.label, 'Linked a data file on this machine');
+    alert('Saved to '+sink.label+'. Every change from here on is written to it as well as to this browser.');
+  }
+  renderPersistence();
+}
+/** Adopt a store that already exists on disk, and keep writing to it. */
+async function linkExistingFile(){
+  if(!FS_OK) return alert(NO_FS);
+  let handle;
+  try{ [handle]=await window.showOpenFilePicker({multiple:false, types:JSON_PICKER}); }
+  catch(e){ if(e.name!=='AbortError') alert('Could not open a file: '+(e.message||e)); return; }
+  let text;
+  try{ text=(await (await handle.getFile()).text()).trim(); }
+  catch(e){ return alert('Could not read that file: '+(e.message||e)); }
+  // Picking a file someone just created is a reasonable way to say "save here", so an
+  // empty one is a destination rather than an unreadable store.
+  if(!text){
+    if(!confirm((handle.name||'That file')+' is empty. Save what is open now into it, and keep writing there?')) return;
+    const wasEmpty = sink.mode==='local' ? 'this browser only' : sink.label;
+    sink={...blankSink(), mode:'file', handle, label:handle.name||DEFAULT_FILE, dirty:true};
+    await idbWrite(HANDLE_KEY, handle);
+    await flush();
+    if(!sink.error) audit('store','-','UPDATE','storage', wasEmpty, 'file: '+sink.label, 'Linked an empty data file on this machine');
+    return renderPersistence();
+  }
+  let incoming;
+  try{ incoming=JSON.parse(text); }
+  catch(e){ return alert('Could not read that file as JSON: '+(e.message||e)); }
+  if(!storeIsSane(incoming))
+    return alert('That file is valid JSON but not a pricing-model store — it has no deals/trades. '+
+                 'Use "Export all data (JSON)" to produce one.');
+  if(!confirm('Load '+(handle.name||'that file')+' and write every later change to it?\n\n'+
+      'It holds '+incoming.deals.length+' deal(s) and '+incoming.trades.length+' trade(s), and replaces what is open '+
+      'now ('+store.deals.length+' deal(s), '+store.trades.length+' trade(s)).\n\n'+
+      'Save a backup copy first if this browser holds anything you still need.')) return;
+  const was = sink.mode==='local' ? 'this browser only' : sink.label;
+  sink={...blankSink(), mode:'file', handle, label:handle.name||DEFAULT_FILE};
+  await idbWrite(HANDLE_KEY, handle);
+  adopt(incoming);
+  audit('store','-','UPDATE','storage', was, 'file: '+sink.label,
+    'Loaded '+incoming.deals.length+' deal(s) from a data file on this machine');
+  renderPersistence();
+}
+async function unlinkFile(){
+  if(!confirm('Stop saving to '+sink.label+'?\n\nThe file stays where it is, but from then on this data lives in '+
+              'this browser only — and that is the copy that goes missing.')) return;
+  const was=sink.label;
+  await idbWrite(HANDLE_KEY, null);
+  sink=blankSink();
+  audit('store','-','UPDATE','storage','file: '+was,'this browser only','Unlinked the data file');
+  renderPersistence();
+}
+async function reloadFromServer(){
+  const srv=await probeServer();
+  if(!srv) return alert('The local sync server is not answering. Is sync-server.mjs still running?');
+  if(!storeIsSane(srv.store)) return alert('The server holds no store yet — nothing to reload.');
+  if(!confirm('Reload '+(srv.store.deals||[]).length+' deal(s) from the server, discarding anything this tab '+
+              'has not managed to save?')) return;
+  // Only now: taking the server's revision is what disarms the stale-write guard, so
+  // backing out of this prompt must leave a conflicting tab still conflicting rather
+  // than quietly cleared to overwrite the very copy it was told it had lost to.
+  sink.rev=srv.rev||0; sink.error='';
+  adopt(srv.store); renderPersistence();
+}
+async function forceSave(){
+  if(!confirm('Overwrite the server copy with what is open in this tab?\n\nWhatever changed it since is lost, '+
+              'except in the backups the server keeps in data/backups.')) return;
+  sink.pending=true; sink.error=''; renderPersistence();
+  try{ await serverWrite(storeText(), true); sink.dirty=false; sink.savedAt=store.savedAt; }
+  catch(e){ sink.error=e.message||String(e); }
+  finally{ sink.pending=false; renderPersistence(); }
+}
+const backupNow = () => download('pricing-store-'+new Date().toISOString().replace(/[:.]/g,'-').slice(0,19)+'.json',
+                                 storeText(), 'application/json');
+
+const PERSIST_ACTS = { linkNew:linkNewFile, linkOpen:linkExistingFile, unlink:unlinkFile,
+  reconnect:reconnectFile, flush:()=>{ sink.dirty=true; flush(); }, reload:reloadFromServer,
+  force:forceSave, backup:backupNow };
+
+function renderPersistence(){
+  const box=document.getElementById('persistBox'); if(!box) return;
+  const when = sink.savedAt ? new Date(sink.savedAt).toLocaleString() : '';
+  const acts=[], B=(act,extra,label)=>acts.push('<button class="btn '+extra+'" data-act="'+act+'">'+esc(label)+'</button>');
+  let cls, head, note, chip;
+  if(sink.needsPermission){
+    cls='warn'; chip='Reconnect'; head='Linked to '+sink.label+' — reconnect to resume saving';
+    note='This browser asks again each session before a page may write a file. Until you reconnect, changes are '+
+         'held in this browser only.';
+  } else if(sink.error){
+    cls='err'; chip='Save failed'; head='Could not save to '+sink.label;
+    note=esc(sink.error)+' Nothing is lost yet — this browser still holds the change — but fix this or save a backup copy.';
+  } else if(sink.mode==='local'){
+    cls='warn'; chip='Browser only'; head='Saved in this browser only';
+    note=FS_OK
+      ? 'localStorage is the single copy, so clearing site data, a private window or another browser loses it. '+
+        'Link a data file and every change is written to a real file on this machine as well.'
+      : NO_FS;
+  } else if(sink.dirty || sink.pending){
+    cls='info'; chip='Saving…'; head='Saving to '+sink.label+'…';
+  } else {
+    cls='ok'; chip='Saved'; head='Saved to '+sink.label+(when?' at '+when:'');
+    note = sink.mode==='server'
+      ? 'The sync server writes it and keeps a timestamped copy in data/backups on every change.'
+      : 'Written on every change. Keep that file in a OneDrive- or SharePoint-synced folder and it is versioned and backed up too.';
+    if(sink.recovered) note += ' This browser held changes the record was missing — a save that never landed last '+
+      'session — and those were written back to it.';
+  }
+
+  if(sink.needsPermission) B('reconnect','primary','Reconnect '+sink.label);
+  if(sink.mode==='local'){
+    if(FS_OK){ B('linkNew','primary','Link a data file…'); B('linkOpen','','Open an existing data file…'); }
+  } else if(sink.mode==='file'){
+    if(!sink.needsPermission){
+      if(sink.dirty || sink.error) B('flush','primary','Save now');
+      B('linkNew','','Save to a different file…'); B('linkOpen','','Open a different file…');
+    }
+    B('unlink','','Stop saving to this file');
+  } else {
+    if(sink.dirty || sink.error) B('flush','primary','Save now');
+    B('reload','','Reload from the server');
+    if(sink.error) B('force','','Force save (overwrite)');
+  }
+  B('backup','','Save a backup copy');
+
+  box.innerHTML='<div class="banner '+cls+'"><div><b>'+esc(head)+'</b>'+
+      (note?'<div class="tiny" style="color:inherit;opacity:.85;margin-top:3px">'+note+'</div>':'')+'</div></div>'+
+    '<div class="toolbar" style="margin-bottom:0">'+acts.join('')+'</div>';
+  for(const b of box.querySelectorAll('[data-act]')) b.onclick=PERSIST_ACTS[b.dataset.act];
+
+  const tag=document.getElementById('persistChip');
+  if(tag){ tag.className='btn sm '+cls;
+    tag.innerHTML='<span class="dot"></span>'+esc(chip);
+    tag.title=head+(note?' — '+note.replace(/<[^>]+>/g,''):''); }
+}
+/* A debounced write can still be in flight when the tab goes away. */
+window.addEventListener('beforeunload', e=>{ if(sink.mode!=='local' && sink.dirty){ e.preventDefault(); e.returnValue=''; } });
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') flush(); });
 const actor = () => ({ name:(document.getElementById('actorName').value||'unknown').trim(),
                        role:document.getElementById('actorRole').value });
 function audit(entityType, entityId, action, field, oldV, newV, reason){
@@ -2486,8 +2845,9 @@ function runTests(){
 function renderAbout(){
   $('aboutBox').innerHTML = `
 <p>A browser implementation of <b>Cantu Pricing Model 07222026.xlsx</b>, built to the <em>Spec – Overview</em> and
-<em>Spec – Data Model</em> tabs. It runs entirely offline from a single file; data persists in this browser's
-localStorage.</p>
+<em>Spec – Data Model</em> tabs. It runs entirely offline from a single file. Data is written to this browser's
+localStorage and, once a sink is linked on the Deals tab, to a JSON file on the machine as well — see
+<b>Storage</b> below.</p>
 
 <h3 style="margin:18px 0 6px">Deal → trades</h3>
 <p>A <b>deal</b> holds what every trade shares: client, Transaction Code (<code>Cantu!B4</code>), currency and the
@@ -2564,8 +2924,17 @@ panels and its Offer File — a trade is a drill-down from its deal, not a tab o
 <h3 style="margin:18px 0 6px">Not built here</h3>
 <p>PostgreSQL persistence, OIDC SSO, the CME rate feed, the scheduled calendar-refresh job and server-side PDF
 rendering are server-side concerns from the spec and out of scope for a single HTML file. Local stand-ins:
-localStorage for the store, a role selector for SSO claims, Rates-Admin-gated manual curve entry for the feed, and
-browser print-to-PDF plus a pure-JS SHA-256 for document hashing.</p>`;
+a file-or-localStorage store (below), a role selector for SSO claims, Rates-Admin-gated manual curve entry for the
+feed, and browser print-to-PDF plus a pure-JS SHA-256 for document hashing.</p>
+
+<h3 style="margin:18px 0 6px">Storage</h3>
+<p>localStorage is treated as a cache, never the record: clearing site data, a private window or a different browser
+wipes it. The record is whichever sink is linked on the <b>Deals</b> tab — a JSON file on this machine written through
+the File System Access API, or <code>data/pricing-store.json</code> owned by the zero-dependency
+<code>sync-server.mjs</code>, which also keeps a timestamped backup of every change. Writes reach localStorage
+synchronously and the sink debounced, and whichever copy carries the later <code>savedAt</code> wins on load, so a
+crash between the two leaves the newer one intact rather than reading a stale file back over live work. The server
+refuses a write whose base revision is stale, which is what stops two tabs or two people overwriting each other.</p>`;
 }
 
 /* ---------------------------- events ---------------------------- */
@@ -2952,6 +3321,12 @@ $('btnAuditCsv').onclick=()=>{ const scope=$('auditScope').value, t=currentTrade
 loadFormFromStore();
 render();
 runTests();
+$('persistChip').onclick=()=>{ document.querySelector('#tabs button[data-view="deals"]').click();
+  $('persistBox').scrollIntoView({behavior:'smooth', block:'center'}); };
+renderPersistence();
+// Linking a file or a sync server is async and may replace the store, so it runs
+// after the first paint rather than blocking it.
+initPersistence();
 </script>
 </body>
 </html>
