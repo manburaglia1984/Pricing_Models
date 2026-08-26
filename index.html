@@ -1478,7 +1478,8 @@ const blankSink = () => ({ mode:'local', label:'', handle:null, rev:'', savedAt:
                            remoteRev:'', pulledFrom:'',
                            // folder mode: the pen, who else is in, and what sync left behind
                            dir:null, role:'', wantPen:false, claimSeen:false, editorWho:'',
-                           others:[], fileHash:'', conflictCopies:[] });
+                           others:[], fileHash:'', conflictCopies:[],
+                           staleShared:null, pendingShared:null, joined:false });
 let sink = blankSink();
 
 /* A file handle survives a reload only in IndexedDB — it is not JSON-serialisable,
@@ -1532,6 +1533,7 @@ const save = () => {
 async function flush(){
   clearTimeout(flushTimer);
   if(sink.mode==='local' || sink.pending || !sink.dirty) return;
+  if(sink.mode==='folder' && (sink.role!=='editor' || sink.staleShared)) return;
   const stamp=store.savedAt, text=storeText();
   sink.pending=true; sink.error=''; renderPersistence();
   try{
@@ -1739,7 +1741,9 @@ const DIR_OK = typeof window.showDirectoryPicker==='function';
 const MAX_SESSIONS = 2;
 const BEAT_MS = 15000;      // how often each session refreshes its presence
 const SEEN_STALE_MS = 90000; // a session unheard from this long is treated as gone
-const KEEP_SNAPSHOTS = 200;
+const KEEP_SNAPSHOTS = 60;
+const SNAPSHOT_EVERY_MS = 5*60*1000;   // a snapshot is a synced file; do not make one per save
+let lastSnapAt = 0;
 const SESSION_ID = uuid();
 let beatTimer=null;
 
@@ -1829,6 +1833,8 @@ async function beat(){
  *  off than if they had the file emailed to them. Never mid-interaction, same rule as
  *  the server sink. */
 async function pullFolder(){
+  if(!sink.joined) return;             // the join has not settled which copy wins yet
+  if(sink.staleShared) return;         // a person is mid-decision about which copy wins
   let read;
   try{ read=await folderRead(); }catch(e){ return; }
   if(!storeIsSane(read.store) || read.hash===sink.fileHash) return;
@@ -1884,7 +1890,10 @@ async function folderWrite(text, force){
   sink.remoteRev='';
   await snapshot(text);
 }
-async function snapshot(text){
+async function snapshot(text, force){
+  const now=Date.now();
+  if(!force && lastSnapAt && now-lastSnapAt < SNAPSHOT_EVERY_MS) return;
+  lastSnapAt=now;
   try{
     const bdir=await sink.dir.getDirectoryHandle(BACKUP_DIR, {create:true});
     const stamp=new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
@@ -1922,7 +1931,7 @@ async function linkFolder(){
   await idbWrite(HANDLE_KEY, null);
   await idbWrite(DIR_KEY, dir);
   await joinFolder(bootSavedAt);
-  if(sink.mode==='folder' && !sink.error)
+  if(sink.mode==='folder' && !sink.error && sink.role==='editor' && !sink.staleShared)
     audit('store','-','UPDATE','storage', was, 'shared folder: '+sink.label,
       'Linked a shared folder, with one editor at a time');
   renderPersistence();
@@ -1937,12 +1946,21 @@ async function joinFolder(basis){
     const {store:incoming, hash}=await folderRead();
     sink.fileHash=hash;
     if(storeIsSane(incoming)){
-      // A reader never pushes, and an editor only pushes a copy that is genuinely newer.
-      if(sink.role!=='editor' || !basis || (incoming.savedAt||'') >= basis) adopt(incoming);
-      else { sink.recovered=true; sink.dirty=true; await flush(); }
+      const theirs=incoming.savedAt||'';
+      /* The shared file is behind what this browser holds. Adopting would throw the newer
+         book away, and pushing would throw theirs away, so neither is ours to choose —
+         especially on first use, where this is exactly the case of one person linking the
+         folder before the one who actually has the data. */
+      if(basis && theirs && theirs < basis){
+        sink.staleShared={savedAt:theirs, deals:incoming.deals.length, trades:incoming.trades.length};
+        sink.pendingShared=incoming;
+        sink.joined=true; startBeating(); renderPersistence(); return;
+      }
+      adopt(incoming);
     } else if(sink.role==='editor'){
       sink.dirty=true; await flush();               // empty folder: seed it
     }
+    sink.joined=true;
   }catch(e){ sink.error=e.message||String(e); }
   startBeating();
 }
@@ -2098,6 +2116,25 @@ const PERSIST_ACTS = { linkNew:linkNewFile, linkOpen:linkExistingFile, unlink:un
   reconnect:reconnectFile, flush:()=>{ sink.dirty=true; flush(); }, reload:reloadFromServer,
   force:forceSave, backup:backupNow,
   linkFolder, unlinkFolder, reloadFolder:reloadFromFolder, takePen, releasePen,
+  takeShared:async()=>{
+    const ss=sink.staleShared; if(!ss) return;
+    if(!confirm('Replace what is open here with the folder\u2019s copy?\n\nYou would be working from '+
+      ss.deals+' deal(s) saved '+new Date(ss.savedAt).toLocaleString()+', and this browser\u2019s '+
+      store.deals.length+' deal(s) would be gone unless you saved a backup copy.')) return;
+    const incoming=sink.pendingShared;
+    sink.staleShared=null; sink.pendingShared=null;
+    adopt(incoming); renderPersistence();
+  },
+  pushMine:async()=>{
+    const ss=sink.staleShared; if(!ss) return;
+    if(sink.role!=='editor') return alert('Take the pen first — only the session holding it can write to '+
+      'the shared file. Press "Take the pen", then try again.');
+    if(!confirm('Write this browser\u2019s '+store.deals.length+' deal(s) over the folder\u2019s copy?\n\n'+
+      'The folder currently holds '+ss.deals+' deal(s); that version stays in the snapshots under '+
+      BACKUP_DIR+'.')) return;
+    sink.staleShared=null; sink.pendingShared=null;
+    sink.dirty=true; await flush(); renderPersistence();
+  },
   forceFolder:async()=>{
     if(!confirm('Overwrite the shared file with what is open in this session?\n\nWhatever the other '+
                 'person saved since is lost, except in the snapshots under '+BACKUP_DIR+'.')) return;
@@ -2126,6 +2163,13 @@ function renderPersistence(){
     note='Found '+sink.conflictCopies.map(esc).join(', ')+' beside the store. That means two saves '+
       'collided and one person\u2019s work went into that file instead. Nothing is lost — open it, '+
       'compare, and import whichever is right — but do it before working on further.';
+  } else if(sink.staleShared){
+    const ss=sink.staleShared;
+    cls='err'; chip='Which copy?'; head='The shared file is older than what this browser holds';
+    note='The folder\u2019s copy was saved '+esc(new Date(ss.savedAt).toLocaleString())+' and holds '+ss.deals+
+      ' deal(s) and '+ss.trades+' trade(s). This browser holds '+store.deals.length+' deal(s) and '+
+      store.trades.length+' trade(s), saved later. Nothing has been overwritten either way — but one of them '+
+      'has to win, and that is not a choice this can make for you. Save a backup copy first if in doubt.';
   } else if(sink.mode==='folder' && sink.role==='full'){
     cls='err'; chip='In use'; head='The model is already open by '+MAX_SESSIONS+' people';
     note='Currently '+sink.others.map(esc).join(' and ')+'. This session has not joined, and is not '+
@@ -2141,8 +2185,13 @@ function renderPersistence(){
     cls='info'; chip='Claiming'; head='Claiming the pen…';
     note='Waiting one heartbeat to be sure nobody else claimed it at the same moment — a lock written '+
       'on another machine takes a few seconds to arrive through sync. Editing unlocks in a moment.';
+  } else if(sink.mode==='folder' && sink.role==='reader' && !sink.editorWho){
+    // Handed over with nobody waiting: the pen is simply on the table.
+    cls='warn'; chip='Pen free'; head='Nobody is holding the pen';
+    note='This session is read-only until someone picks it up. Press <b>Take the pen</b> to start editing'+
+      (sink.others.length ? ' — '+esc(sink.others.join(' and '))+' also has the model open.' : '.');
   } else if(sink.mode==='folder' && sink.role==='reader'){
-    cls='warn'; chip='Read-only'; head=(esc(sink.editorWho)||'Someone else')+' holds the pen';
+    cls='warn'; chip='Read-only'; head=esc(sink.editorWho)+' holds the pen';
     note='This session is read-only — everything that could change the store is disabled, so the two '+
       'of you cannot overwrite each other. It follows their saves, so what you are looking at stays '+
       'current within a few seconds. '+(sink.wantPen
@@ -2189,6 +2238,10 @@ function renderPersistence(){
   if(sink.mode==='local'){
     if(DIR_OK) B('linkFolder','primary','Use a shared folder…');
     if(FS_OK){ B('linkNew', DIR_OK?'':'primary', 'Link a data file…'); B('linkOpen','','Open an existing data file…'); }
+  } else if(sink.staleShared){
+    B('takeShared','','Use the folder\u2019s copy, discard mine');
+    B('pushMine','','Keep mine and save it to the folder');
+    B('unlinkFolder','','Stop using this folder');
   } else if(sink.mode==='folder'){
     if(sink.role==='editor'){
       if(sink.dirty || sink.error) B('flush','primary','Save now');
@@ -2211,7 +2264,7 @@ function renderPersistence(){
     B('reload', sink.remoteRev && !sink.dirty ? 'primary' : '', 'Reload from the server');
     if(sink.error) B('force','','Force save (overwrite)');
   }
-  B('backup','','Save a backup copy');
+  B('backup', sink.staleShared?'primary':'', sink.staleShared?'Save a backup copy first':'Save a backup copy');
 
   box.innerHTML='<div class="banner '+cls+'"><div><b>'+esc(head)+'</b>'+
       (note?'<div class="tiny" style="color:inherit;opacity:.85;margin-top:3px">'+note+'</div>':'')+'</div></div>'+

@@ -1,0 +1,109 @@
+PURCHASE/SALE FACILITY - PRICING MODEL
+Shared folder setup
+======================================================================
+
+WHAT IS IN THIS FOLDER
+
+  index.html            The pricing model. Open this.
+  pricing-store.json    The data. Created on first use - do not open or
+                        edit it by hand.
+  pricing-store.lock.json
+                        Bookkeeping: who has the model open and who is
+                        currently allowed to edit. Ignore it.
+  backups\              A timestamped copy of the data every few minutes.
+                        This is your safety net.
+
+Use Chrome or Edge. Firefox and Safari cannot write to a folder and will
+open the model read-only, saving to the browser instead.
+
+
+FIRST TIME - THE PERSON WHO ALREADY HAS THE DEALS GOES FIRST
+
+This matters. Whoever links the folder first puts their data into it.
+
+  1. Make sure this folder is synced to your PC (OneDrive / SharePoint,
+     "Sync" or "Add shortcut to OneDrive"). You need a real folder in
+     File Explorer, not a browser tab.
+
+  2. Open index.html from the synced folder - double-click it.
+
+  3. On the Deals tab, top card, press "Use a shared folder..." and
+     choose THIS folder.
+
+  4. Check the card says "Editing <folder>/pricing-store.json". Your
+     deals are now in the folder.
+
+If the model tells you "The shared file is older than what this browser
+holds", stop and read it. It means somebody else linked the folder before
+you and your deals are the newer ones. Press "Save a backup copy first",
+then "Keep mine and save it to the folder". Nothing is overwritten until
+you choose.
+
+
+EVERYONE ELSE - ONCE, ON EACH PC
+
+  1. Open index.html from the synced folder.
+  2. Press "Use a shared folder..." and choose this folder.
+  3. Set "Acting as" in the top right to your own name. This is what the
+     audit log records.
+
+You each do this on your own machine. The choice is remembered, so it is
+a one-off - but the browser will ask permission again each time you open
+the model. Press "Reconnect" when it does. Until you do, nothing is
+being saved to the folder.
+
+
+DAY TO DAY - ONE PERSON EDITS AT A TIME
+
+Two people may have the model open. Only one can edit.
+
+  - The one who opens first gets the pen and can edit normally.
+  - The second sees a yellow "Read-only" bar. They can look at
+    everything, run the parity tests, export, and print - but not
+    change anything. Their screen follows the editor's saves, so it
+    stays current on its own.
+  - When you finish, press "Hand the pen over". The other person picks
+    it up within about 15 seconds.
+  - If you forget, or your PC sleeps, the pen frees itself after 90
+    seconds and they can take it.
+  - A third person is refused, and told who has it.
+
+Do not try to work around the read-only bar by editing a copy. That is
+exactly what creates the mess below.
+
+
+WHEN SOMETHING LOOKS WRONG
+
+"OneDrive left a conflict copy in the folder" (red)
+  Two saves collided. Nothing is lost, but somebody's work went into a
+  file named like pricing-store-DESKTOP-XYZ.json instead of the real
+  one. Open both, decide which is right, and use Import JSON to load the
+  good one. Then delete the stray file.
+
+"Could not save - the shared file changed since this session last read
+it"
+  Someone else's copy arrived while you were working. Press "Reload from
+  the shared file" to take theirs, or "Force save" to keep yours. Force
+  save overwrites theirs - the version you overwrite stays in backups\.
+
+"This session has changes it can no longer save"
+  You lost the pen while holding edits. Press "Save a backup copy", take
+  the pen, then import that file.
+
+
+IF THE FOLDER IS EVER LOST OR SCRAMBLED
+
+Everything you need is in backups\. Open the model, press
+"Use a shared folder...", then Deals -> Import JSON and pick the most
+recent good snapshot.
+
+Your own browser also keeps a copy of the last state it saw, so a
+missing folder does not mean missing data.
+
+
+WHAT THIS SETUP CANNOT DO
+
+Two people cannot edit different deals at the same time. The pen covers
+the whole file, not one deal - the second person waits. If that becomes
+a daily problem, the model needs a real database rather than a folder,
+and that is a separate piece of work.

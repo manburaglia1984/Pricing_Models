@@ -371,6 +371,15 @@ SharePoint-synced folder. Press **Use a shared folder…**, pick the synced fold
 lives in it as `pricing-store.json` — backed up and reachable from every machine with no server,
 no Azure subscription and nothing to install.
 
+**To hand this to users:** upload `index.html` and `shared-folder/READ ME FIRST.txt` into the synced
+folder. That text file is written for whoever opens the folder, not for a developer — first-time
+setup, the one-editor-at-a-time rule, and what to do about each warning the model can raise. Two
+things in it are easy to get wrong and worth saying out loud: **each person links the folder once on
+their own machine** (the handle lives in their browser, not in the folder), and **whoever already has
+the deals must link it first**, because the first to link seeds the file. If it happens the other way
+round the model raises *The shared file is older than what this browser holds* and waits for a
+person to choose — it never silently overwrites the newer book.
+
 What sync cannot do is arbitrate two writers: it is last-writer-wins across machines with no
 locking, and the store is one document, so two people saving at once means one of them loses a
 day's work to a conflict copy. So this mode arbitrates itself, in a second file beside the store:
