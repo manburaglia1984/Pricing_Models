@@ -37,11 +37,14 @@ import {createHash} from 'node:crypto';
 import {createReadStream} from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import os from 'node:os';
 import {fileURLToPath} from 'node:url';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
+// Last occurrence wins, so the launcher scripts can set defaults and still pass a
+// user's own --port/--host straight through after them.
 const arg = (name, fallback) => {
-  const i = process.argv.indexOf('--' + name);
+  const i = process.argv.lastIndexOf('--' + name);
   return i > -1 && process.argv[i + 1] ? process.argv[i + 1] : fallback;
 };
 const PORT = Number(arg('port', process.env.PORT || 8787));
@@ -198,15 +201,37 @@ const server = createServer(async (req, res) => {
 await fs.mkdir(DATA, {recursive:true});
 // Seed `rev` past nothing in particular, but do report whether a store is already there.
 const existing = await readStore();
+/* When listening on every interface, print the addresses colleagues actually type —
+   nobody should have to run ipconfig to find out where the store lives. */
+function lanAddresses(){
+  const out = [];
+  for(const list of Object.values(os.networkInterfaces()))
+    for(const ni of list || [])
+      if(ni.family === 'IPv4' && !ni.internal) out.push(ni.address);
+  return out;
+}
+
 server.listen(PORT, HOST, () => {
-  const shown = HOST === '0.0.0.0' || HOST === '::' ? 'localhost' : HOST;
-  console.log('Pricing model  http://' + shown + ':' + PORT + '/');
+  const everywhere = HOST === '0.0.0.0' || HOST === '::';
+  console.log('Pricing model  http://localhost:' + PORT + '/     (on this machine)');
+  if(everywhere){
+    const lan = lanAddresses();
+    if(lan.length) for(const ip of lan)
+      console.log('   for others  http://' + ip + ':' + PORT + '/    <- send this one round');
+    else console.log('   for others  no network address found — is this machine offline?');
+  } else {
+    console.log('   for others  not reachable: add --host 0.0.0.0 to let other machines in');
+  }
   console.log('Store          ' + STORE + (existing.store
     ? '  (' + existing.store.deals.length + ' deal(s), ' + existing.store.trades.length +
       ' trade(s), saved ' + (existing.savedAt || 'unknown') + ')'
     : '  (empty — the first save from the page creates it)'));
   console.log('Backups        ' + (KEEP > 0 ? BACKUPS + '  (last ' + KEEP + ' kept)' : 'off (--keep 0)'));
-  console.log('Stop with Ctrl-C. Nothing leaves this machine' + (HOST === '127.0.0.1' ? '.' : ' beyond ' + HOST + '.'));
+  console.log('');
+  console.log('Leave this window open — closing it stops the server and everyone loses the store.');
+  console.log('Stop with Ctrl-C.' + (everywhere
+    ? ' Reachable by anyone who can reach this machine on port ' + PORT + ', with no password.'
+    : ' Nothing leaves this machine.'));
 });
 server.on('error', e => {
   if(e.code === 'EADDRINUSE') console.error('Port ' + PORT + ' is already in use — try: node sync-server.mjs --port ' + (PORT + 1));

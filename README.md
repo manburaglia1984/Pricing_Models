@@ -402,19 +402,55 @@ What the app did before, and still does until a sink is linked. **Save a backup 
 timestamped snapshot at any time, and *Export all data (JSON)* / *Import JSON* still work as they
 always did.
 
-### Several people on one store
+### Several people on one store — setting it up
 
-**Run one server and have everyone point a browser at it.** On the machine that will host it:
+**One machine hosts, everyone else just opens a link.** There is then exactly one copy of the file
+and one process writing it, which is the only arrangement that behaves like a shared store.
+
+**On the host machine, once:**
+
+1. Install Node.js (LTS) from <https://nodejs.org/> if it isn't there. Check with `node -v`.
+2. Put `index.html`, `sync-server.mjs` and `start-shared.cmd` (or `start-shared.sh`) in one ordinary
+   local folder — `C:\pricing-model` will do. **Not** a OneDrive- or SharePoint-synced folder; see
+   *Why not a synced folder* below.
+3. Double-click **`start-shared.cmd`** (Windows) or run `./start-shared.sh` (macOS/Linux). It checks
+   for Node, then serves the folder on port 8787 and prints two addresses — the `localhost` one for
+   the host, and the LAN one to send round.
+4. Windows will ask whether to let Node.js communicate on private networks. **Allow it**, or nobody
+   else can connect.
+5. Leave that window open. Closing it stops the server and takes the store offline for everyone.
+
+**Everyone else:** open the LAN address in a browser — nothing to install, nothing to download. Set
+**Acting as** in the header so the audit log and the storage card can name whoever saved last.
+
+**Moving your existing data in, once.** A page served over `http://…` is a different browser origin
+from the `file://` page you were using, so it does not inherit that browser's `localStorage`. Do this
+before anyone starts working:
+
+1. In the **old** page (the one with your deals in it), press *Deals → Export all data (JSON)*.
+2. In the **new** served page, press *Deals → Import JSON* and pick that file.
+3. The import writes straight through to the shared store. Everyone else reloads once and sees it.
+
+Do the import from one browser only, and check the storage card says *Saved to
+data/pricing-store.json* afterwards.
+
+**Two things to plan for.** The host has to be awake and reachable, so a laptop that sleeps or leaves
+the office is a poor host — a desktop that stays on, or a small VM, is better. And there is **no
+authentication**: anyone who can reach that machine on that port can read and change the store, so it
+belongs on a LAN or VPN, never on the open internet or a port forwarded through a router.
+
+To use a different port — if 8787 is taken, or IT wants another — pass it through the launcher:
+`start-shared.cmd --port 9001`.
+
+**Backing it up.** The host's `data/` folder is now the only copy that matters. Point the backups at
+somewhere that is itself backed up, and the store survives losing the host machine:
 
 ```
-node sync-server.mjs --host 0.0.0.0 --port 8787
+start-shared.cmd --backups "%USERPROFILE%\OneDrive - Silver Birch\pricing-backups"
 ```
 
-Everyone else opens `http://that-machine:8787/`. There is then exactly one copy of the file and one
-process writing it, which is the only arrangement that behaves like a shared store. The host must be
-on and reachable, and because there is no authentication it belongs on a LAN or VPN, not on the open
-internet. Each person sets **Acting as** in the header, and the audit log and the storage card both
-name whoever saved last.
+That syncs *snapshots*, which is safe, and is a different thing from syncing the live store, which is
+not. `--keep 200` is the default; `--keep 0` turns backups off.
 
 Each page polls `GET /api/rev` — a stat and a cached hash, not a store transfer — every five seconds,
 so other people's saves appear within a few seconds without anyone reloading. A page will not swap
