@@ -386,27 +386,71 @@ effect, without the app itself ever touching a network.
 ```
 node sync-server.mjs            # http://127.0.0.1:8787
 node sync-server.mjs --port 9000 --data ./store --host 0.0.0.0
+node sync-server.mjs --backups ~/backups --keep 50     # or --keep 0 for none
 ```
 
 Open the address it prints. The page finds the API on its own and switches over. Nothing to install —
 `sync-server.mjs` has no dependencies and needs only Node 18 or newer. It owns
 `data/pricing-store.json`, writes it via a temp file and a rename so a crash cannot truncate it, and
-keeps a timestamped copy of every change in `data/backups` (the last 200; `--keep` changes that).
-It binds to loopback unless you pass `--host`, and there is no authentication — so `--host` belongs
-only on a network you trust.
-
-Because a file served this way can be open in more than one tab or to more than one person, every
-write carries the revision it was based on. A write from a stale tab is refused rather than applied,
-and the card offers the two honest ways out: **Reload from the server** (take the record, lose this
-tab's unsaved work) or **Force save** (overwrite the record; the previous content stays in
-`data/backups`). Backing out of either prompt leaves the tab still conflicting, so cancelling can
-never turn into an overwrite.
+keeps a timestamped copy of every change in `data/backups` (the last 200; `--keep` and `--backups`
+change that). It binds to loopback unless you pass `--host`, and there is no authentication — so
+`--host` belongs only on a network you trust.
 
 ### 3. Browser only — the fallback
 
 What the app did before, and still does until a sink is linked. **Save a backup copy** downloads a
 timestamped snapshot at any time, and *Export all data (JSON)* / *Import JSON* still work as they
 always did.
+
+### Several people on one store
+
+**Run one server and have everyone point a browser at it.** On the machine that will host it:
+
+```
+node sync-server.mjs --host 0.0.0.0 --port 8787
+```
+
+Everyone else opens `http://that-machine:8787/`. There is then exactly one copy of the file and one
+process writing it, which is the only arrangement that behaves like a shared store. The host must be
+on and reachable, and because there is no authentication it belongs on a LAN or VPN, not on the open
+internet. Each person sets **Acting as** in the header, and the audit log and the storage card both
+name whoever saved last.
+
+Each page polls `GET /api/rev` — a stat and a cached hash, not a store transfer — every five seconds,
+so other people's saves appear within a few seconds without anyone reloading. A page will not swap
+the store out from under you: while a field is focused or a trade workspace is open it shows
+*Someone else has saved* and waits, then picks the change up when you are done.
+
+### Why not a synced folder
+
+Putting `data/` in a OneDrive- or SharePoint-synced folder and running a server each **does not**
+give you a shared store. Sync is last-writer-wins across machines with no locking, and the store is
+one JSON document, so two people working at once means one of them finds their whole day in a
+`pricing-store-LAPTOP-XYZ.json` conflict copy. The `data/backups` churn syncs too — hundreds of
+near-identical files.
+
+The revision check makes that arrangement fail loudly rather than silently — see below — and it is
+fine if only one person ever has it open at a time. It is not a substitute for one server.
+
+Sharing `index.html` itself through SharePoint is unrelated and perfectly fine: it is a static file
+with no data in it.
+
+### The revision check
+
+A store can have more than one reader, so every write carries the revision it was based on. The
+revision is a **hash of the file's own contents**, not a counter the server keeps — so a change made
+by anything at all invalidates a save based on an earlier read: another page, a sync client, someone
+editing the JSON by hand, a restore from `data/backups`.
+
+A stale write is refused rather than applied, and the card offers the two honest ways out: **Reload
+from the server** (take the record, lose this tab's unsaved work) or **Force save** (overwrite the
+record; the previous content stays in `data/backups`). Backing out of either prompt leaves the tab
+still conflicting, so cancelling can never turn into an overwrite.
+
+The granularity is the whole file. Two people editing different deals at the same moment still
+collide, and the one who saves second has to reload and redo. Nothing is lost silently, but this is a
+shared file, not a database with row-level locking — if that becomes the constraint, the spec's
+PostgreSQL persistence is the answer, not a bigger version of this.
 
 ### How the two copies are kept straight
 

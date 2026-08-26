@@ -412,13 +412,19 @@ code,.mono{font-family:var(--mono);font-size:12px}
     <h2>Where this data is saved <span class="src">Storage</span></h2>
     <div class="body">
       <div id="persistBox"></div>
-      <p class="tiny" style="margin:10px 0 0">Nothing here leaves this machine. <b>Link a data file</b> writes every
-      change straight to a JSON file you choose, through the browser's File System Access API — Chrome and Edge only,
-      and the browser asks once per session before it may write. For any other browser, or to share one file between
-      people, run <code>node sync-server.mjs</code> in this folder and open the address it prints: this page then reads
-      and writes <code>data/pricing-store.json</code> and the server keeps a timestamped copy of every change in
-      <code>data/backups</code>. Either way this browser keeps its own copy as well, so a failed write never costs a
-      keystroke.</p>
+      <p class="tiny" style="margin:10px 0 0"><b>Link a data file</b> writes every change straight to a JSON file
+      you choose, through the browser's File System Access API — Chrome and Edge only, and the browser asks once per
+      session before it may write. For any other browser, run <code>node sync-server.mjs</code> in this folder and open
+      the address it prints: this page then reads and writes <code>data/pricing-store.json</code>, and the server keeps
+      a timestamped copy of every change in <code>data/backups</code>. Either way this browser keeps its own copy too,
+      so a failed write never costs a keystroke.</p>
+      <p class="tiny" style="margin:6px 0 0"><b>For several people on one store</b>, run <em>one</em> server with
+      <code>--host 0.0.0.0</code> and have everyone open it — one file, one process writing it, each page picking the
+      others' saves up within seconds. Do not instead put <code>data/</code> in a OneDrive- or SharePoint-synced folder
+      and run a server each: sync is last-writer-wins across machines, so two people at once means one of them finds
+      their day in a conflict copy. Every write carries a hash of the file it was based on, so that arrangement at
+      least fails loudly rather than silently — but one server is the arrangement that works. Sharing this HTML file
+      itself through SharePoint is fine; it holds no data.</p>
     </div>
   </div>
   <div class="card">
@@ -1447,11 +1453,12 @@ function seedStore(){
 
    Writes go to localStorage synchronously and to the sink debounced, so a linked
    sink never slows typing down and a failed sink write never costs the keystroke. */
-const SYNC_URL='api/store', SYNC_API='cantu-pricing-store';
+const SYNC_URL='api/store', SYNC_REV='api/rev', SYNC_API='cantu-pricing-store';
 const IDB_NAME='cantu-pricing-model', IDB_STORE='handles', HANDLE_KEY='storeFile';
 const FS_OK = typeof window.showSaveFilePicker==='function' && typeof window.showOpenFilePicker==='function';
-const blankSink = () => ({ mode:'local', label:'', handle:null, rev:0, savedAt:null,
-                           dirty:false, pending:false, needsPermission:false, error:'', recovered:false });
+const blankSink = () => ({ mode:'local', label:'', handle:null, rev:'', savedAt:null, dirty:false,
+                           pending:false, needsPermission:false, error:'', recovered:false,
+                           remoteRev:'', pulledFrom:'' });
 let sink = blankSink();
 
 /* A file handle survives a reload only in IndexedDB — it is not JSON-serialisable,
@@ -1491,6 +1498,10 @@ const save = () => {
   if(shape === lastShape) return;
   lastShape = shape;
   store.savedAt = new Date().toISOString();
+  // Who saved last, so a store several people share can say so rather than leaving them
+  // to guess. Stamped after the shape check, so it never triggers a write of its own.
+  try{ store.lastActor = actor().name; }catch(e){}
+  sink.pulledFrom = '';
   try{ localStorage.setItem(LS_KEY, JSON.stringify(store)); }catch(e){ console.warn('Persist failed', e); }
   if(sink.mode==='local'){ renderPersistence(); return; }
   sink.dirty=true; renderPersistence();
@@ -1521,19 +1532,22 @@ async function fileWrite(handle, text){
  *  people) cannot silently overwrite each other. `force` is the deliberate override. */
 async function serverWrite(text, force){
   const res=await fetch(SYNC_URL,{ method:'PUT', headers:{'content-type':'application/json'},
-    body:'{"rev":'+sink.rev+',"force":'+(force?'true':'false')+',"store":'+text+'}' });
+    body:'{"rev":'+JSON.stringify(sink.rev)+',"force":'+(force?'true':'false')+',"store":'+text+'}' });
   if(res.status===409){
     const j=await res.json().catch(()=>({}));
     // Deliberately do NOT take the server's revision here: adopting it would disarm the
     // guard, and the next save — a keystroke, or this tab merely losing focus — would
     // overwrite the very copy this tab was just told it had lost to. Only reloading or
     // force-saving, both of which the user asks for, may move the revision on.
-    throw new Error('The data file changed underneath this tab (it is now at revision '+
-      (j.rev??'?')+'). Reload from the server to pick that up, or force-save to overwrite it.');
+    sink.remoteRev = j.rev || '';
+    throw new Error('The data file changed since this tab last read it — someone else saved, or a sync '+
+      'client replaced it. Reload from the server to take that copy, or force-save to overwrite it.');
   }
   if(!res.ok) throw new Error('The sync server answered '+res.status+' '+res.statusText+'.');
   const j=await res.json();
-  sink.rev=j.rev??sink.rev;
+  // The write was accepted, so this tab now holds the newest revision by definition —
+  // any "someone else has saved" flag left over from a refused attempt is spent.
+  sink.rev=j.rev??sink.rev; sink.remoteRev='';
 }
 /** Is this page being served by sync-server.mjs? Only http(s) can be. */
 async function probeServer(){
@@ -1544,6 +1558,51 @@ async function probeServer(){
     const j=await res.json();
     return j && j.api===SYNC_API ? j : null;
   }catch(e){ return null; }
+}
+
+/* Several pages can share one server, so each one watches for the others' saves rather
+   than only finding out by colliding with them. /api/rev is a stat and a cached hash, so
+   this costs almost nothing; picking the change up is the expensive part and only happens
+   when there is one. */
+const POLL_MS = 5000;
+let pollTimer = null;
+function startPolling(){
+  clearInterval(pollTimer);
+  if(sink.mode==='server') pollTimer=setInterval(pollRemote, POLL_MS);
+}
+async function pollRemote(){
+  if(sink.mode!=='server' || sink.pending || document.visibilityState==='hidden') return;
+  let rev;
+  try{
+    const res=await fetch(SYNC_REV,{ headers:{accept:'application/json'}, cache:'no-store' });
+    if(!res.ok) return;
+    rev=(await res.json()).rev;
+  }catch(e){ return; }                                   // server gone or asleep; try again next tick
+  if(rev===undefined || rev===sink.rev){
+    if(sink.remoteRev){ sink.remoteRev=''; renderPersistence(); }
+    return;
+  }
+  sink.remoteRev=rev;
+  if(safeToAdopt()) await pullRemote(); else renderPersistence();
+}
+/** Someone else's save must never yank the ground from under whoever is mid-edit here.
+ *  When it is not safe to swap the store out, the card says so and offers the reload. */
+function safeToAdopt(){
+  if(sink.dirty || sink.pending) return false;
+  const modal=document.getElementById('tradeModal');
+  if(modal && modal.classList.contains('open')) return false;
+  const el=document.activeElement;
+  if(el && /^(INPUT|SELECT|TEXTAREA)$/.test(el.tagName||'')) return false;
+  return true;
+}
+async function pullRemote(){
+  const srv=await probeServer();
+  if(!srv || !storeIsSane(srv.store)) return;
+  sink.rev=srv.rev||''; sink.remoteRev=''; sink.error='';
+  const who=srv.store.lastActor||'';
+  adopt(srv.store);
+  sink.pulledFrom=who;
+  renderPersistence();
 }
 
 const storeIsSane = s => !!(s && Array.isArray(s.deals) && Array.isArray(s.trades));
@@ -1570,9 +1629,9 @@ async function reconcile(incoming, basis){
 async function initPersistence(){
   const srv=await probeServer();
   if(srv){
-    sink={...blankSink(), mode:'server', label:srv.file||'the local sync server', rev:srv.rev||0};
+    sink={...blankSink(), mode:'server', label:srv.file||'the local sync server', rev:srv.rev||''};
     await reconcile(srv.store, bootSavedAt);
-    renderPersistence(); return;
+    startPolling(); renderPersistence(); return;
   }
   const handle=await idbRead(HANDLE_KEY);
   if(handle){
@@ -1620,6 +1679,7 @@ async function linkNewFile(){
   try{ handle=await window.showSaveFilePicker({suggestedName:DEFAULT_FILE, types:JSON_PICKER}); }
   catch(e){ if(e.name!=='AbortError') alert('Could not link a file: '+(e.message||e)); return; }
   const was = sink.mode==='local' ? 'this browser only' : sink.label;
+  clearInterval(pollTimer);
   sink={...blankSink(), mode:'file', handle, label:handle.name||DEFAULT_FILE, dirty:true};
   await idbWrite(HANDLE_KEY, handle);
   await flush();
@@ -1671,6 +1731,7 @@ async function unlinkFile(){
   if(!confirm('Stop saving to '+sink.label+'?\n\nThe file stays where it is, but from then on this data lives in '+
               'this browser only — and that is the copy that goes missing.')) return;
   const was=sink.label;
+  clearInterval(pollTimer);
   await idbWrite(HANDLE_KEY, null);
   sink=blankSink();
   audit('store','-','UPDATE','storage','file: '+was,'this browser only','Unlinked the data file');
@@ -1685,7 +1746,7 @@ async function reloadFromServer(){
   // Only now: taking the server's revision is what disarms the stale-write guard, so
   // backing out of this prompt must leave a conflicting tab still conflicting rather
   // than quietly cleared to overwrite the very copy it was told it had lost to.
-  sink.rev=srv.rev||0; sink.error='';
+  sink.rev=srv.rev||''; sink.remoteRev=''; sink.error='';
   adopt(srv.store); renderPersistence();
 }
 async function forceSave(){
@@ -1715,6 +1776,13 @@ function renderPersistence(){
   } else if(sink.error){
     cls='err'; chip='Save failed'; head='Could not save to '+sink.label;
     note=esc(sink.error)+' Nothing is lost yet — this browser still holds the change — but fix this or save a backup copy.';
+  } else if(sink.remoteRev){
+    /* A newer revision has been seen but could not be taken: something is focused here, or
+       a trade is open. Saying so beats swapping the store out from under whoever is typing. */
+    cls='warn'; chip='Newer copy'; head='Someone else has saved to '+sink.label;
+    note='This tab is still showing the copy it read earlier'+(sink.dirty
+      ? ', and has changes of its own that will need reconciling — reload to take theirs, or force-save to keep these'
+      : '. Reload to take theirs, or just finish what you are doing and this tab will pick it up on its own')+'.';
   } else if(sink.mode==='local'){
     cls='warn'; chip='Browser only'; head='Saved in this browser only';
     note=FS_OK
@@ -1726,8 +1794,13 @@ function renderPersistence(){
   } else {
     cls='ok'; chip='Saved'; head='Saved to '+sink.label+(when?' at '+when:'');
     note = sink.mode==='server'
-      ? 'The sync server writes it and keeps a timestamped copy in data/backups on every change.'
+      ? 'The sync server writes it and keeps a timestamped copy in data/backups on every change. '+
+        'Other people\u2019s saves to it are picked up here within a few seconds.'
       : 'Written on every change. Keep that file in a OneDrive- or SharePoint-synced folder and it is versioned and backed up too.';
+    if(sink.mode==='server'){
+      if(sink.pulledFrom) note += ' Currently showing '+esc(sink.pulledFrom)+'\u2019s save.';
+      else if(store.lastActor) note += ' Last saved by '+esc(store.lastActor)+'.';
+    }
     if(sink.recovered) note += ' This browser held changes the record was missing — a save that never landed last '+
       'session — and those were written back to it.';
   }
@@ -1743,7 +1816,7 @@ function renderPersistence(){
     B('unlink','','Stop saving to this file');
   } else {
     if(sink.dirty || sink.error) B('flush','primary','Save now');
-    B('reload','','Reload from the server');
+    B('reload', sink.remoteRev && !sink.dirty ? 'primary' : '', 'Reload from the server');
     if(sink.error) B('force','','Force save (overwrite)');
   }
   B('backup','','Save a backup copy');
@@ -1760,7 +1833,8 @@ function renderPersistence(){
 }
 /* A debounced write can still be in flight when the tab goes away. */
 window.addEventListener('beforeunload', e=>{ if(sink.mode!=='local' && sink.dirty){ e.preventDefault(); e.returnValue=''; } });
-document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') flush(); });
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState==='hidden') flush(); else pollRemote(); });
 const actor = () => ({ name:(document.getElementById('actorName').value||'unknown').trim(),
                        role:document.getElementById('actorRole').value });
 function audit(entityType, entityId, action, field, oldV, newV, reason){
@@ -2933,8 +3007,16 @@ wipes it. The record is whichever sink is linked on the <b>Deals</b> tab — a J
 the File System Access API, or <code>data/pricing-store.json</code> owned by the zero-dependency
 <code>sync-server.mjs</code>, which also keeps a timestamped backup of every change. Writes reach localStorage
 synchronously and the sink debounced, and whichever copy carries the later <code>savedAt</code> wins on load, so a
-crash between the two leaves the newer one intact rather than reading a stale file back over live work. The server
-refuses a write whose base revision is stale, which is what stops two tabs or two people overwriting each other.</p>`;
+crash between the two leaves the newer one intact rather than reading a stale file back over live work. A save that
+would write identical data is dropped whole, so a refresh alone changes nothing.</p>
+<p>For a store several people share, one server serves them all and every write carries a <b>hash of the file it was
+based on</b> — not a counter the server keeps, so a change by anything at all invalidates a stale save: another page,
+a sync client, a hand edit, a restore from the backups. Refused writes offer the two honest exits, reload or
+force-save, and backing out of either leaves the tab still conflicting rather than cleared to overwrite. Pages poll a
+one-line revision endpoint every few seconds and adopt each other's saves, though never while a field is focused or a
+trade workspace is open. The granularity is the whole file: two people editing different deals at the same moment
+still collide, and the second to save must reload. Row-level concurrency is what the spec's PostgreSQL persistence is
+for.</p>`;
 }
 
 /* ---------------------------- events ---------------------------- */
