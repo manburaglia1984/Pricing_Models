@@ -291,6 +291,22 @@ svg .hit{fill:transparent;cursor:default}
         <div class="body"><div class="filelist" id="filelist"></div></div>
       </div>
 
+      <div class="card" id="cardPages" hidden>
+        <h2>Which pages feed the spread <span class="src" id="pagesCount"></span></h2>
+        <div class="body">
+          <p class="tiny" style="margin-top:0">A full audited pack is mostly notes, and a note's table looks a lot like the
+             statement it belongs to — a receivables note carries the gross figure where the balance sheet carries the net.
+             Left in, they compete with the statements themselves. Only the primary statements are used; correct any page
+             the model has called wrong.</p>
+          <div id="pagesBox"></div>
+          <div class="toolbar" style="padding-top:11px">
+            <button class="btn sm" id="btnPagesPrimary">Use only the statements</button>
+            <button class="btn sm" id="btnPagesAll">Use every page</button>
+            <span class="tiny">Changing this re-reads the files and rebuilds the periods.</span>
+          </div>
+        </div>
+      </div>
+
       <div class="card" id="cardReview" hidden>
         <h2>Needs review <span class="src" id="reviewCount"></span></h2>
         <div class="body">
@@ -2265,6 +2281,18 @@ function buildSource(name, bytes, textOverride){
     t.units = detectUnits(tHead) !== 1 ? detectUnits(tHead) : src.units;
     t.periodRow = findPeriodRow(t);
     mapTable(t);
+    const cls = classifyTable(t);
+    t.role = cls.role; t.roleConf = cls.conf; t.roleWhy = cls.why;
+    t.roleLines = cls.lines; t.rolePeriods = cls.periods;
+    t.use = PRIMARY_ROLES.has(cls.role);
+  }
+  /* Never leave a file contributing nothing because the classifier was unsure:
+     if no page reads as a primary statement, use them all and say so. */
+  if(src.tables.length && !src.tables.some(t => t.use)){
+    for(const t of src.tables) t.use = t.roleLines > 0;
+    if(src.tables.some(t => t.use))
+      src.notes.push('No page in this file reads as a balance sheet, income statement or cash flow, '
+        + 'so every page carrying statement lines is being used. Check the page list.');
   }
   return src;
 }
@@ -2314,6 +2342,77 @@ function rescueWrappedLabel(t, i, section){
   }
 }
 
+
+/* ---------------------------- which page is what ----------------------------
+   A full audited pack is mostly notes. Those notes contain tables that look
+   very like the statements they belong to — a receivables note carrying the
+   gross figure where the balance sheet carries the net, a borrowings note
+   carrying its own subtotals — and left alone they compete with the primary
+   statements and sometimes win. So each page is classified, and by default
+   only the primary statements feed the spread. The call is always shown and
+   can always be overridden: the point is that it is a decision, made visibly,
+   rather than everything in the file being poured in at once. */
+const STATEMENT_TITLES = [
+  ['bs', /statement of financial position|balance sheets?\b|statement of assets and liabilities|estado de situacion financiera|balance general|estado de posicion financiera/i],
+  ['is', /statements? of (profit or loss|income|operations|earnings|comprehensive income)|income statements?\b|profit and loss account|statement of profit|estado de resultados|estado de perdidas y ganancias|cuenta de (perdidas y ganancias|resultados)|estado de ganancias y perdidas/i],
+  ['cf', /statements? of cash flows?|cash flow statements?|estado de flujos? de efectivo|estado de flujo de caja/i],
+  ['equity',/statement of changes in (equity|shareholders)|statement of stockholders.? equity|estado de cambios en el patrimonio|estado de cambios en el capital/i],
+  ['notes',/notes to the .{0,40}financial statements|notes to the accounts|notas a los estados financieros|notas explicativas/i],
+];
+const ROLE_NAME = {bs:'Balance sheet', is:'Income statement', cf:'Cash flow statement',
+  equity:'Changes in equity', notes:'Notes', other:'Not a statement'};
+const PRIMARY_ROLES = new Set(['bs','is','cf']);
+
+function classifyTable(t){
+  const head = deaccent(t.rows.slice(0, 12).map(r => [r.label, ...(r.trailing||[])].join(' ')).join(' | '));
+  const titles = STATEMENT_TITLES.filter(([, re]) => re.test(head)).map(x => x[0]);
+  const titleRole = titles.find(r => r !== 'notes') || null;
+  const isNotes = titles.includes('notes');
+  /* "10. Deudores comerciales" — a numbered heading with no figures of its own
+     is a note, whatever the table underneath it looks like. */
+  const noteNumber = t.rows.slice(0, 8).some(r =>
+    !r.values.length && /^\d{1,2}[.)]\s+\S/.test(String(r.label || '').trim()));
+
+  const counts = {bs:0, is:0, cf:0};
+  const seen = new Set();
+  for(const r of t.rows){
+    if(!r.mapped || r.isHeaderRow || seen.has(r.mapped.key)) continue;
+    seen.add(r.mapped.key);
+    const g = (SCHEMA_BY_KEY.get(r.mapped.key) || {}).g;
+    if(g === 'is') counts.is++;
+    else if(g === 'cf') counts.cf++;
+    else if(g === 'bsa' || g === 'bsl' || g === 'bse') counts.bs++;
+  }
+  const lines = counts.bs + counts.is + counts.cf;
+  const best = ['bs','is','cf'].reduce((a,b) => counts[b] > counts[a] ? b : a, 'bs');
+  const rest = lines - counts[best];
+  const periods = t.periodRow ? t.periodRow.cols.length : 0;
+
+  /* A cover, a contents page or an audit opinion names the statements in prose;
+     with nothing to spread, none of that matters. */
+  if(!lines) return {role: (isNotes || noteNumber) ? 'notes' : 'other', conf: 'high',
+    why: 'no statement lines on it', counts, lines, periods};
+
+  let role, conf, why;
+  if(titleRole && PRIMARY_ROLES.has(titleRole) && counts[titleRole] >= 3){
+    role = titleRole; conf = 'high'; why = 'titled as one, and ' + counts[titleRole] + ' of its lines agree';
+  } else if(titleRole === 'equity'){
+    role = 'equity'; conf = 'high'; why = 'titled as the statement of changes in equity';
+  } else if(isNotes || noteNumber){
+    role = 'notes'; conf = isNotes ? 'high' : 'med';
+    why = isNotes ? 'carries the notes heading' : 'headed by a numbered note';
+  } else if(counts[best] >= 5 && counts[best] >= rest){
+    role = best; conf = 'med'; why = counts[best] + ' lines of a ' + ROLE_NAME[best].toLowerCase() + ', with no title to confirm it';
+  } else if(titleRole && PRIMARY_ROLES.has(titleRole)){
+    role = titleRole; conf = 'low'; why = 'titled as one, but only ' + counts[titleRole] + ' line(s) matched';
+  } else if(counts[best] >= 3 && periods){
+    role = best; conf = 'low'; why = 'a few lines look like a ' + ROLE_NAME[best].toLowerCase();
+  } else {
+    role = 'other'; conf = 'med'; why = 'too few statement lines to tell';
+  }
+  return {role, conf, why, counts, lines, periods};
+}
+
 /** Sign convention: costs and income lines become magnitudes; results stay signed. */
 function normaliseValue(key, v){
   const s = SCHEMA_BY_KEY.get(key);
@@ -2340,7 +2439,7 @@ function collectCandidates(sources, targetUnits){
   const cols = [];
   for(const src of sources){
     for(const t of src.tables){
-      if(!t.periodRow) continue;
+      if(!t.periodRow || t.use === false) continue;
       const mult = (t.units || 1) / (targetUnits || 1);
       for(const c of t.periodRow.cols){
         const values = new Map();
@@ -3578,6 +3677,8 @@ function currentAnalysis(){
 function save(){
   try {
     const compactTables = t => ({name: t.name, page: t.page, units: t.units,
+      role: t.role, roleConf: t.roleConf, roleWhy: t.roleWhy, roleLines: t.roleLines,
+      rolePeriods: t.rolePeriods, use: t.use,
       periodRow: t.periodRow ? {rowIndex: t.periodRow.rowIndex,
         cols: t.periodRow.cols.map(c => ({ci: c.ci, p: c.p}))} : null,
       rows: t.rows.filter(r => r.values.length || r.isHeading).map(r => ({
@@ -3675,6 +3776,7 @@ function renderSources(){
       ? 'Already applied. Re-applying overwrites figures still marked as lifted from a file, and leaves anything you typed alone.'
       : cands.filter(c => c.use !== false).length + ' period(s) will be written to the spread.';
   }
+  renderPages();
   renderReview();
   const ccys = sourceCurrencies();
   if(ccys.length > 1){
@@ -3770,16 +3872,19 @@ function renderExtraction(){
   if(!tables.length) return;
   const sel = $('exSource');
   const keep = sel.value;
-  sel.innerHTML = tables.map((x,i) => '<option value="' + i + '">' + esc(x.t.name) + '</option>').join('');
+  sel.innerHTML = tables.map((x,i) => '<option value="' + i + '">' + esc(x.t.name)
+    + (x.t.use === false ? '  — not in use (' + esc(ROLE_NAME[x.t.role] || '') + ')' : '') + '</option>').join('');
   sel.value = keep && Number(keep) < tables.length ? keep : '0';
   const pick = tables[Number(sel.value) || 0];
   const ti = ST.sources.find(x => x.id === pick.s.id).tables.indexOf(pick.t);
   const filter = $('exFilter') ? $('exFilter').value : 'all';
+  const excluded = pick.t.use === false;
   const cols = pick.t.periodRow ? pick.t.periodRow.cols : [];
   $('mapCount').textContent = USER_MAP.size
     ? USER_MAP.size + ' line(s) taught by hand, applied to every file'
     : 'No lines taught by hand yet.';
-  let h = '<thead><tr><th style="min-width:230px">Row as read</th><th style="min-width:210px">Line</th><th>How</th>'
+  let h = (excluded ? '' : '')
+    + '<thead><tr><th style="min-width:230px">Row as read</th><th style="min-width:210px">Line</th><th>How</th>'
         + cols.map(c => '<th class="num">' + esc(c.p.label) + '</th>').join('')
         + '<th class="num">Other columns</th><th>Section</th></tr></thead><tbody>';
   for(const r of pick.t.rows){
@@ -3809,7 +3914,10 @@ function renderExtraction(){
       + '<td class="num tiny">' + r.values.filter(v => !inCols.has(v.ci)).map(v => esc(v.text)).join(' · ') + '</td>'
       + '<td class="tiny">' + esc(r.section || '') + '</td></tr>';
   }
-  $('exTable').innerHTML = h + '</tbody>';
+  $('exTable').innerHTML = (excluded
+    ? '<caption style="caption-side:top;text-align:left;padding:0 0 8px;color:var(--warn);font-size:12.5px">'
+      + 'This page reads as <b>' + esc((ROLE_NAME[pick.t.role]||'').toLowerCase()) + '</b> and is not feeding the spread. '
+      + 'Turn it on in the page list above if that is wrong.</caption>' : '') + h + '</tbody>';
 }
 
 /** Teach one row's wording, then re-read every file through the new dictionary. */
@@ -3832,6 +3940,12 @@ function relearn(){
   recollect();
   if(ST.applied) applyCandidates({refresh: true});
 }
+/** A page turned on or off, or given a different role, changes what the spread
+    is built from — so rebuild the periods and push the result through. */
+function repage(){
+  recollect();
+  if(ST.applied) applyCandidates({refresh: true});
+}
 const labelFor = k => (SCHEMA_BY_KEY.get(k) || {}).L || k;
 
 /** A picker over every canonical line, plus "ignore". Used wherever a row can
@@ -3850,10 +3964,46 @@ function mapSelect(attrs, current){
 /** Every row across every file that carries figures, with where it came from. */
 function allRows(){
   const out = [];
-  ST.sources.forEach(s => (s.tables || []).forEach((t, ti) => (t.rows || []).forEach(r => {
-    out.push({s, t, ti, r});
-  })));
+  ST.sources.forEach(s => (s.tables || []).forEach((t, ti) => {
+    if(t.use === false) return;                   // an excluded page is not a problem
+    (t.rows || []).forEach(r => out.push({s, t, ti, r}));
+  }));
   return out;
+}
+
+/** The page-by-page call, and the switches to overrule it. */
+function renderPages(){
+  const tables = [];
+  ST.sources.forEach(s => (s.tables || []).forEach((t, ti) => tables.push({s, t, ti})));
+  const used = tables.filter(x => x.t.use !== false).length;
+  const show = tables.length >= 3 || tables.some(x => x.t.use === false);
+  $('cardPages').hidden = !show;
+  if(!show) return;
+  $('pagesCount').textContent = used + ' of ' + tables.length + (tables[0] && tables[0].t.page ? ' pages' : ' sheets') + ' in use';
+  const ROLES = ['bs','is','cf','equity','notes','other'];
+  let h = '<div class="scroll" style="max-height:430px"><table><thead><tr><th>Use</th><th>Page</th>'
+    + '<th style="min-width:190px">What it reads as</th><th>Confidence</th><th class="num">Lines</th>'
+    + '<th class="num">Period columns</th><th>Why</th></tr></thead><tbody>';
+  let lastSrc = null;
+  for(const {s, t, ti} of tables){
+    if(s.id !== lastSrc && ST.sources.length > 1){
+      h += '<tr class="grp"><td colspan="7">' + esc(s.name) + '</td></tr>';
+      lastSrc = s.id;
+    }
+    const on = t.use !== false;
+    h += '<tr' + (on ? '' : ' style="opacity:.55"') + '>'
+      + '<td><input type="checkbox" data-page="' + s.id + '|' + ti + '"' + (on ? ' checked' : '') + ' style="width:auto"></td>'
+      + '<td class="tiny">' + esc(t.page ? 'p. ' + t.page : t.name.replace(s.name + ' — ', '')) + '</td>'
+      + '<td><select data-role="' + s.id + '|' + ti + '">'
+      + ROLES.map(r => '<option value="' + r + '"' + (t.role === r ? ' selected' : '') + '>' + esc(ROLE_NAME[r]) + '</option>').join('')
+      + '</select></td>'
+      + '<td><span class="inline-tag ' + (t.roleConf === 'high' ? 'ok' : t.roleConf === 'med' ? 'warn' : 'err') + '">'
+      + esc(t.roleConf || '') + '</span></td>'
+      + '<td class="num">' + (t.roleLines || 0) + '</td>'
+      + '<td class="num">' + (t.rolePeriods || 0) + '</td>'
+      + '<td class="tiny" style="white-space:normal">' + esc(t.roleWhy || '') + '</td></tr>';
+  }
+  $('pagesBox').innerHTML = h + '</tbody></table></div>';
 }
 
 /* ---------------------------- apply to spread ---------------------------- */
@@ -4557,6 +4707,12 @@ function reportMarkdown(){
 function exportDiagnostics(redact){
   const rows = [['Extraction report', ST.eng.name || '(no company set)', new Date().toISOString().slice(0,10)],
     [redact ? 'Figures omitted — labels and mappings only' : 'Figures included'], []];
+  rows.push([], ['Pages']);
+  for(const s of ST.sources) for(const t of s.tables)
+    rows.push([s.name, t.page ? 'p. ' + t.page : t.name.replace(s.name + ' — ', ''),
+      t.use === false ? 'NOT USED' : 'used', ROLE_NAME[t.role] || t.role, t.roleConf || '',
+      (t.roleLines || 0) + ' statement lines', (t.rolePeriods || 0) + ' period columns', t.roleWhy || '']);
+  rows.push([]);
   rows.push(['File','Sheet / page','Row','Label as printed','Joined with neighbour','Section',
     'Mapped to','Key','How','Why','Column headers', ...(redact ? [] : ['Figures'])]);
   for(const s of ST.sources){
@@ -4564,7 +4720,7 @@ function exportDiagnostics(redact){
       const heads = (t.periodRow ? t.periodRow.cols : []).map(c => c.p.label).join(' | ');
       for(const r of t.rows){
         if(!r.label && !r.values.length) continue;
-        rows.push([s.name, t.name.replace(s.name + ' — ', ''), r.ri + 1, r.label,
+        rows.push([s.name, (t.name.replace(s.name + ' — ', '')) + (t.use === false ? ' (not used)' : ''), r.ri + 1, r.label,
           r.joinedLabel || (r.consumed ? '(continuation of the row above)' : ''), r.section || '',
           r.mapped ? labelFor(r.mapped.key)
             : r.isHeaderRow ? '(column header)'
@@ -4659,6 +4815,12 @@ function renderMethod(){
     + 'be typed over. It has no OCR, so a scanned or photographed statement has to be entered by hand. It reads text-based '
     + 'PDFs, .xlsx / .xlsm workbooks and CSVs, and it does all of that inside this browser — no file is uploaded anywhere '
     + 'and there is no network call in this page.</p>'
+    + '<p><b>Only the primary statements feed the spread.</b> A full audited pack is mostly notes, and a note\'s table '
+    + 'looks a great deal like the statement it belongs to: a receivables note carries the gross figure where the balance '
+    + 'sheet carries the net, a borrowings note carries its own subtotals. Read in alongside the statements they compete '
+    + 'with them, and which one wins comes down to page order. So every page is classified — from its title and from which '
+    + 'canonical lines its rows actually reach — and only the balance sheet, income statement and cash flow are used. The '
+    + 'call, and the reason for it, is shown page by page on the Sources tab and can be overruled on any page.</p>'
     + '<p><b>Where it does not recognise a line, teach it.</b> Any row carrying figures that reached no line appears under '
     + '<i>Needs review</i> on the Sources tab with a dropdown beside it. What you set there is remembered against the '
     + 'wording and applied to every file from then on, so a counterparty\'s term is taught once rather than corrected '
@@ -5136,6 +5298,67 @@ function runTests(){
   near('and the ratios follow: gross margin', eA.latest.metrics.grossMargin, 72200/284600, 0.00005);
   near('DSO off a Spanish balance sheet', eA.latest.metrics.dso, 68300/284600*365, 0.0001);
 
+  /* ---- which page is what ----
+     A full audited pack is mostly notes, and a note's table looks like the
+     statement it belongs to. Classification is what stops the two competing. */
+  const pg = txt => { const t = tableFromRows(txt, {kind:'csv', name:'p', refFor: i => 'r'+i}, 'anglo');
+    t.periodRow = findPeriodRow(t); mapTable(t); return {t, c: classifyTable(t)}; };
+  const bsPage = pg([
+    ['Consolidated statement of financial position'], ['As at 31 December 2025'],
+    [null, '2025', '2024'],
+    ['Cash and cash equivalents', 9800, 12400], ['Trade receivables', 68300, 55100],
+    ['Inventories', 41600, 35800], ['Total current assets', 125000, 107900],
+    ['Trade payables', 38400, 32600], ['Total liabilities', 125600, 110100],
+    ['Total equity', 59900, 53600], ['Total assets', 185500, 163700]]);
+  T('a balance sheet is recognised', bsPage.c.role, 'bs');
+  T('and used', PRIMARY_ROLES.has(bsPage.c.role), true);
+  const isPage = pg([
+    ['Statement of profit or loss'], [null, '2025', '2024'],
+    ['Revenue', 284600, 243900], ['Cost of sales', -212400, -184300],
+    ['Gross profit', 72200, 59600], ['Administrative expenses', -24300, -21100],
+    ['Operating profit', 22800, 16300], ['Finance costs', -9400, -8100],
+    ['Profit before tax', 13660, 8410], ['Profit for the year', 9640, 5530]]);
+  T('an income statement is recognised', isPage.c.role, 'is');
+  const cfPage = pg([
+    ['Estado de flujos de efectivo'], [null, '2025', '2024'],
+    ['Efectivo neto provisto por las actividades de operación', 14900, 17600],
+    ['Adquisición de propiedad, planta y equipo', -11300, -9400],
+    ['Efectivo neto usado en las actividades de inversión', -11300, -9400],
+    ['Dividendos pagados', -3340, -830],
+    ['Efectivo neto usado en actividades de financiación', -6200, -4000],
+    ['Efectivo al final del año', 9800, 12400]]);
+  T('a cash flow statement is recognised, in Spanish', cfPage.c.role, 'cf');
+  const notePage = pg([
+    ['Notes to the financial statements'], ['10. Trade and other receivables'],
+    [null, '2025', '2024'],
+    ['Trade receivables', 71900, 58400], ['Allowance for impairment', -3600, -3300],
+    ['Trade receivables, net', 68300, 55100], ['Prepayments', 1900, 1600],
+    ['Other receivables', 1300, 1100]]);
+  T('a receivables note is not a balance sheet', notePage.c.role, 'notes',
+    'it carries the gross figure where the balance sheet carries the net');
+  T('and is left out of the spread', PRIMARY_ROLES.has(notePage.c.role), false);
+  const numberedNote = pg([
+    ['14. Borrowings'], [null, '2025', '2024'],
+    ['Bank revolving facility', 24300, 21100], ['Treasury line', 6900, 5800],
+    ['Total current borrowings', 31200, 26900], ['Syndicated facility', 39400, 36700],
+    ['Total non-current borrowings', 48200, 44200]]);
+  T('a numbered note is a note even without the running heading', numberedNote.c.role, 'notes');
+  const equityPage = pg([
+    ['Statement of changes in equity'], [null, 'Capital', 'Reserves', 'Retained', 'Total'],
+    ['Balance at 31 December 2024', 15000, 7500, 31100, 53600],
+    ['Profit for the year', 0, 0, 9640, 9640],
+    ['Balance at 31 December 2025', 15000, 7500, 37400, 59900]]);
+  T('the statement of changes in equity is recognised', equityPage.c.role, 'equity');
+  T('and left out — its columns are not periods', PRIMARY_ROLES.has(equityPage.c.role), false);
+  const cover = pg([['INDUSTRIAS DEL CARIBE S.A.S.'], ['Estados Financieros Consolidados'],
+    ['31 de diciembre de 2025 y 2024']]);
+  T('a cover page is not a statement', cover.c.role, 'other');
+  const opinion = pg([['Independent auditor\'s report'],
+    ['We have audited the accompanying statement of financial position as at 31 December 2025'],
+    ['and the related statements of profit or loss and cash flows for the year then ended.']]);
+  T('an audit opinion naming the statements is still not one', opinion.c.role, 'other',
+    'it names them in prose and carries no figures');
+
   /* ---- teaching the model a line ----
      The built-in dictionary will never have seen every counterparty's wording,
      so anything assigned by hand has to win over it and stick. Whatever the
@@ -5494,6 +5717,23 @@ function wire(){
     }
     if(t.id === 'q_notes'){ ST.qual.notes = t.value; save(); return; }
     if(t.id === 'exSource' || t.id === 'exFilter'){ renderExtraction(); return; }
+    /* which pages feed the spread */
+    if(t.dataset.page !== undefined){
+      const [srcId, ti] = t.dataset.page.split('|');
+      const src = ST.sources.find(x => x.id === srcId);
+      if(src && src.tables[ti]) src.tables[ti].use = t.checked;
+      repage(); renderAll(); save(); return;
+    }
+    if(t.dataset.role !== undefined){
+      const [srcId, ti] = t.dataset.role.split('|');
+      const src = ST.sources.find(x => x.id === srcId);
+      if(src && src.tables[ti]){
+        const tb = src.tables[ti];
+        tb.role = t.value; tb.roleConf = 'high'; tb.roleWhy = 'set by hand';
+        tb.use = PRIMARY_ROLES.has(t.value);
+      }
+      repage(); renderAll(); save(); return;
+    }
     /* teaching a line: remembered against the wording, applied everywhere */
     if(t.dataset.learn !== undefined){
       const [srcId, ti, ri] = t.dataset.learn.split('|');
@@ -5593,6 +5833,14 @@ function wire(){
       p.sig = periodSig(p);
       ST.spread.periods.push(p);
       sortPeriods(); renderAll(); save(); return;
+    }
+    if(t.id === 'btnPagesPrimary'){
+      for(const s of ST.sources) for(const tb of s.tables) tb.use = PRIMARY_ROLES.has(tb.role);
+      repage(); renderAll(); save(); return;
+    }
+    if(t.id === 'btnPagesAll'){
+      for(const s of ST.sources) for(const tb of s.tables) tb.use = true;
+      repage(); renderAll(); save(); return;
     }
     if(t.id === 'btnDiag'){ exportDiagnostics($('diagRedact').checked); return; }
     if(t.id === 'btnMapExport'){

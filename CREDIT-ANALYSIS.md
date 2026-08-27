@@ -78,6 +78,53 @@ among the liabilities, decided the same way. Where a mapping was settled by sect
 the label alone, it is marked *med* confidence on the **Extraction detail** panel — those are the
 ones worth a glance.
 
+### Only the primary statements feed the spread
+
+A full audited pack is 60 pages of which 4 are the statements. The rest — cover, contents, the
+auditor's report, the statement of changes in equity, and 50 pages of notes — is not what you are
+spreading, and some of it actively fights what you are.
+
+The problem is not noise, it is **competition**. A note's table looks a great deal like the
+statement it belongs to. On a real pack:
+
+| Note | What it offers | What the balance sheet says |
+|---|---|---|
+| *Trade and other receivables* | 71,900 — gross | 68,300 — net of the impairment allowance |
+| *Borrowings* | its own current and non-current subtotals | the same figures, once |
+| *Property, plant and equipment* | a cost / depreciation / net-book-value movement schedule whose columns are not periods | one number |
+
+Read in alongside the statements, those compete with them, and which one wins comes down to page
+order. On the test pack it produced **twelve collisions per period**; a bad-debt allowance reached
+`provisions`, a liability, and the borrowings note summed its own subtotals into long-term debt at
+79,400 against a real 48,200. The statement figures survived only because the balance sheet page
+happened to come first.
+
+So every page is classified — from its title, and from which canonical lines its rows actually
+reach — and by default only the **balance sheet, income statement and cash flow** are used. The
+call and the reason for it are listed page by page on the Sources tab:
+
+```
+ ✓  p. 4   Balance sheet        high   24 lines   2 period columns   titled as one, and 24 of its lines agree
+ ✓  p. 5   Income statement     high   12 lines   2 period columns   titled as one, and 12 of its lines agree
+    p. 6   Changes in equity    high    3 lines   0 period columns   titled as the statement of changes in equity
+ ✓  p. 7   Cash flow statement  high    9 lines   2 period columns   titled as one, and 9 of its lines agree
+    p.10   Notes                high    4 lines   2 period columns   carries the notes heading
+```
+
+Any page can be turned on, turned off, or given a different role, and the files are re-read
+immediately. Two buttons do the whole file at once. Excluded pages are still parsed and still
+visible on the **Extraction detail** panel — they are out of the spread, not out of sight.
+
+A page is classified on four signals: the statement title in its first few rows, whether it carries
+a *Notes to the financial statements* heading, whether it is headed by a numbered note (`14.
+Borrowings`), and how many distinct canonical lines its rows reach and from which statement. A
+title only wins when the lines agree with it, which is what keeps an audit opinion that names all
+four statements in prose from being read as one. A page with no statement lines at all — cover,
+contents, opinion — is never a statement whatever it says.
+
+If no page in a file reads as a primary statement, every page carrying statement lines is used
+instead and the file says so, so a classifier that is unsure never silently yields an empty spread.
+
 ### When it does not recognise a line, teach it
 
 The built-in dictionary has not seen every counterparty's wording and never will, so the model does
@@ -344,7 +391,7 @@ leverage multiples, and headroom against any covenant you enter.
 
 ## Self-tests
 
-**Self-tests** tab, *Run tests* — **209 assertions**, no fixtures on disk. Three kinds:
+**Self-tests** tab, *Run tests* — **220 assertions**, no fixtures on disk. Three kinds:
 
 - the parsers against inputs built byte by byte in the test itself: a raw DEFLATE stream, a
   stored-method zip holding real SpreadsheetML, and a one-page PDF assembled as text with
