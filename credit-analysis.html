@@ -1427,8 +1427,9 @@ function parsePdf(bytes){
    thousand in Frankfurt and two hundred and thirty-six in New York, and no
    amount of staring at one cell settles it — so the separator convention is
    decided per document, from the frequency of each pattern across it. */
-const CCY_CHARS = /[$€£¥₹₽¢₦₨₩฿₪₴₸₺R]|USD|EUR|GBP|CHF|JPY|CNY|AED|SAR|ZAR|BRL|MXN|COP|INR|LKR|NGN|KES|TRY|PLN|SEK|NOK|DKK|CAD|AUD|SGD|HKD|IDR|MYR|THB|VND|PHP|EGP|MAD|GHS|TZS|UGX|XOF|XAF/gi;
-const NIL_TOKENS = new Set(['-','–','—','‒','−','n/a','na','nil','none','nm','n.m.','.','']);
+const CCY_CHARS = /[$€£¥₹₽¢₦₨₩฿₪₴₸₺R]|RD\$|S\/\.?|Bs\.?|Q\.|L\.|₡|₲|USD|EUR|GBP|CHF|JPY|CNY|AED|SAR|ZAR|BRL|MXN|COP|CLP|ARS|PEN|DOP|UYU|PYG|BOB|VES|GTQ|HNL|NIO|CRC|PAB|INR|LKR|NGN|KES|TRY|PLN|SEK|NOK|DKK|CAD|AUD|SGD|HKD|IDR|MYR|THB|VND|PHP|EGP|MAD|GHS|TZS|UGX|XOF|XAF/gi;
+const NIL_TOKENS = new Set(['-','–','—','‒','−','n/a','na','nil','none','nm','n.m.','.','',
+  'n/d','nd','s/d','ninguno','ninguna','cero','-0-']);
 
 function detectNumberStyle(texts){
   let euro = 0, anglo = 0;
@@ -1453,7 +1454,7 @@ function parseAmount(text, style){
   s = s.replace(/ | | /g, ' ');
   s = s.replace(CCY_CHARS, ' ');
   s = s.replace(/[*†‡§¹²³]+/g, ' ');
-  s = s.replace(/\bnote\s*\d+[a-z]?\b/gi, ' ');
+  s = s.replace(/\bnotas?\s*\d+[a-z]?\b/gi, ' ').replace(/\bnote\s*\d+[a-z]?\b/gi, ' ');
   if(/^\s*\(.*\)\s*$/.test(s)){ sneg = true; s = s.replace(/^\s*\(/,'').replace(/\)\s*$/,''); }
   if(/-\s*$/.test(s) && /\d/.test(s)){ sneg = true; s = s.replace(/-\s*$/,''); }
   s = s.replace(/\s+/g, '');
@@ -1489,6 +1490,12 @@ const UNIT_PATTERNS = [
   [/\b(in\s+)?(billions?|bn)\b/i, 1000000000],
   [/\b(in\s+)?(lakhs?)\b/i, 100000],
   [/\b(in\s+)?(crores?)\b/i, 10000000],
+  /* Spanish. "MM$" is millions; Chile's "M$" for thousands is deliberately not
+     matched here — it is too easily confused, and the units are shown on the
+     Sources tab for the analyst to set. */
+  [/\b(cifras\s+)?(expresad[ao]s?\s+)?(en\s+)?miles\b|\bmiles\s+de\b|\(miles/i, 1000],
+  [/\b(cifras\s+)?(expresad[ao]s?\s+)?(en\s+)?millones\b|\bmillones\s+de\b|\bMM\$/i, 1000000],
+  [/\b(en\s+)?miles\s+de\s+millones\b/i, 1000000000],
 ];
 function detectUnits(text){
   const head = String(text).slice(0, 6000);
@@ -1499,6 +1506,24 @@ function detectCurrency(text){
   const head = String(text).slice(0, 6000);
   const m = /\b(USD|EUR|GBP|CHF|JPY|CNY|RMB|AED|SAR|QAR|KWD|ZAR|BRL|MXN|COP|CLP|PEN|ARS|INR|LKR|PKR|BDT|NGN|KES|GHS|TZS|UGX|EGP|MAD|TRY|PLN|CZK|HUF|RON|SEK|NOK|DKK|CAD|AUD|NZD|SGD|HKD|KRW|IDR|MYR|THB|VND|PHP|XOF|XAF|MZN|AOA|ZMW)\b/.exec(head);
   if(m) return m[1] === 'RMB' ? 'CNY' : m[1];
+  /* Spanish currency names, most specific first: "pesos" alone cannot be
+     resolved to a country, so it is left blank rather than guessed. */
+  const namedES = [
+    [/\bd[oó]lares?\b|\bus\$|\bdolares estadounidenses\b/i,'USD'],
+    [/\bpesos?\s+colombianos?\b|\bCOP\b|\bCOL\$/i,'COP'],
+    [/\bpesos?\s+mexicanos?\b|\bMXN\b|\bMX\$/i,'MXN'],
+    [/\bpesos?\s+dominicanos?\b|\bDOP\b|\bRD\$/i,'DOP'],
+    [/\bpesos?\s+chilenos?\b|\bCLP\b/i,'CLP'],
+    [/\bpesos?\s+argentinos?\b|\bARS\b/i,'ARS'],
+    [/\bpesos?\s+uruguayos?\b|\bUYU\b/i,'UYU'],
+    [/\b(nuevos\s+)?soles?\b|\bPEN\b|\bS\/\.?/i,'PEN'],
+    [/\bquetzales?\b|\bGTQ\b/i,'GTQ'], [/\blempiras?\b|\bHNL\b/i,'HNL'],
+    [/\bc[oó]rdobas?\b|\bNIO\b/i,'NIO'], [/\bcolones?\b|\bCRC\b/i,'CRC'],
+    [/\bbalboas?\b|\bPAB\b/i,'PAB'], [/\bguaran[ií]es?\b|\bPYG\b/i,'PYG'],
+    [/\bbolivianos?\b|\bBOB\b/i,'BOB'], [/\bbol[ií]vares?\b|\bVES\b/i,'VES'],
+    [/\breales?\b|\bBRL\b|\bR\$/i,'BRL'],
+  ];
+  for(const [re, c] of namedES) if(re.test(head)) return c;
   const named = [[/\bus dollars?\b|\bu\.s\. dollars?\b/i,'USD'],[/\beuros?\b/i,'EUR'],
     [/\bpounds? sterling\b|\bpounds?\b/i,'GBP'],[/\bswiss francs?\b/i,'CHF'],[/\byen\b/i,'JPY'],
     [/\brenminbi\b|\byuan\b/i,'CNY'],[/\bdirhams?\b/i,'AED'],[/\brands?\b/i,'ZAR'],
@@ -1512,9 +1537,30 @@ function detectCurrency(text){
   return '';
 }
 
+/** Which language the statement reads as. Nothing depends on the answer — the
+    label dictionary carries both — but when little maps, knowing what the tool
+    thought it was looking at is the first thing you want to see. */
+const LANG_WORDS = {
+  es: /\b(activo|activos|pasivo|pasivos|patrimonio|ingresos|ventas|utilidad|ganancia|perdida|efectivo|inventarios|proveedores|deudores|impuesto|ejercicio|estado de|cuentas por|obligaciones|gastos|costos?|corriente|circulante|diciembre|resultados)\b/gi,
+  en: /\b(assets|liabilities|equity|revenue|sales|profit|loss|cash|inventory|payables|receivables|tax|year ended|statement of|accounts|borrowings|expenses|costs?|current|december|earnings)\b/gi,
+};
+function detectLanguage(text){
+  const t = deaccent(String(text||'')).slice(0, 20000);
+  const es = (t.match(LANG_WORDS.es) || []).length;
+  const en = (t.match(LANG_WORDS.en) || []).length;
+  if(es < 3 && en < 3) return null;
+  return es > en * 1.2 ? 'es' : en > es * 1.2 ? 'en' : 'mixed';
+}
+
 /* ---------------------------- periods ---------------------------- */
 const MONTHS = {jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,sept:9,oct:10,nov:11,dec:12,
-  january:1,february:2,march:3,april:4,june:6,july:7,august:8,september:9,october:10,november:11,december:12};
+  january:1,february:2,march:3,april:4,june:6,july:7,august:8,september:9,october:10,november:11,december:12,
+  /* Spanish, in the accent-stripped form the label normaliser produces. */
+  ene:1,enero:1,febrero:2,marzo:3,abr:4,abril:4,mayo:5,junio:6,julio:7,ago:8,agosto:8,
+  set:9,sept:9,septiembre:9,setiembre:9,octubre:10,noviembre:11,dic:12,diciembre:12};
+/** Accents are stripped before matching, so "diciembre" and "Diciembre" and a
+    decomposed "dicie<combining>mbre" all reach the same key. */
+const deaccent = s => String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 const eom = (y,m) => new Date(Date.UTC(y, m, 0)).toISOString().slice(0,10);
 const isoOK = s => /^\d{4}-\d{2}-\d{2}$/.test(s);
 
@@ -1522,10 +1568,11 @@ const isoOK = s => /^\d{4}-\d{2}-\d{2}$/.test(s);
     fiscal year, and how many months the column covers. */
 function parsePeriodHeader(text){
   const raw = String(text||'').trim();
-  if(!raw || raw.length > 64) return null;
-  const t = raw.replace(/\s+/g,' ');
+  if(!raw || raw.length > 72) return null;
+  const t = deaccent(raw.replace(/\s+/g,' '));
   const low = t.toLowerCase();
   if(/^(note|notes|ref|%|change|var(iance)?|movement|budget|forecast)\b/.test(low)) return null;
+  if(/^(nota|notas|ref|referencia|variacion|var\.?|movimiento|presupuesto|proyeccion|proyectado)\b/.test(low)) return null;
   let months = null, endDate = null, fy = null, basis = null;
 
   const mM = /(\d{1,2})\s*[- ]?\s*month/.exec(low);
@@ -1535,9 +1582,20 @@ function parsePeriodHeader(text){
   if(/\bq[1-4]\b|\bthree month\b/.test(low)) months = 3;
   if(/\b9m\b|\bnine month\b/.test(low)) months = 9;
   if(/\byear\b|\bfy\b|\btwelve month\b|\bannual\b/.test(low)) months = months || 12;
+  /* Spanish tenor and basis. */
+  const mES = /(\d{1,2})\s*meses/.exec(low);
+  if(mES) months = Number(mES[1]);
+  if(/\bseis meses\b|\bsemestre\b|\bprimer semestre\b/.test(low)) months = 6;
+  if(/\btres meses\b|\btrimestre\b|\bprimer trimestre\b/.test(low)) months = 3;
+  if(/\bnueve meses\b/.test(low)) months = 9;
+  if(/\bdoce meses\b|\bejercicio\b|\bano terminado\b|\banual\b|\banos? terminados?\b/.test(low)) months = months || 12;
+  if(/\bno auditad|sin auditar|\bno-auditad/.test(low)) basis = 'unaudited';
+  else if(/\brevisad/.test(low)) basis = 'reviewed';
+  else if(/\bauditad/.test(low)) basis = 'audited';
+  if(/\bgerencia\b|\badministracion\b|\bcifras de gestion\b/.test(low)) basis = 'management';
   if(/\bunaudited\b|\bun-audited\b/.test(low)) basis = 'unaudited';
-  else if(/\breviewed\b/.test(low)) basis = 'reviewed';
-  else if(/\baudited\b/.test(low)) basis = 'audited';
+  else if(/\breviewed\b/.test(low)) basis = basis || 'reviewed';
+  else if(/\baudited\b/.test(low)) basis = basis || 'audited';
   if(/\bmanagement\b|\bmgmt\b/.test(low)) basis = 'management';
 
   if(isoOK(t.slice(0,10)) && /^\d{4}-\d{2}-\d{2}/.test(t)){ endDate = t.slice(0,10); }
@@ -1551,6 +1609,27 @@ function parsePeriodHeader(text){
       if(mon >= 1 && mon <= 12 && day >= 1 && day <= 31) endDate = `${y}-${String(mon).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
     }
   }
+  /* "31 de diciembre de 2025" / "al 31 de diciembre 2025" */
+  if(!endDate){
+    const m = /(\d{1,2})\s+de\s+([a-z]+)\s*(?:de[l]?\s+)?(\d{2,4})/i.exec(t);
+    if(m && MONTHS[m[2].toLowerCase()]){
+      let y = Number(m[3]); if(y < 100) y += y < 70 ? 2000 : 1900;
+      endDate = `${y}-${String(MONTHS[m[2].toLowerCase()]).padStart(2,'0')}-${String(+m[1]).padStart(2,'0')}`;
+    }
+  }
+  /* "diciembre de 2025" with no day — the month end */
+  if(!endDate){
+    const m = /^(?:al?\s+|a\s+)?([a-z]{4,10})\s+(?:de[l]?\s+)(\d{4})$/i.exec(t.trim());
+    if(m && MONTHS[m[1].toLowerCase()]) endDate = eom(Number(m[2]), MONTHS[m[1].toLowerCase()]);
+  }
+  /* "31-dic-25", "31 dic 2025" */
+  if(!endDate){
+    const m = /(\d{1,2})\s*[-\/ ]\s*([a-z]{3,10})\.?\s*[-\/ ]\s*'?(\d{2,4})/i.exec(t);
+    if(m && MONTHS[m[2].toLowerCase()]){
+      let y = Number(m[3]); if(y < 100) y += y < 70 ? 2000 : 1900;
+      endDate = `${y}-${String(MONTHS[m[2].toLowerCase()]).padStart(2,'0')}-${String(+m[1]).padStart(2,'0')}`;
+    }
+  }
   if(!endDate){
     const m = /(\d{1,2})?\s*([a-z]{3,9})[a-z.,]*\s*'?(\d{2,4})/i.exec(t);
     if(m && MONTHS[m[2].toLowerCase()]){
@@ -1560,7 +1639,7 @@ function parsePeriodHeader(text){
     }
   }
   if(!endDate){
-    const m = /\b(fy\s*)?((?:19|20)\d{2})\s*(?:\/\s*(\d{2,4}))?\b/i.exec(t);
+    const m = /\b(fy\s*|ejercicio\s*|ano\s*)?((?:19|20)\d{2})\s*(?:\/\s*(\d{2,4}))?\b/i.exec(t);
     if(m){
       fy = Number(m[2]);
       if(m[3]){ let y2 = Number(m[3]); if(y2 < 100) y2 += 2000; fy = y2; }
@@ -1576,7 +1655,7 @@ function parsePeriodHeader(text){
 /** Months covered and audit basis out of a caption of any length —
     "For the six months ended 30 June 2026 (unaudited)" and the like. */
 function periodHints(text){
-  const low = String(text||'').toLowerCase();
+  const low = deaccent(String(text||'')).toLowerCase();
   let months = null, basis = null;
   const mM = /(\d{1,2})\s*[- ]?\s*months?\b/.exec(low);
   if(mM) months = Number(mM[1]);
@@ -1588,6 +1667,18 @@ function periodHints(text){
   else if(/\breviewed\b/.test(low)) basis = 'reviewed';
   else if(/\bmanagement (accounts|figures)\b|\bmgmt\b/.test(low)) basis = 'management';
   else if(/\baudited\b/.test(low)) basis = 'audited';
+  /* Spanish captions: "Por los seis meses terminados al 30 de junio de 2026 (no auditado)" */
+  const mES = /(\d{1,2})\s*meses?\b/.exec(low);
+  if(mES) months = Number(mES[1]);
+  if(/\bseis meses?\b|\bsemestre\b/.test(low)) months = 6;
+  if(/\btres meses?\b|\btrimestre\b/.test(low)) months = 3;
+  if(/\bnueve meses?\b/.test(low)) months = 9;
+  if(/\bdoce meses?\b|\bejercicios? terminados?\b|\banos? terminados?\b|\bpor el ejercicio\b|\bal 31 de diciembre\b/.test(low))
+    months = months || 12;
+  if(/no auditad|sin auditar/.test(low)) basis = 'unaudited';
+  else if(/revisad/.test(low)) basis = basis || 'reviewed';
+  else if(/\bgerencia\b|cifras de gestion/.test(low)) basis = basis || 'management';
+  else if(/auditad/.test(low)) basis = basis || 'audited';
   return {months, basis};
 }
 
@@ -1672,6 +1763,23 @@ function tableFromPdfPage(page, style, srcName){
 
 /** The header row of a statement: the row whose cells read as periods in the
     most distinct columns. Two-line headers ("2025" over "Audited") merge. */
+const PERIOD_TOKEN = /\d{1,2}\s+de\s+[a-z]+\s+(?:de[l]?\s+)?\d{2,4}|\d{1,2}\s*[\/.\-]\s*\d{1,2}\s*[\/.\-]\s*\d{2,4}|\d{1,2}\s*[-\/ ]\s*[a-z]{3,10}\.?\s*[-\/ ]\s*'?\d{2,4}|(?:19|20)\d{2}/gi;
+/** Every period a single cell describes. One is the normal case; more than one
+    means two column headers collided when the text was laid out. */
+function splitPeriodCell(text){
+  const t = deaccent(String(text||''));
+  if(t.length > 90) return [];
+  const out = [];
+  let m;
+  PERIOD_TOKEN.lastIndex = 0;
+  while((m = PERIOD_TOKEN.exec(t))){
+    const p = parsePeriodHeader(m[0]);
+    if(p) out.push(p);
+    if(out.length > 8) break;
+  }
+  return out;
+}
+
 function findPeriodRow(table){
   const cands = [];
   const limit = Math.min(table.rows.length, 30);
@@ -1680,6 +1788,18 @@ function findPeriodRow(table){
     const found = [], seen = new Set();
     for(const c of (row.cells || [])){
       if(c.ci < 0 || seen.has(c.ci)) continue;
+      /* Long headers in tight columns run into each other and arrive as one
+         cell — "31 de diciembre de 202531 de diciembre de 2024". That parses
+         as a single valid date, so the multi-period test has to come first;
+         the periods are then handed back to the columns the cell spans. */
+      const multi = splitPeriodCell(c.text);
+      if(multi.length > 1){
+        multi.forEach((pp, j) => {
+          const ci = c.ci - (multi.length - 1) + j;
+          if(ci >= 0 && !seen.has(ci)){ seen.add(ci); found.push({ci, p: pp}); }
+        });
+        continue;
+      }
       const p = parsePeriodHeader(c.text);
       if(p){ seen.add(c.ci); found.push({ci: c.ci, p}); }
     }
@@ -1822,8 +1942,20 @@ const SECTIONS = [
   ['CFI', /investing activities/i],
   ['CFF', /financing activities/i],
   ['IS',  /income statement|profit or loss|profit and loss|statement of operations|comprehensive income|trading account/i],
+  /* Spanish. Written in the accent-stripped form the normaliser produces, so
+     "Activo no corriente" and "ACTIVOS NO CORRIENTES" both land here. */
+  ['NCA', /^(total (de )?)?activos? (no corrientes?|no circulantes?|fijos?|de largo plazo|a largo plazo)|^activo no corriente/i],
+  ['CA',  /^(total (de )?)?activos? (corrientes?|circulantes?|de corto plazo|a corto plazo|disponibles?)/i],
+  ['NCL', /^(total (de )?)?pasivos? (no corrientes?|no circulantes?|de largo plazo|a largo plazo)|^pasivo no corriente/i],
+  ['CL',  /^(total (de )?)?pasivos? (corrientes?|circulantes?|de corto plazo|a corto plazo)/i],
+  ['EQ',  /^patrimonio( neto| de los accionistas)?$|^capital contable|^fondos propios|^patrimonio$/i],
+  ['LIAB',/^pasivos?$|^pasivos? y patrimonio|^pasivo y capital|^pasivos? y capital contable/i],
+  ['CFO', /actividades? de (operacion|explotacion)|flujo(s)? de efectivo de (las )?operaciones/i],
+  ['CFI', /actividades? de inversion/i],
+  ['CFF', /actividades? de (financiacion|financiamiento)/i],
+  ['IS',  /estado de resultados|estado de perdidas y ganancias|cuenta de (perdidas y ganancias|resultados)|estado de resultado(s)? integral/i],
 ];
-const DICT = [
+const DICT_EN = [
   /* subtotals and totals, before anything they contain */
   {k:'totalAssets',    c:'high', re:/^total equity and liabilities$|^total liabilities and (equity|shareholders)/i},
   {k:'totalAssets',    c:'high', re:/^total assets$|^total assets and|^grand total assets/i},
@@ -1905,18 +2037,117 @@ const DICT = [
   {k:'minorityInterest',c:'high',re:/non-?controlling interests?|minority interests?/i},
   {k:'otherEquity',    c:'med',  re:/treasury (shares|stock)|non-?distributable|equity component|^other equity|own shares/i},
   {k:'reserves',       c:'high', re:/share premium|^reserves|revaluation (reserve|surplus)|translation reserve|capital reserve|other comprehensive|hedging reserve|statutory reserve|general reserve|^other reserves/i},
-  /* last resort: something is clearly debt but named in a way nothing above caught */
-  {k:'ltDebt',         c:'low',  re:/borrowings|loans payable|debt securities|^debt$|financial liabilities/i},
 ];
 
-const normLabel = s => String(s||'')
+/* ---------------------------- Spanish ----------------------------
+   A second block rather than more alternatives inside the English patterns:
+   each language keeps its own first-match-wins ordering, which is the whole
+   mechanism, and a third could be added the same way. Patterns are written
+   WITHOUT accents because normLabel strips them — "Depreciacion" here matches
+   "Depreciación", "DEPRECIACIÓN" and a decomposed form alike. Terms cover
+   Colombian, Mexican, Peruvian, Chilean, Dominican, Central American and
+   Spanish presentations, which differ more than one might hope. */
+const DICT_ES = [
+  /* totals first */
+  {k:'totalAssets',    c:'high', re:/^total (de |del )?(pasivos? y (el )?patrimonio|pasivo y capital contable|pasivos? y capital)|^total pasivo y patrimonio/i},
+  {k:'totalAssets',    c:'high', re:/^total (de |del )?activos?$|^activos? totales$|^suma del activo$|^total activo$/i},
+  {k:'totalCA',        c:'high', re:/^total (de |del )?activos? (corrientes?|circulantes?|de corto plazo|a corto plazo)/i},
+  {k:'totalNCA',       c:'high', re:/^total (de |del )?activos? (no corrientes?|no circulantes?|fijos?|de largo plazo|a largo plazo)/i},
+  {k:'totalCL',        c:'high', re:/^total (de |del )?pasivos? (corrientes?|circulantes?|de corto plazo|a corto plazo)/i},
+  {k:'totalNCL',       c:'high', re:/^total (de |del )?pasivos? (no corrientes?|no circulantes?|de largo plazo|a largo plazo)/i},
+  {k:'totalLiabilities',c:'high',re:/^total (de |del )?pasivos?$|^pasivos? totales$|^suma del pasivo$/i},
+  {k:'totalEquity',    c:'high', re:/^total (de |del )?(patrimonio|capital contable|fondos propios|patrimonio neto)|^patrimonio( neto)? total$|^total patrimonio/i},
+  /* balance-sheet tax lines, before the income-statement charge */
+  {k:'deferredTaxAsset',c:'high',re:/activos? por impuesto(s)? (sobre la renta )?diferido|impuesto(s)? diferido(s)? activo/i},
+  {k:'deferredTaxLiab',c:'high', re:/pasivos? por impuesto(s)? (sobre la renta )?diferido|impuesto(s)? diferido(s)? pasivo/i},
+  {k:'taxPayable',     c:'high', re:/impuestos? (sobre la renta |a la renta |corrientes? |de renta )?por pagar|^impuestos? por pagar|provision para impuesto(s)?( por pagar)?$|impuestos? corrientes? por pagar/i},
+  /* cash flow, before their income-statement lookalikes */
+  {k:'cfo',            c:'high', re:/efectivo (neto )?(generado|provisto|proveniente|utilizado|usado|aplicado)[^.]*actividades? de operacion|flujo(s)? (neto(s)? )?de efectivo (de|por|en|generado por)[^.]*actividades? de (operacion|explotacion)|flujo de caja (operativo|de la operacion)|efectivo neto (de|en) (las )?actividades de operacion/i},
+  {k:'cfi',            c:'high', re:/efectivo (neto )?(generado|provisto|utilizado|usado|aplicado)[^.]*actividades? de inversion|flujo(s)? (neto(s)? )?de efectivo (de|por|en)[^.]*actividades? de inversion/i},
+  {k:'cff',            c:'high', re:/efectivo (neto )?(generado|provisto|utilizado|usado|aplicado)[^.]*actividades? de (financiacion|financiamiento)|flujo(s)? (neto(s)? )?de efectivo (de|por|en)[^.]*actividades? de (financiacion|financiamiento)/i},
+  {k:'capex',          c:'high', re:/(adquisicion(es)?|compra(s)?|adiciones?|inversion(es)?) de (propiedad|propiedades|activos? fijos?|inmuebles|maquinaria|planta|equipo|intangibles?|inmovilizado)|^inversion en activos? fijos?|pagos? por (la )?(adquisicion|compra) de (propiedad|activos)/i},
+  {k:'assetSales',     c:'high', re:/(venta|producto de la venta|enajenacion|realizacion) de (activos? fijos?|propiedad(es)?|equipo|inmuebles)/i},
+  {k:'acquisitions',   c:'high', re:/adquisicion de (subsidiaria|negocio|filial|compania|participacion)/i},
+  {k:'dividendsPaid',  c:'high', re:/dividendos? (pagados?|decretados|distribuidos)|pago de dividendos|distribucion de (utilidades|dividendos|resultados)/i},
+  {k:'debtDrawn',      c:'high', re:/(obtencion|desembolsos?|producto|aumento|incremento|disminucion|nuevos?) de (prestamos|creditos|obligaciones( financieras)?|deuda|financiamiento)|pagos? de (prestamos|creditos|obligaciones( financieras)?|deuda)|amortizacion de (deuda|prestamos|creditos|obligaciones)|prestamos (recibidos|obtenidos|bancarios recibidos)|(aumento|disminucion|variacion) (neto |neta )?(de|en) (las )?obligaciones financieras|emision de bonos/i},
+  {k:'equityIssued',   c:'high', re:/emision de acciones|aportes? de (capital|los accionistas|socios)|capitalizacion|incremento de capital/i},
+  {k:'interestPaid',   c:'high', re:/intereses pagados|pago de intereses/i},
+  {k:'taxPaid',        c:'high', re:/impuestos? (sobre la renta )?pagados?|pago de impuestos?/i},
+  {k:'fxOnCash',       c:'high', re:/efecto (de (la )?)?(variacion|diferencia|fluctuacion)(es)? (en|de|por)[^.]*(tasas? de )?cambio|efecto de la conversion|efecto cambiario (sobre|en) el efectivo/i},
+  {k:'netChangeCash',  c:'high', re:/(aumento|disminucion|incremento|variacion|reduccion)[^.]*(neto|neta)?[^.]*(en|de|del) (el )?efectivo|variacion neta (en|de|del) efectivo/i},
+  {k:'cashOpening',    c:'high', re:/efectivo( y equivalentes[^.]*)? al (inicio|principio|comienzo)|saldo (inicial|al inicio)/i},
+  {k:'cashClosing',    c:'high', re:/efectivo( y equivalentes[^.]*)? al (final|cierre|fin)|saldo (final|al final|al cierre)/i},
+  /* income statement */
+  {k:'revenue',        c:'high', re:/^(total (de )?)?(ingresos|ventas)( netas?| netos?| operacionales| operativos| ordinarios| brutas?| totales)?$|^ingresos (de actividades ordinarias|por ventas|de explotacion|operacionales|de actividades)|^ventas (netas|de bienes|de mercancias|y servicios)|^importe neto de la cifra de negocios|^cifra de negocios|^facturacion$|^ingresos por servicios/i},
+  {k:'cogs',           c:'high', re:/costos? de (ventas?|los servicios|produccion|los bienes vendidos|la mercancia|mercancias|explotacion)|^coste de ventas|^aprovisionamientos|costo de la mercancia vendida|^costos? de ventas?$|^costo de venta/i},
+  {k:'grossProfit',    c:'high', re:/^(utilidad|ganancia|beneficio|resultado|margen)[ /(]*brut[ao]/i},
+  {k:'da',             c:'high', re:/depreciacion(es)? y amortizacion(es)?|amortizacion(es)? y depreciacion(es)?/i},
+  {k:'dep',            c:'high', re:/^depreciacion|gastos? (por|de) depreciacion|dotacion a la depreciacion/i},
+  {k:'amort',          c:'high', re:/^amortizacion|gastos? (por|de) amortizacion|dotacion a la amortizacion/i},
+  {k:'ebit',           c:'high', re:/^(utilidad|ganancia|beneficio|resultado|perdida)[ /()]*(operacional|operativa|operativo|de operacion|de la operacion|de explotacion|de las operaciones|en operacion)|^resultado de explotacion|^utilidad de operacion/i},
+  {k:'otherOpIncome',  c:'high', re:/^otros ingresos( operacionales| operativos| de explotacion| netos)?$|^ingresos (varios|diversos)|^otros ingresos y (gastos|egresos)|^ingresos no operacionales$/i},
+  {k:'exceptional',    c:'high', re:/partidas? (extraordinaria|no recurrente)|gastos? extraordinario|resultado(s)? extraordinario|reestructuracion|^partidas? excepcionales/i},
+  {k:'interestIncome', c:'high', re:/ingresos financieros|productos financieros|rendimientos financieros|intereses (ganados|recibidos|a favor)/i},
+  {k:'otherNonOp',     c:'high', re:/diferencia(s)? (en|de) cambio|resultado cambiario|(utilidad|perdida|ganancia)[ /()]*cambiaria|ingresos? y (gastos|egresos) no operacionales|otros (ingresos|egresos|gastos) no operacionales|participacion en (los )?(resultados|utilidades) de (asociadas|subsidiarias)|^ingresos? no operacionales$|^egresos no operacionales$/i},
+  {k:'interestExpense',c:'high', re:/gastos? financieros|costos? financieros|gastos? por intereses|intereses (pagados|sobre|de la deuda|y comisiones)|carga financiera|^intereses$/i},
+  {k:'sgna',           c:'high', re:/gastos? de (administracion|ventas?|comercializacion|operacion|distribucion|personal|explotacion)|gastos? (administrativos?|operacionales|operativos|generales|de venta|de estructura|laborales)|^total gastos? (operacionales|de operacion|administrativos)|sueldos y salarios|beneficios a (los )?empleados|^gastos de nomina/i},
+  {k:'otherOpex',      c:'high', re:/deterioro|provision(es)? para (cuentas|deudas|cartera)|castigo de cartera|perdida por deterioro|^otros gastos( operacionales| operativos)?$|^gastos diversos|cuentas incobrables/i},
+  {k:'pbt',            c:'high', re:/(utilidad|ganancia|beneficio|resultado|perdida)[^.]*antes de (impuesto|provision para impuesto|participacion)|^resultado antes de impuestos|antes de impuestos?( sobre la renta)?$/i},
+  {k:'tax',            c:'high', re:/impuestos? (sobre|a) la renta|impuestos? a las ganancias|gastos? por impuesto|provision para impuesto(s)?|^impuestos?( corrientes?| de renta)?$|impuestos? de renta( y complementarios)?/i},
+  {k:'minorityIncome', c:'high', re:/participacion(es)? no controladora|interes(es)? minoritario|participacion minoritaria/i, sect:['IS']},
+  {k:'netIncome',      c:'high', re:/^(utilidad|ganancia|beneficio|resultado|perdida)(es)?[ /()]*(neta|neto|del ejercicio|del periodo|del ano|integral|despues de impuesto)|^resultado (del ejercicio|neto|integral)|^utilidad(es)? del (ejercicio|periodo|ano)|^resultado integral total/i},
+  /* assets */
+  {k:'cash',           c:'high', re:/^bancos$/i, sect:['CA','NCA',null], cLow:true},
+  {k:'cash',           c:'high', re:/^(efectivo|caja)( y (equivalentes( de efectivo| al efectivo)?|bancos|sus equivalentes|valores))?$|^disponible$|^disponibilidades$|^caja y bancos$|^efectivo y equivalentes|^tesoreria$|^caja general$/i},
+  {k:'stInvest',       c:'high', re:/inversiones (temporales|a corto plazo|de corto plazo|negociables|financieras a corto)|valores negociables|depositos a plazo|efectivo restringido|inversiones de renta fija/i},
+  {k:'otherReceivables',c:'high',re:/otras cuentas por cobrar|deudores varios|cuentas por cobrar a (partes |companias )?(relacionad|vinculad|accionist|socios|asociad)|otros deudores|^anticipos y avances$/i},
+  {k:'ar',             c:'high', re:/(cuentas|documentos) (comerciales )?por cobrar( comerciales| a clientes)?|deudores comerciales|^clientes$|^clientes,? neto|deudores por ventas|^deudores$|^cartera( comercial| neta)?$|cuentas comerciales por cobrar/i},
+  {k:'inventory',      c:'high', re:/^inventarios?|^existencias|^mercaderias|^mercancias|productos terminados|materias primas|productos en proceso|^stock$/i},
+  {k:'prepaid',        c:'high', re:/gastos? (pagados? por anticipado|anticipados?)|pagos? anticipados?|anticipos a proveedores|^anticipos|seguros pagados por anticipado/i},
+  {k:'ppe',            c:'high', re:/propiedad(es)?,? planta y equipo|^activos? fijos?|inmuebles,? maquinaria y equipo|inmovilizado material|^propiedad(es)? y equipo|terrenos y edificios|maquinaria y equipo/i},
+  {k:'rou',            c:'high', re:/activos? por derecho(s)? de uso|derecho(s)? de uso/i},
+  {k:'goodwill',       c:'high', re:/^(credito mercantil|plusvalia|llave de negocio|goodwill)$/i},
+  {k:'intangibles',    c:'high', re:/activos? intangible|^intangibles|credito mercantil|plusvalia|inmovilizado intangible|^licencias y software/i},
+  {k:'investments',    c:'high', re:/inversiones en (asociadas|subsidiarias|negocios conjuntos|companias|acciones)|inversiones permanentes|inversiones (de|a) largo plazo|^inversiones$/i},
+  {k:'otherNCA',       c:'high', re:/otros activos( no corrientes| de largo plazo| a largo plazo)?$|^activos? diferidos?|^cargos diferidos|^otros activos$/i},
+  {k:'otherCA',        c:'med',  re:/otros activos corrientes|instrumentos financieros derivados|activos? (mantenidos|disponibles) para la venta/i},
+  /* liabilities */
+  {k:'ap',             c:'high', re:/(cuentas|documentos) (comerciales )?por pagar( comerciales| a proveedores)?|^proveedores|acreedores comerciales|^acreedores$|cuentas comerciales por pagar/i},
+  {k:'cpltd',          c:'high', re:/porcion (corriente|circulante|de corto plazo)|parte corriente de|vencimiento(s)? corriente(s)?|corto plazo de la deuda|cuota corriente de/i},
+  {k:'leaseCurrent',   c:'high', re:/pasivos? por arrendamiento|obligaciones por arrendamiento|arrendamiento(s)? financiero/i, sect:['CL'], cLow:true},
+  {k:'leaseNonCurrent',c:'high', re:/pasivos? por arrendamiento|obligaciones por arrendamiento|arrendamiento(s)? financiero/i, sect:['NCL','EQ','LIAB',null], cLow:true},
+  {k:'shldrLoans',     c:'high', re:/(prestamos|cuentas por pagar|deudas?|obligaciones) (a|con|de|por) (accionistas|socios|directores|partes relacionadas|companias vinculad|vinculad|casa matriz|la matriz|la controladora)|deuda subordinada|^partes relacionadas$|^vinculados economicos$/i},
+  {k:'stDebt',         c:'high', re:/obligaciones financieras|prestamos bancarios|creditos bancarios|sobregiro(s)? bancario|deuda(s)? (bancaria|financiera)|documentos por pagar|deudas con entidades de credito|^prestamos$|^obligaciones bancarias|^bancos$|creditos de corto plazo/i, sect:['CL']},
+  {k:'ltDebt',         c:'high', re:/obligaciones financieras (de|a) largo plazo|deuda(s)? (de|a) largo plazo|prestamos (de|a) largo plazo|bonos por pagar|emision de bonos|^obligaciones financieras|^prestamos bancarios|^creditos bancarios|deudas con entidades de credito|^deuda financiera|^obligaciones por pagar|^prestamos$/i},
+  {k:'accruals',       c:'high', re:/gastos? (acumulados?|por pagar|causados)|pasivos? acumulados?|otras cuentas por pagar|ingresos (diferidos|recibidos por anticipado)|anticipos (de|recibidos de) clientes|^acreedores varios|costos y gastos por pagar|^retenciones|^obligaciones laborales por pagar/i},
+  {k:'provisions',     c:'high', re:/^provisiones|beneficios? a (los )?empleados|prestaciones sociales|^pensiones|^cesantias|obligaciones laborales|provision para prestaciones|^contingencias/i},
+  {k:'otherNCL',       c:'high', re:/otros pasivos( no corrientes| de largo plazo| a largo plazo)|^otros pasivos$|^pasivos? diferidos?/i},
+  {k:'otherCL',        c:'med',  re:/otros pasivos corrientes|dividendos por pagar|^pasivos? (mantenidos|disponibles) para la venta/i},
+  /* equity */
+  {k:'shareCapital',   c:'high', re:/capital (social|suscrito|pagado|emitido|autorizado|en acciones)|^capital$|capital suscrito y pagado|^acciones (ordinarias|comunes)/i},
+  {k:'retainedEarnings',c:'high',re:/(utilidades|resultados|ganancias|perdidas) (retenidas?|retenidos?|acumulad[ao]s?|de ejercicios anteriores|del ejercicio anterior)|^resultados acumulados|deficit acumulado|^utilidades retenidas|^ganancias acumuladas/i},
+  {k:'minorityInterest',c:'high',re:/participacion(es)? no controladora|interes(es)? minoritario|participacion minoritaria/i},
+  {k:'otherEquity',    c:'med',  re:/acciones (propias|en tesoreria)|^otro patrimonio|^otras partidas de patrimonio/i},
+  {k:'reserves',       c:'high', re:/^reservas?|prima (en colocacion( de acciones)?|de emision)|revalorizacion|^superavit|otro resultado integral|reserva legal|ajustes por conversion|^otras reservas/i},
+];
+
+const DICT = DICT_EN.concat(DICT_ES).concat([
+  /* last resort, either language: clearly debt but named in a way nothing above caught */
+  {k:'ltDebt',         c:'low',  re:/borrowings|loans payable|debt securities|^debt$|financial liabilities/i},
+  {k:'ltDebt',         c:'low',  re:/obligaciones financieras|deuda financiera|^financiamiento|pasivos? financieros/i},
+]);
+
+/* Accents are stripped so the dictionary can be written once, without them, and
+   still match "Depreciación", "DEPRECIACIÓN" and the decomposed form a PDF
+   sometimes yields. "ñ" folds to "n", which is harmless for matching. */
+const normLabel = s => deaccent(String(s||''))
   .replace(/ /g,' ')
   .replace(/[‘’′]/g,"'")
   .replace(/\((\s*note[s]?\s*)?\d+[a-z]?(\.\d+)?\s*\)/gi,' ')
   .replace(/\bnote[s]?\s+\d+[a-z]?\b/gi,' ')
   .replace(/[.…]{2,}/g,' ')
   .replace(/\s*[:;]\s*$/,'')
-  .replace(/^\s*(less|add|plus|of which)\s*[:\-]?\s*/i,'')
+  .replace(/^\s*(less|add|plus|of which|menos|mas|de los cuales|de las cuales|del cual)\s*[:\-]?\s*/i,'')
   .replace(/^\s*[\-–•\*]\s*/,'')
   .replace(/\s+/g,' ')
   .trim();
@@ -1984,6 +2215,7 @@ function buildSource(name, bytes, textOverride){
   const head = allText.slice(0, 400).join(' | ');
   src.units = detectUnits(head);
   src.currency = detectCurrency(head);
+  src.lang = detectLanguage(allText.join(' '));
   src.text = head;
   for(const t of src.tables){
     const tHead = t.rows.slice(0, 14).map(r => [r.label, ...r.trailing].join(' ')).join(' | ');
@@ -3312,6 +3544,11 @@ function load(){
 
 /* ---------------------------- sources tab ---------------------------- */
 const KIND_ICON = {pdf:'📄', xlsx:'📊', csv:'📋'};
+/** Distinct currencies the loaded files disclose. More than one means figures
+    from different money are about to be spread into one column set. */
+function sourceCurrencies(){
+  return Array.from(new Set(ST.sources.map(s => s.currency).filter(Boolean)));
+}
 function renderSources(){
   const has = ST.sources.length > 0;
   $('cardFiles').hidden = !has;
@@ -3326,6 +3563,7 @@ function renderSources(){
       + ' · figures read as <b>' + unitName(s.units) + '</b>'
       + (s.currency ? ' ' + esc(s.currency) : '')
       + ' · ' + (s.style === 'euro' ? '1.234,56 format' : '1,234.56 format')
+      + (s.lang ? ' · ' + LANG_NAME[s.lang] : '')
       + '</div>'
       + (s.warnings||[]).map(w => '<div class="meta" style="color:var(--warn)">⚠ ' + esc(w) + '</div>').join('')
       + '</div><div class="acts">'
@@ -3359,6 +3597,18 @@ function renderSources(){
       ? 'Already applied. Re-applying overwrites figures still marked as lifted from a file, and leaves anything you typed alone.'
       : cands.filter(c => c.use !== false).length + ' period(s) will be written to the spread.';
   }
+  const ccys = sourceCurrencies();
+  if(ccys.length > 1){
+    $('filelist').insertAdjacentHTML('afterbegin',
+      '<div class="banner err"><div class="b-ico">!</div><div><b>These files are not in the same currency.</b> '
+      + esc(ccys.join(', ')) + ' were read off them, and the spread holds one currency only — figures from the others '
+      + 'will be added to it as if they were ' + esc(ST.eng.currency) + '. Convert them before spreading, or load only '
+      + 'the files in one currency.</div></div>');
+  } else if(ccys.length === 1 && ST.eng.currency && ccys[0] !== ST.eng.currency){
+    $('filelist').insertAdjacentHTML('afterbegin',
+      '<div class="banner warn"><div class="b-ico">⚠</div><div>The statements read as <b>' + esc(ccys[0])
+      + '</b> but the spread is set to <b>' + esc(ST.eng.currency) + '</b>. Change the currency above if that is wrong.</div></div>');
+  }
   renderExtraction();
   const pill = $('pillSources');
   const warn = ST.sources.reduce((t,s) => t + (s.warnings||[]).length, 0);
@@ -3366,6 +3616,7 @@ function renderSources(){
   pill.textContent = warn ? String(warn) : String(ST.sources.length);
   pill.className = 'pill ' + (warn ? 'warn' : 'ok');
 }
+const LANG_NAME = {es:'Spanish', en:'English', mixed:'English and Spanish'};
 const unitName = u => Number(u) === 1000000 ? 'millions' : Number(u) === 1000 ? 'thousands' : Number(u) === 1000000000 ? 'billions' : 'absolute units';
 
 function renderExtraction(){
@@ -3903,6 +4154,14 @@ function memoHtml(A, o){
           + '<td class="num">' + s.tables.reduce((t,tb) => t + tb.rows.filter(r => r.mapped).length, 0) + '</td>'
           + '<td class="tiny">' + esc((s.warnings||[]).join(' ')) + '</td></tr>').join('') + '</tbody></table>';
     } else h += '<p>Every figure was entered by hand; no statement file was parsed.</p>';
+    const ccys = sourceCurrencies();
+    if(ccys.length > 1) h += '<p style="color:var(--err)"><b>Currency warning.</b> The source files disclose more than one '
+      + 'currency (' + esc(ccys.join(', ')) + ') and the spread holds one. Unless they were converted before being entered, '
+      + 'figures from different money have been added together and nothing below can be relied on.</p>';
+    const langs = Array.from(new Set(ST.sources.map(s => s.lang).filter(Boolean)));
+    if(langs.length) h += '<p><b>Language.</b> The statements were read as '
+      + esc(langs.map(l => ({es:'Spanish', en:'English', mixed:'English and Spanish'})[l] || l).join(' and '))
+      + '. Line labels are shown against each figure on the spread in the words the statement used.</p>';
 
     const manual = [];
     for(const p of ST.spread.periods) for(const k in p.cells)
@@ -4138,6 +4397,12 @@ function renderMethod(){
     + 'be typed over. It has no OCR, so a scanned or photographed statement has to be entered by hand. It reads text-based '
     + 'PDFs, .xlsx / .xlsm workbooks and CSVs, and it does all of that inside this browser — no file is uploaded anywhere '
     + 'and there is no network call in this page.</p>'
+    + '<p><b>It reads statements in English and in Spanish.</b> The label dictionary carries both, so no setting has to be '
+    + 'changed and a pack with an English audit and a Spanish interim spreads into one set of columns. Accents are folded '
+    + 'before matching, and where a term differs by country — <i>obligaciones financieras</i>, <i>existencias</i>, '
+    + '<i>capital contable</i>, <i>importe neto de la cifra de negocios</i> — the Colombian, Mexican, Peruvian, Chilean, '
+    + 'Dominican, Central American and Spanish presentations are all covered. The language each file was read as is shown '
+    + 'on the Sources tab; nothing depends on it, but when little maps it is the first thing worth knowing.</p>'
     + '<p><b>The grade is an internal view, not a rating.</b> It is a weighted read of the financial statements alone. It '
     + 'knows nothing about management, market position, group support, the sector cycle, order books, or anything in the '
     + 'notes that was not typed in. Two companies with identical ratios can be very different credits, and a scorecard '
@@ -4164,6 +4429,11 @@ function renderMethod(){
     + 'balance-sheet date can flatter a seasonal business badly — the year-end is often the low point of the cycle.</dd>'
     + '<dt>Tolerance on the checks</dt><dd>0.2% of the reference figure, with a floor of one unit. Inside that is rounding; a few '
     + 'multiples of it means a line was mis-read, double-counted or missed.</dd>'
+    + '<dt>Ambiguous labels</dt><dd>Resolved by the section the row sits under. <i>Lease liabilities</i> and '
+    + '<i>pasivos por arrendamiento</i> appear twice on a balance sheet, and <i>Borrowings</i>, <i>Bancos</i> and '
+    + '<i>obligaciones financieras</i> mean short-term debt under current liabilities and long-term debt elsewhere — '
+    + 'except <i>Bancos</i>, which among assets is cash. Anything decided that way is marked <i>med</i> confidence on the '
+    + 'Extraction detail panel, which is where to look first.</dd>'
     + '</dl></div></div>';
 
   /* metric definitions */
@@ -4242,6 +4512,18 @@ function renderMethod(){
   h += '</tbody></table></div></div></div>';
 
   /* line items */
+  h += '<div class="card"><h2>The label dictionary <span class="src">'
+    + DICT_EN.length + ' English · ' + DICT_ES.length + ' Spanish patterns</span></h2><div class="body">'
+    + '<p>Ordered, first match wins — the ordering is the mechanism, not an accident. "Total current assets" has to be '
+    + 'tested before "current assets", and the balance-sheet tax lines before the income-statement charge. Each language '
+    + 'is a separate block with its own ordering, so a third could be added the same way without disturbing either.</p>'
+    + '<div class="scroll" style="max-height:420px"><table><thead><tr><th>Line</th><th>Language</th><th>Matches</th><th>Section required</th></tr></thead><tbody>'
+    + DICT_EN.map(e => [e, 'English']).concat(DICT_ES.map(e => [e, 'Spanish'])).map(([e, lang]) =>
+        '<tr><td>' + esc(labelFor(e.k)) + '</td><td class="tiny">' + lang + '</td>'
+        + '<td class="tiny mono" style="white-space:normal;max-width:520px">' + esc(String(e.re).replace(/^\/|\/i$/g,'')) + '</td>'
+        + '<td class="tiny">' + (e.sect ? esc(e.sect.map(x => x || 'none').join(', ')) : '') + '</td></tr>').join('')
+    + '</tbody></table></div></div></div>';
+
   h += '<div class="card"><h2>The spread layout <span class="src">' + SCHEMA.length + ' lines</span></h2><div class="body">'
     + '<p>Every set of accounts is forced into these lines. Where a statement is more granular, several of its lines add into one '
     + 'of these; where it is less granular, lines stay empty and any ratio that needed them reports as "—" rather than as zero.</p>'
@@ -4324,8 +4606,10 @@ function testWorkbookBytes(){
     ['xl/worksheets/sheet1.xml', sheet],
   ]);
 }
-/** A one-page PDF with an uncompressed content stream, built as text. */
-function testPdfBytes(){
+/** A one-page PDF with an uncompressed content stream, built as text. Shared by
+    the English and Spanish extraction tests so a second language costs a page,
+    not a parser. */
+function testPdfPage(){
   const HW = {' ':278, ',':278, '(':333, ')':333, '.':278, '-':333};
   const wid = (s, size) => { let w = 0;
     for(const ch of s){ const c = ch.charCodeAt(0);
@@ -4334,17 +4618,9 @@ function testPdfBytes(){
   const ops = [];
   const at = (x, y, s, size) => ops.push('BT /F1 ' + size + ' Tf 1 0 0 1 ' + x.toFixed(2) + ' ' + y.toFixed(2) + ' Tm (' + s.replace(/([()\\])/g,'\\$1') + ') Tj ET');
   const right = (xr, y, s, size) => at(xr - wid(s, size), y, s, size);
-  at(56, 750, 'ACME TRADING LIMITED', 12);
-  at(56, 734, 'Statement of profit or loss for the year ended 31 December 2025', 9);
-  at(56, 720, 'All amounts in USD thousands', 8);
-  right(430, 700, '2025', 9); right(500, 700, '2024', 9);
-  right(430, 688, 'Audited', 8); right(500, 688, 'Audited', 8);
-  const rows = [['Revenue','1,200','1,000'], ['Cost of sales','(700)','(600)'], ['Gross profit','500','400'],
-    ['Administrative expenses','(250)','(200)'], ['Depreciation and amortisation','(60)','(50)'],
-    ['Operating profit','190','150'], ['Finance costs','(45)','(40)'],
-    ['Profit before tax','145','110'], ['Income tax expense','(35)','(30)'], ['Profit for the year','110','80']];
-  let y = 668;
-  for(const [l, a, b] of rows){ at(56, y, l, 9); right(430, y, a, 9); right(500, y, b, 9); y -= 15; }
+  return {ops, at, right, wid};
+}
+function assembleTestPdf(ops){
   const content = ops.join('\n');
   const objs = [
     '<< /Type /Catalog /Pages 2 0 R >>',
@@ -4363,6 +4639,61 @@ function testPdfBytes(){
   const out = new Uint8Array(pdf.length);
   for(let i=0;i<pdf.length;i++) out[i] = pdf.charCodeAt(i) & 255;
   return out;
+}
+function testPdfBytes(){
+  const {ops, at, right} = testPdfPage();
+  at(56, 750, 'ACME TRADING LIMITED', 12);
+  at(56, 734, 'Statement of profit or loss for the year ended 31 December 2025', 9);
+  at(56, 720, 'All amounts in USD thousands', 8);
+  right(430, 700, '2025', 9); right(500, 700, '2024', 9);
+  right(430, 688, 'Audited', 8); right(500, 688, 'Audited', 8);
+  const rows = [['Revenue','1,200','1,000'], ['Cost of sales','(700)','(600)'], ['Gross profit','500','400'],
+    ['Administrative expenses','(250)','(200)'], ['Depreciation and amortisation','(60)','(50)'],
+    ['Operating profit','190','150'], ['Finance costs','(45)','(40)'],
+    ['Profit before tax','145','110'], ['Income tax expense','(35)','(30)'], ['Profit for the year','110','80']];
+  let y = 668;
+  for(const [l, a, b] of rows){ at(56, y, l, 9); right(430, y, a, 9); right(500, y, b, 9); y -= 15; }
+  return assembleTestPdf(ops);
+}
+/** The same statement in Spanish, with accents, a Colombian debt label, and the
+    two long date headers colliding into one cell the way they do in practice. */
+function testPdfBytesEs(){
+  const {ops, at, right} = testPdfPage();
+  at(56, 750, 'INDUSTRIAS DEL CARIBE S.A.S.', 12);
+  at(56, 734, 'Estado de resultados y situaci\u00f3n financiera', 10);
+  at(56, 720, 'Por el a\u00f1o terminado el 31 de diciembre de 2025 (auditado)', 9);
+  at(56, 706, '(Cifras expresadas en miles de pesos colombianos)', 8);
+  right(430, 684, '31 de diciembre de 2025', 8);
+  right(505, 684, '31 de diciembre de 2024', 8);
+  const rows = [
+    ['Ingresos operacionales','284,600','243,900'],
+    ['Costo de ventas','(212,400)','(184,300)'],
+    ['Utilidad bruta','72,200','59,600'],
+    ['Gastos de administraci\u00f3n','(24,300)','(21,100)'],
+    ['Depreciaci\u00f3n y amortizaci\u00f3n','(7,600)','(6,900)'],
+    ['Utilidad operacional','40,300','31,600'],
+    ['Gastos financieros','(9,400)','(8,100)'],
+    ['Utilidad antes de impuesto sobre la renta','30,900','23,500'],
+    ['Impuesto sobre la renta','(4,020)','(2,880)'],
+    ['Utilidad del ejercicio','26,880','20,620'],
+    ['Activo corriente', null, null],                    // a heading: no figures
+    ['Efectivo y equivalentes de efectivo','9,800','12,400'],
+    ['Deudores comerciales','68,300','55,100'],
+    ['Otras cuentas por cobrar','3,200','2,700'],
+    ['Inventarios','41,600','35,800'],
+    ['Pasivo corriente', null, null],
+    ['Proveedores','38,400','32,600'],
+    ['Obligaciones financieras','31,200','26,900'],
+    ['Patrimonio', null, null],
+    ['Utilidades retenidas','37,400','31,100'],
+  ];
+  let y = 660;
+  for(const [l, a, b] of rows){
+    at(a === null ? 56 : 62, y, l, 9);
+    if(a !== null){ right(430, y, a, 9); right(505, y, b, 9); }
+    y -= 15;
+  }
+  return assembleTestPdf(ops);
 }
 
 /** The golden company: round numbers, so every ratio below can be checked by hand. */
@@ -4458,6 +4789,80 @@ function runTests(){
   T('basis picked up from under the year', cands[1].basis, 'audited');
   T('costs are stored as positive magnitudes', cands[1].values.get('cogs').v, 700, 'the statement prints (700)');
   T('revenue keeps its sign', cands[1].values.get('revenue').v, 1200);
+
+  /* ---- Spanish ----
+     The dictionary is bilingual, so the same statement in Spanish has to reach
+     the same canonical lines. Accents are folded, which is why the patterns can
+     be written without them. */
+  T('accents fold', normLabel('Depreciación y amortización'), 'Depreciacion y amortizacion');
+  T('"ñ" folds to "n"', normLabel('Efectivo al final del año'), 'Efectivo al final del ano');
+  T('maps ingresos operacionales', mapLabel('Ingresos operacionales').key, 'revenue');
+  T('maps ventas netas', mapLabel('Ventas netas').key, 'revenue');
+  T('but not ingresos financieros', mapLabel('Ingresos financieros').key, 'interestIncome');
+  T('maps costo de ventas', mapLabel('Costo de ventas').key, 'cogs');
+  T('maps utilidad bruta', mapLabel('Utilidad bruta').key, 'grossProfit');
+  T('maps utilidad operacional', mapLabel('Utilidad operacional').key, 'ebit');
+  T('maps utilidad antes de impuestos', mapLabel('Utilidad antes de impuesto sobre la renta').key, 'pbt');
+  T('maps the tax charge', mapLabel('Impuesto sobre la renta').key, 'tax');
+  T('but tax payable is a balance', mapLabel('Impuestos por pagar','CL').key, 'taxPayable');
+  T('maps utilidad del ejercicio', mapLabel('Utilidad del ejercicio').key, 'netIncome');
+  T('maps ganancia del periodo', mapLabel('Ganancia del periodo').key, 'netIncome');
+  T('maps efectivo y equivalentes', mapLabel('Efectivo y equivalentes de efectivo').key, 'cash');
+  T('maps deudores comerciales', mapLabel('Deudores comerciales').key, 'ar');
+  T('other receivables are not trade', mapLabel('Otras cuentas por cobrar').key, 'otherReceivables');
+  T('maps inventarios', mapLabel('Inventarios').key, 'inventory');
+  T('maps existencias (Spain)', mapLabel('Existencias').key, 'inventory');
+  T('maps proveedores', mapLabel('Proveedores').key, 'ap');
+  T('maps propiedad, planta y equipo', mapLabel('Propiedad, planta y equipo').key, 'ppe');
+  T('obligaciones financieras, current', mapLabel('Obligaciones financieras','CL').key, 'stDebt');
+  T('obligaciones financieras, non-current', mapLabel('Obligaciones financieras','NCL').key, 'ltDebt');
+  T('"Bancos" is cash among assets', mapLabel('Bancos','CA').key, 'cash');
+  T('and debt among liabilities', mapLabel('Bancos','CL').key, 'stDebt');
+  T('porción corriente is not long-term debt', mapLabel('Porción corriente de la deuda a largo plazo','CL').key, 'cpltd');
+  T('maps flujo de operación', mapLabel('Efectivo neto provisto por las actividades de operación').key, 'cfo');
+  T('maps capex in Spanish', mapLabel('Adquisición de propiedad, planta y equipo').key, 'capex');
+  T('maps diferencia en cambio', mapLabel('Diferencia en cambio').key, 'otherNonOp');
+  T('maps préstamos de accionistas', mapLabel('Préstamos de accionistas').key, 'shldrLoans');
+  T('maps total pasivo y patrimonio to total assets', mapLabel('Total pasivo y patrimonio').key, 'totalAssets');
+  T('Spanish sections are recognised', sectionOf('Pasivo no corriente'), 'NCL');
+  T('and in the plural, in caps', sectionOf('ACTIVOS CORRIENTES'), 'CA');
+  T('Spanish period: al 31 de diciembre', parsePeriodHeader('Al 31 de diciembre de 2025').endDate, '2025-12-31');
+  T('Spanish period: 31-dic-25', parsePeriodHeader('31-dic-25').endDate, '2025-12-31');
+  T('Spanish period: month and year only', parsePeriodHeader('diciembre de 2025').endDate, '2025-12-31');
+  T('Spanish period: unaudited', parsePeriodHeader('30 de junio de 2026 (no auditado)').basis, 'unaudited');
+  T('Spanish period: seis meses', periodHints('Por los seis meses terminados al 30 de junio de 2026').months, 6);
+  T('Spanish period: trimestre', periodHints('Primer trimestre de 2026').months, 3);
+  T('Spanish period rejects a note column', parsePeriodHeader('Notas'), null);
+  T('Spanish period rejects a variance column', parsePeriodHeader('Variación %'), null);
+  T('units: cifras en miles', detectUnits('(Cifras expresadas en miles de pesos colombianos)'), 1000);
+  T('units: en millones', detectUnits('Cifras en millones de pesos chilenos'), 1000000);
+  T('currency: pesos colombianos', detectCurrency('en miles de pesos colombianos'), 'COP');
+  T('currency: soles', detectCurrency('expresado en soles'), 'PEN');
+  T('currency: dólares', detectCurrency('cifras en miles de dólares'), 'USD');
+  T('language is reported', detectLanguage('Total activos pasivos patrimonio ingresos ventas utilidad efectivo inventarios'), 'es');
+  T('and English still reads as English', detectLanguage('Total assets liabilities equity revenue sales profit cash inventory'), 'en');
+
+  const esrc = buildSource('estados.pdf', testPdfBytesEs());
+  T('Spanish statement: units read off it', esrc.units, 1000);
+  T('Spanish statement: currency read off it', esrc.currency, 'COP');
+  T('Spanish statement: language flagged', esrc.lang, 'es');
+  const ecands = collectCandidates([esrc], 1000);
+  T('collided date headers split back into two columns', ecands.length, 2,
+    'the two long headers overlap and arrive as one cell');
+  T('and land on the right years', ecands.map(c => c.fy).join(','), '2024,2025');
+  T('Spanish figures reach the canonical lines', ecands[1].values.get('revenue').v, 284600);
+  T('Spanish costs are stored as magnitudes', ecands[1].values.get('cogs').v, 212400);
+  T('Spanish receivables', ecands[1].values.get('ar').v, 68300);
+  T('the section under a heading decides: debt is short-term', ecands[1].values.get('stDebt').v, 31200,
+    '"Obligaciones financieras" under "Pasivo corriente"');
+  const espread = {periods: ecands.map(c => {
+    const cells = {};
+    for(const [k, e] of c.values) cells[k] = {v: e.v, src: 'file'};
+    return {id: c.id, label: c.label, endDate: c.endDate, fy: c.fy, months: c.months, cells};
+  })};
+  const eA = analyse(espread, {});
+  near('and the ratios follow: gross margin', eA.latest.metrics.grossMargin, 72200/284600, 0.00005);
+  near('DSO off a Spanish balance sheet', eA.latest.metrics.dso, 68300/284600*365, 0.0001);
 
   /* ---- derivation ---- */
   const d1 = resolveCells({revenue:{v:1000}, cogs:{v:600}}).v;

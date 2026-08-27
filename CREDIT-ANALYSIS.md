@@ -1,8 +1,9 @@
 # Credit Analysis Model — financial spreading → credit ratios → memo
 
 A browser tool that takes a company's financial statements as they arrive — audited PDFs, an
-`.xlsx` pack, a CSV — spreads them into one canonical layout, computes the credit ratios off that
-spread, and writes a credit memo with an indicative bankability grade.
+`.xlsx` pack, a CSV, **in English or in Spanish** — spreads them into one canonical layout,
+computes the credit ratios off that spread, and writes a credit memo with an indicative
+bankability grade.
 
 Open `credit-analysis.html` in any modern browser. No server, no build step, **no network access at
 all** — one self-contained file that works offline and can be emailed or dropped on a share.
@@ -40,6 +41,7 @@ than the files feeding the ratios directly.
 | **`.pdf`** (text-based) | Objects are found by scanning for `N G obj`, not by trusting the xref table — incrementally-updated and lightly-corrupt PDFs, which is most of what arrives by email, have xref tables that no longer agree with the file. Object streams are expanded, `/ToUnicode` CMaps are honoured per font, and the text matrix is tracked properly so a figure's x position is trustworthy. |
 | **`.xlsx` / `.xlsm`** | Read from the zip's central directory; shared strings, inline strings, **cached formula results**, and date-formatted serials (`45291` → `2023-12-31`) all resolve. |
 | **`.csv` / `.tsv`** | Delimiter sniffed from the first dozen lines; RFC 4180 quoting. |
+| **Language** | English and Spanish, mixed freely across files. See below. |
 | **Scanned PDFs** | **Not supported — there is no OCR here.** The tool detects when almost no text came out of a PDF and says so, rather than producing a plausible-looking empty spread. Type those in on the Spread tab. |
 | **Encrypted PDFs** | Detected and reported. Print an unprotected copy. |
 | **`.xls`** (old binary) | Not supported. Save as `.xlsx`. |
@@ -67,12 +69,46 @@ are stripped, and a trailing minus is honoured.
 
 ### Ambiguous labels are resolved by section
 
-The extractor tracks which section each row sits under (`Non-current liabilities`, `Current
-assets`, `Operating activities`, …). So a balance sheet that lists **Lease liabilities** twice
-lands one in `leaseCurrent` and one in `leaseNonCurrent`, and a bare **Borrowings** becomes
-short-term debt under current liabilities and long-term debt anywhere else. Where a mapping was
-decided by section rather than by the label alone, it is marked *med* confidence on the
-**Extraction detail** panel — those are the ones worth a glance.
+The extractor tracks which section each row sits under (`Non-current liabilities`, `Pasivo
+corriente`, `Actividades de operación`, …). So a balance sheet that lists **Lease liabilities** —
+or **Pasivos por arrendamiento** — twice lands one in `leaseCurrent` and one in `leaseNonCurrent`,
+and a bare **Borrowings** or **Obligaciones financieras** becomes short-term debt under current
+liabilities and long-term debt anywhere else. **Bancos** is cash among the assets and bank debt
+among the liabilities, decided the same way. Where a mapping was settled by section rather than by
+the label alone, it is marked *med* confidence on the **Extraction detail** panel — those are the
+ones worth a glance.
+
+### English and Spanish
+
+The label dictionary carries both languages, so nothing has to be switched on: a pack with an
+English audit and a Spanish interim spreads into one set of columns, and the spread shows each
+canonical line next to **the words the statement actually used** — `Revenue ← Ingresos
+operacionales`, `Trade receivables ← Deudores comerciales`. The language each file was read as is
+reported on the Sources tab; nothing depends on the answer, but when little maps it is the first
+thing worth knowing.
+
+Accents are folded before matching, so the dictionary is written once without them and still
+matches `Depreciación`, `DEPRECIACIÓN` and the decomposed form a PDF sometimes yields. Terminology
+differs more by country than one might hope, so the Colombian, Mexican, Peruvian, Chilean,
+Dominican, Central American and Spanish presentations are all covered — *obligaciones financieras*
+and *deudas con entidades de crédito*, *existencias* and *inventarios*, *capital contable* and
+*fondos propios*, *importe neto de la cifra de negocios* and *ingresos operacionales*. Period
+headers follow: `Al 31 de diciembre de 2025`, `31-dic-25`, `diciembre de 2025`, `(no auditado)`,
+`por los seis meses terminados`. So do units and currency: `cifras expresadas en miles de pesos
+colombianos` reads as thousands of COP.
+
+The decimal convention is decided per document, which matters here more than anywhere — Mexico,
+Colombia, Peru and the Dominican Republic write `1,234.56`, while Chile, Argentina and Spain write
+`1.234,56`.
+
+Two things Spanish does **not** change. The spread's own line names, the ratios and the memo are in
+English — this reads Spanish statements, it does not write Spanish reports. And where more than one
+currency is loaded, the model now says so rather than quietly adding pesos to dollars: the spread
+holds one currency, and a file in another has to be converted before it goes in.
+
+The ordering within each language block is the mechanism, and each language keeps its own — a third
+could be added the same way without disturbing either. Every pattern is listed on the **Method &
+definitions** tab.
 
 ## Periods, and the LTM bridge
 
@@ -273,15 +309,18 @@ leverage multiples, and headroom against any covenant you enter.
 
 ## Self-tests
 
-**Self-tests** tab, *Run tests* — **137 assertions**, no fixtures on disk. Three kinds:
+**Self-tests** tab, *Run tests* — **195 assertions**, no fixtures on disk. Three kinds:
 
 - the parsers against inputs built byte by byte in the test itself: a raw DEFLATE stream, a
   stored-method zip holding real SpreadsheetML, and a one-page PDF assembled as text with
   right-aligned figures, so the whole extraction path is exercised in the browser;
 - the derivation rules and the label dictionary against cases with a known answer — including the
   ones that have bitten: *Intangible assets* must not become PP&E (the word "tangible" sits inside
-  "intangible"), *Accumulated depreciation* must not become retained earnings, and *Lease
-  liabilities* must land in the right half of the balance sheet;
+  "intangible"), *Accumulated depreciation* must not become retained earnings, *Otras cuentas por
+  cobrar* must not become trade receivables, and *Lease liabilities* / *Pasivos por arrendamiento*
+  must land in the right half of the balance sheet. A second test PDF is built in Spanish, with
+  accents and with its two long date headers deliberately colliding into one cell, which is how a
+  narrow column set actually lays out;
 - the ratio engine against a **golden company** with round numbers, where every ratio can be
   checked with a pencil — 40-odd metrics, plus the option switches, the annualisation, the LTM
   bridge, the scoring curves and the grade caps.

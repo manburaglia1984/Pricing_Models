@@ -7,9 +7,10 @@ Open `index.html` in any modern browser. No server, no build step, no network ac
 single self-contained file that works offline and can be emailed or dropped on a share.
 
 > **Also in this repository:** `credit-analysis.html` — a credit analysis model that reads a
-> counterparty's financial statements (PDF / `.xlsx` / CSV), spreads them, computes the credit
-> ratios and writes a credit memo with an indicative bankability grade. Same conventions as this
-> one: one self-contained file, offline, no network. See **[CREDIT-ANALYSIS.md](CREDIT-ANALYSIS.md)**.
+> counterparty's financial statements (PDF / `.xlsx` / CSV, in English or Spanish), spreads them,
+> computes the credit ratios and writes a credit memo with an indicative bankability grade. Same
+> conventions as this one: one self-contained file, offline, no network.
+> See **[CREDIT-ANALYSIS.md](CREDIT-ANALYSIS.md)**.
 
 ---
 
