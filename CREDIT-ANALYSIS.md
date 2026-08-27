@@ -78,6 +78,41 @@ among the liabilities, decided the same way. Where a mapping was settled by sect
 the label alone, it is marked *med* confidence on the **Extraction detail** panel — those are the
 ones worth a glance.
 
+### When it does not recognise a line, teach it
+
+The built-in dictionary has not seen every counterparty's wording and never will, so the model does
+not pretend otherwise. Every row that carries figures but reached no line is listed under **Needs
+review** on the Sources tab, with a dropdown beside it and the figures shown so you can see what is
+at stake. What you set there is **remembered against the wording and applied to every file from
+then on** — a term is taught once rather than corrected every quarter.
+
+A row can also be set to **ignore**, which is the right answer for a subtotal that would otherwise
+be added on top of its own parts.
+
+Taught lines beat the built-in dictionary, are saved with the engagement, and can be exported on
+their own (*Save learned lines*) so a desk shares one vocabulary rather than each analyst teaching
+the same terms. Correcting a line re-reads every loaded file immediately and pushes the result
+through to the spread and the ratios; anything typed in by hand is never touched.
+
+The same panel shows two other things worth a look:
+
+- **Collisions** — two rows that both claimed one line. The first was kept and the second dropped,
+  which is right about as often as it is wrong.
+- **Rows added together** — where a statement splits a cost over several rows they are summed,
+  which is correct until one of them turns out to be a total of the others. The EBIT check catches
+  the double-count; this panel shows you the cause.
+
+**Download extraction report** writes out every row the extractor read, what it made of it and at
+what confidence — with a switch to **omit the figures**, so the wording of a statement can be sent
+to whoever maintains the dictionary without sending the company's numbers.
+
+### Labels that wrap onto two lines
+
+In a PDF with a narrow label column a long label runs onto a second line, leaving the figures on
+one row and the rest of the words on another. The two are joined only where the row reached no line
+on its own *and* the neighbour reaches none either — so joining can rescue a row but never redirect
+one. Where it happened, the joined wording is what the spread shows.
+
 ### English and Spanish
 
 The label dictionary carries both languages, so nothing has to be switched on: a pack with an
@@ -309,7 +344,7 @@ leverage multiples, and headroom against any covenant you enter.
 
 ## Self-tests
 
-**Self-tests** tab, *Run tests* — **195 assertions**, no fixtures on disk. Three kinds:
+**Self-tests** tab, *Run tests* — **209 assertions**, no fixtures on disk. Three kinds:
 
 - the parsers against inputs built byte by byte in the test itself: a raw DEFLATE stream, a
   stored-method zip holding real SpreadsheetML, and a one-page PDF assembled as text with

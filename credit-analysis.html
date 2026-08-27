@@ -291,6 +291,16 @@ svg .hit{fill:transparent;cursor:default}
         <div class="body"><div class="filelist" id="filelist"></div></div>
       </div>
 
+      <div class="card" id="cardReview" hidden>
+        <h2>Needs review <span class="src" id="reviewCount"></span></h2>
+        <div class="body">
+          <p class="tiny" style="margin-top:0">Rows carrying figures that the model could not place, two rows claiming the
+             same line, and rows being added together. Set a line here and it is <b>remembered for every file from now on</b> —
+             a term is taught once, not corrected every quarter.</p>
+          <div id="reviewBox"></div>
+        </div>
+      </div>
+
       <div class="card" id="cardCandidates" hidden>
         <h2>2 · Periods found <span class="src">confirm before spreading</span></h2>
         <div class="body">
@@ -308,8 +318,24 @@ svg .hit{fill:transparent;cursor:default}
         <h2>Extraction detail <span class="src">what was read, line by line</span></h2>
         <div class="body">
           <div class="toolbar">
-            <div class="field-inline"><label for="exSource">Source</label><select id="exSource" style="min-width:260px"></select></div>
-            <label class="toggle"><input type="checkbox" id="exOnlyMapped"> Only rows that mapped</label>
+            <div class="field-inline"><label for="exSource">Source</label><select id="exSource" style="min-width:250px"></select></div>
+            <div class="field-inline"><label for="exFilter">Show</label><select id="exFilter">
+              <option value="all">Every row</option>
+              <option value="unmapped">Rows not recognised</option>
+              <option value="mapped">Rows that mapped</option>
+              <option value="low">Low or medium confidence</option>
+              <option value="learned">Assigned by hand</option>
+            </select></div>
+            <div class="spacer"></div>
+            <button class="btn sm" id="btnDiag">Download extraction report</button>
+            <label class="toggle" title="Share the wording without the numbers"><input type="checkbox" id="diagRedact" checked> without figures</label>
+          </div>
+          <div class="toolbar" style="padding-top:0">
+            <span class="tiny" id="mapCount"></span>
+            <div class="spacer"></div>
+            <button class="btn sm" id="btnMapExport">Save learned lines</button>
+            <button class="btn sm" id="btnMapImport">Load learned lines</button>
+            <button class="btn sm danger" id="btnMapClear">Forget all</button>
           </div>
           <div class="scroll" style="max-height:560px"><table id="exTable"></table></div>
         </div>
@@ -2143,8 +2169,8 @@ const DICT = DICT_EN.concat(DICT_ES).concat([
 const normLabel = s => deaccent(String(s||''))
   .replace(/ /g,' ')
   .replace(/[‘’′]/g,"'")
-  .replace(/\((\s*note[s]?\s*)?\d+[a-z]?(\.\d+)?\s*\)/gi,' ')
-  .replace(/\bnote[s]?\s+\d+[a-z]?\b/gi,' ')
+  .replace(/\((\s*(notas?|notes?|ref\.?|véase|vease)\s*)?\d+[a-z]?(\.\d+)?\s*\)/gi,' ')
+  .replace(/\b(notas?|notes?)\s+\d+[a-z]?\b/gi,' ')
   .replace(/[.…]{2,}/g,' ')
   .replace(/\s*[:;]\s*$/,'')
   .replace(/^\s*(less|add|plus|of which|menos|mas|de los cuales|de las cuales|del cual)\s*[:\-]?\s*/i,'')
@@ -2158,11 +2184,28 @@ function sectionOf(label){
   for(const [id, re] of SECTIONS) if(re.test(l)) return id;
   return null;
 }
+/* ---------------------------- learned mappings ----------------------------
+   The built-in dictionary has not seen every counterparty's wording and never
+   will. Anything the analyst assigns by hand is remembered against the
+   normalised label and applied to every file afterwards, so a term is taught
+   once rather than corrected every quarter. These win over the dictionary. */
+const USER_MAP = new Map();                       // key -> canonical line, or IGNORE
+const IGNORE = '__ignore';
+const userMapKey = (label, section) => normLabel(label).toLowerCase() + (section ? ' @' + section : '');
+function learnedMapping(label, section){
+  const scoped = USER_MAP.get(userMapKey(label, section));
+  if(scoped !== undefined) return scoped;
+  return USER_MAP.get(userMapKey(label, null));
+}
+
 /** label → {key, confidence, why} or null. `section` disambiguates repeats. */
 function mapLabel(label, section){
   const l = normLabel(label);
   if(!l || l.length > 120) return null;
-  if(/^(note|notes)$/i.test(l)) return null;
+  if(/^(note|notes|nota|notas)$/i.test(l)) return null;
+  const learned = learnedMapping(label, section);
+  if(learned === IGNORE) return null;
+  if(learned) return {key: learned, confidence: 'high', why: 'assigned by hand', learned: true};
   let fallback = null;
   for(const e of DICT){
     if(!e.re.test(l)) continue;
@@ -2230,12 +2273,44 @@ function buildSource(name, bytes, textOverride){
 function mapTable(t){
   let section = null;
   const CLEARS = new Set(['totalCA','totalNCA','totalCL','totalNCL','totalEquity','totalAssets','totalLiabilities']);
-  for(const row of t.rows){
+  /* Cleared up front: a row rescued at i-1 marks its neighbour consumed, and
+     clearing inside the loop would wipe that the moment we reached it. */
+  for(const row of t.rows){ row.joinedLabel = null; row.consumed = false; row.mapped = null;
+    row.isHeading = false; row.ignored = false; row.isHeaderRow = false; }
+  const headerAt = t.periodRow ? t.periodRow.rowIndex : -1;
+  for(let i=0;i<t.rows.length;i++){
+    const row = t.rows[i];
     const sect = sectionOf(row.label);
     if(sect && !row.values.length){ section = sect; row.section = section; row.isHeading = true; continue; }
     row.section = section;
-    row.mapped = row.values.length ? mapLabel(row.label, section) : null;
+    /* The period header and anything above it are column titles, not data. */
+    row.isHeaderRow = headerAt >= 0 && row.ri <= headerAt;
+    row.ignored = learnedMapping(row.label, section) === IGNORE;
+    row.mapped = (row.values.length && !row.isHeaderRow) ? mapLabel(row.label, section) : null;
+    if(row.values.length && !row.mapped && !row.ignored && !row.isHeaderRow) rescueWrappedLabel(t, i, section);
     if(row.mapped && CLEARS.has(row.mapped.key)) section = null;
+  }
+}
+/** "Cuentas por cobrar comerciales y otras cuentas" / "por cobrar, neto" — a
+    long label wraps, so the figures sit on one line and the rest of the words
+    on another that carries none of its own. Joining them is only attempted
+    where the row mapped to nothing on its own and the neighbour maps to
+    nothing either, so it can rescue a row but never redirect one. */
+function rescueWrappedLabel(t, i, section){
+  const row = t.rows[i];
+  const usable = r => r && !r.consumed && !r.values.length && r.label
+    && r.label.length <= 70 && !r.isHeading && !sectionOf(r.label) && !mapLabel(r.label, section);
+  for(const [j, order] of [[i+1, 'after'], [i-1, 'before']]){
+    const nb = t.rows[j];
+    if(!usable(nb)) continue;
+    const joined = order === 'after' ? row.label + ' ' + nb.label : nb.label + ' ' + row.label;
+    const m = mapLabel(joined, section);
+    if(m){
+      row.mapped = m;
+      row.joinedLabel = joined;
+      nb.consumed = true;
+      return;
+    }
   }
 }
 
@@ -2276,8 +2351,9 @@ function collectCandidates(sources, targetUnits){
           if(!cell) continue;
           const key = row.mapped.key;
           const v = normaliseValue(key, cell.v * mult);
-          const entry = {v, ref: row.ref, label: row.label, confidence: row.mapped.confidence,
-            why: row.mapped.why, raw: cell.text, section: row.section || ''};
+          const entry = {v, ref: row.ref, label: row.joinedLabel || row.label,
+            confidence: row.mapped.confidence, why: row.mapped.why, raw: cell.text,
+            section: row.section || '', learned: !!row.mapped.learned};
           if(values.has(key)){
             const prev = values.get(key);
             const sch = SCHEMA_BY_KEY.get(key);
@@ -3508,7 +3584,7 @@ function save(){
         ri: r.ri, label: r.label, ref: r.ref, section: r.section, isHeading: r.isHeading,
         mapped: r.mapped || null, values: r.values.map(v => ({ci: v.ci, v: v.v, text: v.text}))}))});
     const payload = {v: 1, eng: ST.eng, qual: ST.qual, commentary: ST.commentary, weights: ST.weights,
-      applied: ST.applied,
+      applied: ST.applied, mappings: Array.from(USER_MAP.entries()),
       spread: ST.spread,
       candidates: ST.candidates.map(c => ({id: c.id, label: c.label, endDate: c.endDate, fy: c.fy,
         months: c.months, basis: c.basis, sig: c.sig, use: c.use !== false,
@@ -3533,6 +3609,8 @@ function load(){
     const p = JSON.parse(raw);
     Object.assign(ST.eng, p.eng || {});
     ST.qual = p.qual || {}; ST.commentary = p.commentary || {}; ST.weights = p.weights || {};
+    USER_MAP.clear();
+    for(const [k, v] of (p.mappings || [])) USER_MAP.set(k, v);
     ST.spread = p.spread || {periods: []};
     ST.applied = !!p.applied;
     ST.sources = (p.sources || []).map(s => ({...s, tables: (s.tables||[]).map(t => ({...t, rows: t.rows||[]}))}));
@@ -3597,6 +3675,7 @@ function renderSources(){
       ? 'Already applied. Re-applying overwrites figures still marked as lifted from a file, and leaves anything you typed alone.'
       : cands.filter(c => c.use !== false).length + ' period(s) will be written to the spread.';
   }
+  renderReview();
   const ccys = sourceCurrencies();
   if(ccys.length > 1){
     $('filelist').insertAdjacentHTML('afterbegin',
@@ -3612,12 +3691,77 @@ function renderSources(){
   renderExtraction();
   const pill = $('pillSources');
   const warn = ST.sources.reduce((t,s) => t + (s.warnings||[]).length, 0);
+  const open = allRows().filter(x => x.r.values.length && !x.r.mapped && !x.r.consumed
+    && !x.r.ignored && !x.r.isHeaderRow && x.r.label).length;
   pill.hidden = !ST.sources.length;
-  pill.textContent = warn ? String(warn) : String(ST.sources.length);
-  pill.className = 'pill ' + (warn ? 'warn' : 'ok');
+  pill.textContent = open ? String(open) : warn ? String(warn) : String(ST.sources.length);
+  pill.className = 'pill ' + (open || warn ? 'warn' : 'ok');
+  pill.title = open ? open + ' row(s) carrying figures reached no line' : '';
 }
 const LANG_NAME = {es:'Spanish', en:'English', mixed:'English and Spanish'};
 const unitName = u => Number(u) === 1000000 ? 'millions' : Number(u) === 1000 ? 'thousands' : Number(u) === 1000000000 ? 'billions' : 'absolute units';
+
+/** What the analyst has to look at: rows carrying figures that reached no line,
+    two rows claiming the same line, and rows quietly being added together. */
+function renderReview(){
+  const unmapped = allRows().filter(x => x.r.values.length && !x.r.mapped && !x.r.consumed
+    && !x.r.ignored && !x.r.isHeaderRow && x.r.label);
+  const conflicts = [];
+  for(const c of ST.candidates) for(const cf of (c.conflicts || [])) conflicts.push({c, cf});
+  const summed = [];
+  for(const c of ST.candidates) for(const [k, e] of c.values)
+    if(e.parts && e.parts.length > 1) summed.push({period: c.label, key: k, parts: e.parts, v: e.v});
+
+  const total = unmapped.length + conflicts.length;
+  $('cardReview').hidden = !ST.sources.length || (total === 0 && summed.length === 0);
+  $('reviewCount').textContent = total ? total + ' to look at' : 'nothing outstanding';
+  let h = '';
+
+  if(!total && summed.length) h += '<div class="banner ok"><div class="b-ico">✓</div><div>Every row carrying figures '
+    + 'reached a line. The lines below are ones several source rows were added into — worth a glance that none of them '
+    + 'is a total sitting on top of its own parts.</div></div>';
+
+  if(unmapped.length){
+    h += '<h3 style="font-size:13px;margin:4px 0 7px">' + unmapped.length + ' row(s) carrying figures reached no line</h3>'
+      + '<div class="scroll" style="max-height:420px"><table><thead><tr><th style="min-width:250px">Row as printed</th>'
+      + '<th>Section</th><th class="num">Figures</th><th style="min-width:230px">Set the line</th><th>Where</th></tr></thead><tbody>';
+    for(const x of unmapped){
+      h += '<tr><td>' + esc(x.r.label) + '</td>'
+        + '<td class="tiny">' + esc(x.r.section || '—') + '</td>'
+        + '<td class="num tiny">' + x.r.values.map(v => esc(v.text)).join(' · ') + '</td>'
+        + '<td>' + mapSelect('data-learn="' + x.s.id + '|' + x.ti + '|' + x.r.ri + '"', '') + '</td>'
+        + '<td class="tiny">' + esc(String(x.r.ref || x.t.name).split(' · ')[0]) + '</td></tr>';
+    }
+    h += '</tbody></table></div>';
+  }
+
+  if(conflicts.length){
+    h += '<h3 style="font-size:13px;margin:16px 0 7px">' + conflicts.length + ' collision(s): two rows claimed the same line</h3>'
+      + '<p class="tiny" style="margin:0 0 7px">The first was kept and the second dropped. If the wrong one was kept, give '
+      + 'one of them a different line — or "Ignore this row" if it is a subtotal the spread does not need.</p>'
+      + '<div class="scroll"><table><thead><tr><th>Line</th><th>Kept</th><th class="num">Figure</th><th>Dropped</th><th class="num">Figure</th><th>Period</th></tr></thead><tbody>';
+    for(const {c, cf} of conflicts)
+      h += '<tr><td>' + esc(labelFor(cf.key)) + '</td><td>' + esc(cf.kept) + '</td>'
+        + '<td class="num">' + fmtN(cf.keptV, 0) + '</td><td>' + esc(cf.dropped) + '</td>'
+        + '<td class="num">' + fmtN(cf.droppedV, 0) + '</td><td class="tiny">' + esc(c.label) + '</td></tr>';
+    h += '</tbody></table></div>';
+  }
+
+  if(summed.length){
+    const seen = new Set();
+    const rows = summed.filter(x => { const k = x.key + '|' + x.parts.join('|');
+      if(seen.has(k)) return false; seen.add(k); return true; });
+    h += '<h3 style="font-size:13px;margin:16px 0 7px">' + rows.length + ' line(s) built by adding rows together</h3>'
+      + '<p class="tiny" style="margin:0 0 7px">Correct where a statement splits a cost over several rows. Wrong if one of '
+      + 'them is a total of the others — that double-counts, and the EBIT check on the Spread tab will say so.</p>'
+      + '<div class="scroll"><table><thead><tr><th>Line</th><th>Rows added</th><th class="num">Total</th></tr></thead><tbody>';
+    for(const x of rows)
+      h += '<tr><td>' + esc(labelFor(x.key)) + '</td><td class="tiny">' + x.parts.map(esc).join(' <b>+</b> ')
+        + '</td><td class="num">' + fmtN(x.v, 0) + '</td></tr>';
+    h += '</tbody></table></div>';
+  }
+  $('reviewBox').innerHTML = h;
+}
 
 function renderExtraction(){
   const tables = [];
@@ -3629,19 +3773,37 @@ function renderExtraction(){
   sel.innerHTML = tables.map((x,i) => '<option value="' + i + '">' + esc(x.t.name) + '</option>').join('');
   sel.value = keep && Number(keep) < tables.length ? keep : '0';
   const pick = tables[Number(sel.value) || 0];
-  const onlyMapped = $('exOnlyMapped').checked;
+  const ti = ST.sources.find(x => x.id === pick.s.id).tables.indexOf(pick.t);
+  const filter = $('exFilter') ? $('exFilter').value : 'all';
   const cols = pick.t.periodRow ? pick.t.periodRow.cols : [];
-  let h = '<thead><tr><th style="min-width:230px">Row as read</th><th>Mapped to</th><th>Confidence</th>'
+  $('mapCount').textContent = USER_MAP.size
+    ? USER_MAP.size + ' line(s) taught by hand, applied to every file'
+    : 'No lines taught by hand yet.';
+  let h = '<thead><tr><th style="min-width:230px">Row as read</th><th style="min-width:210px">Line</th><th>How</th>'
         + cols.map(c => '<th class="num">' + esc(c.p.label) + '</th>').join('')
         + '<th class="num">Other columns</th><th>Section</th></tr></thead><tbody>';
   for(const r of pick.t.rows){
-    if(onlyMapped && !r.mapped) continue;
     if(!r.label && !r.values.length) continue;
+    const mapped = !!r.mapped;
+    if(filter === 'mapped' && !mapped) continue;
+    if(filter === 'unmapped' && (mapped || !r.values.length || r.isHeaderRow)) continue;
+    if(filter === 'low' && (!mapped || r.mapped.confidence === 'high')) continue;
+    if(filter === 'learned' && !(mapped && r.mapped.learned)) continue;
     const inCols = new Set(cols.map(c => c.ci));
-    h += '<tr' + (r.isHeading ? ' class="grp"' : '') + '><td>' + esc(r.label || '—') + '</td>'
-      + '<td>' + (r.mapped ? '<span class="inline-tag accent">' + esc(labelFor(r.mapped.key)) + '</span>'
-                          : (r.values.length ? '<span class="tiny">not recognised</span>' : '')) + '</td>'
-      + '<td>' + (r.mapped ? '<span class="inline-tag ' + (r.mapped.confidence === 'high' ? 'ok' : r.mapped.confidence === 'med' ? 'warn' : 'err') + '" title="' + esc(r.mapped.why||'') + '">' + r.mapped.confidence + '</span>' : '') + '</td>'
+    const cur = mapped ? r.mapped.key : (learnedMapping(r.label, r.section) === IGNORE ? IGNORE : '');
+    h += '<tr' + (r.isHeading ? ' class="grp"' : '') + '><td>' + esc(r.label || '—')
+      + (r.joinedLabel ? '<span class="tiny" style="display:block;color:var(--note)">joined with the next line: “' + esc(r.joinedLabel) + '”</span>' : '')
+      + (r.consumed ? '<span class="tiny" style="display:block">continuation of the row above</span>' : '')
+      + (r.isHeaderRow ? '<span class="tiny" style="display:block">column header</span>' : '')
+      + (r.ignored ? '<span class="tiny" style="display:block;color:var(--note)">set to be ignored</span>' : '')
+      + '</td>'
+      + '<td>' + (r.values.length || mapped
+          ? mapSelect('data-learn="' + pick.s.id + '|' + ti + '|' + r.ri + '"', cur)
+          : '') + '</td>'
+      + '<td>' + (mapped
+          ? '<span class="inline-tag ' + (r.mapped.learned ? 'accent' : r.mapped.confidence === 'high' ? 'ok' : r.mapped.confidence === 'med' ? 'warn' : 'err')
+            + '" title="' + esc(r.mapped.why||'') + '">' + (r.mapped.learned ? 'by hand' : r.mapped.confidence) + '</span>'
+          : (r.values.length ? '<span class="tiny">not recognised</span>' : '')) + '</td>'
       + cols.map(c => { const v = r.values.find(x => x.ci === c.ci);
           return '<td class="num">' + (v ? esc(v.text) : '') + '</td>'; }).join('')
       + '<td class="num tiny">' + r.values.filter(v => !inCols.has(v.ci)).map(v => esc(v.text)).join(' · ') + '</td>'
@@ -3649,12 +3811,56 @@ function renderExtraction(){
   }
   $('exTable').innerHTML = h + '</tbody>';
 }
+
+/** Teach one row's wording, then re-read every file through the new dictionary. */
+function learnRow(srcId, tableIdx, rowIdx, key){
+  const src = ST.sources.find(x => x.id === srcId);
+  if(!src) return;
+  const t = src.tables[tableIdx];
+  const row = t && (t.rows || []).find(r => r.ri === rowIdx);
+  if(!row) return;
+  const label = row.joinedLabel || row.label;
+  const k = userMapKey(label, row.section || null);
+  if(key === '') USER_MAP.delete(k); else USER_MAP.set(k, key);
+  relearn();
+}
+/** Re-map every table, rebuild the period candidates, and push the result into
+    the spread if it has already been applied — so a correction shows up in the
+    ratios immediately, without touching anything entered by hand. */
+function relearn(){
+  for(const s of ST.sources) for(const t of s.tables) mapTable(t);
+  recollect();
+  if(ST.applied) applyCandidates({refresh: true});
+}
 const labelFor = k => (SCHEMA_BY_KEY.get(k) || {}).L || k;
+
+/** A picker over every canonical line, plus "ignore". Used wherever a row can
+    be assigned by hand. */
+function mapSelect(attrs, current){
+  let h = '<select ' + attrs + '><option value="">— not recognised —</option>'
+    + '<option value="' + IGNORE + '"' + (current === IGNORE ? ' selected' : '') + '>Ignore this row</option>';
+  for(const g of GROUPS){
+    h += '<optgroup label="' + esc(g.title) + '">';
+    for(const sc of SCHEMA.filter(x => x.g === g.id))
+      h += '<option value="' + sc.k + '"' + (current === sc.k ? ' selected' : '') + '>' + esc(sc.L) + '</option>';
+    h += '</optgroup>';
+  }
+  return h + '</select>';
+}
+/** Every row across every file that carries figures, with where it came from. */
+function allRows(){
+  const out = [];
+  ST.sources.forEach(s => (s.tables || []).forEach((t, ti) => (t.rows || []).forEach(r => {
+    out.push({s, t, ti, r});
+  })));
+  return out;
+}
 
 /* ---------------------------- apply to spread ---------------------------- */
 /** Write the confirmed period columns into the spread. Figures the analyst has
     typed are never overwritten — that is the whole contract of this screen. */
-function applyCandidates(){
+function applyCandidates(opts){
+  const refresh = !!(opts && opts.refresh);
   const use = ST.candidates.filter(c => c.use !== false);
   for(const c of use){
     let p = ST.spread.periods.find(x => x.sig === c.sig);
@@ -3665,11 +3871,16 @@ function applyCandidates(){
     } else {
       p.label = c.label; p.endDate = c.endDate; p.fy = c.fy; p.months = c.months; p.basis = c.basis;
     }
+    /* On a refresh, a line the extractor no longer produces must go, or a
+       correction would leave the old figure sitting in the spread. Anything
+       entered by hand is never touched. */
+    if(refresh) for(const k of Object.keys(p.cells))
+      if(p.cells[k] && p.cells[k].src === 'file' && !c.values.has(k)) delete p.cells[k];
     for(const [k, e] of c.values){
       const cur = p.cells[k];
       if(cur && cur.src === 'manual') continue;                 // hand-entered wins
-      p.cells[k] = {v: e.v, src: 'file', ref: e.ref, label: e.label,
-        confidence: e.confidence, raw: e.raw, from: e.src};
+      p.cells[k] = {v: e.v, src: 'file', ref: e.ref, label: e.label, parts: e.parts,
+        confidence: e.confidence, raw: e.raw, from: e.src, learned: e.learned};
     }
   }
   sortPeriods();
@@ -3732,7 +3943,11 @@ function renderSpreadTable(){
       const srcs = ps.map(p => p.cells[s.k]).filter(Boolean);
       const why = srcs.length ? srcs[0] : null;
       h += '<tr' + (s.sub ? ' class="sub"' : '') + '><td class="lab"><span title="' + esc(s.k) + '">' + esc(s.L) + '</span>'
-        + (why && why.label && why.src === 'file' ? '<span class="why" title="' + esc((why.ref||'') + ' — “' + why.label + '”') + '"> ← ' + esc(String(why.label).slice(0,44)) + '</span>' : '')
+        + (why && why.label && why.src === 'file'
+            ? '<span class="why" title="' + esc((why.ref||'') + ' — “' + why.label + '”') + '"> ← '
+              + esc(String(why.label).slice(0,44))
+              + (why.parts && why.parts.length > 1 ? ' +' + (why.parts.length - 1) + ' more' : '') + '</span>'
+            : '')
         + '</td>';
       ps.forEach((p, i) => {
         const cell = p.cells[s.k];
@@ -3740,7 +3955,13 @@ function renderSpreadTable(){
         const isDerived = res[i].derived.has(s.k);
         const cls = cell ? (cell.src === 'manual' ? 'man' : 'src') : (isDerived ? 'derived' : '');
         const title = cell
-          ? (cell.src === 'manual' ? 'Entered by hand' : 'Lifted from ' + (cell.ref||'file') + (cell.label ? ' — “' + cell.label + '”' : '') + (cell.raw ? ' (as printed: ' + cell.raw + ')' : '') + (cell.confidence ? ' · confidence ' + cell.confidence : ''))
+          ? (cell.src === 'manual' ? 'Entered by hand'
+             : 'Lifted from ' + (cell.ref||'file')
+               + (cell.parts && cell.parts.length > 1
+                  ? ' — ' + cell.parts.length + ' rows added together: ' + cell.parts.join(' + ')
+                  : (cell.label ? ' — “' + cell.label + '”' : ''))
+               + (cell.raw && !(cell.parts && cell.parts.length > 1) ? ' (as printed: ' + cell.raw + ')' : '')
+               + (cell.learned ? ' · line assigned by hand' : cell.confidence ? ' · confidence ' + cell.confidence : ''))
           : (isDerived ? 'Derived from the lines above — type over it to override' : 'Not disclosed. Type a figure to add it.');
         h += '<td class="num"><input class="' + cls + '" data-k="' + s.k + '" data-p="' + p.id + '" '
           + 'value="' + esc(fmtCell(val)) + '" title="' + esc(title) + '" inputmode="decimal"></td>';
@@ -4329,6 +4550,47 @@ function reportMarkdown(){
     + ((A.checks||[]).filter(c => c.status !== 'ok').length || 'none') + ' fell outside tolerance.*');
   return L.join('\n');
 }
+
+/** Every row the extractor read, with what it made of it. The point is to be
+    able to send the wording of a statement to whoever maintains the dictionary
+    without sending the company's figures, so the numbers are optional. */
+function exportDiagnostics(redact){
+  const rows = [['Extraction report', ST.eng.name || '(no company set)', new Date().toISOString().slice(0,10)],
+    [redact ? 'Figures omitted — labels and mappings only' : 'Figures included'], []];
+  rows.push(['File','Sheet / page','Row','Label as printed','Joined with neighbour','Section',
+    'Mapped to','Key','How','Why','Column headers', ...(redact ? [] : ['Figures'])]);
+  for(const s of ST.sources){
+    for(const t of s.tables){
+      const heads = (t.periodRow ? t.periodRow.cols : []).map(c => c.p.label).join(' | ');
+      for(const r of t.rows){
+        if(!r.label && !r.values.length) continue;
+        rows.push([s.name, t.name.replace(s.name + ' — ', ''), r.ri + 1, r.label,
+          r.joinedLabel || (r.consumed ? '(continuation of the row above)' : ''), r.section || '',
+          r.mapped ? labelFor(r.mapped.key)
+            : r.isHeaderRow ? '(column header)'
+            : r.ignored ? '(set to be ignored)'
+            : r.consumed ? '(continuation)'
+            : (r.values.length ? 'NOT RECOGNISED' : ''),
+          r.mapped ? r.mapped.key : '',
+          r.mapped ? (r.mapped.learned ? 'assigned by hand' : r.mapped.confidence) : '',
+          r.mapped ? (r.mapped.why || '') : '',
+          heads,
+          ...(redact ? [] : [r.values.map(v => v.text).join(' | ')])]);
+      }
+    }
+  }
+  rows.push([], ['Files']);
+  for(const s of ST.sources)
+    rows.push([s.name, s.kind, 'read as ' + unitName(s.units) + ' ' + (s.currency || ''),
+      s.style === 'euro' ? '1.234,56' : '1,234.56', s.lang || '', (s.warnings || []).join(' ')]);
+  rows.push([], ['Lines taught by hand']);
+  for(const [k, v] of USER_MAP.entries()) rows.push([k, v === IGNORE ? '(ignored)' : labelFor(v)]);
+  rows.push([], ['Periods']);
+  for(const c of ST.candidates)
+    rows.push([c.label, c.endDate || '', (c.months || 12) + ' months', c.basis || '', c.values.size + ' lines',
+      c.contributions.map(x => x.tableName + ' col ' + x.ci).join(' + ')]);
+  download(slug(ST.eng.name) + '-extraction-report.csv', csvOf(rows), 'text/csv');
+}
 /* ---------------------------- method & definitions ----------------------------
    Rendered from the same constants the engine uses, so the documentation cannot
    drift away from the arithmetic. A score whose thresholds are hidden is worth
@@ -4397,6 +4659,12 @@ function renderMethod(){
     + 'be typed over. It has no OCR, so a scanned or photographed statement has to be entered by hand. It reads text-based '
     + 'PDFs, .xlsx / .xlsm workbooks and CSVs, and it does all of that inside this browser — no file is uploaded anywhere '
     + 'and there is no network call in this page.</p>'
+    + '<p><b>Where it does not recognise a line, teach it.</b> Any row carrying figures that reached no line appears under '
+    + '<i>Needs review</i> on the Sources tab with a dropdown beside it. What you set there is remembered against the '
+    + 'wording and applied to every file from then on, so a counterparty\'s term is taught once rather than corrected '
+    + 'every quarter. A row can also be set to <i>ignore</i> — the right answer for a subtotal that would otherwise be '
+    + 'added on top of its own parts. Taught lines beat the built-in dictionary, travel in the saved engagement file, and '
+    + 'can be exported on their own so a team shares one vocabulary.</p>'
     + '<p><b>It reads statements in English and in Spanish.</b> The label dictionary carries both, so no setting has to be '
     + 'changed and a pack with an English audit and a Spanish interim spreads into one set of columns. Accents are folded '
     + 'before matching, and where a term differs by country — <i>obligaciones financieras</i>, <i>existencias</i>, '
@@ -4429,6 +4697,10 @@ function renderMethod(){
     + 'balance-sheet date can flatter a seasonal business badly — the year-end is often the low point of the cycle.</dd>'
     + '<dt>Tolerance on the checks</dt><dd>0.2% of the reference figure, with a floor of one unit. Inside that is rounding; a few '
     + 'multiples of it means a line was mis-read, double-counted or missed.</dd>'
+    + '<dt>Labels that wrap</dt><dd>In a PDF with a narrow label column a long label runs onto a second line, leaving the '
+    + 'figures on one row and the rest of the words on another. The two are joined only where the row reached no line on '
+    + 'its own <i>and</i> the neighbour reaches none either — so joining can rescue a row but never redirect one. Where it '
+    + 'happened, the joined wording is what the spread shows.</dd>'
     + '<dt>Ambiguous labels</dt><dd>Resolved by the section the row sits under. <i>Lease liabilities</i> and '
     + '<i>pasivos por arrendamiento</i> appear twice on a balance sheet, and <i>Borrowings</i>, <i>Bancos</i> and '
     + '<i>obligaciones financieras</i> mean short-term debt under current liabilities and long-term debt elsewhere — '
@@ -4864,6 +5136,47 @@ function runTests(){
   near('and the ratios follow: gross margin', eA.latest.metrics.grossMargin, 72200/284600, 0.00005);
   near('DSO off a Spanish balance sheet', eA.latest.metrics.dso, 68300/284600*365, 0.0001);
 
+  /* ---- teaching the model a line ----
+     The built-in dictionary will never have seen every counterparty's wording,
+     so anything assigned by hand has to win over it and stick. Whatever the
+     analyst has actually taught is put back at the end of this block. */
+  const savedMap = Array.from(USER_MAP.entries());
+  USER_MAP.clear();
+  T('an unknown line maps to nothing to begin with', mapLabel('Ingresos por arrendamiento de bodegas'), null);
+  USER_MAP.set(userMapKey('Ingresos por arrendamiento de bodegas', null), 'otherOpIncome');
+  T('once taught, it maps', mapLabel('Ingresos por arrendamiento de bodegas').key, 'otherOpIncome');
+  T('and is marked as assigned by hand', mapLabel('Ingresos por arrendamiento de bodegas').learned, true);
+  T('teaching survives a different capitalisation', mapLabel('INGRESOS POR ARRENDAMIENTO DE BODEGAS').key, 'otherOpIncome');
+  T('and a stray note reference', mapLabel('Ingresos por arrendamiento de bodegas (nota 12)').key, 'otherOpIncome');
+  USER_MAP.set(userMapKey('Total gastos operacionales', null), IGNORE);
+  T('a row can be taught to be ignored', mapLabel('Total gastos operacionales'), null,
+    'a total sitting on top of its own parts would otherwise double-count');
+  USER_MAP.set(userMapKey('Otros', 'CL'), 'otherCL');
+  T('a taught line can be scoped to one section', mapLabel('Otros','CL').key, 'otherCL');
+  T('and does not leak into another', mapLabel('Otros','CA'), null);
+  USER_MAP.clear();
+  T('forgetting restores the dictionary', mapLabel('Total gastos operacionales').key, 'sgna');
+  for(const [k, v] of savedMap) USER_MAP.set(k, v);
+
+  /* ---- labels that wrap onto two lines ----
+     Common in a PDF with a narrow label column: the figures sit on one line and
+     the rest of the words on the next. Joining is only tried where the row
+     mapped to nothing on its own, so it can rescue a row but never redirect one. */
+  const wrapped = tableFromRows([
+    ['Activo no corriente'],
+    ['Gastos pagados por', 2100, 1900],
+    ['anticipado'],
+    ['Impuesto sobre la'],
+    ['renta', 4020, 2880],
+    ['Inventarios', 41600, 35800],
+  ], {kind:'csv', name:'wrap', refFor: i => 'row ' + (i+1)}, 'anglo');
+  mapTable(wrapped);
+  T('a label wrapping after its figures is rescued', wrapped.rows[1].mapped.key, 'prepaid');
+  T('and the joined wording is what gets shown', wrapped.rows[1].joinedLabel, 'Gastos pagados por anticipado');
+  T('the continuation line is marked as consumed', wrapped.rows[2].consumed, true);
+  T('a label wrapping before its figures is rescued too', wrapped.rows[4].mapped.key, 'tax');
+  T('a row that maps on its own is left alone', wrapped.rows[5].joinedLabel, null);
+
   /* ---- derivation ---- */
   const d1 = resolveCells({revenue:{v:1000}, cogs:{v:600}}).v;
   T('gross profit is derived', d1.grossProfit, 400);
@@ -5180,7 +5493,13 @@ function wire(){
       renderAll(); save(); return;
     }
     if(t.id === 'q_notes'){ ST.qual.notes = t.value; save(); return; }
-    if(t.id === 'exSource' || t.id === 'exOnlyMapped'){ renderExtraction(); return; }
+    if(t.id === 'exSource' || t.id === 'exFilter'){ renderExtraction(); return; }
+    /* teaching a line: remembered against the wording, applied everywhere */
+    if(t.dataset.learn !== undefined){
+      const [srcId, ti, ri] = t.dataset.learn.split('|');
+      learnRow(srcId, Number(ti), Number(ri), t.value);
+      renderAll(); save(); return;
+    }
     if(t.id === 'spAll'){ renderSpreadTable(); return; }
     if(t.id === 'rpCharts' || t.id === 'rpAppendix'){ renderReport(); return; }
 
@@ -5275,6 +5594,36 @@ function wire(){
       ST.spread.periods.push(p);
       sortPeriods(); renderAll(); save(); return;
     }
+    if(t.id === 'btnDiag'){ exportDiagnostics($('diagRedact').checked); return; }
+    if(t.id === 'btnMapExport'){
+      download(slug(ST.eng.name) + '-learned-lines.json', JSON.stringify({
+        v: 1, kind: 'credit-model-mappings', mappings: Array.from(USER_MAP.entries())}, null, 1), 'application/json');
+      return;
+    }
+    if(t.id === 'btnMapImport'){
+      const inp = document.createElement('input');
+      inp.type = 'file'; inp.accept = '.json';
+      inp.addEventListener('change', async () => {
+        const f = inp.files && inp.files[0];
+        if(!f) return;
+        try {
+          const j = JSON.parse(await f.text());
+          const rows = j.mappings || (Array.isArray(j) ? j : null);
+          if(!rows) throw new Error('no learned lines in that file');
+          let n = 0;
+          for(const [k, v] of rows){ if(typeof k === 'string' && typeof v === 'string'){ USER_MAP.set(k, v); n++; } }
+          relearn(); renderAll(); save();
+          alert(n + ' learned line(s) loaded. They now apply to every file.');
+        } catch(err){ alert('Could not read that file: ' + (err && err.message ? err.message : err)); }
+      });
+      inp.click();
+      return;
+    }
+    if(t.id === 'btnMapClear'){
+      if(!USER_MAP.size) return;
+      if(!confirm('Forget all ' + USER_MAP.size + ' line(s) taught by hand? The built-in dictionary is unaffected.')) return;
+      USER_MAP.clear(); relearn(); renderAll(); save(); return;
+    }
     if(t.id === 'btnSpreadCsv'){ exportSpreadCsv(); return; }
     if(t.id === 'btnRatioCsv'){ exportRatioCsv(); return; }
     if(t.id === 'btnReportHtml'){ exportReportHtml(); return; }
@@ -5292,6 +5641,7 @@ function wire(){
       download(slug(ST.eng.name) + '-credit-model.json', JSON.stringify({
         v: 1, savedAt: new Date().toISOString(), eng: ST.eng, qual: ST.qual, commentary: ST.commentary,
         weights: ST.weights, spread: ST.spread, applied: ST.applied,
+        mappings: Array.from(USER_MAP.entries()),
         sources: ST.sources.map(s => ({id: s.id, name: s.name, kind: s.kind, units: s.units, currency: s.currency,
           style: s.style, warnings: s.warnings, pageCount: s.pageCount,
           tables: s.tables.map(tb => ({name: tb.name, page: tb.page, units: tb.units,
@@ -5314,6 +5664,8 @@ function wire(){
           Object.assign(ST.eng, p.eng || {});
           ST.qual = p.qual || {}; ST.commentary = p.commentary || {}; ST.weights = p.weights || {};
           ST.spread = p.spread; ST.applied = !!p.applied;
+          USER_MAP.clear();
+          for(const [k, v] of (p.mappings || [])) USER_MAP.set(k, v);
           ST.sources = (p.sources || []).map(s => ({...s, tables: (s.tables||[]).map(tb => ({...tb, rows: tb.rows||[]}))}));
           PERIOD_SEQ = ST.spread.periods.reduce((m,x) => Math.max(m, Number(String(x.id).replace(/\D/g,'')) || 0), 0);
           recollect(); renderSectorOptions(); syncFields(); showTab('spread'); save();
@@ -5327,6 +5679,7 @@ function wire(){
       try { localStorage.removeItem(STORE_KEY); } catch(e){}
       ST.sources = []; ST.candidates = []; ST.prevCand = []; ST.spread = {periods: []};
       ST.qual = {}; ST.commentary = {}; ST.weights = {}; ST.applied = false;
+      USER_MAP.clear();
       ST.eng = {name:'', sector:'general', currency:'USD', units:1000, analyst:'', date:todayISO(), gaap:'IFRS',
         scope:'Consolidated', auditor:'', opinion:'clean', goingConcern:'no',
         includeLeases:true, shldrAsEquity:false, turnoverBasis:'closing', targetLeverage:3.5};
