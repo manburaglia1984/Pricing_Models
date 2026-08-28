@@ -140,16 +140,20 @@ main{padding:18px 20px 60px;max-width:1500px;margin:0 auto}
    reveals it. font-size:0 is what takes the sentence out of the line while leaving it in
    textContent, which is where #noteTip reads it from; the badge's own glyph sets its size back. */
 /* .note.tip is the same badge outside a form row — a comment on a list entry rather than on a
-   field. The notes that are a table's own content stay as they were and are not given the class. */
-.row .note,.note.tip{display:inline-block;vertical-align:top;box-sizing:border-box;
+   field. Table cells get it too, and by rule rather than by each call site remembering to ask:
+   a comment is a comment wherever it is written, and a paragraph of purple italic in a table
+   cell pushes the row it belongs to out of shape and buries the data underneath it. */
+.row .note,.note.tip,td .note,th .note{display:inline-block;vertical-align:top;box-sizing:border-box;
   width:15px;height:15px;margin:0 0 0 5px;overflow:hidden;font-size:0;
   border:1px solid var(--note);border-radius:50%;color:var(--note);cursor:help;
   opacity:.65;transition:opacity .12s,background .12s}
-.row .note::after,.note.tip::after{content:'i';display:block;
+.row .note::after,.note.tip::after,td .note::after,th .note::after{content:'i';display:block;
   font:italic 700 10px/13px var(--sans);text-align:center}
 /* Empty until something is rendered into it — no field, no comment, no badge. */
-.row .note:empty,.note.tip:empty{display:none}
-.row:hover .note,.row:focus-within .note,tr:hover .note.tip{opacity:1;background:var(--accent-soft)}
+.row .note:empty,.note.tip:empty,td .note:empty,th .note:empty{display:none}
+.row:hover .note,.row:focus-within .note,tr:hover .note{opacity:1;background:var(--accent-soft)}
+/* A badge that stands on its own — no row, no table row — lights up on its own approach. */
+.note.tip:hover{opacity:1;background:var(--accent-soft)}
 /* The comment window itself. Body-level and fixed, so no card's overflow can clip it, and
    pointer-transparent so it never stands between the pointer and the row underneath. */
 #noteTip{position:fixed;z-index:90;max-width:34ch;padding:7px 10px;
@@ -164,9 +168,6 @@ main{padding:18px 20px 60px;max-width:1500px;margin:0 auto}
   background:var(--panel);border:1px solid var(--note);transform:rotate(45deg)}
 #noteTip.below::before{top:-5px;border-right:0;border-bottom:0}
 #noteTip.above::before{bottom:-5px;border-left:0;border-top:0}
-/* The same note treatment inside a table cell — the calendar and investor lists both use it, and
-   .row .note alone left those rendering as a second line of full-weight body text. */
-td .note{display:block;font-size:11.5px;font-style:italic;color:var(--note);margin-top:1px;line-height:1.45}
 /* The invoice list is eight columns inside two grid tracks: every pixel of cell padding costs
    it sixteen. */
 #supInvTable th,#supInvTable td{padding:4px 5px}
@@ -5045,7 +5046,7 @@ function renderRates(){
         : '<td class="n">'+(v!==''?v+'%':'<span class="inline-tag warn">—</span>')+'</td>';
     };
     $('curveTable').innerHTML='<thead><tr><th>Business date</th>'+
-      cols.map(d=>'<th class="n">'+tenorLabel(d)+(grid.includes(d)?'':' <span class="note">off-grid</span>')+'</th>').join('')+
+      cols.map(d=>'<th class="n">'+tenorLabel(d)+(grid.includes(d)?'':' <span class="inline-tag warn" title="Not one of this index\u2019s published pillars">off-grid</span>')+'</th>').join('')+
       '<th>Source / note</th><th>Used by trades</th><th></th></tr></thead><tbody>'+
       (rows.length ? rows.map(c=>{
         const used=[...new Set(usedBy[c.businessDate]||[])];
@@ -5053,7 +5054,7 @@ function renderRates(){
         return '<tr><td>'+(admin
             ? '<input type="date" data-curve-date="'+esc(c.businessDate)+'" data-curve-prop="businessDate" value="'+esc(c.businessDate)+'" style="min-width:140px">'
             : '<b>'+fmtShort(c.businessDate)+'</b>')+
-          (gaps.length?'<span class="note">missing '+gaps.map(tenorLabel).join(', ')+'</span>':'')+'</td>'+
+          (gaps.length?'<span class="inline-tag warn" title="Pillars this curve does not carry">missing '+gaps.map(tenorLabel).join(', ')+'</span>':'')+'</td>'+
           cols.map(d=>cell(c,d)).join('')+
           '<td class="tiny">'+(admin
             ? '<input type="text" data-curve-date="'+esc(c.businessDate)+'" data-curve-prop="overrideReason" value="'+esc(c.overrideReason||'')+'" placeholder="source or note" style="min-width:150px">'
@@ -5065,10 +5066,13 @@ function renderRates(){
       '</tbody>';
   }
 
-  // On the menu screen, before any window is opened — the window headers carry a compact note too.
+  /* On the menu screen, before any window is opened — the window headers carry a compact note
+     too. Which role you are holding is worth a glance; why that makes the screen read-only is
+     the same sentence every time, so it goes behind the badge like every other comment. */
   $('ratesBanners').innerHTML = admin ? '' :
-    '<div class="banner info" style="margin-bottom:14px"><div><b>Read-only as '+esc(actor().role)+
-    '.</b> Reference data is maintained by the <b>Rates Admin</b> role — switch role in the header to edit. Every edit is audited.</div></div>';
+    '<p class="tiny" style="margin:0 0 14px">Read-only as <b>'+esc(actor().role)+'</b>.'+
+    '<span class="note tip">Reference data is maintained by the Rates Admin role — switch role in the '+
+    'header to edit. Every edit is audited.</span></p>';
 
   const curveCell=c=>{ const h=curveHistory(c).filter(curveUsable);
     return h.length ? '<span class="inline-tag ok">'+h.length+' to '+fmtShort(h[h.length-1].businessDate)+'</span>'
@@ -5091,7 +5095,7 @@ function renderRates(){
       return '<tr'+(code===jurEditing?' class="sel"':'')+'><td>'+esc(c.name)+
         (c.custom?' <span class="inline-tag">added</span>':'')+
         (c.edited?' <span class="inline-tag warn" title="Differs from the calendar this build ships">edited</span>':'')+
-        (c.note?'<span class="note" style="display:block;max-width:42ch">'+esc(c.note)+'</span>':'')+
+        (c.note?'<span class="note">'+esc(c.note)+'</span>':'')+
         '</td><td class="mono">'+code+'</td><td class="n">'+c.days.length+'</td>'+
         '<td class="n">'+(est?'<span class="inline-tag warn">'+est+'</span>':'<span class="tiny">—</span>')+'</td>'+
         '<td class="n">'+fmtShort(c.coverageThrough)+'</td>'+
@@ -5371,13 +5375,13 @@ function renderInvestors(){
       const acc=investorBook(i.name), conv=DISCOUNT_CONVENTIONS[conventionOf(i.discount)];
       const ccys=(i.currencies||[]).filter(Boolean);
       return '<tr><td>'+esc(i.name)+
-        (i.note?'<span class="note" style="display:block;max-width:44ch">'+esc(i.note)+'</span>':'')+'</td>'+
+        (i.note?'<span class="note">'+esc(i.note)+'</span>':'')+'</td>'+
         '<td><span class="inline-tag '+(i.status==='Active'?'ok':i.status==='Inactive'?'warn':'')+'">'+esc(i.status||'—')+'</span></td>'+
         '<td>'+esc(i.country||'—')+'</td>'+
         '<td>'+(ccys.length ? ccys.map(c=>'<span class="inline-tag">'+esc(c)+'</span>').join(' ')
                             : '<span class="tiny">any — unchecked</span>')+'</td>'+
         '<td><span title="'+esc(conv.formula)+'">'+esc(conv.label)+'</span>'+
-          '<span class="note" style="display:block;max-width:34ch">'+esc(conv.formula)+'</span></td>'+
+          '<span class="note">'+esc(conv.formula)+'</span></td>'+
         bookCell(acc,'settled')+bookCell(acc,'open')+
         '<td class="n" style="white-space:nowrap">'+
           (admin?'<button class="btn sm" data-inv-edit="'+esc(i.id)+'">Edit</button> '+
@@ -6880,7 +6884,7 @@ let noteTipAnchor=null, noteTipTimer=null;
  *  at a field's label or its input is not asking for its comment, and treating it as though it were
  *  opened a panel every time the pointer crossed a panel on its way somewhere else. */
 function commentOnBadge(target){
-  const badge = target && target.closest && target.closest('.row .note, .note.tip');
+  const badge = target && target.closest && target.closest('.row .note, .note.tip, td .note, th .note');
   const text = badge && badge.textContent.trim();
   return text ? {badge, text} : null;
 }
