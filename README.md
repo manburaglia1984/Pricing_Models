@@ -360,8 +360,9 @@ Everything above is surfaced in-app under the **Spec & traceability** tab.
 
 `localStorage` is treated as a cache, never the record. It is wiped by "clear site data" and by
 browser cleanup, it is per-browser and per-profile, and a private window never had it — which is why
-a store kept only there goes missing. The **Deals** tab opens with a *Where this data is saved* card
-showing which of three places is currently the record, and how to change it. Neither of the first two
+a store kept only there goes missing. A strip in the header, between the brand row and the tabs,
+shows which of three places is currently the record and how to change it; the standing explanation
+of the three sinks sits behind the information icon at its right. Neither of the first two
 involves a database, a network or an install.
 
 ### 1. A shared folder, one editor at a time — Chrome and Edge

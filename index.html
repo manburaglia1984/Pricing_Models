@@ -201,12 +201,39 @@ input:disabled,select:disabled{opacity:.6;cursor:not-allowed}
    reaches a hidden input) from looking live. */
 body.readonly main label.btn{pointer-events:none;opacity:.45}
 body.readonly main .card h2 .src button{opacity:.45}
-body.readonly #roBar{display:flex}
-#roBar{display:none;position:sticky;top:0;z-index:40;gap:9px;align-items:center;padding:7px 12px;
-  background:var(--warn-bg);color:var(--warn);border-bottom:1px solid var(--warn);font-size:12.8px}
-#persistChip .dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;background:var(--ink-3);vertical-align:middle}
-#persistChip.ok .dot{background:var(--ok)} #persistChip.warn .dot{background:var(--warn)}
-#persistChip.err .dot{background:var(--err)} #persistChip.info .dot{background:var(--accent)}
+
+/* Where the book is being saved is a property of the whole app, not of the Deals screen,
+   so it sits in the header between the brand row and the tabs — visible on every tab and
+   in every state. It is one line: the state, its controls, and an information icon. The
+   standing explanation of the three sinks used to be three paragraphs on the Deals tab,
+   which is a lot of prose to read past every day; it lives behind the icon now, along
+   with whatever the current state has to say. Inside the header, so print drops it with
+   the rest of the chrome and needs no rule of its own. */
+#persistBar{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:6px 20px;
+  border-top:1px solid var(--line);font-size:12.4px;line-height:1.45;color:var(--ink-2)}
+#persistBar.ok{background:var(--ok-bg);color:var(--ok)}
+#persistBar.warn{background:var(--warn-bg);color:var(--warn)}
+#persistBar.err{background:var(--err-bg);color:var(--err)}
+#persistBar.info{background:var(--accent-soft);color:var(--accent)}
+#persistBar .dot{width:8px;height:8px;border-radius:50%;background:currentColor;flex-shrink:0}
+#persistBar #persistState{font-weight:700;white-space:nowrap}
+#persistBar .pb-head{min-width:0;opacity:.92}
+#persistBar .pb-acts{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
+#persistBar .pb-acts .btn{padding:2px 9px;font-size:11.5px}
+
+/* Not #noteTip: that one is a field note — 34ch, italic, text-only and anchored to a .row.
+   This carries several paragraphs of mixed markup, so it gets its own panel. :focus-within
+   as well as :hover, so it is reachable without a mouse. */
+.pbHelp{position:relative;display:inline-flex;flex-shrink:0}
+.pbHelp>button{width:19px;height:19px;padding:0;border-radius:50%;border:1px solid currentColor;
+  background:transparent;color:inherit;font:700 11.5px/1 var(--sans);cursor:help;display:grid;place-items:center}
+.pbHelp .bubble{display:none;position:absolute;right:0;top:calc(100% + 9px);z-index:90;
+  width:min(560px,92vw);max-height:min(72vh,470px);overflow:auto;padding:13px 15px;border-radius:10px;
+  background:var(--panel);color:var(--ink-2);border:1px solid var(--line-2);
+  box-shadow:0 10px 30px rgba(16,24,40,.18);font:400 12.2px/1.6 var(--sans);text-align:left;cursor:auto}
+.pbHelp:hover .bubble,.pbHelp:focus-within .bubble{display:block}
+.pbHelp .bubble p{margin:0 0 9px} .pbHelp .bubble p:last-child{margin:0}
+.pbHelp .bubble b{color:var(--ink)}
 .inline-tag{display:inline-block;font:600 10.5px/1.5 var(--mono);padding:1px 6px;border-radius:4px;border:1px solid var(--line-2);color:var(--ink-2);background:var(--panel-2);white-space:nowrap}
 .inline-tag.ok{color:var(--ok);border-color:var(--ok);background:var(--ok-bg)}
 .inline-tag.warn{color:var(--warn);border-color:var(--warn);background:var(--warn-bg)}
@@ -524,9 +551,9 @@ code,.mono{font-family:var(--mono);font-size:12px}
         <option>Rates Admin</option><option>Auditor</option>
       </select>
     </div>
-  <button class="btn sm" id="persistChip" title="Where this data is saved"><span class="dot"></span>Browser only</button>
     <button class="btn sm" id="themeBtn" title="Cycle system / dark / light theme">Theme</button>
   </div>
+  <div id="persistBar"></div>
   <nav class="tabs" id="tabs">
     <button data-view="deals" aria-selected="true">Deals &amp; Trades</button>
     <button data-view="settings">Settings</button>
@@ -534,8 +561,6 @@ code,.mono{font-family:var(--mono);font-size:12px}
 </header>
 
 <main>
-<div id="roBar"><b>Read-only.</b><span id="roBarWho"></span>
-  <button class="btn sm" data-ro="1" id="roBarTake">Take the pen</button></div>
 <!-- ================= PRICING ================= -->
 <!-- ============ TRADE WORKSPACE (opened from a deal's trade list) ============ -->
 <div class="modal" id="tradeModal" role="dialog" aria-modal="true" aria-labelledby="tradeModalTitle">
@@ -1178,30 +1203,6 @@ code,.mono{font-family:var(--mono);font-size:12px}
 
 <!-- ================= DEALS (configuration) ================= -->
 <section class="view active" id="view-deals">
-  <div class="card">
-    <h2>Where this data is saved <span class="src">Storage</span></h2>
-    <div class="body">
-      <div id="persistBox"></div>
-      <p class="tiny" style="margin:10px 0 0"><b>Use a shared folder</b> is the one for two people. Point it at a
-      OneDrive- or SharePoint-synced folder and the store lives there, with at most two people in at once and
-      exactly one of them holding the pen — everyone else is read-only, following the editor's saves. Every save
-      re-reads the file and refuses if it moved underneath, snapshots into <code>backups/</code>, and the folder is
-      watched for the conflict copies that mean two writes collided. Sync cannot arbitrate two writers on one
-      document, so the app does it instead.</p>
-      <p class="tiny" style="margin:6px 0 0"><b>Link a data file</b> writes every change straight to a JSON file
-      you choose, through the browser's File System Access API — Chrome and Edge only, and the browser asks once per
-      session before it may write. For any other browser, run <code>node sync-server.mjs</code> in this folder and open
-      the address it prints: this page then reads and writes <code>data/pricing-store.json</code>, and the server keeps
-      a timestamped copy of every change in <code>data/backups</code>. Either way this browser keeps its own copy too,
-      so a failed write never costs a keystroke.</p>
-      <p class="tiny" style="margin:6px 0 0"><b>For two people editing different deals at the same moment</b>, a
-      shared folder is not enough — the pen is per file, not per deal, so the second person waits. That needs
-      <em>one</em> server with <code>--host 0.0.0.0</code> on an always-on machine, with everyone opening it. What does
-      <em>not</em> work is a synced <code>data/</code> folder with a server each: nothing arbitrates between them, so
-      two people at once means one finds their day in a conflict copy. Sharing this HTML file itself through SharePoint
-      is fine; it holds no data.</p>
-    </div>
-  </div>
   <div class="card">
     <h2>All deals</h2>
     <div class="body">
@@ -3338,7 +3339,9 @@ async function unlinkFolder(){
    disabled, so the list fails closed: a new control that mutates is off by default, and a
    new read-only one merely needs adding. */
 const RO_LIVE = [
-  '#tabs','#themeBtn','#persistChip','#persistBox','#actorName','#actorRole','[data-theme]',  // shell
+  // The storage strip lives in <header>, which this never reaches — the sweep below is
+  // scoped to <main> — so its controls, "Take the pen" included, stay live on their own.
+  '#tabs','#themeBtn','#actorName','#actorRole','[data-theme]',                     // shell
   // Every modal's own close control. Miss one and a read-only session that opens that
   // window is trapped in it, since everything inside is disabled including the way out.
   '[data-close-modal]','[data-close-deal]','[data-close-inv]','[data-close-ref]','[data-close-tcoacct]',
@@ -3353,14 +3356,6 @@ const readOnly = () => sink.mode==='folder' && sink.role!=='editor';
 function roGuard(){
   const ro=readOnly();
   document.body.classList.toggle('readonly', ro);
-  const bar=document.getElementById('roBarWho'), take=document.getElementById('roBarTake');
-  if(bar) bar.textContent = sink.role==='full'
-    ? 'The model is already open by '+MAX_SESSIONS+' people ('+sink.others.join(' and ')+'), so this '+
-      'session has not joined. Nothing here is being saved to the shared folder.'
-    : (sink.editorWho||'Someone else')+' holds the pen'+(sink.wantPen
-        ? ' — you are queued and will pick it up when they hand it over.'
-        : '. Everything that could change a deal is disabled.');
-  if(take) take.style.display = (sink.role==='reader' && !sink.wantPen) ? '' : 'none';
   for(const el of document.querySelectorAll('main button, main input, main select, main textarea')){
     if(el.closest(RO_LIVE)) continue;
     if(ro){ if(!el.disabled) el.dataset.roOff='1'; el.disabled=true; }
@@ -3494,50 +3489,73 @@ const PERSIST_ACTS = { linkNew:linkNewFile, linkOpen:linkExistingFile, unlink:un
     finally{ sink.pending=false; renderPersistence(); }
   } };
 
+/* The standing explanation of the three sinks. It does not change, so it is authored once
+   here rather than rebuilt into the DOM on every render; only the state's own note above it
+   varies. */
+const PERSIST_HELP = `
+<p><b>Use a shared folder</b> is the one for two people. Point it at a OneDrive- or SharePoint-synced
+folder and the store lives there, with at most two people in at once and exactly one of them holding
+the pen — everyone else is read-only, following the editor's saves. Every save re-reads the file and
+refuses if it moved underneath, snapshots into <code>backups/</code>, and the folder is watched for
+the conflict copies that mean two writes collided. Sync cannot arbitrate two writers on one document,
+so the app does it instead.</p>
+<p><b>Link a data file</b> writes every change straight to a JSON file you choose, through the
+browser's File System Access API — Chrome and Edge only, and the browser asks once per session before
+it may write. For any other browser, run <code>node sync-server.mjs</code> in this folder and open the
+address it prints: this page then reads and writes <code>data/pricing-store.json</code>, and the
+server keeps a timestamped copy of every change in <code>data/backups</code>. Either way this browser
+keeps its own copy too, so a failed write never costs a keystroke.</p>
+<p><b>For two people editing different deals at the same moment</b>, a shared folder is not enough —
+the pen is per file, not per deal, so the second person waits. That needs <em>one</em> server with
+<code>--host 0.0.0.0</code> on an always-on machine, with everyone opening it. What does <em>not</em>
+work is a synced <code>data/</code> folder with a server each: nothing arbitrates between them, so two
+people at once means one finds their day in a conflict copy. Sharing this HTML file itself through
+SharePoint is fine; it holds no data.</p>`;
+
 function renderPersistence(){
-  const box=document.getElementById('persistBox'); if(!box) return;
+  const box=document.getElementById('persistBar'); if(!box) return;
   const when = sink.savedAt ? new Date(sink.savedAt).toLocaleString() : '';
   const acts=[], B=(act,extra,label)=>acts.push('<button class="btn '+extra+'" data-act="'+act+'">'+esc(label)+'</button>');
   let cls, head, note, chip;
   if(sink.needsPermission){
-    cls='warn'; chip='Reconnect'; head='Linked to '+sink.label+' — reconnect to resume saving';
+    cls='warn'; chip='Reconnect'; head='linked to '+sink.label+' — reconnect to resume saving';
     note='This browser asks again each session before a page may write a file. Until you reconnect, changes are '+
          'held in this browser only.';
   } else if(sink.error){
-    cls='err'; chip='Save failed'; head='Could not save to '+sink.label;
+    cls='err'; chip='Save failed'; head=sink.label+' — see the note behind the icon';
     note=esc(sink.error)+' Nothing is lost yet — this browser still holds the change — but fix this or save a backup copy.';
   } else if(sink.mode==='folder' && sink.conflictCopies.length){
     /* Sync lost a race and wrote somebody's work to a second file. Nothing is gone, but
        it is in the wrong place, and only a person can decide which copy is right. */
-    cls='err'; chip='Conflict copy'; head='OneDrive left a conflict copy in the folder';
+    cls='err'; chip='Conflict copy'; head='OneDrive left '+sink.conflictCopies.map(esc).join(', ')+' in the folder';
     note='Found '+sink.conflictCopies.map(esc).join(', ')+' beside the store. That means two saves '+
       'collided and one person\u2019s work went into that file instead. Nothing is lost — open it, '+
       'compare, and import whichever is right — but do it before working on further.';
   } else if(sink.staleShared){
     const ss=sink.staleShared;
-    cls='err'; chip='Which copy?'; head='The shared file is older than what this browser holds';
+    cls='err'; chip='Which copy?'; head='the shared file is older than this browser\u2019s copy — pick one';
     note='The folder\u2019s copy was saved '+esc(new Date(ss.savedAt).toLocaleString())+' and holds '+ss.deals+
       ' deal(s) and '+ss.trades+' trade(s). This browser holds '+store.deals.length+' deal(s) and '+
       store.trades.length+' trade(s), saved later. Nothing has been overwritten either way — but one of them '+
       'has to win, and that is not a choice this can make for you. Save a backup copy first if in doubt.';
   } else if(sink.mode==='folder' && sink.role==='full'){
-    cls='err'; chip='In use'; head='The model is already open by '+MAX_SESSIONS+' people';
+    cls='err'; chip='In use'; head='already open by '+sink.others.map(esc).join(' and ')+', so this session has not joined';
     note='Currently '+sink.others.map(esc).join(' and ')+'. This session has not joined, and is not '+
       'saving anywhere but this browser. Wait for one of them to close it — this checks every '+
       Math.round(BEAT_MS/1000)+' seconds.';
   } else if(readOnly() && sink.dirty){
     /* Held the pen, lost it, still carrying changes. Never silently discarded — but they
        cannot go to the shared file either, so say so and offer the exit. */
-    cls='err'; chip='Unsaved'; head='This session has changes it can no longer save';
+    cls='err'; chip='Unsaved'; head='changes here can no longer reach the shared file';
     note='The pen is with '+(esc(sink.editorWho)||'someone else')+' now, so these changes cannot go to '+
       'the shared file. Save a backup copy, then take the pen and import it, or re-enter them.';
   } else if(sink.mode==='folder' && sink.role==='claiming'){
-    cls='info'; chip='Claiming'; head='Claiming the pen…';
+    cls='info'; chip='Claiming'; head='confirming nobody else claimed it at the same moment\u2026';
     note='Waiting one heartbeat to be sure nobody else claimed it at the same moment — a lock written '+
       'on another machine takes a few seconds to arrive through sync. Editing unlocks in a moment.';
   } else if(sink.mode==='folder' && sink.role==='reader' && !sink.editorWho){
     // Handed over with nobody waiting: the pen is simply on the table.
-    cls='warn'; chip='Pen free'; head='Nobody is holding the pen';
+    cls='warn'; chip='Pen free'; head='nobody is editing — take it to start';
     note='This session is read-only until someone picks it up. Press <b>Take the pen</b> to start editing'+
       (sink.others.length ? ' — '+esc(sink.others.join(' and '))+' also has the model open.' : '.');
   } else if(sink.mode==='folder' && sink.role==='reader'){
@@ -3550,21 +3568,21 @@ function renderPersistence(){
   } else if(sink.remoteRev){
     /* A newer revision has been seen but could not be taken: something is focused here, or
        a trade is open. Saying so beats swapping the store out from under whoever is typing. */
-    cls='warn'; chip='Newer copy'; head='Someone else has saved to '+sink.label;
+    cls='warn'; chip='Newer copy'; head='someone else has saved to '+sink.label;
     note='This tab is still showing the copy it read earlier'+(sink.dirty
       ? ', and has changes of its own that will need reconciling — reload to take theirs, or force-save to keep these'
       : '. Reload to take theirs, or just finish what you are doing and this tab will pick it up on its own')+'.';
   } else if(sink.mode==='local'){
-    cls='warn'; chip='Browser only'; head='Saved in this browser only';
+    cls='warn'; chip='Browser only'; head='nothing outside this browser holds a copy';
     note=FS_OK
       ? 'localStorage is the single copy, so clearing site data, a private window or another browser loses it. '+
         'Link a data file and every change is written to a real file on this machine as well.'
       : NO_FS;
   } else if(sink.dirty || sink.pending){
-    cls='info'; chip='Saving…'; head='Saving to '+sink.label+'…';
+    cls='info'; chip='Saving\u2026'; head=sink.label;
   } else {
     cls='ok'; chip = sink.mode==='folder' ? 'Editing' : 'Saved';
-    head = (sink.mode==='folder' ? 'Editing '+sink.label : 'Saved to '+sink.label)+(when?' — saved at '+when:'');
+    head = sink.label+(when?' — saved at '+when:'');
     note = sink.mode==='server'
       ? 'The sync server writes it and keeps a timestamped copy in data/backups on every change. '+
         'Other people\u2019s saves to it are picked up here within a few seconds.'
@@ -3616,16 +3634,18 @@ function renderPersistence(){
   }
   B('backup', sink.staleShared?'primary':'', sink.staleShared?'Save a backup copy first':'Save a backup copy');
 
-  box.innerHTML='<div class="banner '+cls+'"><div><b>'+esc(head)+'</b>'+
-      (note?'<div class="tiny" style="color:inherit;opacity:.85;margin-top:3px">'+note+'</div>':'')+'</div></div>'+
-    '<div class="toolbar" style="margin-bottom:0">'+acts.join('')+'</div>';
+  /* One line: state, its controls, and the icon. The state's own note joins the standing
+     explanation behind the icon rather than making the header two or three lines tall. */
+  box.className=cls;
+  box.innerHTML='<span class="dot"></span><b id="persistState">'+esc(chip)+'</b>'+
+    '<span class="pb-head">'+esc(head)+'</span>'+
+    '<span class="pb-acts">'+acts.join('')+'</span>'+
+    '<span class="pbHelp"><button type="button" aria-label="About where this data is saved" '+
+      'title="Where this data is saved">i</button>'+
+      '<span class="bubble" role="tooltip">'+(note?'<p>'+note+'</p>':'')+PERSIST_HELP+'</span></span>';
   for(const b of box.querySelectorAll('[data-act]')) b.onclick=PERSIST_ACTS[b.dataset.act];
 
   roGuard();          // the role can change without a render, and the gate follows the role
-  const tag=document.getElementById('persistChip');
-  if(tag){ tag.className='btn sm '+cls;
-    tag.innerHTML='<span class="dot"></span>'+esc(chip);
-    tag.title=head+(note?' — '+note.replace(/<[^>]+>/g,''):''); }
 }
 /* A debounced write can still be in flight when the tab goes away. */
 window.addEventListener('beforeunload', e=>{ if(sink.mode!=='local' && sink.dirty){ e.preventDefault(); e.returnValue=''; } });
@@ -8331,9 +8351,6 @@ $('f_legalFees').placeholder='0.00';
 loadFormFromStore();
 render();
 runTests();
-$('persistChip').onclick=()=>{ document.querySelector('#tabs button[data-view="deals"]').click();
-  $('persistBox').scrollIntoView({behavior:'smooth', block:'center'}); };
-$('roBarTake').onclick=takePen;
 renderPersistence();
 // Linking a folder, a file or a sync server is async and may replace the store, so it
 // runs after the first paint rather than blocking it.
