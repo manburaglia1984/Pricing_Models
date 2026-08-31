@@ -361,6 +361,10 @@ table.acct .in{padding:3px 6px;font-size:12.5px;text-align:left;min-width:0;widt
 .pofields label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--ink-2)}
 .pofields label.wide{grid-column:1/-1}
 .pofields textarea.in{resize:vertical;font:inherit}
+/* The agent's details only mean something on a deal that has an agent. */
+body:not(.hasagent) .agentrow{display:none}
+/* The agent's details only mean something on a deal that has an agent. */
+body:not(.hasagent) .agentrow{display:none}
 
 /* ---- printing ----
    Print the document and nothing else. Everything the app draws around it — the page header, the
@@ -614,6 +618,7 @@ code,.mono{font-family:var(--mono);font-size:12px}
         <div class="row"><div class="lbl">Trade Submission Date<span class="note">Date the trade is submitted. Selects the base rate curve — the latest one published on or before this date.</span></div><div class="cell"><input type="date" class="in" id="f_tradeDate" data-trade="tradeDate"></div></div>
         <div class="row wideval"><div class="lbl">Funder<span class="note">Provides the funding and sets the margin. Names the Settlement Date, Margin and Cost of Funds fields below.</span></div><div class="cell"><input type="text" class="in" id="f_funder" data-trade="funder" list="funderList"><datalist id="funderList"></datalist></div></div>
         <div class="row wideval"><div class="lbl">Relevant Obligor<span class="note">Offer File!A3 — may differ per trade.</span></div><div class="cell"><input type="text" class="in" id="f_obligor" data-trade="obligor"></div></div>
+        <div class="row"><div class="lbl">Incoterm<span class="note">Delivery term for the goods. With the place named on the client's draft Procurement Order, it becomes the order's delivery instruction — "delivered FOB at Veracruz, Mexico".</span></div><div class="cell"><select class="in" id="f_incoterm" data-trade="incoterm" style="text-align:left"></select></div></div>
         <div class="row"><div class="lbl">TradeCo Fee<span class="note">This desk's own fee. Added to the investor's margin to give the Margin used by panels 2 and 3.</span></div><div class="cell suffix" data-suffix="%"><input type="number" class="in" id="f_tcFee" data-field="tcFee" step="0.00001"></div></div>
         <!-- Keyed here rather than in panels 2 and 3, which used to hold one field each for the
              same rate. Shown only when the deal charges one at all. -->
@@ -739,21 +744,19 @@ code,.mono{font-family:var(--mono);font-size:12px}
         </div>
         <div id="poMissing"></div>
         <!-- What the deal and the trade cannot know. Everything else on the order is derived. -->
+        <p class="tiny" style="margin:0 0 10px">The order number is the trade identifier, the agent and
+        the Agency Agreement date come from the deal configuration, the incoterm from the trade, and the
+        goods, specifications and place of loading are read off the client's draft order. What is left is
+        below.</p>
         <div class="pofields">
-          <label>Procurement Order No.<input type="text" class="in" data-po="number" placeholder="e.g. 179810455"></label>
-          <label>Order date<input type="date" class="in" data-po="date"></label>
-          <label>Agent — attention<input type="text" class="in" data-po="agentAttention" placeholder="Contact person"></label>
-          <label>Agent — email<input type="email" class="in" data-po="agentEmail" placeholder="name@agent.com"></label>
-          <label class="wide">Agent — address<textarea class="in" rows="2" data-po="agentAddress"
-            placeholder="One line per line of the address"></textarea></label>
-          <label class="wide">Specifications and quality requirements<textarea class="in" rows="3"
-            data-po="specifications" placeholder="One requirement per line"></textarea></label>
-          <label class="wide">Delivery terms<input type="text" class="in" data-po="deliveryTerms"
-            placeholder="e.g. Goods to be delivered FOB at Veracruz, Mexico."></label>
+          <label>Procurement Order Date<input type="date" class="in" data-po="date"></label>
           <label>Estimated delivery date<input type="date" class="in" data-po="estimatedDelivery"></label>
+          <label>Place of loading<input type="text" class="in" data-po="portOfLoading"
+            placeholder="Read from the draft order — e.g. Veracruz, Mexico"></label>
           <label>Onward buyer<input type="text" class="in" data-po="onwardBuyer"></label>
           <label>Onward sale within (days)<input type="number" min="0" step="1" class="in" data-po="onwardDays"></label>
-          <label>Agency Agreement dated<input type="date" class="in" data-po="agencyAgreementDate"></label>
+          <label class="wide">Specifications and quality requirements<textarea class="in" rows="4"
+            data-po="specifications" placeholder="Read from the draft order — one requirement per line"></textarea></label>
         </div>
         <div class="paperwrap"><div class="paper" id="poPaper"></div></div>
       </div>
@@ -949,6 +952,13 @@ code,.mono{font-family:var(--mono);font-size:12px}
             <textarea class="in" id="d_buyerAddress" data-deal="buyerAddress" rows="3" style="margin-top:6px" placeholder="Street&#10;City, postcode&#10;Country"></textarea></div></div>
           <div class="row"><div class="lbl">Issued under<span class="note">The agreement the TradeCo invoice is issued under, named in its opening line.</span></div><div class="cell"><input type="text" class="in" id="d_agreement" data-deal="agreementName" style="text-align:left"></div></div>
           <div class="row"><div class="lbl">Agreement date<span class="note">Date of that agreement, quoted in the same line.</span></div><div class="cell"><input type="date" class="in" id="d_agreementDate" data-deal="agreementDate"></div></div>
+          <div class="row"><div class="lbl">Procurement agent<span class="note">Whether this facility is an agency structure. The agent is the party the Procurement Order is issued to — named per trade as the Relevant Obligor, since it can differ, with its contact details held here because they do not.</span></div>
+            <div class="cell"><label class="toggle" style="justify-content:flex-end;width:100%"><input type="checkbox" id="d_agent" data-deal="agentEnabled"><span id="agentLabel">Used on this deal</span></label></div></div>
+          <div class="row agentrow"><div class="lbl">Agent — contact person<span class="note">Printed in the Procurement Order's Attention line.</span></div><div class="cell"><input type="text" class="in" id="d_agentContact" data-deal="agentContact"></div></div>
+          <div class="row agentrow"><div class="lbl">Agent — email<span class="note">Printed under the Attention line.</span></div><div class="cell"><input type="email" class="in" id="d_agentEmail" data-deal="agentEmail" style="text-align:left"></div></div>
+          <div class="row wide agentrow"><div class="lbl">Agent — address<span class="note">Printed under the agent's name in the Procurement Order's Issued To block. One line per line.</span></div><div class="cell">
+            <textarea class="in" id="d_agentAddress" data-deal="agentAddress" rows="3" style="margin-top:6px" placeholder="Street&#10;City, postcode&#10;Country"></textarea></div></div>
+          <div class="row agentrow"><div class="lbl">Agency Agreement dated<span class="note">The Procurement Agency Agreement the order is issued pursuant to. Not the agreement the TradeCo invoice is issued under, above.</span></div><div class="cell"><input type="date" class="in" id="d_agencyAgreementDate" data-deal="agencyAgreementDate"></div></div>
           <div class="row wide"><div class="lbl">Associated jurisdictions<span class="note">Holiday calendars every trade's maturity date is checked against. Replaces the fixed rows in BD Dates!B4:B13.</span>
             <div class="toolbar" style="margin:8px 0 4px">
               <select id="jurAdd" style="min-width:270px;text-align:left"></select>
@@ -2570,13 +2580,14 @@ function copyTradeInputs(src){
 }
 function newDeal(who){
   return { id:uuid(), code:'', clientId:'', clientName:'', currency:'USD', proformaEnabled:true,
+    agentEnabled:false, agentContact:'', agentEmail:'', agentAddress:'', agencyAgreementDate:'',
     agencyFeeEnabled:true, tcInvoiceCount:2, tradecoId:'', tradecoAccountId:'',
     buyerName:'', buyerAddress:'', agreementName:TC_INVOICE_FORM.agreementDefault, agreementDate:'',
     jurisdictions:[], createdBy:who, createdAt:new Date().toISOString(), cancelled:false };
 }
 function newTrade(dealId, who){
   return { id:uuid(), dealId, identifier:'', tradeDate:todayISO(), funder:'',
-    obligor:'', versionNo:1, state:'DRAFT',
+    obligor:'', incoterm:'', versionNo:1, state:'DRAFT',
     inputs:blankTradeInputs(), createdBy:who, createdAt:new Date().toISOString(),
     approvedBy:null, approvedAt:null, actualSettlementDate:null,
     rateQuotes:null, acks:{}, offerFiles:[], cancelled:false };
@@ -2762,6 +2773,7 @@ function normalise(s){
       }
       for(const f of ['vat','freight','insurance','otherCosts']) if(v[f]===undefined) v[f]='';
     }
+    if(t.incoterm===undefined) t.incoterm='';
     t.inputs.po = {...newProcurementOrder(), ...(t.inputs.po||{})};
     if(!t.tradeDate) t.tradeDate = t.inputs.bladexSettlementDate || todayISO();
     if(!t.funder) t.funder = 'Bladex';
@@ -4103,16 +4115,22 @@ const TRADE_FIELD_IDS = {
   pfIssueDate:'f_pfIssue', pfTenorDays:'f_pfTenor',
   tcIssueDate:'f_tcIssue', tcFee:'f_tcFee', agencyFee:'f_agencyFee',
   bladexSettlementDate:'f_bladexSettle', bladexDays:'f_bladexDays', bladexMargin:'f_bladexMargin', legalFees:'f_legalFees'};
-const TRADE_TOP_IDS = { identifier:'f_tradeid', tradeDate:'f_tradeDate', funder:'f_funder', obligor:'f_obligor' };
+const TRADE_TOP_IDS = { identifier:'f_tradeid', tradeDate:'f_tradeDate', funder:'f_funder',
+  obligor:'f_obligor', incoterm:'f_incoterm' };
+/* Incoterms 2020. The delivery term is the trade's, the place it names comes off the client's
+   draft order, and the Procurement Order writes the two as one sentence. */
+const INCOTERMS = ['EXW','FCA','FAS','FOB','CFR','CIF','CPT','CIP','DAP','DPU','DDP'];
 const DEAL_FIELD_IDS = { clientId:'d_client', code:'d_code', currency:'d_currency',
   proformaEnabled:'d_proforma', agencyFeeEnabled:'d_agencyFee', tcInvoiceCount:'d_tcInvoiceCount',
+  agentEnabled:'d_agent', agentContact:'d_agentContact', agentEmail:'d_agentEmail',
+  agentAddress:'d_agentAddress', agencyAgreementDate:'d_agencyAgreementDate',
   tradecoId:'d_tradeco', tradecoAccountId:'d_tradecoAccount',
   buyerName:'d_buyer', buyerAddress:'d_buyerAddress', agreementName:'d_agreement',
   agreementDate:'d_agreementDate' };
 
 function loadFormFromStore(){
   const d=currentDeal(), t=currentTrade();
-  renderClientOptions(); renderCurrencyOptions(); renderJurisdictionBox();
+  renderClientOptions(); renderCurrencyOptions(); renderJurisdictionBox(); renderIncotermOptions();
   if(!d) return;
   for(const [f,id] of Object.entries(DEAL_FIELD_IDS)){ const el=$(id); if(!el) continue;
     if(el.type==='checkbox') el.checked = d[f]!==false; else el.value=d[f]??''; }
@@ -4222,7 +4240,18 @@ function renderDealForm(){
   $('proformaLabel').textContent = d.proformaEnabled!==false ? 'Used on this deal' : 'Not used — panel 2 is hidden';
   $('agencyFeeLabel').textContent = d.agencyFeeEnabled!==false
     ? 'Charged on this deal' : 'Not charged — the rate is hidden and reads as zero';
+  const agent = d.agentEnabled===true;
+  document.body.classList.toggle('hasagent', agent);
+  $('agentLabel').textContent = agent
+    ? 'Used on this deal' : 'Not used — no Procurement Order is issued';
   renderJurisdictionBox();
+}
+/** The incoterm list, with a blank so an unset term reads as unset and not as EXW. */
+function renderIncotermOptions(){
+  const el=$('f_incoterm'); if(!el) return;
+  const t=currentTrade(), cur=t ? String(t.incoterm||'') : '';
+  el.innerHTML='<option value="">— not set —</option>'+
+    INCOTERMS.map(k=>'<option value="'+k+'"'+(k===cur?' selected':'')+'>'+k+'</option>').join('');
 }
 /** Jurisdictions: a dropdown to add, and the chosen ones as removable chips. */
 function renderJurisdictionBox(){
@@ -5650,10 +5679,12 @@ function renderDocuments(d,t,r){
    buyer — is a field on the trade. Nothing is guessed: a field not filled is named on the
    page in brackets, so an order that went out unfinished is visible on the document itself
    and not only in the checklist above it. */
+/* What is left once the deal holds the agent and the agency agreement, the trade holds the
+   identifier and the incoterm, and the client's draft supplies the goods, the specifications
+   and the place of loading. */
 function newProcurementOrder(){
-  return {number:'', date:'', agentAddress:'', agentAttention:'', agentEmail:'',
-          specifications:'', deliveryTerms:'', estimatedDelivery:'',
-          onwardBuyer:'', onwardDays:'', agencyAgreementDate:''};
+  return {date:'', specifications:'', portOfLoading:'', estimatedDelivery:'',
+          onwardBuyer:'', onwardDays:''};
 }
 const PO_GOVERNING_LAW = 'This Procurement Order shall be governed by the laws of the state of New York, '+
   'without giving effect to conflicts of law principles. Any legal action or proceedings against us, which '+
@@ -5701,34 +5732,48 @@ function procurementOrderDoc(deal, trade, out){
   const feeRate = isBlankRate(i.agencyFee) ? null : D.of(i.agencyFee);
   const agencyFee = feeRate ? goods.mul(feeRate) : null;
 
+  /* An agency structure is a property of the facility, so a deal without one has no order to
+     issue — said once, rather than as five separate empty fields. */
+  if(deal.agentEnabled!==true)
+    missing.push('This deal is not configured with a procurement agent — switch Procurement agent on in the '+
+      'deal configuration, and give the agent’s details there.');
   if(!lines.length) missing.push('The trade carries no supplier invoice with a value, so the order has no goods.');
   if(anyUnnumbered) missing.push('At least one line has no Item No. — the form asks for one per line.');
   if(!tradeco) missing.push('No TradeCo is named on this deal, so the order has no issuing entity.');
   if(!account) missing.push('No TradeCo bank account is named on this deal, so the order has no payment details.');
+  if(!String(trade.identifier||'').trim()) missing.push('The trade has no identifier, which is the order number.');
   if(!String(trade.obligor||'').trim()) missing.push('No Relevant Obligor on the trade, so the order has no agent.');
-  if(!String(po.agentAddress||'').trim()) missing.push('The agent’s address is empty.');
+  if(deal.agentEnabled===true && !String(deal.agentAddress||'').trim())
+    missing.push('The agent’s address is empty in the deal configuration.');
   if(!feeRate) missing.push('No agency fee rate on the trade, so the fee payable to the agent cannot be computed.');
-  if(!String(po.deliveryTerms||'').trim()) missing.push('Delivery terms are empty.');
-  if(!String(po.specifications||'').trim()) missing.push('Specifications and quality requirements are empty.');
+  if(!String(trade.incoterm||'').trim()) missing.push('No incoterm on the trade, so the order has no delivery term.');
+  if(!String(po.portOfLoading||'').trim()) missing.push('No place of loading — it is read from the client’s draft order.');
+  if(!String(po.specifications||'').trim())
+    missing.push('Specifications and quality requirements are empty — they are read from the client’s draft order.');
   if(!isValidDate(po.estimatedDelivery)) missing.push('No estimated delivery date.');
   if(!String(po.onwardBuyer||'').trim()) missing.push('No onward buyer named.');
-  if(!isValidDate(po.agencyAgreementDate)) missing.push('No date for the Procurement Agency Agreement.');
-  if(!String(po.number||'').trim()) missing.push('No Procurement Order number.');
+  if(deal.agentEnabled===true && !isValidDate(deal.agencyAgreementDate))
+    missing.push('No date for the Procurement Agency Agreement in the deal configuration.');
 
+  /* The delivery instruction is one sentence assembled from two places: the term is the trade's
+     and the place is the client's, so neither is retyped into a third field. */
+  const term=String(trade.incoterm||'').trim(), place=String(po.portOfLoading||'').trim();
   return {
-    number:String(po.number||'').trim(),
+    number:String(trade.identifier||'').trim(),
     date: isValidDate(po.date) ? po.date : (trade.tradeDate||''),
     currency:ccy, lines, goods, units, agencyFee, feeRate, missing, invoiceRefs,
+    hasAgent: deal.agentEnabled===true,
     principal:{ name:(tradeco && tradeco.name) || '', address:addressLines(tradeco && tradeco.address) },
-    agent:{ name:String(trade.obligor||'').trim(), address:addressLines(po.agentAddress),
-            attention:String(po.agentAttention||'').trim(), email:String(po.agentEmail||'').trim() },
+    agent:{ name:String(trade.obligor||'').trim(), address:addressLines(deal.agentAddress),
+            attention:String(deal.agentContact||'').trim(), email:String(deal.agentEmail||'').trim() },
     account,
     specifications: addressLines(po.specifications),
-    deliveryTerms:String(po.deliveryTerms||'').trim(),
+    incoterm:term, portOfLoading:place,
+    deliveryTerms: (term && place) ? 'Goods to be delivered '+term+' at '+place+'.' : '',
     estimatedDelivery:po.estimatedDelivery||'',
     onwardBuyer:String(po.onwardBuyer||'').trim(),
     onwardDays:String(po.onwardDays||'').trim(),
-    agencyAgreementDate:po.agencyAgreementDate||'',
+    agencyAgreementDate:deal.agencyAgreementDate||'',
     supplierPaymentDate: out ? out.supplierPaymentDate : '',
   };
 }
@@ -5787,7 +5832,9 @@ function renderPO(d,t,r){
       : '<p>'+need('specifications and quality requirements')+'</p>')+
 
     '<p class="up"><b>3. Delivery terms instructions</b></p>'+
-    '<p>'+txt(doc.deliveryTerms,'delivery terms')+'</p>'+
+    '<p>'+(doc.deliveryTerms ? esc(doc.deliveryTerms)
+      : 'Goods to be delivered '+(doc.incoterm?esc(doc.incoterm):need('incoterm — set it on the trade'))+
+        ' at '+(doc.portOfLoading?esc(doc.portOfLoading):need('place of loading'))+'.')+'</p>'+
     '<p>Estimated Delivery Date: '+date(doc.estimatedDelivery,'estimated delivery date')+'</p>'+
 
     '<p class="up"><b>4. Payment terms</b></p>'+
@@ -7460,6 +7507,40 @@ function applyItemImport(t, d, v, res, sourceName){
     (res.skipped.length?'\n\nSkipped '+res.skipped.length+':\n• '+res.skipped.slice(0,8).join('\n• '):''));
 }
 
+/** The terms the draft order carries besides its goods: the specifications, the place of loading
+ *  and the incoterm. Written onto the trade rather than left for retyping, but never over
+ *  something already keyed — the draft is the client's opening position, and a term the desk has
+ *  since agreed differently is not the draft's to overwrite. */
+function applyOrderTerms(t, res, sourceName){
+  t.inputs.po = {...newProcurementOrder(), ...(t.inputs.po||{})};
+  const set=[], kept=[];
+  const specs=(res.specifications||[]).join('\n');
+  if(specs){
+    if(String(t.inputs.po.specifications||'').trim()) kept.push('specifications');
+    else { t.inputs.po.specifications=specs; set.push((res.specifications||[]).length+' specification(s)'); }
+  }
+  if(res.portOfLoading){
+    if(String(t.inputs.po.portOfLoading||'').trim()) kept.push('place of loading');
+    else { t.inputs.po.portOfLoading=res.portOfLoading; set.push('place of loading "'+res.portOfLoading+'"'); }
+  }
+  if(res.incoterm){
+    if(String(t.incoterm||'').trim()) kept.push('incoterm');
+    else { t.incoterm=res.incoterm; set.push('incoterm '+res.incoterm); }
+  }
+  if(!set.length && !kept.length) return;
+  if(set.length){
+    audit('trade', t.id, 'UPDATE', 'procurementOrder.terms', null, set.join('; '),
+      'Read from '+sourceName);
+    save(); loadFormFromStore();
+  }
+  const d=currentDeal();
+  if(d) renderPO(d, t, computeAll(d, t));
+  alert('From the draft order:\n'+
+    (set.length ? '\nTaken: '+set.join(', ')+'.' : '')+
+    (kept.length ? '\nLeft as keyed: '+kept.join(', ')+
+      ' — the draft names '+(kept.length===1?'it':'them')+' too, but what is already on the trade wins.' : ''));
+}
+
 /* The per-invoice item upload. One hidden file input per open row, so it is delegated for the
    same reason the buttons are. */
 /* The Draft Procurement Order arrives as a Word file, so this one is async — reading it means
@@ -7474,7 +7555,11 @@ $('supInvTable').addEventListener('change', async e=>{
   if(LOCKED(t.state)){ done(); return alert('This trade is '+t.state+' — its inputs are locked.'); }
   const v=(t.inputs.supplierInvoices||[]).find(x=>String(x.id)===id);
   if(!v) return done();
-  try{ applyItemImport(t, d, v, await readProcurementOrderFile(f), f.name); }
+  try{
+    const res=await readProcurementOrderFile(f);
+    applyItemImport(t, d, v, res, f.name);
+    applyOrderTerms(t, res, f.name);
+  }
   catch(err){ alert('Could not read '+f.name+':\n\n'+(err && err.message ? err.message : String(err))); }
   done();
 });
@@ -8174,6 +8259,56 @@ function docxTables(xml){
   return [...doc.getElementsByTagNameNS(W_NS,'tbl')]
     .map(tbl => wKids(tbl,'tr').map(tr => wKids(tr,'tc').map(cellText)));
 }
+/** Every paragraph of a document, in order, as plain text. */
+function docxParagraphs(xml){
+  const doc=new DOMParser().parseFromString(xml,'application/xml');
+  if(doc.getElementsByTagName('parsererror').length) throw new Error('The document XML could not be read.');
+  const body=doc.getElementsByTagNameNS(W_NS,'body')[0];
+  if(!body) return [];
+  return wKids(body,'p')
+    .map(pp=>[...pp.getElementsByTagNameNS(W_NS,'t')].map(n=>n.textContent||'').join('').trim())
+    .filter(Boolean);
+}
+/* The form's numbered section headings — "1. GOODS TO BE PROCURED". */
+const PO_SECTION_RE = /^\s*(\d+)\s*\.\s*([A-Z][A-Z &'\/-]{4,})\s*$/;
+/* Numbered requirements arrive run together, because Word merges the runs they were typed in:
+   "…is allowed.2. All tires meet…", and even "…INMETRO mark4. TBR…" with no separator at all.
+   Whitespace is therefore no guide, and the numbering is the only reliable boundary — so a
+   marker counts only where its number is the next one expected. That is what tells the "2."
+   opening an item from the "10%" and the "165/70R13" sitting inside one. */
+function splitNumbered(text){
+  const s=String(text||''), out=[], re=/(\d{1,2})\s*\.\s*/g;
+  let expect=1, started=false, last=0, m;
+  while((m=re.exec(s))){
+    if(Number(m[1])!==expect) continue;
+    if(started) out.push(s.slice(last, m.index));
+    started=true; last=re.lastIndex; expect++;
+  }
+  if(started) out.push(s.slice(last)); else if(s.trim()) out.push(s);
+  return out.map(x=>x.trim().replace(/\.\s*$/,'').trim()).filter(Boolean);
+}
+/** The paragraphs under one numbered heading, up to the next one. */
+function poSection(paras, wanted){
+  const out=[]; let inside=false;
+  for(const line of paras){
+    const m=PO_SECTION_RE.exec(line);
+    if(m){ inside = m[2].toUpperCase().includes(wanted); continue; }
+    if(inside) out.push(line);
+  }
+  return out;
+}
+/* The lead-in sentence is the form's own wording, not a requirement, so it is not imported as one. */
+const PO_SPEC_LEADIN = /^the goods shall comply/i;
+/** The delivery instruction: "Goods to be delivered FOB at Veracruz, Mexico." A term the app
+ *  knows, and whatever place the sentence names after it. */
+function readDeliveryLine(lines){
+  for(const line of lines){
+    const m=new RegExp('\\b('+INCOTERMS.join('|')+')\\b[\\s,]*(?:at\\s+|in\\s+)?([^.]*)','i').exec(line);
+    if(m) return {incoterm:m[1].toUpperCase(), portOfLoading:String(m[2]||'').trim().replace(/[,;]+$/,'')};
+  }
+  return {incoterm:'', portOfLoading:''};
+}
+
 /** A trailing parenthetical on a header is a unit, not part of the name: the form writes
  *  "Unit Price (USD)" where the CSV writes "unit price". Everything else goes through the
  *  same alias tables the item CSV uses, so there is one vocabulary and not two. */
@@ -8221,7 +8356,15 @@ function parseProcurementOrderDoc(tables){
 /** Read a Draft Procurement Order and pull its goods table out. */
 async function readProcurementOrderFile(file){
   const xml=new TextDecoder().decode(await zipMember(await file.arrayBuffer(), 'word/document.xml'));
-  return parseProcurementOrderDoc(docxTables(xml));
+  const res=parseProcurementOrderDoc(docxTables(xml));
+  /* The prose the order carries as well as its goods: the specifications, and the delivery
+     sentence the place of loading is named in. Read from the numbered sections rather than by
+     position, so a form with an extra clause still lands in the right place. */
+  const paras=docxParagraphs(xml);
+  res.specifications = splitNumbered(
+    poSection(paras, 'SPECIFICATION').filter(l=>!PO_SPEC_LEADIN.test(l)).join(' '));
+  Object.assign(res, readDeliveryLine(poSection(paras, 'DELIVERY')));
+  return res;
 }
 
 function downloadDocx(name, files){
@@ -8434,7 +8577,8 @@ function procurementOrderDocx(doc){
       : wPara(wRun('[specifications and quality requirements]')))+
 
     head('3. DELIVERY TERMS INSTRUCTIONS')+
-    wPara(wRun(txt(doc.deliveryTerms,'delivery terms')))+
+    wPara(wRun(doc.deliveryTerms || ('Goods to be delivered '+(doc.incoterm||'[incoterm]')+
+      ' at '+(doc.portOfLoading||'[place of loading]')+'.')))+
     wPara(wRun('Estimated Delivery Date: '+date(doc.estimatedDelivery,'estimated delivery date')))+
 
     head('4. PAYMENT TERMS')+
