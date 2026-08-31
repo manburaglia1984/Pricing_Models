@@ -355,6 +355,12 @@ table.acct .in{padding:3px 6px;font-size:12.5px;text-align:left;min-width:0;widt
 .paper .sep{margin:16px 0 10px;border:0;border-top:1px solid #000}
 .paper .foot{margin-top:16px;font-size:8.5pt;color:#333;border-top:1px solid #999;padding-top:5px}
 .paper .noborder td{border:0;padding:2px 0}
+/* The Procurement Order's own fields: what the deal and the trade cannot know, laid out above
+   the page they fill in. Two columns, with the long ones spanning both. */
+.pofields{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:9px 14px;margin:0 0 14px}
+.pofields label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--ink-2)}
+.pofields label.wide{grid-column:1/-1}
+.pofields textarea.in{resize:vertical;font:inherit}
 
 /* ---- printing ----
    Print the document and nothing else. Everything the app draws around it — the page header, the
@@ -723,6 +729,36 @@ code,.mono{font-family:var(--mono);font-size:12px}
     <div class="card tight"><h2>Issued documents</h2><div class="body" id="issuedBox"></div></div>
   </div>
 
+  <div class="docpane" id="docpane-po">
+    <div class="card">
+      <h2>Procurement Order<span class="tiny" style="text-transform:none;letter-spacing:0" id="poSub"></span></h2>
+      <div class="body">
+        <div class="toolbar">
+          <button class="btn" id="btnPoDocx">Download Word (.docx)</button>
+          <button class="btn" id="btnPoPrint">Print / PDF</button>
+        </div>
+        <div id="poMissing"></div>
+        <!-- What the deal and the trade cannot know. Everything else on the order is derived. -->
+        <div class="pofields">
+          <label>Procurement Order No.<input type="text" class="in" data-po="number" placeholder="e.g. 179810455"></label>
+          <label>Order date<input type="date" class="in" data-po="date"></label>
+          <label>Agent — attention<input type="text" class="in" data-po="agentAttention" placeholder="Contact person"></label>
+          <label>Agent — email<input type="email" class="in" data-po="agentEmail" placeholder="name@agent.com"></label>
+          <label class="wide">Agent — address<textarea class="in" rows="2" data-po="agentAddress"
+            placeholder="One line per line of the address"></textarea></label>
+          <label class="wide">Specifications and quality requirements<textarea class="in" rows="3"
+            data-po="specifications" placeholder="One requirement per line"></textarea></label>
+          <label class="wide">Delivery terms<input type="text" class="in" data-po="deliveryTerms"
+            placeholder="e.g. Goods to be delivered FOB at Veracruz, Mexico."></label>
+          <label>Estimated delivery date<input type="date" class="in" data-po="estimatedDelivery"></label>
+          <label>Onward buyer<input type="text" class="in" data-po="onwardBuyer"></label>
+          <label>Onward sale within (days)<input type="number" min="0" step="1" class="in" data-po="onwardDays"></label>
+          <label>Agency Agreement dated<input type="date" class="in" data-po="agencyAgreementDate"></label>
+        </div>
+        <div class="paperwrap"><div class="paper" id="poPaper"></div></div>
+      </div>
+    </div>
+  </div>
   <div class="docpane" id="docpane-tcinv">
     <div class="card">
       <h2>TradeCo Invoice<span class="tiny" style="text-transform:none;letter-spacing:0" id="tcInvSub"></span></h2>
@@ -2472,7 +2508,7 @@ const uuid = () => (crypto.randomUUID ? crypto.randomUUID()
 /** One line of an invoice: what was bought, how many, and the price of one. The line total is
  *  never stored — it is quantity x unitPrice, and a stored copy is a second figure to disagree. */
 function newInvoiceItem(seed){
-  return {id:uuid(), name:'', qty:'', unitPrice:'', ...(seed||{})};
+  return {id:uuid(), itemNo:'', name:'', qty:'', unitPrice:'', ...(seed||{})};
 }
 /** One row of panel 1. Name and jurisdiction are new; the rest are the workbook's B8/B9/B10.
  *  items[] and the four charges are the invoice's own breakdown: an invoice with no items keeps
@@ -2506,7 +2542,8 @@ function blankTradeInputs(){
   return { supplierInvoices:[newSupplierInvoice()],
     pfIssueDate:'', pfTenorDays:'', agencyFee:'',
     tcIssueDate:'', tcFee:'',
-    bladexSettlementDate:'', bladexDays:'', bladexMargin:'', legalFees:'0' };
+    bladexSettlementDate:'', bladexDays:'', bladexMargin:'', legalFees:'0',
+    po:newProcurementOrder() };
 }
 /** The worked example from Cantu Pricing Model 07222026.xlsx. It seeds a first run so the app
  *  opens on a trade that prices to B47; New deal and New trade never reach it. */
@@ -2718,12 +2755,14 @@ function normalise(s){
       if(!Array.isArray(v.items)) v.items=[];
       for(const it of v.items){
         if(!it.id) it.id = uuid();
+        if(it.itemNo===undefined) it.itemNo='';
         if(it.name===undefined) it.name='';
         if(it.qty===undefined) it.qty='';
         if(it.unitPrice===undefined) it.unitPrice='';
       }
       for(const f of ['vat','freight','insurance','otherCosts']) if(v[f]===undefined) v[f]='';
     }
+    t.inputs.po = {...newProcurementOrder(), ...(t.inputs.po||{})};
     if(!t.tradeDate) t.tradeDate = t.inputs.bladexSettlementDate || todayISO();
     if(!t.funder) t.funder = 'Bladex';
   }
@@ -4082,6 +4121,9 @@ function loadFormFromStore(){
   renderTradecoOptions();
   if(!t) return;
   for(const [f,id] of Object.entries(TRADE_TOP_IDS)){ const el=$(id); if(el) el.value=t[f]??''; }
+  // The Procurement Order's own fields, addressed by attribute rather than by an id table.
+  const po={...newProcurementOrder(), ...(t.inputs.po||{})};
+  for(const el of document.querySelectorAll('[data-po]')) el.value = po[el.dataset.po] ?? '';
   for(const [f,id] of Object.entries(TRADE_FIELD_IDS)){
     const el=$(id); if(!el) continue;
     const raw=t.inputs[f];
@@ -4362,9 +4404,9 @@ function renderSupplierInvoices(d,t){
   };
   /* ---- the open row: item lines on the left, the four charges and the build-up on the right ---- */
   const itemsTable=(v,b)=>'<div class="items"><table>'+
-    '<thead><tr><th>Item</th><th class="n" style="width:15%">Qty</th>'+
-    '<th class="n" style="width:19%">Price / item ('+esc(sym)+')</th>'+
-    '<th class="n" style="width:21%">Line total</th>'+(locked?'':'<th style="width:26px"></th>')+
+    '<thead><tr><th style="width:17%">Item No.</th><th>Item</th><th class="n" style="width:13%">Qty</th>'+
+    '<th class="n" style="width:17%">Price / item ('+esc(sym)+')</th>'+
+    '<th class="n" style="width:18%">Line total</th>'+(locked?'':'<th style="width:26px"></th>')+
     '</tr></thead><tbody>'+
     (b.lines.length ? b.lines.map(l=>{
       const it=l.item;
@@ -4373,7 +4415,8 @@ function renderSupplierInvoices(d,t){
             : (it[field]===''||it[field]==null ? '—' : String(it[field])))
         : '<input type="'+type+'" class="in" data-sup-id="'+esc(v.id)+'" data-sup-item="'+esc(it.id)+
           '" data-sup-field="'+field+'" value="'+esc(supFieldText(field, it[field]))+'"'+(extra||'')+'>';
-      return '<tr><td>'+f('name','text',' placeholder="What was supplied"')+'</td>'+
+      return '<tr><td>'+f('itemNo','text',' placeholder="Supplier\u2019s code"')+'</td>'+
+        '<td>'+f('name','text',' placeholder="What was supplied"')+'</td>'+
         '<td class="n">'+f('qty','number',' min="0" step="any" style="text-align:right"')+'</td>'+
         '<td class="n">'+f('unitPrice','text',' inputmode="decimal" placeholder="0.00" style="text-align:right"')+'</td>'+
         '<td class="n"><span class="calc" data-sup-line="'+esc(it.id)+'" title="Qty &times; price per item">—</span></td>'+
@@ -4381,13 +4424,18 @@ function renderSupplierInvoices(d,t){
           '" data-sup-id="'+esc(v.id)+'" title="Remove this item" aria-label="Remove item">&times;</button></td>')+
         '</tr>';
     }).join('')
-     : '<tr><td colspan="'+(locked?4:5)+'" class="tiny">No items on this invoice'+
+     : '<tr><td colspan="'+(locked?5:6)+'" class="tiny">No items on this invoice'+
        (locked?'.':' — add one, or upload the detail as a CSV. Until then its Amount stands alone.')+'</td></tr>')+
     '</tbody></table></div>'+
     (locked?'':'<div class="acts">'+
       '<button class="btn sm" data-sup-item-add="'+esc(v.id)+'">+ Add item</button>'+
       '<label class="btn sm" style="display:inline-flex;align-items:center">Upload item detail (CSV)'+
         '<input type="file" data-sup-item-file="'+esc(v.id)+'" accept=".csv,text/csv" style="display:none"></label>'+
+      '<label class="btn sm" style="display:inline-flex;align-items:center" '+
+        'title="Read the goods table out of the client\u2019s Draft Procurement Order">'+
+        'Upload Draft Procurement Order (Word)'+
+        '<input type="file" data-sup-po-file="'+esc(v.id)+'" accept=".docx,'+
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document" style="display:none"></label>'+
       '<button class="btn sm" data-sup-item-template="'+esc(v.id)+'">Item CSV template</button>'+
       '</div>');
   const chargeCell=(v,f)=>locked
@@ -4452,7 +4500,10 @@ const SUP_COLS = {
  *  own way. The items-only upload has no invoice columns to be confused with and widens
  *  lineTotal to those spellings itself. */
 const ITEM_COLS = {
-  itemName:['item','itemname','itemdescription','itemdetail','description','descr','desc','product',
+  itemNo:['itemno','itemnumber','itemcode','itemref','partno','partnumber','articleno','articlenumber',
+          'code','ref','reference','stockcode','productcode'],
+  itemName:['item','itemname','itemdescription','itemdetail','description','descriptionofgoods',
+            'goodsdescription','descr','desc','product',
             'productname','goods','lineitem','line','concept','particulars','material','sku','part'],
   qty:['qty','qtd','quantity','units','noofunits','unitcount','count','pieces','pcs','volume',
        'cantidad','quantidade'],
@@ -4461,7 +4512,7 @@ const ITEM_COLS = {
   lineTotal:['linetotal','lineamount','linevalue','itemtotal','itemamount','totalperitem',
              'extendedprice','extended','importe','valortotal'],
 };
-const ITEM_TOTAL_ALSO = ['total','totalamount','amount','value','subtotal','amt','gross'];
+const ITEM_TOTAL_ALSO = ['total','totalamount','totalprice','amount','value','subtotal','amt','gross'];
 /** The four charges, as columns. A value found here is the invoice's own statement of that charge,
  *  so it is read once per invoice rather than summed down the rows repeating it. */
 const CHARGE_COLS = {
@@ -4529,10 +4580,11 @@ const isNum = s => s!=='' && isFinite(Number(s));
  *  Anything less is reported rather than guessed at. Returns a tagged row: 'item', 'charge' when
  *  the name is one of the four charges, 'blank' for a spacer, or 'bad' with the reason. */
 function readItemRow(get){
+  const itemNo=String(get('itemNo')||'').trim();
   const name=String(get('itemName')||'').trim();
   const q=readAmount(get('qty')), pr=readAmount(get('unitPrice')), tot=readAmount(get('lineTotal'));
   const hasQ=isNum(q), hasP=isNum(pr), hasT=isNum(tot);
-  if(!name && !hasQ && !hasP && !hasT) return {kind:'blank'};
+  if(!itemNo && !name && !hasQ && !hasP && !hasT) return {kind:'blank'};
   const charge=chargeFieldFor(name);
   if(charge){
     const amt = hasT ? D.of(tot) : (hasQ&&hasP) ? D.of(q).mul(D.of(pr))
@@ -4562,7 +4614,7 @@ function readItemRow(get){
   else return {kind:'bad', why:(name?'"'+name+'"':'an unnamed line')+' has no price per item and no line total'};
   if(qty.lt(ZERO)||price.lt(ZERO))
     return {kind:'bad', why:(name?'"'+name+'"':'an unnamed line')+' has a negative quantity or price'};
-  return {kind:'item', item:newInvoiceItem({name, qty:numStr(qty), unitPrice:numStr(price)}), note};
+  return {kind:'item', item:newInvoiceItem({itemNo, name, qty:numStr(qty), unitPrice:numStr(price)}), note};
 }
 /** Column indices for one alias table, over an already-normalised header row. */
 function colsAt(head, table, extra){
@@ -5558,6 +5610,9 @@ let docChoice='offer', tcInvWhich=1;
 const DOCUMENTS = [
   {key:'offer', name:'IAA Offer File',
    desc: () => 'The 12-field record dispatched to the funder. Hashed and stored on the trade at ISSUED.'},
+  {key:'po', name:'Procurement Order',
+   desc: () => 'The order the issuing entity places with the agent, off the trade’s supplier '+
+     'invoices. Read the client’s draft into an invoice to fill the goods table.'},
   {key:'tcinv', name:'TradeCo Invoice',
    // How many there are is the deal's answer, so the card says which one this deal bills on.
    desc: d => 'The invoice TradeCo issues to the buyer, off the trade’s own supplier invoices. '+
@@ -5581,7 +5636,198 @@ function renderDocuments(d,t,r){
     : '— no trade selected';
   showDocPane(docChoice);
   renderOffer(d,t,r);
+  renderPO(d,t,r);
   renderTcInvoice(d,t,r);
+}
+
+
+/* ======================= Procurement Order =======================
+   The order the Principal issues to the Agent, on the form the client's draft arrives on.
+   Everything the app already knows is filled from the deal and the trade: the issuing
+   TradeCo and the account it is paid into, the agent named as Relevant Obligor, the goods
+   table read off the trade's own supplier invoices, and every figure that follows from
+   them. What only a person knows — the agent's address, the delivery terms, the onward
+   buyer — is a field on the trade. Nothing is guessed: a field not filled is named on the
+   page in brackets, so an order that went out unfinished is visible on the document itself
+   and not only in the checklist above it. */
+function newProcurementOrder(){
+  return {number:'', date:'', agentAddress:'', agentAttention:'', agentEmail:'',
+          specifications:'', deliveryTerms:'', estimatedDelivery:'',
+          onwardBuyer:'', onwardDays:'', agencyAgreementDate:''};
+}
+const PO_GOVERNING_LAW = 'This Procurement Order shall be governed by the laws of the state of New York, '+
+  'without giving effect to conflicts of law principles. Any legal action or proceedings against us, which '+
+  'may arise as a result of this notice of assignment or be related to it, may be initiated in any court of '+
+  'the state of New York or in any federal court of the United States of America located in the city and '+
+  'state of New York.';
+const PO_AGENCY_CLAUSE = 'This Procurement Order is issued pursuant to, and incorporates by reference, the '+
+  'terms and conditions of the Procurement Agency Agreement dated {DATE} between the Principal and the Agent. '+
+  'In the event of any conflict between the terms of this Procurement Order and the Procurement Agency '+
+  'Agreement, the terms of the Agreement shall prevail.';
+
+/** A quantity as the form writes it: grouped, and without the trailing zeros a decimal
+ *  quantity would otherwise carry. */
+const qtyLabel = d => { const s=numLabel(d), [w,f]=String(s).split('.');
+  return Number(w).toLocaleString('en-US')+(f?'.'+f:''); };
+
+function procurementOrderDoc(deal, trade, out){
+  const i=effectiveInputs(deal, trade), ccy=deal.currency;
+  const po={...newProcurementOrder(), ...((trade.inputs && trade.inputs.po) || {})};
+  const {tradeco, account}=tradecoFor(deal);
+  const lines=[], missing=[], invoiceRefs=[];
+  let goods=ZERO, units=ZERO, anyUnnumbered=false;
+
+  for(const v of (i.supplierInvoices||[])){
+    const b=invoiceBreakdown(v), ref=String(v.invoiceNumber||'').trim();
+    if(ref) invoiceRefs.push(ref);
+    if(b.itemised) for(const l of b.lines){
+      const no=String(l.item.itemNo||'').trim();
+      if(!no) anyUnnumbered=true;
+      lines.push({itemNo:no, description:String(l.item.name||'').trim(),
+        qty:D.of(l.item.qty||0), unitPrice:D.of(l.item.unitPrice||0), net:l.lineTotal});
+      units=units.add(D.of(l.item.qty||0));
+    }
+    /* An invoice with no item detail still has a value, and an order that silently dropped it
+       would understate the goods. It goes on as one line saying so. */
+    else if(b.goods.gt(ZERO)){
+      lines.push({itemNo:'', description:'Goods per supplier invoice'+(ref?' '+ref:'')+' (no item detail given)',
+        qty:ONE, unitPrice:b.goods, net:b.goods});
+      anyUnnumbered=true;
+    }
+    goods=goods.add(b.goods);
+  }
+  /* The note on the client's form: the fee is basis points on the amount payable under the
+     order, and the deal already carries that rate for pricing. One rate, used twice. */
+  const feeRate = isBlankRate(i.agencyFee) ? null : D.of(i.agencyFee);
+  const agencyFee = feeRate ? goods.mul(feeRate) : null;
+
+  if(!lines.length) missing.push('The trade carries no supplier invoice with a value, so the order has no goods.');
+  if(anyUnnumbered) missing.push('At least one line has no Item No. — the form asks for one per line.');
+  if(!tradeco) missing.push('No TradeCo is named on this deal, so the order has no issuing entity.');
+  if(!account) missing.push('No TradeCo bank account is named on this deal, so the order has no payment details.');
+  if(!String(trade.obligor||'').trim()) missing.push('No Relevant Obligor on the trade, so the order has no agent.');
+  if(!String(po.agentAddress||'').trim()) missing.push('The agent’s address is empty.');
+  if(!feeRate) missing.push('No agency fee rate on the trade, so the fee payable to the agent cannot be computed.');
+  if(!String(po.deliveryTerms||'').trim()) missing.push('Delivery terms are empty.');
+  if(!String(po.specifications||'').trim()) missing.push('Specifications and quality requirements are empty.');
+  if(!isValidDate(po.estimatedDelivery)) missing.push('No estimated delivery date.');
+  if(!String(po.onwardBuyer||'').trim()) missing.push('No onward buyer named.');
+  if(!isValidDate(po.agencyAgreementDate)) missing.push('No date for the Procurement Agency Agreement.');
+  if(!String(po.number||'').trim()) missing.push('No Procurement Order number.');
+
+  return {
+    number:String(po.number||'').trim(),
+    date: isValidDate(po.date) ? po.date : (trade.tradeDate||''),
+    currency:ccy, lines, goods, units, agencyFee, feeRate, missing, invoiceRefs,
+    principal:{ name:(tradeco && tradeco.name) || '', address:addressLines(tradeco && tradeco.address) },
+    agent:{ name:String(trade.obligor||'').trim(), address:addressLines(po.agentAddress),
+            attention:String(po.agentAttention||'').trim(), email:String(po.agentEmail||'').trim() },
+    account,
+    specifications: addressLines(po.specifications),
+    deliveryTerms:String(po.deliveryTerms||'').trim(),
+    estimatedDelivery:po.estimatedDelivery||'',
+    onwardBuyer:String(po.onwardBuyer||'').trim(),
+    onwardDays:String(po.onwardDays||'').trim(),
+    agencyAgreementDate:po.agencyAgreementDate||'',
+    supplierPaymentDate: out ? out.supplierPaymentDate : '',
+  };
+}
+
+/** The order drawn as it prints. */
+function renderPO(d,t,r){
+  const paper=$('poPaper'); if(!paper) return;
+  if(!t){ paper.innerHTML='<p>No trade selected.</p>'; $('poMissing').innerHTML=''; $('poSub').textContent=''; return; }
+  const doc=procurementOrderDoc(d,t,r.out);
+  const amt = v => esc(doc.currency+' '+Number(v.toFixed(2)).toLocaleString('en-US',
+    {minimumFractionDigits:2, maximumFractionDigits:2}));
+  const need = label => '<span class="blank">['+esc(label)+']</span>';
+  const date = (v,label) => isValidDate(v) ? esc(fmtLong(v)) : need(label);
+  const txt = (v,label) => String(v||'').trim() ? esc(v) : need(label);
+
+  $('poSub').textContent = ' — '+(doc.number||'no number')+' · '+doc.lines.length+' line(s) · '+
+    amt(doc.goods).replace(/&amp;/g,'&');
+  $('poMissing').innerHTML = doc.missing.length
+    ? '<div class="banner warn"><div><b>'+doc.missing.length+' thing(s) still to fill in.</b><ul style="margin:5px 0 0 16px">'+
+      doc.missing.map(m=>'<li>'+esc(m)+'</li>').join('')+'</ul></div></div>'
+    : '<div class="banner ok"><div><b>Complete.</b> Every field the form asks for is filled.</div></div>';
+
+  const party = (heading, name, addr, extra) =>
+    '<p><b>'+esc(heading)+'</b><br>'+txt(name,'name')+
+    (addr.length ? '<br>'+addr.map(esc).join('<br>') : '<br>'+need('address'))+
+    (extra||'')+'</p>';
+  const a=doc.account;
+
+  paper.innerHTML =
+    '<h1 style="text-align:left">PROCUREMENT ORDER</h1>'+
+    '<p><b>Procurement Order No.:</b> '+txt(doc.number,'order number')+
+      '<br><b>Date:</b> '+date(doc.date,'order date')+'</p>'+
+    party('Issued by:', doc.principal.name, doc.principal.address)+
+    party('Issued To (Agent):', doc.agent.name, doc.agent.address,
+      '<br>Attention: '+txt(doc.agent.attention,'contact person')+
+      '<br>Email: '+txt(doc.agent.email,'email address'))+
+
+    '<hr class="sep"><p class="up"><b>1. Goods to be procured</b></p>'+
+    '<table><thead><tr><th>Item No.</th><th>Description of Goods</th><th class="n">Quantity</th>'+
+      '<th class="n">Unit Price ('+esc(doc.currency)+')</th><th class="n">Total Price ('+esc(doc.currency)+')</th>'+
+      '</tr></thead><tbody>'+
+    (doc.lines.length ? doc.lines.map(l=>'<tr><td>'+(l.itemNo?esc(l.itemNo):need('item no'))+'</td>'+
+        '<td>'+txt(l.description,'description')+'</td>'+
+        '<td class="n">'+esc(qtyLabel(l.qty))+'</td>'+
+        '<td class="n">'+amt(l.unitPrice)+'</td>'+
+        '<td class="n">'+amt(l.net)+'</td></tr>').join('')
+      : '<tr><td colspan="5">'+need('no goods — the trade has no supplier invoice with a value')+'</td></tr>')+
+    '<tr class="tot"><td>TOTAL</td><td>—</td><td class="n">'+esc(qtyLabel(doc.units))+
+      '</td><td class="n">—</td><td class="n">'+amt(doc.goods)+'</td></tr>'+
+    '</tbody></table>'+
+
+    '<p class="up"><b>2. Specifications and quality requirements</b></p>'+
+    (doc.specifications.length
+      ? '<p>The Goods shall comply with the following specifications and quality standards:</p>'+
+        doc.specifications.map(l=>'<p>'+esc(l)+'</p>').join('')
+      : '<p>'+need('specifications and quality requirements')+'</p>')+
+
+    '<p class="up"><b>3. Delivery terms instructions</b></p>'+
+    '<p>'+txt(doc.deliveryTerms,'delivery terms')+'</p>'+
+    '<p>Estimated Delivery Date: '+date(doc.estimatedDelivery,'estimated delivery date')+'</p>'+
+
+    '<p class="up"><b>4. Payment terms</b></p>'+
+    '<p>Agency Fee Payable to Agent: '+(doc.agencyFee ? amt(doc.agencyFee)+
+        ' <span style="font-size:9pt">('+esc(pct(doc.feeRate))+' of the amount payable under this order)</span>'
+      : need('agency fee — no rate on the trade'))+'</p>'+
+    '<p>Amount Payable to Supplier: '+amt(doc.goods)+' (Total Value of Goods)</p>'+
+    '<p>Payable By: '+txt(doc.principal.name,'issuing entity')+'</p>'+
+    '<p>Payment Due to Supplier: '+date(doc.supplierPaymentDate,'supplier payment date')+'</p>'+
+    '<p><b>Bank Details for Payment:</b></p>'+
+    (a ? '<table class="noborder">'+
+        [['Bank', a.bank],['SWIFT', a.swift],['ABA code', a.aba],['IBAN', a.iban],
+         ['Beneficiary', a.beneficiary],['Account number', a.accountNumber]]
+          .filter(([,v])=>String(v||'').trim())
+          .map(([k,v])=>'<tr><td style="width:38%"><b>'+esc(k.toUpperCase())+':</b></td><td>'+esc(v)+'</td></tr>').join('')+
+        '</table>'
+      : '<p>'+need('no TradeCo bank account named on this deal')+'</p>')+
+
+    '<p class="up"><b>5. Onward sale</b></p>'+
+    '<p>The Agent shall arrange for the sale and delivery of the Goods to the Onward Buyer '+
+      txt(doc.onwardBuyer,'onward buyer')+' within '+
+      (doc.onwardDays ? esc(doc.onwardDays) : need('days'))+' days of the issuance of this Procurement Order.</p>'+
+
+    '<p class="up"><b>6. Agency agreement</b></p>'+
+    '<p>'+esc(PO_AGENCY_CLAUSE).replace('{DATE}', isValidDate(doc.agencyAgreementDate)
+      ? esc(fmtLong(doc.agencyAgreementDate)) : need('agreement date'))+'</p>'+
+
+    '<p class="up"><b>7. Governing law</b></p><p>'+esc(PO_GOVERNING_LAW)+'</p>'+
+
+    '<p class="up"><b>8. Confirmation &amp; acceptance</b></p>'+
+    '<p><b>Accepted and Agreed:</b> By signing below, the Agent confirms receipt of this Procurement '+
+      'Order and agrees to procure and deliver the Goods in accordance with its terms.</p>'+
+    '<table><tr><td style="width:50%"><b>For and on behalf of</b><br>'+txt(doc.agent.name,'agent')+
+      '<br><br>Signature: _______________________<br><br>Name: _______________________'+
+      '<br><br>Position: _______________________<br><br>Date: _______________________</td>'+
+      '<td><b>For and on behalf of</b><br>'+txt(doc.principal.name,'issuing entity')+
+      '<br><br>Signature: _______________________<br><br>Name: _______________________'+
+      '<br><br>Position: _______________________<br><br>Date: _______________________</td></tr></table>'+
+    (doc.invoiceRefs.length
+      ? '<p class="foot">Goods as per supplier invoice(s) '+doc.invoiceRefs.map(esc).join(', ')+'.</p>' : '');
 }
 
 /** The invoice drawn as it prints: the attached Word form, in the same order and with the same
@@ -6993,6 +7239,18 @@ document.addEventListener('input', e=>{
   const el=e.target; if(!el.dataset) return;
   const d=currentDeal(), t=currentTrade();
 
+  /* The order's own fields. Nested one level deeper than the trade inputs data-field writes,
+     so they get their own attribute rather than a special case inside that one. */
+  if(el.dataset.po){
+    if(!t) return;
+    if(LOCKED(t.state)){ el.value = (t.inputs.po||{})[el.dataset.po] ?? ''; return; }
+    t.inputs.po = {...newProcurementOrder(), ...(t.inputs.po||{})};
+    t.inputs.po[el.dataset.po] = el.value;
+    save();
+    renderPO(d, t, computeAll(d, t));
+    return;
+  }
+
   if(el.dataset.deal){
     if(!dealEditable(d)) return;
     const f=el.dataset.deal;
@@ -7140,9 +7398,9 @@ $('supInvTable').addEventListener('click', e=>{
   const tpl=e.target.closest('button[data-sup-item-template]');
   if(tpl){
     download('invoice-item-detail-template.csv',
-      'item,quantity,unit price,vat,freight,insurance,other costs\n'+
-      'Cotton yarn 40/1,10000,72.50,38000,4200,1800,0\n'+
-      'Dye lot A-17,500,180,,,,\n', 'text/csv');
+      'item no,item,quantity,unit price,vat,freight,insurance,other costs\n'+
+      'YRN-40-1,Cotton yarn 40/1,10000,72.50,38000,4200,1800,0\n'+
+      'DYE-A17,Dye lot A-17,500,180,,,,\n', 'text/csv');
     return;
   }
   const b=e.target.closest('button[data-sup-remove]'); if(!b) return;
@@ -7163,8 +7421,63 @@ $('supInvTable').addEventListener('click', e=>{
      bk.itemCount?bk.itemCount+' item(s)':''].filter(Boolean).join(' · '), null);
   rebuildInvoiceList();
 });
+/** Land a parsed item set on one invoice. Shared by the item CSV and the Draft Procurement
+ *  Order, because the awkward parts — superseding a keyed amount, what the audit line says,
+ *  what the operator is told about the new totals — are the same either way, and two copies
+ *  of them would drift. */
+function applyItemImport(t, d, v, res, sourceName){
+  const had=(v.items||[]).length;
+  const replace = !had || confirm(
+    'This invoice already holds '+had+' item line(s).\n\n'+
+    'OK — replace them with the '+res.items.length+' in '+sourceName+'\n'+
+    'Cancel — keep them and add the '+res.items.length+' below');
+  /* The first upload onto an invoice that only ever had a keyed amount supersedes it: the
+     detail is now where its goods figure comes from, and leaving both would double it. */
+  const supersededAmount = (!had && res.items.length && D.of(v.amount||0).gt(ZERO)) ? String(v.amount) : null;
+  const before=invoiceTotal(v);
+  v.items = replace ? res.items : [...(v.items||[]), ...res.items];
+  if(v.items.length) v.amount='';
+  const setCharges=[];
+  for(const [f2,label] of [['vat','VAT'],['freight','freight'],['insurance','insurance'],['otherCosts','other costs']])
+    if(res.charges[f2]!==''){ v[f2]=res.charges[f2]; setCharges.push(label+' '+money(D.of(res.charges[f2]), d.currency)); }
+  supInvOpen.add(String(v.id));
+  voidPricedSnapshot(t);
+  const n=(t.inputs.supplierInvoices||[]).indexOf(v)+1;
+  audit('trade', t.id, replace?'UPDATE':'CREATE', 'supplierInvoice#'+n+'.items',
+    had+' item(s) · '+before.toFixed(2), v.items.length+' item(s) · '+invoiceTotal(v).toFixed(2),
+    (replace?'Replaced with ':'Added ')+res.items.length+' item(s) from '+sourceName+
+    (setCharges.length?'; set '+setCharges.join(', '):'')+
+    (supersededAmount?'; the keyed amount of '+supersededAmount+' is superseded by the detail':''));
+  rebuildInvoiceList();
+  alert('Loaded '+res.items.length+' item line(s) from '+sourceName+'.\n'+
+    (replace?'':'Added to the '+had+' already on this invoice.\n')+
+    (setCharges.length?'Charges set from the file: '+setCharges.join(', ')+'.\n':'')+
+    (supersededAmount?'The amount of '+supersededAmount+' keyed on this invoice is superseded by the detail.\n':'')+
+    'This invoice now totals '+money(invoiceTotal(v), d.currency)+'; the trade totals '+
+    money(supplierTotals(t.inputs).amount, d.currency)+'.'+
+    (res.notes.length?'\n\nNotes:\n• '+res.notes.slice(0,8).join('\n• ')+
+      (res.notes.length>8?'\n…and '+(res.notes.length-8)+' more':''):'')+
+    (res.skipped.length?'\n\nSkipped '+res.skipped.length+':\n• '+res.skipped.slice(0,8).join('\n• '):''));
+}
+
 /* The per-invoice item upload. One hidden file input per open row, so it is delegated for the
    same reason the buttons are. */
+/* The Draft Procurement Order arrives as a Word file, so this one is async — reading it means
+   inflating a ZIP member. Everything after the parse is the CSV path's. */
+$('supInvTable').addEventListener('change', async e=>{
+  const po=e.target.closest('input[data-sup-po-file]'); if(!po) return;
+  const id=po.dataset.supPoFile, f=po.files[0];
+  const done=()=>{ po.value=''; po.blur(); };
+  if(!f) return done();
+  const t=currentTrade(), d=currentDeal();
+  if(!t) return done();
+  if(LOCKED(t.state)){ done(); return alert('This trade is '+t.state+' — its inputs are locked.'); }
+  const v=(t.inputs.supplierInvoices||[]).find(x=>String(x.id)===id);
+  if(!v) return done();
+  try{ applyItemImport(t, d, v, await readProcurementOrderFile(f), f.name); }
+  catch(err){ alert('Could not read '+f.name+':\n\n'+(err && err.message ? err.message : String(err))); }
+  done();
+});
 $('supInvTable').addEventListener('change', e=>{
   const inp=e.target.closest('input[data-sup-item-file]'); if(!inp) return;
   const id=inp.dataset.supItemFile, f=inp.files[0];
@@ -7178,41 +7491,8 @@ $('supInvTable').addEventListener('change', e=>{
   if(!v) return done();
   const rd=new FileReader();
   rd.onload=()=>{
-    try{
-      const res=parseInvoiceItemsCsv(String(rd.result));
-      const had=(v.items||[]).length;
-      const replace = !had || confirm(
-        'This invoice already holds '+had+' item line(s).\n\n'+
-        'OK — replace them with the '+res.items.length+' in '+f.name+'\n'+
-        'Cancel — keep them and add the '+res.items.length+' below');
-      /* The first upload onto an invoice that only ever had a keyed amount supersedes it: the
-         detail is now where its goods figure comes from, and leaving both would double it. */
-      const supersededAmount = (!had && res.items.length && D.of(v.amount||0).gt(ZERO)) ? String(v.amount) : null;
-      const before=invoiceTotal(v);
-      v.items = replace ? res.items : [...(v.items||[]), ...res.items];
-      if(v.items.length) v.amount='';
-      const setCharges=[];
-      for(const [f2,label] of [['vat','VAT'],['freight','freight'],['insurance','insurance'],['otherCosts','other costs']])
-        if(res.charges[f2]!==''){ v[f2]=res.charges[f2]; setCharges.push(label+' '+money(D.of(res.charges[f2]), d.currency)); }
-      supInvOpen.add(String(v.id));
-      voidPricedSnapshot(t);
-      const n=(t.inputs.supplierInvoices||[]).indexOf(v)+1;
-      audit('trade', t.id, replace?'UPDATE':'CREATE', 'supplierInvoice#'+n+'.items',
-        had+' item(s) · '+before.toFixed(2), v.items.length+' item(s) · '+invoiceTotal(v).toFixed(2),
-        (replace?'Replaced with ':'Added ')+res.items.length+' item(s) from '+f.name+
-        (setCharges.length?'; set '+setCharges.join(', '):'')+
-        (supersededAmount?'; the keyed amount of '+supersededAmount+' is superseded by the detail':''));
-      rebuildInvoiceList();
-      alert('Loaded '+res.items.length+' item line(s) from '+f.name+'.\n'+
-        (replace?'':'Added to the '+had+' already on this invoice.\n')+
-        (setCharges.length?'Charges set from the file: '+setCharges.join(', ')+'.\n':'')+
-        (supersededAmount?'The amount of '+supersededAmount+' keyed on this invoice is superseded by the detail.\n':'')+
-        'This invoice now totals '+money(invoiceTotal(v), d.currency)+'; the trade totals '+
-        money(supplierTotals(t.inputs).amount, d.currency)+'.'+
-        (res.notes.length?'\n\nNotes:\n• '+res.notes.slice(0,8).join('\n• ')+
-          (res.notes.length>8?'\n…and '+(res.notes.length-8)+' more':''):'')+
-        (res.skipped.length?'\n\nSkipped '+res.skipped.length+':\n• '+res.skipped.slice(0,8).join('\n• '):''));
-    }catch(err){ alert('Could not read '+f.name+':\n\n'+err.message); }
+    try{ applyItemImport(t, d, v, parseInvoiceItemsCsv(String(rd.result)), f.name); }
+    catch(err){ alert('Could not read '+f.name+':\n\n'+err.message); }
     done();
   };
   rd.onerror=()=>{ alert('Could not read '+f.name+'.'); done(); };
@@ -7844,6 +8124,106 @@ function zipStored(files){
   return new Blob([...body, ...central, new Uint8Array(end.buffer)],
     {type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
 }
+/* ---------------------------- reading a .docx ----------------------------
+   A .docx is a ZIP of XML, and the browser already has both halves:
+   DecompressionStream inflates a member, DOMParser reads it. So a Draft Procurement
+   Order can be read where it lands, with no library and nothing uploaded anywhere —
+   which for a document that arrives from a client is the whole point. */
+async function inflateRaw(bytes){
+  const ds=new DecompressionStream('deflate-raw');
+  const w=ds.writable.getWriter(); w.write(bytes); w.close();
+  return new Uint8Array(await new Response(ds.readable).arrayBuffer());
+}
+/** One member of a ZIP by name, located through the central directory rather than by
+ *  walking local headers: when the writer used a data descriptor the local header's sizes
+ *  are zero, and Word's are. */
+async function zipMember(buf, wanted){
+  const b=new Uint8Array(buf), dv=new DataView(buf);
+  let eocd=-1;
+  for(let i=b.length-22; i>=Math.max(0, b.length-66000); i--)
+    if(dv.getUint32(i,true)===0x06054b50){ eocd=i; break; }
+  if(eocd<0) throw new Error('This is not a ZIP archive, so it is not a .docx either.');
+  const count=dv.getUint16(eocd+10,true), dec=new TextDecoder();
+  let p=dv.getUint32(eocd+16,true);
+  for(let n=0; n<count; n++){
+    if(dv.getUint32(p,true)!==0x02014b50) throw new Error('The file\u2019s directory is damaged.');
+    const method=dv.getUint16(p+10,true), compSize=dv.getUint32(p+20,true);
+    const nameLen=dv.getUint16(p+28,true), extraLen=dv.getUint16(p+30,true), cmtLen=dv.getUint16(p+32,true);
+    const local=dv.getUint32(p+42,true);
+    if(dec.decode(b.subarray(p+46, p+46+nameLen))===wanted){
+      if(dv.getUint32(local,true)!==0x04034b50) throw new Error('The file\u2019s '+wanted+' entry is damaged.');
+      const start=local+30+dv.getUint16(local+26,true)+dv.getUint16(local+28,true);
+      const data=b.subarray(start, start+compSize);
+      if(method===0) return data;
+      if(method===8) return inflateRaw(data);
+      throw new Error('Unsupported compression (method '+method+') on '+wanted+'.');
+    }
+    p += 46+nameLen+extraLen+cmtLen;
+  }
+  throw new Error('No '+wanted+' inside \u2014 is this really a Word document?');
+}
+const W_NS='http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+const wKids=(el,name)=>[...el.children].filter(c=>c.localName===name && c.namespaceURI===W_NS);
+/** Every table in a document, as rows of cell text. Rows and cells are taken as direct
+ *  children, so a table nested inside a cell stays its own table instead of folding into
+ *  its parent's text. */
+function docxTables(xml){
+  const doc=new DOMParser().parseFromString(xml,'application/xml');
+  if(doc.getElementsByTagName('parsererror').length) throw new Error('The document XML could not be read.');
+  const cellText=tc=>[...tc.getElementsByTagNameNS(W_NS,'t')].map(n=>n.textContent||'').join('').trim();
+  return [...doc.getElementsByTagNameNS(W_NS,'tbl')]
+    .map(tbl => wKids(tbl,'tr').map(tr => wKids(tr,'tc').map(cellText)));
+}
+/** A trailing parenthetical on a header is a unit, not part of the name: the form writes
+ *  "Unit Price (USD)" where the CSV writes "unit price". Everything else goes through the
+ *  same alias tables the item CSV uses, so there is one vocabulary and not two. */
+const normDocHead = h => normHead(String(h==null?'':h).replace(/\([^)]*\)\s*$/,''));
+const TOTAL_ROW_WORDS = new Set(['total','totals','grandtotal','subtotal','sum']);
+/** The goods table out of a Draft Procurement Order: whichever table has a header row that
+ *  reads as items. Returns the same shape parseInvoiceItemsCsv does, so both imports land
+ *  in one code path downstream. */
+function parseProcurementOrderDoc(tables){
+  const tried=[];
+  for(const rows of tables){
+    if(rows.length<2) continue;
+    const head=(rows[0]||[]).map(normDocHead);
+    tried.push(rows[0].filter(Boolean).join(', ')||'(no header)');
+    const at=colsAt(head, ITEM_COLS, {lineTotal:ITEM_TOTAL_ALSO});
+    if(at.itemNo===undefined && at.itemName===undefined) continue;
+    if(at.unitPrice===undefined && at.lineTotal===undefined) continue;
+    const items=[], skipped=[], notes=[], charges={vat:'',freight:'',insurance:'',otherCosts:''};
+    const rowSums={};
+    rows.slice(1).forEach((cells,n)=>{
+      const get=f=>at[f]===undefined ? '' : String(cells[at[f]]??'').trim();
+      const label='Row '+(n+2);
+      // The form totals its own goods. That line is the table's arithmetic, not a line of it.
+      const first=(get('itemNo')||get('itemName')||'').toLowerCase().replace(/[^a-z]/g,'');
+      if(TOTAL_ROW_WORDS.has(first)) return;
+      const r=readItemRow(get);
+      if(r.kind==='blank') return;
+      if(r.kind==='bad'){ skipped.push(label+' — '+r.why); return; }
+      if(r.kind==='charge'){
+        rowSums[r.field]=numStr(D.of(rowSums[r.field]||0).add(D.of(r.amount)));
+        notes.push(label+' — "'+r.label+'" was read as the invoice\u2019s '+
+          ({vat:'VAT',freight:'freight cost',insurance:'insurance cost',otherCosts:'other costs'})[r.field]+
+          ', not as a line of goods.');
+        return;
+      }
+      items.push(r.item);
+      if(r.note) notes.push(label+' — '+r.note);
+    });
+    for(const f in rowSums) charges[f]=rowSums[f];
+    if(items.length) return {items, skipped, notes, charges};
+  }
+  throw new Error('No table of goods found. Looked for a header row naming an item and a price.'+
+    (tried.length ? '\n\nTables in the document:\n• '+tried.slice(0,6).join('\n• ') : ''));
+}
+/** Read a Draft Procurement Order and pull its goods table out. */
+async function readProcurementOrderFile(file){
+  const xml=new TextDecoder().decode(await zipMember(await file.arrayBuffer(), 'word/document.xml'));
+  return parseProcurementOrderDoc(docxTables(xml));
+}
+
 function downloadDocx(name, files){
   const a=document.createElement('a'); a.href=URL.createObjectURL(zipStored(files)); a.download=name;
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
@@ -7966,6 +8346,11 @@ function tcInvoiceDocx(doc){
     '<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style>'+
     '</w:styles>';
 
+  return docxPackage(documentXml, stylesXml);
+}
+/** The four parts every one of these documents needs. Only word/document.xml differs between
+ *  them, so only that is written twice. */
+function docxPackage(documentXml, stylesXml){
   return [
     ['[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
       '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'+
@@ -7985,6 +8370,117 @@ function tcInvoiceDocx(doc){
     ['word/document.xml', documentXml],
     ['word/styles.xml', stylesXml],
   ];
+}
+/** The A4 body wrapper and the Georgia default both documents are set in. */
+const docxBody = bodyXml => '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+  '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'+
+  '<w:body>'+bodyXml+
+  '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/>'+
+  '<w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="708" w:footer="708" w:gutter="0"/>'+
+  '</w:sectPr></w:body></w:document>';
+const DOCX_STYLES = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+  '<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'+
+  '<w:docDefaults><w:rPrDefault><w:rPr>'+
+  '<w:rFonts w:ascii="Georgia" w:hAnsi="Georgia" w:cs="Georgia"/><w:sz w:val="22"/>'+
+  '</w:rPr></w:rPrDefault></w:docDefaults>'+
+  '<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style>'+
+  '</w:styles>';
+
+/** The Procurement Order as a .docx, in the order and wording of the client's form. */
+function procurementOrderDocx(doc){
+  const W=9026;                                                // A4 less 1" margins, in twips
+  const money = v => doc.currency+' '+Number(v.toFixed(2)).toLocaleString('en-US',
+    {minimumFractionDigits:2, maximumFractionDigits:2});
+  const date = (v,label) => isValidDate(v) ? fmtLong(v) : '['+label+']';
+  const txt = (v,label) => String(v||'').trim() ? String(v) : '['+label+']';
+  const cell = (text,o)=>({runs:wRun(text,o), align:(o&&o.align)||undefined, bg:o&&o.bg, span:o&&o.span});
+  const head = n => wPara(wRun(n,{b:true, u:true}), {after:100});
+  const party = (heading, name, addr, extra) =>
+    wPara(wRun(heading,{b:true}),{after:40})+
+    wPara(wRun(txt(name,'name')),{after:0})+
+    (addr.length?addr:['[address]']).map(l=>wPara(wRun(l),{after:0})).join('')+
+    (extra||'')+wPara(wRun(''),{after:80});
+
+  const rows = doc.lines.length
+    ? doc.lines.map(l=>[cell(txt(l.itemNo,'item no')), cell(txt(l.description,'description')),
+        cell(qtyLabel(l.qty),{align:'right'}), cell(money(l.unitPrice),{align:'right'}),
+        cell(money(l.net),{align:'right'})])
+    : [[{runs:wRun('[no goods — the trade has no supplier invoice with a value]'), span:5}]];
+  const a=doc.account;
+
+  const bodyXml =
+    wPara(wRun('PROCUREMENT ORDER',{b:true, sz:'30'}), {after:240})+
+    wPara(wRun('Procurement Order No.: ',{b:true})+wRun(txt(doc.number,'order number'))+
+          wRun('    Date: ',{b:true})+wRun(date(doc.date,'order date')))+
+    party('Issued by:', doc.principal.name, doc.principal.address)+
+    party('Issued To (Agent):', doc.agent.name, doc.agent.address,
+      wPara(wRun('Attention: '+txt(doc.agent.attention,'contact person')),{after:0})+
+      wPara(wRun('Email: '+txt(doc.agent.email,'email address')),{after:0}))+
+
+    head('1. GOODS TO BE PROCURED')+
+    wTable([[cell('Item No.',{b:true, bg:'EEEEEE'}), cell('Description of Goods',{b:true, bg:'EEEEEE'}),
+             cell('Quantity',{b:true, bg:'EEEEEE', align:'right'}),
+             cell('Unit Price ('+doc.currency+')',{b:true, bg:'EEEEEE', align:'right'}),
+             cell('Total Price ('+doc.currency+')',{b:true, bg:'EEEEEE', align:'right'})],
+            ...rows,
+            [cell('TOTAL',{b:true}), cell('—'), cell(qtyLabel(doc.units),{b:true, align:'right'}),
+             cell('—',{align:'right'}), cell(money(doc.goods),{b:true, align:'right'})]],
+           [1500, 3526, 1200, 1400, 1400])+
+
+    head('2. SPECIFICATIONS AND QUALITY REQUIREMENTS')+
+    (doc.specifications.length
+      ? wPara(wRun('The Goods shall comply with the following specifications and quality standards:'))+
+        doc.specifications.map(l=>wPara(wRun(l),{after:60})).join('')
+      : wPara(wRun('[specifications and quality requirements]')))+
+
+    head('3. DELIVERY TERMS INSTRUCTIONS')+
+    wPara(wRun(txt(doc.deliveryTerms,'delivery terms')))+
+    wPara(wRun('Estimated Delivery Date: '+date(doc.estimatedDelivery,'estimated delivery date')))+
+
+    head('4. PAYMENT TERMS')+
+    wPara(wRun('Agency Fee Payable to Agent: '+(doc.agencyFee
+      ? money(doc.agencyFee)+' ('+pct(doc.feeRate)+' of the amount payable under this order)'
+      : '[agency fee — no rate on the trade]')))+
+    wPara(wRun('Amount Payable to Supplier: '+money(doc.goods)+' (Total Value of Goods)'))+
+    wPara(wRun('Payable By: '+txt(doc.principal.name,'issuing entity')))+
+    wPara(wRun('Payment Due to Supplier: '+date(doc.supplierPaymentDate,'supplier payment date')))+
+    wPara(wRun('Bank Details for Payment:',{b:true}),{after:60})+
+    (a ? wTable([['Bank',a.bank],['SWIFT',a.swift],['ABA code',a.aba],['IBAN',a.iban],
+                 ['Beneficiary',a.beneficiary],['Account number',a.accountNumber]]
+                .filter(([,v])=>String(v||'').trim())
+                .map(([k,v])=>[cell(k.toUpperCase()+':',{b:true}), cell(String(v))]), [2600, 6426])
+       : wPara(wRun('[no TradeCo bank account named on this deal]')))+
+
+    head('5. ONWARD SALE')+
+    wPara(wRun('The Agent shall arrange for the sale and delivery of the Goods to the Onward Buyer '+
+      txt(doc.onwardBuyer,'onward buyer')+' within '+(doc.onwardDays||'[days]')+
+      ' days of the issuance of this Procurement Order.'))+
+
+    head('6. AGENCY AGREEMENT')+
+    wPara(wRun(PO_AGENCY_CLAUSE.replace('{DATE}', isValidDate(doc.agencyAgreementDate)
+      ? fmtLong(doc.agencyAgreementDate) : '[agreement date]')))+
+
+    head('7. GOVERNING LAW')+wPara(wRun(PO_GOVERNING_LAW))+
+
+    head('8. CONFIRMATION & ACCEPTANCE')+
+    wPara(wRun('Accepted and Agreed: ',{b:true})+
+      wRun('By signing below, the Agent confirms receipt of this Procurement Order and agrees to '+
+           'procure and deliver the Goods in accordance with its terms.'))+
+    wTable([[
+      {paras:[wPara(wRun('For and on behalf of',{b:true}),{after:0}),
+              wPara(wRun(txt(doc.agent.name,'agent')),{after:200}),
+              ...['Signature:','Name:','Position:','Date:'].map(l=>
+                wPara(wRun(l+' _______________________'),{after:120}))].join('')},
+      {paras:[wPara(wRun('For and on behalf of',{b:true}),{after:0}),
+              wPara(wRun(txt(doc.principal.name,'issuing entity')),{after:200}),
+              ...['Signature:','Name:','Position:','Date:'].map(l=>
+                wPara(wRun(l+' _______________________'),{after:120}))].join('')}
+    ]], [4513, 4513])+
+    (doc.invoiceRefs.length
+      ? wPara(wRun('Goods as per supplier invoice(s) '+doc.invoiceRefs.join(', ')+'.',
+          {sz:'17', color:'444444'})) : '');
+
+  return docxPackage(docxBody(bodyXml), DOCX_STYLES);
 }
 
 function download(name, text, type){
@@ -8022,6 +8518,13 @@ $('docPicker').addEventListener('click', e=>{
 $('tcInvWhich').onchange=e=>{ tcInvWhich = Number(e.target.value)===2 ? 2 : 1;
   const d=currentDeal(), t=currentTrade();
   if(d) renderTcInvoice(d,t,computeAll(d,t));
+};
+$('btnPoPrint').onclick=()=>window.print();
+$('btnPoDocx').onclick=()=>{
+  const d=currentDeal(), t=currentTrade(); if(!d||!t) return;
+  const doc=procurementOrderDoc(d,t,computeAll(d,t).out);
+  downloadDocx('procurement-order-'+slug(doc.number||t.identifier||'untitled')+'.docx',
+    procurementOrderDocx(doc));
 };
 $('btnTcInvPrint').onclick=()=>window.print();
 $('btnTcInvDocx').onclick=()=>{
