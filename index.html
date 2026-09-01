@@ -355,6 +355,21 @@ table.acct .in{padding:3px 6px;font-size:12.5px;text-align:left;min-width:0;widt
 .paper .sep{margin:16px 0 10px;border:0;border-top:1px solid #000}
 .paper .foot{margin-top:16px;font-size:8.5pt;color:#333;border-top:1px solid #999;padding-top:5px}
 .paper .noborder td{border:0;padding:2px 0}
+/* `hidden` is only a UA rule of display:none, so any class carrying its own display beats it —
+   .field-inline is display:flex, and the actor box stayed on screen while claiming to be hidden. */
+[hidden]{display:none !important}
+/* The sign-in door. Fixed and above everything, because while it is shut nothing behind it
+   should be reachable — including by tabbing into it. */
+.gate{display:none;position:fixed;inset:0;z-index:200;background:var(--bg);
+  align-items:center;justify-content:center;padding:20px}
+.gate.open{display:flex}
+body.gated main,body.gated header.top{visibility:hidden}
+.gatecard{width:min(360px,92vw);background:var(--panel);border:1px solid var(--line-2);border-radius:12px;
+  padding:22px 22px 20px;box-shadow:0 14px 40px rgba(16,24,40,.22)}
+.gatecard h2{margin:0 0 3px;font-size:17px;color:var(--accent)}
+.gatecard label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--ink-2);margin:12px 0 0}
+.gatecard .btn{width:100%;margin-top:14px;justify-content:center}
+
 /* The Procurement Order's own fields: what the deal and the trade cannot know, laid out above
    the page they fill in. Two columns, with the long ones spanning both. */
 .pofields{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:9px 14px;margin:0 0 14px}
@@ -554,12 +569,14 @@ code,.mono{font-family:var(--mono);font-size:12px}
     </a>
     <div class="brand"><span id="brandTitle">Purchase/Sale Facility — Pricing Model</span><small id="dealCaption">No deal loaded</small></div>
     <div class="spacer"></div>
-    <div class="field-inline">
+    <span class="tiny" id="whoami" hidden style="white-space:nowrap"></span>
+    <button class="btn sm" id="btnSignOut" hidden>Sign out</button>
+    <div class="field-inline" id="actorBox">
       <label for="actorName">Acting as</label>
       <input type="text" id="actorName" value="m.buraglia" style="min-width:120px">
       <select id="actorRole">
         <option>Originator</option><option>Approver</option><option>Ops / Settlement</option>
-        <option>Rates Admin</option><option>Auditor</option>
+        <option>Rates Admin</option><option>Auditor</option><option>Administrator</option>
       </select>
     </div>
     <button class="btn sm" id="themeBtn" title="Cycle system / dark / light theme">Theme</button>
@@ -571,6 +588,19 @@ code,.mono{font-family:var(--mono);font-size:12px}
   </nav>
 </header>
 
+<div class="gate" id="loginGate">
+  <form class="gatecard" id="loginForm" autocomplete="on">
+    <h2>Pricing Model</h2>
+    <p class="tiny">Sign in to continue.</p>
+    <label>Username<input type="text" id="loginUser" autocomplete="username" autocapitalize="off" spellcheck="false"></label>
+    <label>Password<input type="password" id="loginPass" autocomplete="current-password"></label>
+    <p class="tiny" id="loginMsg" hidden style="color:var(--err)"></p>
+    <button class="btn primary" type="submit" id="btnSignIn">Sign in</button>
+    <p class="tiny" style="margin:10px 0 0;opacity:.8">This is a door, not a lock. The file and the
+      book inside it stay readable to anyone holding them — sign-in is here for attribution, for the
+      role that comes with a person, and so nobody wanders in by accident.</p>
+  </form>
+</div>
 <main>
 <!-- ================= PRICING ================= -->
 <!-- ============ TRADE WORKSPACE (opened from a deal's trade list) ============ -->
@@ -826,6 +856,15 @@ code,.mono{font-family:var(--mono);font-size:12px}
       <span class="t">Investors</span>
       <span class="d">The funding counterparties a trade can name as its Funder, and the terms each one is priced at.</span>
       <span class="m" id="refMetaInvestors"></span>
+    </button>
+  </div>
+  <h3 class="refgroup">Access</h3>
+  <div class="refmenu">
+    <button class="reftile" data-ref="users">
+      <span class="mk">@</span>
+      <span class="t">Users</span>
+      <span class="d">Who uses this book, the role each one holds, and whether signing in is required.</span>
+      <span class="m" id="refMetaUsers"></span>
     </button>
   </div>
   <h3 class="refgroup">Records</h3>
@@ -1124,6 +1163,24 @@ code,.mono{font-family:var(--mono);font-size:12px}
 </div>
 
 <!-- ---- Investors ---- -->
+<div class="refpane" id="refpane-users">
+  <div class="card">
+    <h2>Users</h2>
+    <div class="body">
+      <div class="toolbar" id="usersToolbar"></div>
+      <div id="usersBox"></div>
+      <p class="tiny" style="margin:12px 0 0"><b>What this is.</b> The app is one HTML file whose book is
+      readable JSON, so anyone holding the file can read or change it whatever this says. Sign-in is not a
+      security boundary and should not be relied on as one. It is worth having for attribution the audit log
+      can trust, for a role that travels with the person instead of being picked from a dropdown, and as a
+      door on a shared machine. Passwords are hashed with PBKDF2-SHA256 and a per-user salt — not to secure
+      the app, but because people reuse passwords and this store travels.</p>
+      <p class="tiny" style="margin:6px 0 0"><b>Locked out?</b> Sign-in cannot be turned on without an
+      administrator who has a password, so it should not happen. If it does: export the store, set
+      <code>users.requireLogin</code> to <code>false</code> in the JSON, and import it back.</p>
+    </div>
+  </div>
+</div>
 <div class="refpane" id="refpane-investors">
   <div class="card">
     <h2>Investors</h2>
@@ -2647,6 +2704,15 @@ function defaultClients(){
   return { source:{...MONDAY_SOURCE, syncedAt:null, via:'seeded'}, list:SEED_CLIENTS.map(c=>({...c})) };
 }
 
+/* Read by newUser(), which normalise() calls while the store is still loading — so it is
+   declared here with the rest of the store's shape and not down with the sign-in code that
+   uses it. A const declared later is in its dead zone at that point, and the throw would be
+   swallowed by load()'s catch. */
+const PBKDF2_ITERS = 210000;
+
+/* Set when a stored book was present but could not be read. Boot turns it into a warning
+   rather than leaving the seed to be mistaken for the real thing. */
+let loadFailure = null;
 let bootFromCache=false, bootMigrated=false;
 let store = load();
 refreshCalendars();     // fold the book's own jurisdictions in before anything renders
@@ -2666,8 +2732,22 @@ let lastShape = (bootFromCache && !bootMigrated) ? storeShape() : null;
    exactly that reason. normalise() only fills what is absent, so running it over a store that is
    already current changes nothing. */
 function load(){
-  try{ const raw=localStorage.getItem(LS_KEY);
-    if(raw){ const s=JSON.parse(raw); if(s && s.deals && s.trades){ bootFromCache=true; return normalise(s); } } }catch(e){}
+  /* A stored book that fails to load is not the same thing as no book. Falling through to a
+     fresh seed silently is how a bug in normalise() comes to look like the day's work
+     vanishing — and the next save writes the seed over the copy that was still fine. So the
+     fall-through is announced, and loudly: whatever is in localStorage at that point is
+     intact, and the person needs to stop rather than carry on into an empty book. */
+  let stored=null;
+  try{ stored=localStorage.getItem(LS_KEY); }catch(e){}
+  if(stored){
+    try{
+      const s=JSON.parse(stored);
+      if(s && s.deals && s.trades){ bootFromCache=true; return normalise(s); }
+    }catch(e){
+      console.error('Stored book could not be loaded', e);
+      loadFailure = e && e.message ? e.message : String(e);
+    }
+  }
   try{ const v1=localStorage.getItem(LS_KEY_V1);
     if(v1){ const m=migrateV1(JSON.parse(v1)); if(m){ bootFromCache=bootMigrated=true; return normalise(m); } } }catch(e){}
   return normalise(seedStore());
@@ -2685,6 +2765,9 @@ function normalise(s){
   /* The register is new. A book written before it gets the seeded entity, and every entry is
      brought up to the current shape — a TradeCo with no accounts array is one nobody can be paid
      through, which the deal's account dropdown and the invoice's checklist both need to see. */
+  if(!s.users || !Array.isArray(s.users.list)) s.users=defaultUsers();
+  s.users.requireLogin = s.users.requireLogin===true;
+  for(const u of s.users.list) Object.assign(u, newUser(u));
   if(!s.tradecos || !Array.isArray(s.tradecos.list)) s.tradecos=defaultTradecos();
   for(const tc of s.tradecos.list){
     if(!tc.id) tc.id=uuid();
@@ -3707,8 +3790,14 @@ window.addEventListener('beforeunload', e=>{ if(sink.mode!=='local' && sink.dirt
 window.addEventListener('pagehide', ()=>{ if(sink.mode==='folder' && sink.role==='editor'){ sink.wantPen=false; beat(); } });
 document.addEventListener('visibilitychange', ()=>{
   if(document.visibilityState==='hidden') flush(); else pollRemote(); });
-const actor = () => ({ name:(document.getElementById('actorName').value||'unknown').trim(),
-                       role:document.getElementById('actorRole').value });
+/* Who is acting. Signed in, it is the account and its role — chosen once, and not editable
+   from the header. Otherwise it is the free-text box, as it always was. */
+const actor = () => {
+  const u = sessionUser();
+  if(u) return {name:u.name||u.username||'unknown', role:u.role};
+  return { name:(document.getElementById('actorName').value||'unknown').trim(),
+           role:document.getElementById('actorRole').value };
+};
 function audit(entityType, entityId, action, field, oldV, newV, reason){
   store.audit.push({ id:uuid(), entityType, entityId, action, field:field??null,
     oldValue:oldV===undefined?null:oldV, newValue:newV===undefined?null:newV,
@@ -5231,6 +5320,7 @@ const REF_SETS = {
   jur:       {title:'Jurisdictions & Holiday Calendars', sub:'Calendars a maturity date is checked against'},
   investors: {title:'Investors',               sub:'Funding counterparties a trade can name as its Funder'},
   tradecos:  {title:'TradeCos',                sub:'The entities that issue the TradeCo invoice, and the accounts they are paid into'},
+  users:     {title:'Users',                   sub:'Who uses this book, the role each one holds, and whether signing in is required'},
   audit:     {title:'Audit log',               sub:'Append-only — every change, who made it and why'},
   about:     {title:'Spec & traceability',     sub:'What this model is, its cell map, and the parity suite'},
 };
@@ -5267,6 +5357,7 @@ function renderRefMenu(){
   $('refMetaClients').textContent = cl.length+' clients · '+
     cl.filter(c=>ACTIVE_STATUSES.includes(c.status)).length+' active';
   $('refMetaJur').textContent = ALL_JURISDICTIONS.length+' jurisdictions'+(added?' · '+added+' added here':'');
+  renderUsers();
   $('refMetaInvestors').textContent = inv.length+' investor(s) · '+
     inv.filter(i=>i.status==='Active').length+' active';
   const tcos=tradecoList();
@@ -6089,22 +6180,328 @@ function showTradePane(name){
   for(const v of document.querySelectorAll('#tradeModal .tpane')) v.classList.toggle('active', v.id==='tpane-'+name);
 }
 
+const isAdmin = () => actor().role==='Administrator';
+/* A settled trade is terminal — TRANSITIONS.SETTLED is empty — so it can be neither cancelled
+   nor, by the rule below, deleted. That is correct for every ordinary day and a dead end on the
+   rare one: a trade booked by mistake and settled in error can never leave the book, and neither
+   can its deal. The way out is not to relax the rule but to make breaking it deliberate, visible
+   and reversible in the only sense that matters here — the record survives the deletion.
+
+   So an Administrator may force it, and the price of doing so is that the whole record is written
+   into the audit log first. The reason settled trades are retained is the audit trail; a deletion
+   that carries the entire row into that trail has paid it. */
+function forceDeleteOverride(what, detail){
+  if(!isAdmin()){
+    alert('Cannot delete '+what+'.\n\n'+detail+'\n\nAn Administrator can force this — switch role in '+
+      'the header. The full record is written to the audit log first, so nothing is lost from the '+
+      'trail even though the row goes.');
+    return false;
+  }
+  if(!confirm('OVERRIDE — delete '+what+'\n\n'+detail+'\n\nYou are an Administrator, so this can be forced. '+
+    'The complete record is written to the audit log before it goes, and the deletion is marked there '+
+    'as an override.\n\nContinue?')) return false;
+  const typed=prompt('Type OVERRIDE to confirm. This cannot be undone.');
+  if(typed===null) return false;
+  if(String(typed).trim().toUpperCase()!=='OVERRIDE'){ alert('Not confirmed — nothing was deleted.'); return false; }
+  return true;
+}
+
+
+/* ============================ users and sign-in ============================
+   Be clear about what this is. The app is one HTML file whose whole book is readable
+   JSON: anyone holding the file can open the store in a text editor, or the console in
+   a browser, and read or change anything in it. A sign-in here is therefore NOT a
+   security boundary and must never be described as one. What it is worth:
+
+     - attribution that is chosen once rather than typed on every action, so the audit
+       log says who did something instead of whatever was in a free-text box;
+     - a role that comes with the person rather than being picked from a dropdown by
+       whoever is sitting there;
+     - a door, so nobody wanders into the book by accident on a shared machine.
+
+   Passwords are still hashed — PBKDF2-SHA256, per-user salt — not because that secures
+   the app, but because people reuse passwords, and a store that travels to a shared
+   folder must not carry one in the clear.
+
+   Sign-in is off until it is configured, and cannot be switched on without an enabled
+   administrator who has a password. That ordering is deliberate: a gate that can be
+   raised before anyone can pass it is a locked book. */
+const b64 = bytes => btoa(String.fromCharCode(...new Uint8Array(bytes)));
+const unb64 = s => Uint8Array.from(atob(String(s||'')), c=>c.charCodeAt(0));
+async function derivePassword(pw, saltB64, iters){
+  const salt = saltB64 ? unb64(saltB64) : crypto.getRandomValues(new Uint8Array(16));
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(String(pw)),
+    'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits(
+    {name:'PBKDF2', salt, iterations:iters||PBKDF2_ITERS, hash:'SHA-256'}, key, 256);
+  return {salt:b64(salt), hash:b64(bits), iterations:iters||PBKDF2_ITERS};
+}
+/** Constant-time-ish compare. Not that it matters here, but a short-circuit compare on a
+ *  hash is the kind of thing that gets copied somewhere it does matter. */
+function sameDigest(a, b){
+  const x=String(a||''), y=String(b||'');
+  if(x.length!==y.length) return false;
+  let diff=0;
+  for(let i=0;i<x.length;i++) diff |= x.charCodeAt(i) ^ y.charCodeAt(i);
+  return diff===0;
+}
+function newUser(seed){
+  return {id:uuid(), name:'', email:'', username:'', role:'Originator',
+          salt:'', hash:'', iterations:PBKDF2_ITERS, mustChange:false, disabled:false,
+          createdAt:new Date().toISOString(), ...(seed||{})};
+}
+function defaultUsers(){ return {requireLogin:false, list:[]}; }
+const userList = () => (store.users && Array.isArray(store.users.list)) ? store.users.list : [];
+const requireLogin = () => !!(store.users && store.users.requireLogin);
+const findUser = id => userList().find(u=>String(u.id)===String(id)) || null;
+const userByName = name => userList().find(u=>
+  String(u.username||'').trim().toLowerCase() === String(name||'').trim().toLowerCase()) || null;
+const hasPassword = u => !!(u && u.hash && u.salt);
+/** The administrators who could actually sign in. What "last administrator" means. */
+const liveAdmins = () => userList().filter(u=>u.role==='Administrator' && !u.disabled && hasPassword(u));
+
+/* The signed-in user lives in sessionStorage, not localStorage: on a shared machine,
+   closing the browser should end the session rather than leave the book open. */
+const SESSION_KEY='cantu-pricing-session';
+let session = null;
+function loadSession(){
+  try{
+    const raw=sessionStorage.getItem(SESSION_KEY);
+    if(!raw) return null;
+    const s=JSON.parse(raw), u=findUser(s.id);
+    // A session outlives the account only until the next load, and no longer.
+    return (u && !u.disabled) ? {id:u.id} : null;
+  }catch(e){ return null; }
+}
+const saveSession = s => { try{
+  if(s) sessionStorage.setItem(SESSION_KEY, JSON.stringify(s)); else sessionStorage.removeItem(SESSION_KEY);
+}catch(e){} };
+function sessionUser(){
+  try{ return session ? findUser(session.id) : null; }
+  catch(e){ return null; }        // called before this module's bindings are live
+}
+
+/** Whether the app should be behind the door right now. */
+const gateShut = () => requireLogin() && !sessionUser();
+function renderGate(){
+  const gate=document.getElementById('loginGate'); if(!gate) return;
+  const shut=gateShut();
+  gate.classList.toggle('open', shut);
+  document.body.classList.toggle('gated', shut);
+  const u=sessionUser();
+  const who=document.getElementById('whoami');
+  if(who){
+    who.hidden = !requireLogin();
+    who.textContent = u ? u.name+' · '+u.role : '';
+  }
+  const out=document.getElementById('btnSignOut');
+  if(out) out.hidden = !u;
+  // The free-text actor box is what sign-in replaces; it stays for a book with no users.
+  const box=document.getElementById('actorBox');
+  if(box) box.hidden = requireLogin();
+  if(shut) setTimeout(()=>{ const f=document.getElementById('loginUser'); if(f) f.focus(); }, 30);
+}
+async function attemptSignIn(){
+  const nameEl=document.getElementById('loginUser'), pwEl=document.getElementById('loginPass');
+  const msg=document.getElementById('loginMsg');
+  const u=userByName(nameEl.value);
+  const say = t => { msg.textContent=t; msg.hidden=false; };
+  /* One message whether the username is unknown, disabled or the password is wrong: the
+     door should not enumerate who has a key. */
+  const refuse = () => say('That username and password do not match an account.');
+  if(!u || u.disabled || !hasPassword(u)) return refuse();
+  let got;
+  try{ got=await derivePassword(pwEl.value, u.salt, u.iterations); }
+  catch(e){ return say('Could not check the password: '+(e.message||e)); }
+  if(!sameDigest(got.hash, u.hash)) return refuse();
+  session={id:u.id}; saveSession(session);
+  pwEl.value=''; msg.hidden=true;
+  audit('user', u.id, 'SIGN_IN', null, null, u.username, null);
+  if(u.mustChange) setTimeout(()=>changeOwnPassword(true), 60);
+  renderGate(); loadFormFromStore(); render();
+}
+function signOut(){
+  const u=sessionUser();
+  if(u) audit('user', u.id, 'SIGN_OUT', null, u.username, null, null);
+  session=null; saveSession(null);
+  renderGate(); render();
+}
+/** Set or change the password of whoever is signed in. */
+async function changeOwnPassword(forced){
+  const u=sessionUser(); if(!u) return;
+  const pw=prompt((forced?'This account must set a new password before it is used.\n\n':'')+
+    'New password for '+u.username+' (at least 8 characters):');
+  if(pw===null) return;
+  if(String(pw).length<8) return alert('At least 8 characters. Nothing was changed.');
+  if(prompt('Type it again to confirm:')!==pw) return alert('They did not match. Nothing was changed.');
+  const d=await derivePassword(pw);
+  Object.assign(u, d, {mustChange:false});
+  audit('user', u.id, 'UPDATE', 'password', null, null, 'Changed by the account holder');
+  save();
+  alert('Password changed.');
+}
+
+/* ---- the register ---- */
+const USER_ROLES = ['Originator','Approver','Ops / Settlement','Rates Admin','Auditor','Administrator'];
+/** Managing people is an administrator's job — except on a book that has no users yet, where
+ *  somebody has to be able to create the first one. isAdmin() already reads the signed-in
+ *  account where there is one and the header role where there is not, so this needs no second
+ *  rule for the two cases. */
+const canManageUsers = () => !userList().length || isAdmin();
+
+function renderUsers(){
+  const box=$('usersBox'); if(!box) return;
+  const list=userList(), me=sessionUser(), may=canManageUsers();
+  $('refMetaUsers').textContent = list.length
+    ? list.length+' user(s) · '+liveAdmins().length+' administrator(s) · sign-in '+(requireLogin()?'on':'off')
+    : 'none yet · sign-in off';
+  const gateBtn = requireLogin()
+    ? '<button class="btn" id="btnRequireLogin">Turn sign-in off</button>'
+    : '<button class="btn primary" id="btnRequireLogin">Turn sign-in on</button>';
+  $('usersToolbar').innerHTML = may
+    ? '<button class="btn" id="btnUserAdd">+ Add user</button>'+gateBtn+
+      (me?'<button class="btn" id="btnOwnPassword">Change my password</button>':'')
+    : '<span class="tiny">Managing users requires the Administrator role — switch role in the header, '+
+      'or sign in as an administrator.</span>';
+
+  box.innerHTML = !list.length
+    ? '<p class="tiny">No users yet. Add one, give it the Administrator role and a password, then turn '+
+      'sign-in on. Until then the app works as it always has, with the name and role typed in the header.</p>'
+    : '<div class="scroll"><table><thead><tr><th>Name</th><th>Username</th><th>Email</th><th>Role</th>'+
+      '<th>Password</th><th></th></tr></thead><tbody>'+
+      list.map(u=>'<tr'+(me&&me.id===u.id?' class="sel"':'')+'><td>'+esc(u.name||'—')+
+        (u.disabled?' <span class="inline-tag warn">disabled</span>':'')+
+        (me&&me.id===u.id?' <span class="inline-tag ok">you</span>':'')+'</td>'+
+        '<td class="mono">'+esc(u.username||'—')+'</td><td>'+esc(u.email||'—')+'</td>'+
+        '<td>'+esc(u.role)+'</td>'+
+        '<td>'+(hasPassword(u)
+          ? (u.mustChange?'<span class="inline-tag warn">must change</span>':'<span class="inline-tag ok">set</span>')
+          : '<span class="inline-tag err">not set</span>')+'</td>'+
+        '<td class="n">'+(may
+          ? '<button class="btn sm" data-user-edit="'+esc(u.id)+'">Edit</button> '+
+            '<button class="btn sm" data-user-pw="'+esc(u.id)+'">Password</button> '+
+            '<button class="btn sm danger" data-user-del="'+esc(u.id)+'">Remove</button>'
+          : '')+'</td></tr>').join('')+'</tbody></table></div>';
+}
+/** Everything about one user in a single prompt-driven pass. Plain, but it keeps the whole
+ *  register to one screen and one code path, which for six fields is the right trade. */
+async function editUser(id){
+  const u=id?findUser(id):null;
+  const was=u?{...u}:null;
+  const name=prompt('Full name:', u?u.name:''); if(name===null) return;
+  if(!String(name).trim()) return alert('A name is required.');
+  const username=prompt('Username (used to sign in):', u?u.username:''); if(username===null) return;
+  const uname=String(username).trim();
+  if(!uname) return alert('A username is required.');
+  const clash=userByName(uname);
+  if(clash && (!u || clash.id!==u.id)) return alert('That username is already taken.');
+  const email=prompt('Email:', u?u.email:''); if(email===null) return;
+  const role=prompt('Role — one of:\n'+USER_ROLES.join(', '), u?u.role:'Originator'); if(role===null) return;
+  const r=USER_ROLES.find(x=>x.toLowerCase()===String(role).trim().toLowerCase());
+  if(!r) return alert('Not a role this app has. Nothing was changed.');
+  /* The last way in must stay open: demoting or disabling the only administrator who can
+     sign in would shut the book for everyone, including whoever is doing it. */
+  if(u && u.role==='Administrator' && r!=='Administrator' && requireLogin() &&
+     liveAdmins().length===1 && liveAdmins()[0].id===u.id)
+    return alert('This is the only administrator who can sign in. Give someone else that role first.');
+  if(u){
+    Object.assign(u, {name:String(name).trim(), username:uname, email:String(email).trim(), role:r});
+    audit('user', u.id, 'UPDATE', null,
+      [was.name,was.username,was.email,was.role].join(' · '),
+      [u.name,u.username,u.email,u.role].join(' · '), null);
+  } else {
+    const nu=newUser({name:String(name).trim(), username:uname, email:String(email).trim(), role:r});
+    if(!store.users) store.users=defaultUsers();
+    store.users.list.push(nu);
+    audit('user', nu.id, 'CREATE', null, null, [nu.name,nu.username,nu.email,nu.role].join(' · '), null);
+    save(); renderUsers();
+    if(confirm('Set a password for '+nu.username+' now?')) await setUserPassword(nu.id);
+    if(nu.role==='Administrator' && !isAdmin())
+      alert('Added '+nu.username+' as an Administrator.\n\nYou are not one yourself right now, so this '+
+        'pane has just closed to you. Switch the role in the header to Administrator to carry on '+
+        'setting users up, then turn sign-in on when you are ready.');
+    renderUsers();
+    return;
+  }
+  save(); renderUsers(); render();
+}
+async function setUserPassword(id){
+  const u=findUser(id); if(!u) return;
+  const pw=prompt('New password for '+u.username+' (at least 8 characters).\n\n'+
+    'They will be asked to change it the first time they sign in.');
+  if(pw===null) return;
+  if(String(pw).length<8) return alert('At least 8 characters. Nothing was changed.');
+  const d=await derivePassword(pw);
+  Object.assign(u, d, {mustChange:true});
+  audit('user', u.id, 'UPDATE', 'password', null, null, 'Set by '+actor().name);
+  save(); renderUsers();
+  alert('Password set for '+u.username+'. They will be asked to change it on first sign-in.');
+}
+function removeUser(id){
+  const u=findUser(id); if(!u) return;
+  if(requireLogin() && liveAdmins().length===1 && liveAdmins()[0].id===u.id)
+    return alert('This is the only administrator who can sign in. Removing it would lock everyone out.');
+  if(!confirm('Remove '+(u.name||u.username)+'?\n\nThe audit entries they wrote stay as they are — '+
+    'this only removes the account.')) return;
+  store.users.list = userList().filter(x=>String(x.id)!==String(id));
+  audit('user', id, 'DELETE', null, [u.name,u.username,u.email,u.role].join(' · '), null, null);
+  if(session && session.id===u.id){ session=null; saveSession(null); }
+  save(); renderUsers(); renderGate(); render();
+}
+function toggleRequireLogin(){
+  if(!store.users) store.users=defaultUsers();
+  if(requireLogin()){
+    if(!confirm('Turn sign-in off?\n\nThe app opens straight into the book again, and the name and '+
+      'role go back to being typed in the header.')) return;
+    store.users.requireLogin=false;
+    audit('store','-','UPDATE','requireLogin','true','false','Sign-in turned off');
+  } else {
+    /* Refusing here is the whole point: a gate raised with nobody able to pass it is a
+       locked book, and the only way back would be editing the JSON by hand. */
+    if(!liveAdmins().length)
+      return alert('Not yet. Sign-in needs at least one administrator who has a password and is not '+
+        'disabled — otherwise nobody could get back in.\n\nAdd one, set its password, then turn this on.');
+    if(!confirm('Turn sign-in on?\n\nEveryone opening this file will be asked for a username and '+
+      'password. '+liveAdmins().length+' administrator(s) can sign in.\n\n'+
+      'The door shuts straight away, including on you — you will need to sign in to carry on.\n\n'+
+      'This is a door, not a lock: the file and its data stay readable to anyone holding them.')) return;
+    store.users.requireLogin=true;
+    audit('store','-','UPDATE','requireLogin','false','true','Sign-in turned on');
+  }
+  save(); renderUsers(); renderGate(); render();
+}
+
 /** Delete one trade. Refused once signed off or dispatched — cancel those instead,
- *  which keeps the record and still releases the identifier for reuse. */
+ *  which keeps the record and still releases the identifier for reuse. An Administrator
+ *  can force it where cancelling is not on offer either. */
 function deleteTrade(id){
   const t=store.trades.find(x=>x.id===id); if(!t) return;
   const d=store.deals.find(x=>x.id===t.dealId);
-  if(['APPROVED','ISSUED','SETTLED'].includes(t.state))
-    return alert('Cannot delete "'+(t.identifier||'this trade')+'" — it is '+t.state+
-      ' and must be retained for audit.\n\nCancel it instead: the trade stays on the record, and its '+
-      'identifier becomes available again for a new trade.');
-  if(!confirm('Delete trade "'+(t.identifier||'(untitled)')+'" (v'+t.versionNo+', '+t.state+')?\n\n'+
+  let forced=false;
+  if(['APPROVED','ISSUED','SETTLED'].includes(t.state)){
+    /* Only where cancelling is genuinely not on offer is this a dead end. An APPROVED or ISSUED
+       trade can still be cancelled, and should be — that keeps the record. */
+    const canCancel=(TRANSITIONS[t.state]||[]).includes('CANCELLED');
+    const detail='"'+(t.identifier||'this trade')+'" is '+t.state+' and must be retained for audit.'+
+      (canCancel ? '\n\nCancel it instead: the trade stays on the record, and its identifier becomes '+
+                   'available again for a new trade.'
+                 : '\n\nIt is terminal, so it cannot be cancelled either.');
+    if(canCancel && !isAdmin())
+      return alert('Cannot delete '+detail);
+    if(!forceDeleteOverride('a '+t.state+' trade', detail)) return;
+    forced=true;
+  }
+  if(!forced && !confirm('Delete trade "'+(t.identifier||'(untitled)')+'" (v'+t.versionNo+', '+t.state+')?\n\n'+
     'This cannot be undone. A snapshot is written to the audit log.')) return;
   const reason=prompt('Reason for deletion (recorded in the audit log):');
   if(reason===null) return;
   if(!reason.trim()) return alert('A reason is required.');
-  audit('trade',id,'DELETE',null, JSON.stringify({identifier:t.identifier, version:t.versionNo,
-    state:t.state, dealCode:d?d.code:null}), null, reason.trim());
+  /* Forced, the snapshot is the whole trade and not a summary of it: it is now the only copy. */
+  audit('trade',id,'DELETE',null,
+    forced ? JSON.stringify({override:true, dealCode:d?d.code:null, trade:t})
+           : JSON.stringify({identifier:t.identifier, version:t.versionNo,
+               state:t.state, dealCode:d?d.code:null}),
+    null, (forced?'[ADMINISTRATOR OVERRIDE — '+t.state+' trade force-deleted] ':'')+reason.trim());
   store.trades=store.trades.filter(x=>x.id!==id);
   if(store.currentTradeId===id){
     const ts=d?tradesOf(d.id):[]; store.currentTradeId=ts.length?ts[0].id:null;
@@ -6117,17 +6514,27 @@ function deleteDeal(id){
   const d=store.deals.find(x=>x.id===id); if(!d) return;
   const ts=tradesOf(id);
   const kept=ts.filter(t=>['APPROVED','ISSUED','SETTLED'].includes(t.state));
-  if(kept.length) return alert('Cannot delete "'+(d.code||'this deal')+'".\n\n'+kept.length+
-    ' trade(s) have been approved or issued and must be retained for audit:\n• '+
-    kept.map(t=>(t.identifier||'(untitled)')+' — '+t.state).join('\n• ')+
-    '\n\nCancel those trades if the deal is dead; the record stays.');
-  if(!confirm('Delete deal "'+(d.code||'(untitled)')+'" ('+clientLabel(d)+') and its '+ts.length+
+  let forced=false;
+  if(kept.length){
+    const detail=kept.length+' trade(s) on "'+(d.code||'this deal')+'" have been approved or issued and '+
+      'must be retained for audit:\n• '+kept.map(t=>(t.identifier||'(untitled)')+' — '+t.state).join('\n• ')+
+      (kept.every(t=>!(TRANSITIONS[t.state]||[]).includes('CANCELLED'))
+        ? '\n\nThey are terminal, so they cannot be cancelled either.'
+        : '\n\nCancel those trades if the deal is dead; the record stays.');
+    if(!forceDeleteOverride('a deal with trades that must be retained', detail)) return;
+    forced=true;
+  }
+  if(!forced && !confirm('Delete deal "'+(d.code||'(untitled)')+'" ('+clientLabel(d)+') and its '+ts.length+
     ' trade(s)?\n\nThis cannot be undone. A snapshot is written to the audit log.')) return;
   const reason=prompt('Reason for deletion (recorded in the audit log):');
   if(reason===null) return;
   if(!reason.trim()) return alert('A reason is required.');
-  audit('deal',id,'DELETE',null, JSON.stringify({code:d.code, client:clientLabel(d), currency:d.currency,
-    jurisdictions:d.jurisdictions, trades:ts.map(t=>({identifier:t.identifier, state:t.state}))}), null, reason.trim());
+  audit('deal',id,'DELETE',null,
+    JSON.stringify(forced
+      ? {override:true, deal:d, trades:ts}
+      : {code:d.code, client:clientLabel(d), currency:d.currency, jurisdictions:d.jurisdictions,
+         trades:ts.map(t=>({identifier:t.identifier, state:t.state}))}),
+    null, (forced?'[ADMINISTRATOR OVERRIDE — deal deleted with '+kept.length+' retained trade(s)] ':'')+reason.trim());
   store.trades=store.trades.filter(t=>t.dealId!==id);
   store.deals=store.deals.filter(x=>x.id!==id);
   configOpen=false;
@@ -8663,6 +9070,20 @@ $('tcInvWhich').onchange=e=>{ tcInvWhich = Number(e.target.value)===2 ? 2 : 1;
   const d=currentDeal(), t=currentTrade();
   if(d) renderTcInvoice(d,t,computeAll(d,t));
 };
+/* Sign-in. A form, so Enter submits it the way a sign-in should. */
+$('loginForm').addEventListener('submit', e=>{ e.preventDefault(); attemptSignIn(); });
+$('btnSignOut').onclick=signOut;
+$('usersToolbar').addEventListener('click', e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  if(b.id==='btnUserAdd') return editUser(null);
+  if(b.id==='btnRequireLogin') return toggleRequireLogin();
+  if(b.id==='btnOwnPassword') return changeOwnPassword(false);
+});
+$('usersBox').addEventListener('click', e=>{
+  const ed=e.target.closest('[data-user-edit]'); if(ed) return editUser(ed.dataset.userEdit);
+  const pw=e.target.closest('[data-user-pw]');   if(pw) return setUserPassword(pw.dataset.userPw);
+  const rm=e.target.closest('[data-user-del]');  if(rm) return removeUser(rm.dataset.userDel);
+});
 $('btnPoPrint').onclick=()=>window.print();
 $('btnPoDocx').onclick=()=>{
   const d=currentDeal(), t=currentTrade(); if(!d||!t) return;
@@ -8999,6 +9420,17 @@ $('btnAuditCsv').onclick=()=>{ const scope=$('auditScope').value, t=currentTrade
 for(const id of ['f_tcFee','f_agencyFee','f_bladexMargin']) $(id).placeholder='0.00000';
 $('f_legalFees').placeholder='0.00';
 
+if(loadFailure){
+  /* Before anything else, and blocking: carrying on writes the seed over a book that is
+     still sitting in this browser intact. */
+  alert('This browser holds a saved book, but it could not be read:\n\n'+loadFailure+
+    '\n\nWhat is on screen is a fresh empty book, NOT your data. Your data is still in this '+
+    'browser — do not add anything, because saving would write over it.\n\n'+
+    'Take a copy first: open the browser console and run\n'+
+    "  copy(localStorage['"+'cantu-pricing-model-v2'+"'])\n\nthen send it on.");
+}
+session = loadSession();
+renderGate();
 loadFormFromStore();
 render();
 runTests();
