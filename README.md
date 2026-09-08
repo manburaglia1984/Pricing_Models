@@ -48,6 +48,8 @@ trade:
   Issue, Mark settled, Cancel, Duplicate, New version, Edit deal configuration);
 - a **Pricing** pane — the deal's configuration read-only, the trade's own fields, the five panels and the
   validation / rate-quote / business-day / summary rail;
+- an **Order & Delivery** card holding the shipment's own facts — order date, estimated delivery,
+  place of loading, onward buyer and specifications — which any document template can ask for;
 - a **Documents** pane holding the documents the deal issues — whichever of them are ticked in its
   configuration, since they describe one trade and belong with it.
 
@@ -256,11 +258,11 @@ Two caveats worth reading before go-live:
   JSON or print-to-PDF, hashed with SHA-256 and stored immutably on the deal at ISSUED.
 - **Documents chosen per deal, and drawn from the deal's own .docx templates.** Which documents a
   facility issues is a deal setting, and only the ticked ones reach the trade's Documents pane. A
-  facility's paperwork is not the app's to design either, so a deal can carry its own: upload a
-  Word template with its fields marked `[in square brackets]`, and the app fills them from the
-  deal, the trade and the priced figures, repeats a table row once per goods line, and leaves the
-  rest of the file — wording, styles, letterhead, logo — exactly as uploaded. See [Documents from
-  your own templates](#documents-from-your-own-templates).
+  facility's paperwork is not the app's to design either, so every document but the Offer File is
+  the deal's own file: upload a Word template with its fields marked `[in square brackets]`, and
+  the app fills them from the deal, the trade and the priced figures, repeats a table row once per
+  goods line, and leaves the rest of the file — wording, styles, letterhead, logo — exactly as
+  uploaded. See [Documents from your own templates](#documents-from-your-own-templates).
 - **Append-only audit log** at field-level granularity — who changed what, when, from what to what,
   and why. No hard deletes anywhere: cancelling is a soft-delete.
 
@@ -268,18 +270,21 @@ Two caveats worth reading before go-live:
 
 **Which documents a deal issues is the deal's answer.** Deal configuration → *Documents &
 templates* lists every document a facility might issue, and only the ticked ones appear on the
-Documents pane of every trade on that deal. The Offer File, the Procurement Order and the TradeCo
-Invoice — the three the app draws itself — start ticked, because a deal issuing all three is the
-common case; untick the ones that do not apply and they are gone from the tab. A deal with no
-agent has no procurement order to issue, and the card for one was clutter on every screen.
+Documents pane of every trade on that deal. A new deal starts with the **IAA Offer File** ticked
+and nothing else: the rest is ticked when the deal is configured, because only then does anybody
+know what that facility issues. A deal with no agent has no procurement order to issue, and the
+card for one was clutter on every screen.
 
-**How each one is drawn is also the deal's answer.** Those three have a form the app draws itself,
-so they need nothing else. Every other document on the list — and, if the facility's own form
-differs, any of those three as well — is drawn from a **.docx template** the deal carries and the
-app fills. A facility's real paperwork rarely matches a built-in form clause for clause, and two
-deals doing the same trade routinely differ in wording that has nothing to do with the trade;
-adding an input field per difference would be a form that grows without end and is wrong for the
-next deal anyway.
+**Every one of them is drawn from the deal's own .docx**, with one exception. A facility's real
+paperwork rarely matches a built-in form clause for clause, and two deals doing the same trade
+routinely differ in wording that has nothing to do with the trade; adding an input field per
+difference would be a form that grows without end and is wrong for the next deal anyway. So the
+Procurement Order, the TradeCo Invoice, the contracts and everything else come from the template
+uploaded against them.
+
+The exception is the **Offer File**, which is a record rather than a form: twelve fields in a
+fixed order, hashed and dispatched to the funder, with no wording anybody redrafts. The app draws
+that one, and a deal that also uploads a .docx for it gets both.
 
 **Marking up a template.** Wherever a value belongs, put the field name in square brackets:
 
@@ -299,14 +304,28 @@ cut it in three.
 **Setting one up.** Tick the document, then upload its `.docx`. Every bracketed field in the file
 is listed with the value it will print and where that value comes from. Any field can be overridden
 with a typed value on the deal — which is also how a field the app has never heard of gets filled.
-The template then appears on the **Documents** pane with a preview and a **Download Word (.docx)**
+The document then appears on the **Documents** pane with a preview and a **Download Word (.docx)**
 button.
 
-Uploading a form for one of the three the app draws itself gives that document **two** panes: the
-deal's own form, and the standard one. The standard pane is kept because it is also where the
-fields only that document needs are keyed — the Procurement Order's own date, place of loading and
-onward buyer — and the deal's own form reads them from there, so hiding it would put its own values
-out of reach.
+The facts a shipment carries but the pricing does not — order date, estimated delivery, place of
+loading, onward buyer, specifications — are keyed on the trade itself, under **Order & Delivery**
+in the trade workspace. They belong to the trade rather than to any one document: a procurement
+order, a sales contract and an inspection certificate all ask for the place of loading. Uploading
+the client's draft Procurement Order against a supplier invoice fills the place of loading, the
+specifications and the incoterm by itself.
+
+**An invoice's rows are the invoice's.** A goods table in a procurement order template repeats over
+the trade's goods; the same table in a TradeCo Invoice template repeats over what is actually
+billed — the goods, then the charges, then the financial cost — so the rows add up to `[Net]`, and
+`[Net]` plus `[VAT]` to `[Total]`, which is B36. An invoice template bills as one document whatever
+the deal's *TradeCo invoices per trade* setting says: that split was this app's own form's
+convention, and a facility issuing its own invoice bills the way its form reads.
+
+**Two checklists.** The pane lists every bracket still unfilled, and separately anything that makes
+the document wrong rather than merely incomplete — no agent configured on an agency deal, no bank
+account named, no goods on the trade, an account held in another currency. A field a template asks
+for and has no value for shows up in brackets on the page, which is signal enough; a deal with
+nowhere to be paid does not show up anywhere else.
 
 **A row per item.** A table row marked up with `[Item No.]`, `[Description]`, `[Qty]`,
 `[Unit Price]` or `[Amount]` is repeated once per goods line on the trade, off the trade's own
