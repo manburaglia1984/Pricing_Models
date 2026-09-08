@@ -253,8 +253,73 @@ Two caveats worth reading before go-live:
   a reason and is itself an audit event.
 - **IAA Offer File** — the 12-field record with its source-cell mapping, exportable as TSV, CSV,
   JSON or print-to-PDF, hashed with SHA-256 and stored immutably on the deal at ISSUED.
+- **Documents from the deal's own .docx templates.** A facility's paperwork is not the app's to
+  design, so a deal can carry its own: tick the documents it issues, upload a Word template with
+  its fields marked `[in square brackets]`, and the app fills them from the deal, the trade and the
+  priced figures, repeats a table row once per goods line, and leaves the rest of the file — wording,
+  styles, letterhead, logo — exactly as uploaded. See [Documents from your own
+  templates](#documents-from-your-own-templates).
 - **Append-only audit log** at field-level granularity — who changed what, when, from what to what,
   and why. No hard deletes anywhere: cancelling is a soft-delete.
+
+## Documents from your own templates
+
+The three documents the app draws itself — the Offer File, the Procurement Order and the TradeCo
+invoice — are its own forms. A facility's real paperwork rarely matches them clause for clause, and
+two deals doing the same trade routinely differ in wording that has nothing to do with the trade.
+Adding an input field per difference would be a form that grows without end and is wrong for the
+next deal anyway.
+
+So a deal can carry its documents as **.docx templates**, and the app fills them.
+
+**Marking up a template.** Wherever a value belongs, put the field name in square brackets:
+
+```
+Contract No.: [Order No.]        Dated: [Today]
+BETWEEN [Seller] of [Seller Address]
+AND [Buyer Name] of [Buyer Address]
+Delivery: [Delivery Terms]      Payment due [Payment Due]
+```
+
+Spacing, case and punctuation are not part of a field name: `[Order No.]`, `[ORDER NO]` and
+`[order_no]` are one field. Word routinely splits a placeholder across several runs for reasons
+nobody typed — a spell-check pass, a language mark, an edit made and undone — so the app joins each
+paragraph before looking, which is why a bracket typed in one piece is still found after Word has
+cut it in three.
+
+**Setting one up.** Deal configuration → **Documents & templates**. Tick the documents this
+facility issues, upload a `.docx` for each, and every bracketed field in the file is listed with the
+value it will print and where that value comes from. Any field can be overridden with a typed value
+on the deal — which is also how a field the app has never heard of gets filled. The templates then
+appear on the **Documents** tab beside the app's own, with a preview and a **Download Word (.docx)**
+button.
+
+**A row per item.** A table row marked up with `[Item No.]`, `[Description]`, `[Qty]`,
+`[Unit Price]` or `[Amount]` is repeated once per goods line on the trade, off the trade's own
+supplier invoices. `[Total]` and `[Amount]` in a footer row are *not* treated as line fields — a
+total repeated once per item is the kind of mistake that goes out to a counterparty.
+
+**What is not filled stays visible.** A field the app cannot answer for is left exactly as it was
+found, brackets and all: marked in red in the preview, and printed as `[Buyer Address]` on the page
+that goes out. An unfinished document should be visible on its face and not only in a checklist.
+
+**What is left alone.** Only the XML parts of the file that carry text are rewritten — the body,
+headers, footers and notes. Styles, fonts, numbering, letterhead and images are the bytes that were
+uploaded, written back in the compression they arrived in. The file that comes out is the file that
+went in, with the brackets filled.
+
+**Limits worth knowing.**
+
+- The preview is a readable rendering, not Word. Text, tables, alignment, bold/italic/underline and
+  pictures are drawn; list numbering, exact spacing, fonts and page breaks are not. The downloaded
+  `.docx` is the real document — open that to see it as it will print.
+- Templates live inside the data store, which is what makes them travel with the book to a shared
+  folder rather than being something each person needs a copy of. That is also why they are capped:
+  1.5 MB per template and 3 MB for all of them together. A Word form with a logo is tens of
+  kilobytes; anything near the ceiling usually has a full-page image in it.
+- `.docx` only. A `.doc` or a PDF has to be saved as `.docx` in Word first.
+- Repeating anything other than a goods row, conditional clauses and content controls are not
+  supported. Bracketed fields and goods rows are the whole vocabulary.
 
 ## Client list
 

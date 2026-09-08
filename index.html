@@ -370,6 +370,31 @@ body.gated main,body.gated header.top{visibility:hidden}
 .gatecard label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--ink-2);margin:12px 0 0}
 .gatecard .btn{width:100%;margin-top:14px;justify-content:center}
 
+/* A template's preview. The paper it is drawn on is the same paper the app's own documents use,
+   so a Word form and a generated one look like the same stack of paper. What is drawn around the
+   body is labelled, because a header filled but not shown reads as a header lost. */
+.tplband{font:600 10px/1.4 var(--sans);letter-spacing:.09em;text-transform:uppercase;
+  color:#888;border-bottom:1px dashed #bbb;padding:0 0 3px;margin:0 0 7px}
+.tplaux{margin:0 0 16px;opacity:.86}
+.tpltab{display:inline-block;width:2.6em}
+.tplbul{display:inline-block;width:1.2em}
+.tplobj{color:#a00;font-style:italic}
+.paper .tplgap{margin:0 0 6px}
+/* Templates on the deal: one block per document, with the fields the file asks for under it. */
+.tpllist{display:flex;flex-direction:column;gap:9px}
+.tplrow{border:1px solid var(--line);border-radius:9px;background:var(--panel-2);padding:9px 11px}
+.tplrow.on{border-color:var(--accent);background:var(--accent-soft)}
+.tplrow .head{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.tplrow .head .nm{font:600 13px/1.3 var(--sans);color:var(--ink)}
+.tplrow.on .head .nm{color:var(--accent)}
+.tplrow .head .spacer{flex:1}
+.tplrow .meta{font:400 11.5px/1.5 var(--sans);color:var(--ink-3)}
+.tplrow table{width:100%;border-collapse:collapse;margin:8px 0 0}
+.tplrow th,.tplrow td{border-top:1px solid var(--line);padding:3px 6px;font-size:12px;
+  text-align:left;vertical-align:middle}
+.tplrow th{font:600 10px/1.4 var(--sans);letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);border-top:0}
+.tplrow td .in{width:100%;min-width:0}
+.tplrow .tok{font:600 11.5px/1.4 var(--mono);color:var(--ink-2);white-space:nowrap}
 /* The Procurement Order's own fields: what the deal and the trade cannot know, laid out above
    the page they fill in. Two columns, with the long ones spanning both. */
 .pofields{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:9px 14px;margin:0 0 14px}
@@ -408,7 +433,7 @@ body:not(.hasagent) .agentrow{display:none}
      .open rule above, so a window someone happened to leave open cannot print behind the invoice. */
   #dealModal,#refModal,#invModal{display:none !important}
   /* Inside the Documents pane, everything that is not the page itself. */
-  #tradeTabs,#tpane-pricing,#docPicker,#docpane-offer,#tcInvMissing,
+  #tradeTabs,#tpane-pricing,#docPicker,#docpane-offer,#tcInvMissing,#tplMissing,.tplband,
   .docpane .toolbar,.card>h2{display:none !important}
   .card{border:0 !important;box-shadow:none !important;background:#fff !important;margin:0 !important}
   .card .body{padding:0 !important}
@@ -792,6 +817,21 @@ code,.mono{font-family:var(--mono);font-size:12px}
       </div>
     </div>
   </div>
+  <!-- One pane for every uploaded template: which one is showing is the picker's answer, and
+       the document itself is the file, so there is nothing per-document to lay out. -->
+  <div class="docpane" id="docpane-tpl">
+    <div class="card">
+      <h2>From a template<span class="tiny" style="text-transform:none;letter-spacing:0" id="tplSub"></span></h2>
+      <div class="body">
+        <div class="toolbar">
+          <button class="btn" id="btnTplDocx">Download Word (.docx)</button>
+          <button class="btn" id="btnTplPrint">Print / PDF</button>
+        </div>
+        <div id="tplMissing"></div>
+        <div class="paperwrap"><div class="paper" id="tplPaper"></div></div>
+      </div>
+    </div>
+  </div>
   <div class="docpane" id="docpane-tcinv">
     <div class="card">
       <h2>TradeCo Invoice<span class="tiny" style="text-transform:none;letter-spacing:0" id="tcInvSub"></span></h2>
@@ -1006,6 +1046,26 @@ code,.mono{font-family:var(--mono);font-size:12px}
               <button class="btn sm" id="btnJurNew" title="Add a country this build does not ship, on the Reference data tab">+ New jurisdiction</button>
             </div>
             <div class="taglist" id="jurisdictionBox"></div></div></div>
+        </div>
+      </div>
+
+      <!-- The facility's own paperwork. Not a form to fill in but the documents themselves,
+           marked up where a value belongs and filled from the deal and the trade. -->
+      <div class="card deal" id="dealDocsCard">
+        <h2>Documents &amp; templates<span class="note tip">Tick the documents this facility
+        issues and upload each one as a .docx. Wherever a value belongs, the file should carry
+        the field name in square brackets — [Order No.], [Buyer Name], [Total Amount]. The app
+        fills the brackets it recognises from this deal, the trade and the priced figures,
+        repeats a table row once per goods line, and leaves anything else exactly as it found
+        it. Everything else about the file — its wording, styles, letterhead and logo — is
+        untouched, which is the point: no two facilities' paperwork has to agree.</span></h2>
+        <div class="body">
+          <div id="dealDocsBox"></div>
+          <div class="toolbar" style="margin-top:10px">
+            <input type="text" class="in" id="dealDocNewName" style="min-width:250px;text-align:left"
+              placeholder="Another document — e.g. Letter of Indemnity">
+            <button class="btn sm" id="btnDealDocAdd">+ Add document</button>
+          </div>
         </div>
       </div>
     </div>
@@ -1429,6 +1489,11 @@ const dDow   = s => new Date(dParse(s)).getUTCDay();
 const isValidDate = s => /^\d{4}-\d{2}-\d{2}$/.test(String(s||'')) && !isNaN(dParse(s));
 const fmtLong = s => isValidDate(s) ? new Intl.DateTimeFormat('en-US',
   {weekday:'long',year:'numeric',month:'long',day:'numeric',timeZone:'UTC'}).format(new Date(dParse(s))) : '—';
+/* The same date without the weekday. It is what goes into a template: "Dated: Tuesday,
+   September 8, 2026" is not how a contract states its date, and the value is being typed into
+   somebody else's form rather than onto one of this app's own pages. */
+const fmtPlain = s => isValidDate(s) ? new Intl.DateTimeFormat('en-US',
+  {year:'numeric',month:'long',day:'numeric',timeZone:'UTC'}).format(new Date(dParse(s))) : '';
 const fmtShort = s => isValidDate(s) ? new Intl.DateTimeFormat('en-GB',
   {day:'2-digit',month:'short',year:'2-digit',timeZone:'UTC'}).format(new Date(dParse(s))).replace(/ /g,'-') : '—';
 /** A stamp written the way this app writes a date, with the time after it. toLocaleString() put
@@ -2640,7 +2705,8 @@ function newDeal(who){
     agentEnabled:false, agentContact:'', agentEmail:'', agentAddress:'', agencyAgreementDate:'',
     agencyFeeEnabled:true, tcInvoiceCount:2, tradecoId:'', tradecoAccountId:'',
     buyerName:'', buyerAddress:'', agreementName:TC_INVOICE_FORM.agreementDefault, agreementDate:'',
-    jurisdictions:[], createdBy:who, createdAt:new Date().toISOString(), cancelled:false };
+    jurisdictions:[], docTemplates:[],
+    createdBy:who, createdAt:new Date().toISOString(), cancelled:false };
 }
 function newTrade(dealId, who){
   return { id:uuid(), dealId, identifier:'', tradeDate:todayISO(), funder:'',
@@ -2724,7 +2790,15 @@ const bootSavedAt = bootFromCache ? (store.savedAt || null) : null;
    means nothing has actually changed. Seeding it from a store read back unchanged keeps a
    plain refresh from moving `savedAt` and drifting ahead of the record on disk. A fresh
    seed and a v1 migration do need writing out, so they start with no shape. */
-const storeShape = () => JSON.stringify({...store, savedAt:null});
+const storeShape = () => JSON.stringify({...store, savedAt:null,
+  /* A template is a whole Word file held as base64. This shape is compared on every keystroke,
+     and stringifying a megabyte of it each time is what would make typing feel slow — for
+     nothing, because the bytes only ever change through an upload, and an upload always stamps
+     uploadedAt. So the stamp and the length stand in for the file. */
+  deals:(store.deals||[]).map(d => (d.docTemplates && d.docTemplates.length)
+    ? {...d, docTemplates:d.docTemplates.map(x => x.file
+        ? {...x, file:{...x.file, b64:x.file.b64.length+'@'+x.file.uploadedAt}} : x)}
+    : d)});
 let lastShape = (bootFromCache && !bootMigrated) ? storeShape() : null;
 /* Every store reaches the app through normalise(), whatever it came from. A fresh seed and a v1
    migration used to skip it, which meant each new field had to be added to three places and was one
@@ -2765,6 +2839,18 @@ function normalise(s){
   /* The register is new. A book written before it gets the seeded entity, and every entry is
      brought up to the current shape — a TradeCo with no accounts array is one nobody can be paid
      through, which the deal's account dropdown and the invoice's checklist both need to see. */
+  /* Templates are a deal's own, so a book from before them has deals with none. Each entry is
+     brought up to shape rather than trusted: a template with no values map is one whose typed
+     fields would throw on the first read. */
+  for(const d of (s.deals||[])){
+    if(!Array.isArray(d.docTemplates)) d.docTemplates=[];
+    for(const x of d.docTemplates){
+      if(!x.id) x.id=uuid();
+      if(!x.values || typeof x.values!=='object') x.values={};
+      if(!Array.isArray(x.tokens)) x.tokens=[];
+      if(x.file && !x.file.b64) x.file=null;
+    }
+  }
   if(!s.users || !Array.isArray(s.users.list)) s.users=defaultUsers();
   s.users.requireLogin = s.users.requireLogin===true;
   for(const u of s.users.list) Object.assign(u, newUser(u));
@@ -2996,11 +3082,32 @@ const save = () => {
   // to guess. Stamped after the shape check, so it never triggers a write of its own.
   try{ store.lastActor = actor().name; }catch(e){}
   sink.pulledFrom = '';
-  try{ localStorage.setItem(LS_KEY, JSON.stringify(store)); }catch(e){ console.warn('Persist failed', e); }
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(store)); lsBroken=''; }
+  catch(e){ persistBroke(e); }
   if(sink.mode==='local'){ renderPersistence(); return; }
   sink.dirty=true; renderPersistence();
   clearTimeout(flushTimer); flushTimer=setTimeout(flush, 700);
 };
+/* A browser that refuses the write is the one failure this app cannot afford to keep to the
+   console. It is now reachable for a plain reason — the store carries whole Word files, and
+   localStorage is a few megabytes — and everything typed after it is being thrown away. So it
+   is said out loud, once per reason, and it says what to do about it. */
+let lsBroken='';
+function persistBroke(e){
+  console.warn('Persist failed', e);
+  const full=/quota|exceed|full/i.test(String(e && (e.name+' '+e.message)));
+  const why = full ? 'this browser\u2019s storage is full' : ((e && e.message) || String(e));
+  if(lsBroken===why) return;
+  lsBroken=why;
+  const advice = sink.mode==='local'
+    ? 'Nothing since is being kept, and closing the tab would lose it. Export the data '+
+      '(Settings \u2192 Spec & traceability) now, then take out what is filling the room \u2014 '+
+      'an uploaded document template is the usual culprit \u2014 or link a file or a shared '+
+      'folder, which is not limited this way.'
+    : 'The '+(sink.label||'linked')+' copy is still being written, so the work is not lost, but '+
+      'this browser has stopped keeping its own copy of it.';
+  setTimeout(()=>alert('This change could not be saved to the browser \u2014 '+why+'.\n\n'+advice), 0);
+}
 /** Write the store to the linked sink. `savedAt` doubles as the write's identity:
  *  if it moved while the write was in flight the store is still dirty afterwards. */
 async function flush(){
@@ -4399,6 +4506,7 @@ function render(){
   applyNaming(clientLabel(d), funderLabel(t));
   renderHeader(d,t,r); renderDealForm(); renderFunderList(); renderPricing(d,t,r);
   renderRates(); renderClients(); renderInvestors(); renderTradecos(); renderRefMenu(); renderDocuments(d,t,r);
+  renderDealDocs(d,t,r);
   renderDeals(); renderAudit(); renderAbout();
   save(); roGuard();
 }
@@ -5740,16 +5848,39 @@ const DOCUMENTS = [
        ? 'One of them, billing the amount and the financial cost together (B36).'
        : 'Two of them: the goods (B34) and the financial cost (B35).')},
 ];
+/** What a template is called: its own name for a bespoke one, the document's name otherwise. */
+const templateLabel = x => String((x && x.name) || templateDocName(x && x.kind) || 'Document');
+/** Every document this deal can issue — the three the app draws itself, then one per template
+ *  uploaded against the deal. They share the one picker because from where the user is standing
+ *  they are the same thing: a document this trade produces. */
+/* Two of the documents on the template list are ones the app also draws itself. A deal that
+   uploads its own form gets both, because the standard one is still the app's own answer and
+   worth being able to look at — so they are told apart on the picker rather than sharing a
+   name and leaving the user to click and see. */
+const DRAWN_TOO = new Set(['po','tcinv']);
+function documentList(deal){
+  return DOCUMENTS.concat(dealTemplates(deal).map(x=>({
+    key:'tpl:'+x.id, tpl:x,
+    name: templateLabel(x)+(DRAWN_TOO.has(x.kind) ? ' — this deal’s form' : ''),
+    desc: () => x.file
+      ? 'From '+x.file.name+' — '+(x.tokens||[]).length+' field(s) marked in it, filled from this '+
+        'deal and the trade.'
+      : 'Ticked on this deal, but no .docx uploaded yet — add it in the deal configuration.'})));
+}
 function showDocPane(name){
-  docChoice = DOCUMENTS.some(x=>x.key===name) ? name : 'offer';
+  const list=documentList(currentDeal());
+  docChoice = list.some(x=>x.key===name) ? name : 'offer';
+  // Every template shares one pane: which one is showing is the picker's answer, and the layout
+  // of the document is the document's own business.
+  const pane = docChoice.startsWith('tpl:') ? 'tpl' : docChoice;
   for(const el of document.querySelectorAll('#tpane-offer .docpane'))
-    el.classList.toggle('active', el.id==='docpane-'+docChoice);
+    el.classList.toggle('active', el.id==='docpane-'+pane);
   for(const b of document.querySelectorAll('#docPicker button'))
     b.setAttribute('aria-selected', String(b.dataset.doc===docChoice));
 }
 function renderDocuments(d,t,r){
-  $('docPicker').innerHTML = DOCUMENTS.map(x=>
-    '<button data-doc="'+x.key+'" aria-selected="'+(x.key===docChoice)+'">'+
+  $('docPicker').innerHTML = documentList(d).map(x=>
+    '<button data-doc="'+esc(x.key)+'" aria-selected="'+(x.key===docChoice)+'">'+
       '<span class="t">'+esc(x.name)+'</span><span class="d">'+esc(x.desc(d))+'</span></button>').join('');
   $('docScopeNote').textContent = t
     ? '— for trade '+(t.identifier||'(untitled)')+', state '+t.state
@@ -5758,6 +5889,217 @@ function renderDocuments(d,t,r){
   renderOffer(d,t,r);
   renderPO(d,t,r);
   renderTcInvoice(d,t,r);
+  renderTemplateDoc(d,t,r);
+}
+
+/* ====================== a document drawn from a template ======================
+   The pane shows whichever template the picker has selected, filled against the deal and the
+   trade that are open. Filling means reading a Word file and rewriting parts of it, which is
+   asynchronous, so a repaint that starts while an earlier one is still running has to be able
+   to say so: tplSeq is what a finished fill checks before it paints anything. */
+let tplSeq=0, tplTimer=null;
+const currentTemplate = deal =>
+  dealTemplates(deal).find(x=>'tpl:'+x.id===docChoice) || null;
+/* Every keystroke in the deal configuration repaints the app, and a template of any size is
+   too much work to redo between two of them. The preview settles a moment after the typing. */
+function renderTemplateDoc(d,t,r){
+  if(!String(docChoice).startsWith('tpl:')) return;
+  clearTimeout(tplTimer);
+  tplTimer=setTimeout(()=>fillTemplatePane(d,t,r), 140);
+}
+async function fillTemplatePane(d,t,r){
+  const paper=$('tplPaper'); if(!paper || !String(docChoice).startsWith('tpl:')) return;
+  const seq=++tplSeq, alive=()=>seq===tplSeq;
+  const tpl=currentTemplate(d);
+  const say=(cls,html)=>{ $('tplMissing').innerHTML =
+    cls ? '<div class="banner '+cls+'"><div>'+html+'</div></div>' : ''; };
+  if(!tpl){
+    paper.innerHTML='<p>This document is no longer on the deal.</p>';
+    $('tplSub').textContent=''; say('');
+    return;
+  }
+  $('tplSub').textContent=' — '+templateLabel(tpl);
+  if(!tpl.file){
+    paper.innerHTML='';
+    say('warn','<b>No template uploaded.</b> “'+esc(templateLabel(tpl))+'” is ticked on this deal '+
+      'but has no .docx behind it yet. Add it in the deal configuration, under Documents &amp; templates.');
+    return;
+  }
+  if(!t){
+    paper.innerHTML='';
+    say('warn','<b>No trade selected.</b> A document is issued for a trade — pick one on the '+
+      'Deals &amp; Trades tab.');
+    return;
+  }
+  paper.innerHTML='<p>Filling '+esc(tpl.file.name)+'…</p>';
+  let filled, html;
+  try{
+    const ctx=templateFields(d, t, r ? r.out : null);
+    ctx.overrides=tpl.values||{};
+    filled=await fillTemplate(b64ToBytes(tpl.file.b64).buffer, ctx);
+    if(!alive()) return;
+    html=await templateHtml(filled);
+  }catch(err){
+    if(!alive()) return;
+    paper.innerHTML='';
+    say('err','<b>Could not fill '+esc(tpl.file.name)+'.</b> '+
+      esc(err && err.message ? err.message : String(err)));
+    return;
+  }
+  if(!alive()) return;
+  paper.innerHTML=html;
+
+  /* What is still open, and where it is answered — a list of bracket names on its own would
+     leave the reader to guess which of them the app was ever going to fill. */
+  const open=filled.unresolved, bits=[];
+  if(filled.noGoods) bits.push('The item table is marked up for goods, but this trade carries no '+
+    'supplier invoice with a value, so its rows are left as they are.');
+  const known=open.filter(x=>x.known), unknown=open.filter(x=>!x.known);
+  const names=list=>list.map(x=>'<span class="tok">['+esc(x.name)+']</span>').join(' ');
+  if(known.length) bits.push(known.length+' field(s) this app fills, but has nothing to put in '+
+    'yet: '+names(known)+' — fill them where they live, in the deal, on the trade, or on the '+
+    'client’s draft order.');
+  if(unknown.length) bits.push(unknown.length+' field(s) this app has no answer for: '+
+    names(unknown)+' — type a value for each in the deal configuration, under Documents &amp; '+
+    'templates.');
+  $('tplSub').textContent=' — '+templateLabel(tpl)+' · '+filled.filled+' filled'+
+    (open.length ? ' · '+open.length+' still open' : '');
+  say(bits.length ? 'warn' : 'ok', bits.length
+    ? '<b>'+bits.length+' thing(s) to look at.</b><ul style="margin:5px 0 0 16px">'+
+      bits.map(b=>'<li>'+b+'</li>').join('')+'</ul>'
+    : '<b>Complete.</b> Every bracketed field in '+esc(tpl.file.name)+' was filled.');
+}
+
+/* ---------------- the deal's list of documents and their templates ---------------- */
+const kbLabel = n => n<1024 ? n+' B' : (n/1024).toFixed(n<1024*100?1:0)+' KB';
+/** A value as one line, for a table cell. An address is four lines in the document and has to
+ *  be legible as one here without pretending that is how it will print. */
+const oneLine = (v,max) => { const s=String(v==null?'':v).split(/\r?\n/).map(x=>x.trim())
+  .filter(Boolean).join(' / ');
+  return s.length>(max||58) ? s.slice(0,(max||58)-1)+'…' : s; };
+/** The fields one template asks for, what each will print, and a box to say otherwise.
+ *  Every field gets that box, not only the ones the app cannot answer: which figure a form
+ *  means by [TOTAL] is the form's business, and arguing with it from here is not the job. */
+function templateFieldTable(tpl, ctx, locked){
+  const toks=(tpl.tokens||[]);
+  if(!toks.length) return '<p class="tiny" style="margin:8px 0 0">Nothing in square brackets in '+
+    'this file — it will be issued exactly as uploaded.</p>';
+  return '<table><thead><tr><th>Marked in the file</th><th>What will be printed</th>'+
+    '<th style="width:34%">Instead, print</th></tr></thead><tbody>'+
+    toks.map(tk=>{
+      const f=ctx.map.get(tk.key), lf=LINE_MAP.get(tk.key);
+      const own=String((tpl.values||{})[tk.key]||'');
+      let cell;
+      if(tk.inRow && lf)
+        cell='<span class="inline-tag ok">once per goods line</span> '+esc(lf.label)+
+             (ctx.lines.length ? ' · '+ctx.lines.length+' line(s) on this trade'
+                               : ' · <span style="color:var(--err)">no goods on this trade</span>');
+      else if(own.trim())
+        cell='<b>'+esc(oneLine(own))+'</b> <span class="tiny">typed here</span>';
+      else if(f && String(f.value).trim())
+        cell=esc(oneLine(f.value))+' <span class="tiny">from '+esc(f.label)+'</span>';
+      else if(f)
+        cell='<span class="inline-tag warn">'+esc(f.label)+' is empty</span>';
+      else
+        cell='<span class="inline-tag err">not a field this app knows</span>';
+      return '<tr><td class="tok">['+esc(tk.name)+']</td><td>'+cell+'</td><td>'+
+        (tk.inRow && lf ? '<span class="tiny">—</span>'
+          : '<input type="text" class="in" data-tpl-val="'+esc(tpl.id)+'" data-tpl-key="'+
+            esc(tk.key)+'" value="'+esc(own)+'"'+(locked?' disabled':'')+
+            ' placeholder="'+(f?'leave blank to use the value on the left':'give it a value')+'">')+
+        '</td></tr>';
+    }).join('')+'</tbody></table>';
+}
+function renderDealDocs(d,t,r){
+  const box=$('dealDocsBox'); if(!box || !d) return;
+  /* A rebuild would tear the field out from under the caret, and every keystroke in one of
+     these boxes repaints the app. A focused button must not stop it — the tick that adds a
+     document leaves the checkbox holding focus, and skipping there is how the new block
+     failed to appear. */
+  const ae=document.activeElement;
+  if(ae && box.contains(ae) && /^(INPUT|SELECT|TEXTAREA)$/.test(ae.tagName) && ae.type!=='checkbox'
+     && ae.type!=='file') return;
+
+  const list=dealTemplates(d), locked=!dealEditable(d);
+  const ctx=templateFields(d, t, r ? r.out : null);
+  const rows=TEMPLATE_DOCS.map(k=>({key:'kind:'+k.id, name:k.name, tpl:list.find(x=>x.kind===k.id)}))
+    .concat(list.filter(x=>!x.kind).map(x=>({key:'id:'+x.id, name:templateLabel(x), tpl:x, own:true})));
+
+  box.innerHTML='<div class="tpllist">'+rows.map(row=>{
+    const tpl=row.tpl, f=tpl && tpl.file;
+    return '<div class="tplrow'+(tpl?' on':'')+'">'+
+      '<div class="head">'+
+        '<label class="toggle"><input type="checkbox" data-tpl-on="'+esc(row.key)+'"'+
+          (tpl?' checked':'')+(locked?' disabled':'')+'>'+
+          '<span class="nm">'+esc(row.name)+'</span></label>'+
+        (row.own?'<span class="tiny">named on this deal</span>':'')+
+        '<span class="spacer"></span>'+
+        (tpl
+          ? '<span class="meta">'+(f
+              ? esc(f.name)+' · '+kbLabel(f.size)+' · '+esc(fmtShort(String(f.uploadedAt||'').slice(0,10)))+
+                (f.by?' by '+esc(f.by):'')
+              : 'no .docx yet')+'</span>'+
+            (locked ? '' :
+              '<label class="btn sm" style="display:inline-flex;align-items:center">'+(f?'Replace':'Upload .docx')+
+                '<input type="file" data-tpl-file="'+esc(tpl.id)+'" accept=".docx,'+
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document" '+
+                'style="display:none"></label>'+
+              (f?'<button class="btn sm danger" data-tpl-clear="'+esc(tpl.id)+'">Remove file</button>':''))
+          : '')+
+      '</div>'+
+      (tpl && f ? templateFieldTable(tpl, ctx, locked) : '')+
+      '</div>';
+  }).join('')+'</div>';
+}
+
+/* ---- uploading one ---- */
+async function uploadTemplate(tplId, file){
+  const d=currentDeal(); if(!d) return;
+  if(!dealEditable(d)) return alert('Deal configuration is locked. Use “Unlock for editing” on the '+
+    'Deals & Trades tab first.');
+  const tpl=dealTemplates(d).find(x=>String(x.id)===String(tplId)); if(!tpl) return;
+  if(!/\.docx$/i.test(file.name))
+    return alert('Only a .docx will do — that is the format this app can read and fill.\n\n'+
+      'A .doc or a PDF has to be saved as .docx in Word first.');
+  if(file.size>MAX_TEMPLATE_BYTES)
+    return alert(file.name+' is '+kbLabel(file.size)+'. The ceiling is '+kbLabel(MAX_TEMPLATE_BYTES)+
+      ' per template.\n\nThe template travels inside the data store, which is written in full on '+
+      'every change, so a large one slows everything down for everybody. A Word form with a logo '+
+      'is tens of kilobytes — a file this size usually has a full-page image in it.');
+  const others=templateBytes(tpl);
+  if(others+file.size>MAX_TEMPLATE_TOTAL)
+    return alert('There is no room for another '+kbLabel(file.size)+'.\n\nThe templates already on '+
+      'this book come to '+kbLabel(others)+', and the ceiling for all of them together is '+
+      kbLabel(MAX_TEMPLATE_TOTAL)+' — a browser stops keeping anything at all somewhere past that, '+
+      'and the store is written in full on every change.\n\nRemove a template that is no longer '+
+      'used, or replace this one with a lighter file.');
+  const buf=await file.arrayBuffer();
+  let scan;
+  try{ scan=await scanTemplate(buf); }
+  catch(err){ return alert('Could not read '+file.name+':\n\n'+
+    (err && err.message ? err.message : String(err))); }
+  const was=tpl.file ? tpl.file.name : '';
+  tpl.file={name:file.name, size:file.size, uploadedAt:new Date().toISOString(),
+            by:actor().name, b64:bytesToB64(new Uint8Array(buf))};
+  tpl.tokens=scan.tokens;
+  audit('deal', d.id, 'UPDATE', 'template:'+templateLabel(tpl), was||null, file.name,
+    scan.tokens.length+' field(s) marked in it');
+  save();
+  render();
+  const t=currentTrade(), ctx=templateFields(d, t, t?computeAll(d,t).out:null);
+  const unknown=scan.tokens.filter(x=>!ctx.map.get(x.key) && !(x.inRow && LINE_MAP.get(x.key)));
+  alert('Loaded '+file.name+' as the '+templateLabel(tpl)+' for this deal.\n\n'+
+    scan.tokens.length+' field(s) marked in square brackets'+
+    (scan.lineRows ? ', and '+scan.lineRows+' table row(s) that repeat once per goods line' : '')+
+    '.\n'+(unknown.length
+      ? '\n'+unknown.length+' of them are not fields this app knows:\n  '+
+        unknown.map(x=>'['+x.name+']').join('  ')+
+        '\n\nType a value for each below, or leave them and they will print as they are.'
+      : '\nEvery one of them is a field this app can fill.')+
+    (file.size>WARN_TEMPLATE_BYTES
+      ? '\n\nNote: at '+kbLabel(file.size)+' this is a large template. It is kept inside the data '+
+        'store, which is written in full on every change.'
+      : ''));
 }
 
 
@@ -7438,6 +7780,84 @@ function runTests(){
   T('Funder label falls back', funderLabel({}),'Funder','trade.funder');
   T('Funder label used', funderLabel({funder:'Bladex'}),'Bladex','trade.funder');
 
+  /* ---- filling a template ----
+     The engine is exercised on paragraphs built here rather than on an uploaded file, so the
+     checks run on every boot with nothing to upload. What they are guarding is the one thing
+     about this that is not obvious: Word splits a placeholder across runs for reasons nobody
+     typed, so joining the paragraph first is not an optimisation, it is the whole mechanism. */
+  {
+    const P = xml => new DOMParser().parseFromString(
+      '<w:document xmlns:w="'+W_NS+'"><w:body>'+xml+'</w:body></w:document>','application/xml');
+    const runs = (...texts) => '<w:p>'+texts.map(t=>'<w:r><w:t>'+t+'</w:t></w:r>').join('')+'</w:p>';
+    const text = doc => [...doc.getElementsByTagNameNS(W_NS,'t')].map(n=>n.textContent).join('');
+    const fill = (xml, answers) => {
+      const doc=P(xml), resolve=n=>{ const v=answers[tokenKey(n)]; return v===undefined?null:v; };
+      for(const p of wEvery(doc,'p')) fillParagraph(p, resolve);
+      return doc;
+    };
+    T('A placeholder in one run is filled',
+      text(fill(runs('No: [ORDER NO]'), {ORDERNO:'SB01'})),'No: SB01','fillParagraph');
+    T('A placeholder split across three runs is still one field',
+      text(fill(runs('No: [ORDER',' NO','] here'), {ORDERNO:'SB01'})),'No: SB01 here','fillParagraph');
+    T('Only the runs the placeholder covers are touched',
+      text(fill(runs('a ','[X]',' b'), {X:'1'})),'a 1 b','fillParagraph');
+    T('Two placeholders in one paragraph',
+      text(fill(runs('[A] and [B]'), {A:'1',B:'2'})),'1 and 2','fillParagraph');
+    T('A placeholder nobody answers for is left as it was',
+      text(fill(runs('[A] and [MYSTERY]'), {A:'1'})),'1 and [MYSTERY]','fillParagraph');
+    T('Spacing, case and punctuation are not part of a field name',
+      text(fill(runs('[Order No.] [ORDER NO] [order_no]'), {ORDERNO:'x'})),'x x x','tokenKey');
+    T('A value of several lines becomes several lines',
+      wEvery(fill(runs('[ADDR]'), {ADDR:'One\nTwo\nThree'}),'br').length,'2','setRunText');
+    T('...and every line of it is kept',
+      text(fill(runs('[ADDR]'), {ADDR:'One\nTwo'})),'OneTwo','setRunText');
+    T('A bracket with no pair is not a field',
+      text(fill(runs('a [ b'), {})),'a [ b','TOKEN_RE');
+
+    /* A row of goods is repeated, and a row that only mentions a total is not. */
+    const tbl = cells => '<w:tbl>'+cells.map(row=>'<w:tr>'+row.map(c=>
+      '<w:tc><w:p><w:r><w:t>'+c+'</w:t></w:r></w:p></w:tc>').join('')+'</w:tr>').join('')+'</w:tbl>';
+    const lines=[{itemNo:'A-1', description:'Widget', qty:D.of(2), unitPrice:D.of('5.5'), net:D.of(11)},
+                 {itemNo:'A-2', description:'Gadget', qty:D.of(1), unitPrice:D.of(7), net:D.of(7)}];
+    const cash = v => 'USD '+v.toFixed(2);
+    const goods=P(tbl([['Item No.','Item','Amount'],
+                       ['[ITEM NO]','[ITEM]','[AMOUNT]'],
+                       ['Total','','[TOTAL]']]));
+    const grew=expandLineRows(goods, lines, cash);
+    T('One row of goods is found', grew.rows,'1','expandLineRows');
+    T('...and repeated once per line', wEvery(goods,'tr').length,'4','expandLineRows');
+    T('Each line prints its own values',
+      wEvery(goods,'tr').map(tr=>wEvery(tr,'t').map(n=>n.textContent).join('|')).join(' / '),
+      'Item No.|Item|Amount / A-1|Widget|USD 11.00 / A-2|Gadget|USD 7.00 / Total||[TOTAL]',
+      'expandLineRows');
+    T('A total under the table is not a line',
+      expandLineRows(P(tbl([['Total','[TOTAL]']])), lines, cash).rows,'0','LINE_ANCHORS');
+    const bare=P(tbl([['[ITEM NO]','[QTY]']]));
+    expandLineRows(bare, [], cash);
+    T('With no goods the row is not repeated', wEvery(bare,'tr').length,'1','expandLineRows');
+    T('...and it keeps its brackets, so the gap shows on the page',
+      wEvery(bare,'t').map(n=>n.textContent).join('|'),'[ITEM NO]|[QTY]','expandLineRows');
+
+    /* What the deal and the trade answer for, against the golden book. */
+    const gd=store.deals[0], gt=tradesOf(gd.id)[0];
+    const ctx=templateFields(gd, gt, computeAll(gd,gt).out);
+    const val=n=>{ const f=ctx.map.get(tokenKey(n)); return f?f.value:'(no such field)'; };
+    T('[Transaction Code] is the deal code', val('Transaction Code'), gd.code,'templateFields');
+    T('[Order No] is the trade identifier', val('Order No'), gt.identifier,'templateFields');
+    T('[Currency] is the deal currency', val('CCY'),'USD','templateFields');
+    T('[Seller] is the issuing entity', val('Seller'), tradecoFor(gd).tradeco.name,'templateFields');
+    T('[Total Amount] is the trade total', val('TOTAL AMOUNT'),'USD 880,717.21','Cantu!B36');
+    T('[Amount Payable] is the goods value', val('Amount payable'),'USD 850,000.00','Cantu!B34');
+    T('[Payment Due] is B28', val('Payment due'),'January 12, 2027','Cantu!B28');
+    T('A date in a template carries no weekday', val('Today').includes(','),'true','fmtPlain');
+    T('...and it is the same date the app prints', val('Today'),
+      fmtLong(todayISO()).replace(/^[A-Za-z]+, /,''),'fmtPlain');
+    T('A field nobody has heard of stays unheard of', val('Seller LEI'),'(no such field)','templateFields');
+    T('An unfilled field is empty, not guessed', val('Onward buyer'),'','templateFields');
+    T('Marked-up brackets survive into the preview',
+      markBlanks('a [B] c'),'a <span class="blank">[B]</span> c','markBlanks');
+  }
+
   T('Client list loaded', clientList().length>0,'true','monday.com Global Pipeline');
   T('Client name drives labels', clientLabel({clientName:'Acme SA'}),'Acme SA','Offer File col H');
   T('Client label falls back', clientLabel({}),'Client','—');
@@ -8584,24 +9004,42 @@ function crc32(bytes){
 }
 /** files: [[path, text], …] → a Blob of a ZIP with stored (uncompressed) members. */
 function zipStored(files){
+  const enc=new TextEncoder();
+  return zipBuild(files.map(([name,text])=>{
+    const data=enc.encode(text);
+    return {name, method:0, crc:crc32(data), size:data.length, comp:data};
+  }));
+}
+/** entries: [{name, method, crc, size, comp}, …] → a Blob of a ZIP, where comp is the member as
+ *  it should sit on disk — raw bytes for method 0, a deflate stream for method 8.
+ *
+ *  Taking members already compressed matters for a filled template: only the XML parts are
+ *  rewritten, and the images, fonts and styles that make up the rest of the file are written
+ *  back byte for byte in the compression they arrived in. Rebuilding those would mean shipping
+ *  a deflate implementation to no purpose, and would turn a 60 KB letterhead into 400 KB. */
+function zipBuild(entries){
   const enc=new TextEncoder(), body=[], central=[], now=new Date();
   const dosTime = ((now.getHours()<<11) | (now.getMinutes()<<5) | (now.getSeconds()>>1)) & 0xFFFF;
   const dosDate = (((now.getFullYear()-1980)<<9) | ((now.getMonth()+1)<<5) | now.getDate()) & 0xFFFF;
   let offset=0;
-  for(const [name,text] of files){
-    const nameB=enc.encode(name), data=enc.encode(text), crc=crc32(data);
+  for(const e of entries){
+    /* Bit 11 says the name is UTF-8 and is carried over; bit 3, the data descriptor, is not —
+       these headers state the real sizes, which is the whole reason for rewriting them. */
+    const flags=(e.flags||0) & 0x800;
+    const nameB=enc.encode(e.name), data=e.comp, size=e.size==null ? data.length : e.size;
     const lh=new DataView(new ArrayBuffer(30));
     lh.setUint32(0,0x04034b50,true);                 // local file header
-    lh.setUint16(4,20,true); lh.setUint16(6,0,true); lh.setUint16(8,0,true);   // v2.0, no flags, stored
+    lh.setUint16(4,20,true); lh.setUint16(6,flags,true); lh.setUint16(8,e.method||0,true);
     lh.setUint16(10,dosTime,true); lh.setUint16(12,dosDate,true);
-    lh.setUint32(14,crc,true); lh.setUint32(18,data.length,true); lh.setUint32(22,data.length,true);
+    lh.setUint32(14,e.crc,true); lh.setUint32(18,data.length,true); lh.setUint32(22,size,true);
     lh.setUint16(26,nameB.length,true); lh.setUint16(28,0,true);
     body.push(new Uint8Array(lh.buffer), nameB, data);
     const cd=new DataView(new ArrayBuffer(46));
     cd.setUint32(0,0x02014b50,true);                 // central directory entry
-    cd.setUint16(4,20,true); cd.setUint16(6,20,true); cd.setUint16(8,0,true); cd.setUint16(10,0,true);
+    cd.setUint16(4,20,true); cd.setUint16(6,20,true); cd.setUint16(8,flags,true);
+    cd.setUint16(10,e.method||0,true);
     cd.setUint16(12,dosTime,true); cd.setUint16(14,dosDate,true);
-    cd.setUint32(16,crc,true); cd.setUint32(20,data.length,true); cd.setUint32(24,data.length,true);
+    cd.setUint32(16,e.crc,true); cd.setUint32(20,data.length,true); cd.setUint32(24,size,true);
     cd.setUint16(28,nameB.length,true); cd.setUint16(30,0,true); cd.setUint16(32,0,true);
     cd.setUint16(34,0,true); cd.setUint16(36,0,true); cd.setUint32(38,0,true);
     cd.setUint32(42,offset,true);
@@ -8611,7 +9049,7 @@ function zipStored(files){
   const cdSize = central.reduce((a,x)=>a+x.length, 0);
   const end=new DataView(new ArrayBuffer(22));
   end.setUint32(0,0x06054b50,true);                  // end of central directory
-  end.setUint16(8,files.length,true); end.setUint16(10,files.length,true);
+  end.setUint16(8,entries.length,true); end.setUint16(10,entries.length,true);
   end.setUint32(12,cdSize,true); end.setUint32(16,offset,true);
   return new Blob([...body, ...central, new Uint8Array(end.buffer)],
     {type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
@@ -8626,33 +9064,42 @@ async function inflateRaw(bytes){
   const w=ds.writable.getWriter(); w.write(bytes); w.close();
   return new Uint8Array(await new Response(ds.readable).arrayBuffer());
 }
-/** One member of a ZIP by name, located through the central directory rather than by
- *  walking local headers: when the writer used a data descriptor the local header's sizes
- *  are zero, and Word's are. */
-async function zipMember(buf, wanted){
-  const b=new Uint8Array(buf), dv=new DataView(buf);
+/** Every member of a ZIP, still in the compression it arrived in, with what zipBuild needs to
+ *  write it back out. Located through the central directory rather than by walking local headers:
+ *  when the writer used a data descriptor the local header's sizes are zero, and Word's are. */
+function zipList(buf){
+  const b=new Uint8Array(buf), dv=new DataView(buf), dec=new TextDecoder();
   let eocd=-1;
   for(let i=b.length-22; i>=Math.max(0, b.length-66000); i--)
     if(dv.getUint32(i,true)===0x06054b50){ eocd=i; break; }
   if(eocd<0) throw new Error('This is not a ZIP archive, so it is not a .docx either.');
-  const count=dv.getUint16(eocd+10,true), dec=new TextDecoder();
+  const count=dv.getUint16(eocd+10,true), out=[];
   let p=dv.getUint32(eocd+16,true);
   for(let n=0; n<count; n++){
     if(dv.getUint32(p,true)!==0x02014b50) throw new Error('The file\u2019s directory is damaged.');
-    const method=dv.getUint16(p+10,true), compSize=dv.getUint32(p+20,true);
+    const flags=dv.getUint16(p+8,true), method=dv.getUint16(p+10,true), crc=dv.getUint32(p+16,true);
+    const compSize=dv.getUint32(p+20,true), size=dv.getUint32(p+24,true);
     const nameLen=dv.getUint16(p+28,true), extraLen=dv.getUint16(p+30,true), cmtLen=dv.getUint16(p+32,true);
     const local=dv.getUint32(p+42,true);
-    if(dec.decode(b.subarray(p+46, p+46+nameLen))===wanted){
-      if(dv.getUint32(local,true)!==0x04034b50) throw new Error('The file\u2019s '+wanted+' entry is damaged.');
-      const start=local+30+dv.getUint16(local+26,true)+dv.getUint16(local+28,true);
-      const data=b.subarray(start, start+compSize);
-      if(method===0) return data;
-      if(method===8) return inflateRaw(data);
-      throw new Error('Unsupported compression (method '+method+') on '+wanted+'.');
-    }
+    const name=dec.decode(b.subarray(p+46, p+46+nameLen));
+    if(dv.getUint32(local,true)!==0x04034b50) throw new Error('The file\u2019s '+name+' entry is damaged.');
+    const start=local+30+dv.getUint16(local+26,true)+dv.getUint16(local+28,true);
+    out.push({name, method, crc, size, flags, comp:b.subarray(start, start+compSize)});
     p += 46+nameLen+extraLen+cmtLen;
   }
-  throw new Error('No '+wanted+' inside \u2014 is this really a Word document?');
+  return out;
+}
+/** One member's bytes, inflated if it was deflated. */
+async function zipRead(entry){
+  if(entry.method===0) return entry.comp;
+  if(entry.method===8) return inflateRaw(entry.comp);
+  throw new Error('Unsupported compression (method '+entry.method+') on '+entry.name+'.');
+}
+/** One member of a ZIP by name, inflated. */
+async function zipMember(buf, wanted){
+  const e=zipList(buf).find(x=>x.name===wanted);
+  if(!e) throw new Error('No '+wanted+' inside \u2014 is this really a Word document?');
+  return zipRead(e);
 }
 const W_NS='http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 const wKids=(el,name)=>[...el.children].filter(c=>c.localName===name && c.namespaceURI===W_NS);
@@ -9034,6 +9481,540 @@ function procurementOrderDocx(doc){
   return docxPackage(docxBody(bodyXml), DOCX_STYLES);
 }
 
+/* ================== the deal's own documents, from templates ==================
+   A facility's paperwork is not this app's to design. Two deals doing the same trade issue
+   procurement orders that differ clause by clause, and most of what differs is not what
+   changes trade by trade — it is the facility's own wording, settled once with the client.
+   An input field for each of them would be a form that grows without end and is still wrong
+   for the next deal.
+
+   So the deal holds the documents themselves. Whoever drafts a form marks the places a value
+   belongs with [SQUARE BRACKETS] and uploads the .docx against the deal. The app fills the
+   brackets it recognises from the deal, the trade and the priced figures, repeats a table row
+   once per goods line, and leaves anything it does not recognise exactly as it found it, so an
+   unfilled field shows up in the preview and again on the page that goes out. Everything else
+   about the document — its styles, letterhead, logo, headers and footers — is the file that was
+   uploaded, unchanged: only the XML parts carrying text are rewritten. */
+
+/* A placeholder. Kept to one line and a sane length so a stray bracket in a clause — "[sic]",
+   an algebraic aside — cannot swallow half a page looking for its pair. */
+const TOKEN_RE = /\[([^\[\]\r\n]{1,160})\]/g;
+/** A placeholder's identity with spacing, case and punctuation taken out, because three people
+ *  marking up the same form will write [Order No.], [ORDER NO] and [order_no]. */
+const tokenKey = s => String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+const XML_SPACE='http://www.w3.org/XML/1998/namespace';
+const XML_DECL='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+const wEvery=(el,name)=>[...el.getElementsByTagNameNS(W_NS,name)];
+
+/* The documents a facility might issue. A deal ticks the ones that apply to it and uploads a
+   template for each; anything not on this list goes on as a named document of its own. */
+const TEMPLATE_DOCS = [
+  {id:'po',         name:'Procurement Order'},
+  {id:'tcinv',      name:'TradeCo Invoice'},
+  {id:'sales',      name:'Sales Contract'},
+  {id:'purchase',   name:'Purchase Contract'},
+  {id:'agency',     name:'Procurement Agency Agreement'},
+  {id:'assignment', name:'Notice of Assignment'},
+  {id:'receivable', name:'Receivables Purchase Agreement'},
+  {id:'inspection', name:'Inspection Certificate'},
+];
+const templateDocName = kind => (TEMPLATE_DOCS.find(x=>x.id===kind)||{}).name || '';
+const dealTemplates = deal => (deal && Array.isArray(deal.docTemplates)) ? deal.docTemplates : [];
+function newDocTemplate(seed){
+  return {id:uuid(), kind:'', name:'', file:null, values:{}, ...(seed||{})};
+}
+/* A template lives in the store as base64, which is what makes it travel with the book to a
+   shared folder instead of being something each person has to have a copy of. It is also why
+   there is a ceiling: every save writes the whole store, and a 20 MB letterhead would be
+   written on every keystroke. A Word form with a logo is tens of kilobytes. */
+const MAX_TEMPLATE_BYTES = 1500*1024;
+const WARN_TEMPLATE_BYTES = 400*1024;
+/* And a ceiling on all of them together: it is one store they share, and a browser's own
+   storage runs out at a few megabytes. Base64 costs a third on top of every one of these. */
+const MAX_TEMPLATE_TOTAL = 3000*1024;
+const templateBytes = skip => (store.deals||[]).reduce((n,d)=>n+
+  dealTemplates(d).reduce((m,x)=>m+((x.file && x!==skip) ? (x.file.size||0) : 0), 0), 0);
+/* btoa needs a string, and spreading a 200 KB array into fromCharCode overflows the stack, so
+   it goes in blocks. */
+function bytesToB64(bytes){
+  let out='', CH=0x8000;
+  for(let i=0;i<bytes.length;i+=CH) out+=String.fromCharCode.apply(null, bytes.subarray(i,i+CH));
+  return btoa(out);
+}
+function b64ToBytes(b64){
+  const bin=atob(String(b64||'')), out=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) out[i]=bin.charCodeAt(i);
+  return out;
+}
+
+/* ---- what the app can fill ----
+   Every field is listed with the names it answers to, so a form marked up by a lawyer rather
+   than by whoever wrote this has a fair chance of matching without anyone editing the file. */
+function templateFields(deal, trade, out){
+  const d=deal||{}, ccy=d.currency||'USD';
+  const cash = v => v==null ? '' : ccy+' '+Number(v.toFixed(2)).toLocaleString('en-US',
+    {minimumFractionDigits:2, maximumFractionDigits:2});
+  const day = v => fmtPlain(v);
+  const {tradeco, account} = tradecoFor(d);
+  const a = account || {};
+  const tc = tradeco || {};
+  /* The Procurement Order and the invoice already work out what the deal and the trade come to
+     between them — the goods table, the agency fee, the totals. A template is another way of
+     printing the same answers, not another way of computing them. */
+  const po = trade ? procurementOrderDoc(d, trade, out) : null;
+  const inv = trade ? tcInvoiceDoc(d, trade, out, 1) : null;
+  const i = trade ? effectiveInputs(d, trade) : null;
+  const groups=[];
+  const F=(label,aliases,value)=>({label, aliases:aliases||[], value:String(value==null?'':value)});
+  const G=(title,note,rows)=>groups.push({title, note, rows});
+
+  G('The deal', 'Deal configuration', [
+    F('Deal code', ['TRANSACTION CODE','FACILITY','FACILITY CODE','DEAL'], d.code),
+    F('Client', ['CLIENT NAME','CUSTOMER'], deal ? clientLabel(d) : ''),
+    F('Buyer', ['BUYER NAME','PURCHASER','INVOICE TO'],
+      String(d.buyerName||'').trim() || (deal ? clientLabel(d) : '')),
+    F('Buyer address', ['INVOICE TO ADDRESS','PURCHASER ADDRESS'], addressLines(d.buyerAddress).join('\n')),
+    F('Currency', ['CCY','CURRENCY CODE'], ccy),
+    F('Agreement', ['AGREEMENT NAME','ISSUED UNDER'], d.agreementName),
+    F('Agreement date', [], day(d.agreementDate)),
+    F('Jurisdictions', ['ASSOCIATED JURISDICTIONS'],
+      (d.jurisdictions||[]).map(c=>(CALENDARS[c]||{}).name||c).join(', ')),
+  ]);
+  G('The issuing entity', 'Settings → TradeCos, through the deal', [
+    F('TradeCo', ['SELLER','PRINCIPAL','ISSUED BY','ISSUER'], tc.name),
+    F('TradeCo address', ['SELLER ADDRESS','PRINCIPAL ADDRESS','ISSUER ADDRESS'],
+      addressLines(tc.address).join('\n')),
+    F('TradeCo tax ID', ['TAX ID','VAT NUMBER','TAX NUMBER'], tc.taxId),
+    F('TradeCo company number', ['COMPANY NUMBER','REGISTRATION NUMBER'], tc.companyNumber),
+    F('TradeCo email', ['SELLER EMAIL'], tc.email),
+    F('TradeCo jurisdiction', ['PLACE OF INCORPORATION'], tc.jurisdiction),
+  ]);
+  G('Where it is paid', 'The account named on the deal', [
+    F('Bank', ['BANK NAME'], a.bank),
+    F('SWIFT', ['BIC','SWIFT CODE'], a.swift),
+    F('ABA', ['CHIPS ABA','ROUTING NUMBER'], a.aba),
+    F('IBAN', [], a.iban),
+    F('Beneficiary', ['ACCOUNT NAME'], a.beneficiary),
+    F('Account number', ['ACCOUNT NO'], a.accountNumber),
+  ]);
+  G('The agent', 'Deal configuration, when the facility is an agency structure', [
+    F('Agent', ['AGENT NAME','RELEVANT OBLIGOR'], trade ? String(trade.obligor||'').trim() : ''),
+    F('Agent contact', ['CONTACT PERSON','ATTENTION','ATTN'], d.agentContact),
+    F('Agent email', [], d.agentEmail),
+    F('Agent address', [], addressLines(d.agentAddress).join('\n')),
+    F('Agency Agreement date', ['AGENCY AGREEMENT DATED'], day(d.agencyAgreementDate)),
+  ]);
+  G('The trade', 'TRADE INFO, and the order’s own fields', [
+    F('Trade identifier', ['TRADE ID','ORDER NO','ORDER NUMBER','PROCUREMENT ORDER NO',
+      'PROCUREMENT ORDER NUMBER','CONTRACT NO','CONTRACT NUMBER','REFERENCE','OUR REF'],
+      trade ? String(trade.identifier||'').trim() : ''),
+    F('Trade date', [], trade ? day(trade.tradeDate) : ''),
+    F('Trade state', ['STATE','STATUS'], trade ? trade.state : ''),
+    F('Funder', ['INVESTOR'], trade ? String(trade.funder||'').trim() : ''),
+    F('Incoterm', ['INCOTERMS','DELIVERY TERM'], trade ? String(trade.incoterm||'').trim() : ''),
+    F('Place of loading', ['PORT OF LOADING','LOADING PORT'], po ? po.portOfLoading : ''),
+    F('Delivery terms', ['DELIVERY'], po ? po.deliveryTerms : ''),
+    F('Specifications', ['SPECIFICATION','QUALITY REQUIREMENTS',
+      'SPECIFICATIONS AND QUALITY REQUIREMENTS'], po ? po.specifications.join('\n') : ''),
+    F('Procurement Order date', ['ORDER DATE'], po ? day(po.date) : ''),
+    F('Estimated delivery', ['ESTIMATED DELIVERY DATE','DELIVERY DATE'], po ? day(po.estimatedDelivery) : ''),
+    F('Onward buyer', [], po ? po.onwardBuyer : ''),
+    F('Onward sale days', ['ONWARD DAYS'], po ? po.onwardDays : ''),
+    F('Supplier invoice numbers', ['SUPPLIER INVOICE','SUPPLIER INVOICE NO','SUPPLIER INVOICES'],
+      po ? po.invoiceRefs.join(', ') : ''),
+    F('Invoice number', ['INVOICE NO'], inv ? inv.number : ''),
+    F('Invoice date', ['ISSUE DATE','TRADECO ISSUE DATE'], i ? day(i.tcIssueDate) : ''),
+    F('Payment date', ['DUE DATE','MATURITY DATE','PAYMENT DUE'], out ? day(out.tcMaturityDate) : ''),
+    F('Tenor (days)', ['TENOR','TENOR DAYS','DAYS'], out ? String(out.tcTenorDays==null?'':out.tcTenorDays) : ''),
+  ]);
+  G('The figures', 'Priced from the trade — the same numbers the app’s own documents print', [
+    F('Amount payable', ['GOODS','GOODS AMOUNT','GOODS VALUE','TOTAL VALUE OF GOODS'], po ? cash(po.goods) : ''),
+    F('Total quantity', ['TOTAL UNITS','TOTAL QTY'], po ? qtyLabel(po.units) : ''),
+    F('Agency fee', ['AGENCY FEE AMOUNT'], po && po.agencyFee ? cash(po.agencyFee) : ''),
+    F('Agency fee rate', [], po && po.feeRate ? po.feeRate.mul(D.of(100)).toFixed(5)+'%' : ''),
+    /* B36 either way. A deal that bills on two invoices splits the same total between them,
+       and which of the two a form means by [AMOUNT] is not a question its billing convention
+       should be answering. */
+    F('Invoice total', ['TOTAL','TOTAL AMOUNT','AMOUNT','AMOUNT DUE'], out ? cash(out.tcTotal) : ''),
+    F('Invoice net', ['NET','NET TOTAL','SUBTOTAL'], out ? cash(out.tcInvoice1) : ''),
+    F('VAT', ['VAT AMOUNT','TAX'], out ? cash(out.supplierVat) : ''),
+    F('Freight', [], out ? cash(out.supplierFreight) : ''),
+    F('Insurance', [], out ? cash(out.supplierInsurance) : ''),
+    F('Other costs', [], out ? cash(out.supplierOtherCosts) : ''),
+    F('Financial cost', [], out ? cash(out.tcInvoice2) : ''),
+    F('Face value', [], out ? cash(out.faceValue) : ''),
+    F('Purchase price', [], out ? cash(out.purchasePrice) : ''),
+    F('Legal fees', [], out ? cash(out.legalFees) : ''),
+    F('Pay to supplier', [], out ? cash(out.payToSupplier) : ''),
+    F('Pay to TradeCo', [], out ? cash(out.payToTradeCo) : ''),
+    F('Supplier payment date', [], out ? day(out.supplierPaymentDate) : ''),
+  ]);
+  G('Today', '', [
+    F('Today', ['DATE','TODAY’S DATE','CURRENT DATE','DATED'], day(todayISO())),
+  ]);
+
+  const map=new Map();
+  for(const g of groups) for(const r of g.rows){
+    r.key=tokenKey(r.label);
+    /* First name wins, so a label always beats another field's alias. An alias that would
+       shadow a label is a bug in the list above, not something to resolve at fill time. */
+    for(const n of [r.label, ...r.aliases]){ const k=tokenKey(n); if(!map.has(k)) map.set(k, r); }
+  }
+  return {groups, map, cash, lines: po ? po.lines : []};
+}
+
+/* ---- a row of goods ----
+   These are read only inside a table row that is a row of goods, so short names can mean what
+   they obviously mean there: [NO] is the line number and [AMOUNT] is the line total. */
+const LINE_FIELDS = [
+  {label:'Item No.',   aliases:['ITEM NUMBER'],                    pick:(l,n,cash)=>l.itemNo},
+  {label:'Item',       aliases:['DESCRIPTION','ITEM DESCRIPTION','GOODS DESCRIPTION'],
+                                                                   pick:(l,n,cash)=>l.description},
+  {label:'Quantity',   aliases:['QTY'],                            pick:(l,n,cash)=>qtyLabel(l.qty)},
+  {label:'Unit price', aliases:['PRICE','PRICE PER ITEM','UNIT COST'], pick:(l,n,cash)=>cash(l.unitPrice)},
+  {label:'Line total', aliases:['LINE AMOUNT','TOTAL PRICE','AMOUNT','TOTAL'], pick:(l,n,cash)=>cash(l.net)},
+  {label:'Line no.',   aliases:['LINE NUMBER','NO'],               pick:(l,n,cash)=>String(n)},
+];
+const LINE_MAP = (()=>{ const m=new Map();
+  for(const f of LINE_FIELDS) for(const n of [f.label, ...f.aliases]){
+    const k=tokenKey(n); if(!m.has(k)) m.set(k, f); }
+  return m; })();
+/** What makes a table row a row of goods. AMOUNT and TOTAL are deliberately not on this list:
+ *  "Total amount: [TOTAL]" is a footer, and repeating it once per item is the kind of mistake
+ *  that goes out to a counterparty. Inside a row that IS a row of goods they resolve per line,
+ *  which is what they mean there. */
+const LINE_ANCHORS = new Set(['ITEMNO','ITEMNUMBER','ITEM','DESCRIPTION','ITEMDESCRIPTION',
+  'GOODSDESCRIPTION','QTY','QUANTITY','UNITPRICE','UNITCOST','PRICEPERITEM','LINETOTAL',
+  'LINEAMOUNT','LINENO','LINENUMBER']);
+
+/** Set a run's text, keeping newlines as line breaks. An address and a list of specifications
+ *  are one field of several lines, and w:br is a run-level element, so the lines go back into
+ *  the very run the placeholder was typed in and keep its formatting. */
+function setRunText(t, value){
+  const lines=String(value).split(/\r?\n/), doc=t.ownerDocument;
+  t.textContent=lines[0];
+  t.setAttributeNS(XML_SPACE,'xml:space','preserve');
+  let after=t;
+  for(const line of lines.slice(1)){
+    if(!after.parentNode) break;
+    const br=doc.createElementNS(W_NS,'w:br'), tt=doc.createElementNS(W_NS,'w:t');
+    tt.setAttributeNS(XML_SPACE,'xml:space','preserve'); tt.textContent=line;
+    after.parentNode.insertBefore(br, after.nextSibling);
+    after.parentNode.insertBefore(tt, br.nextSibling);
+    after=tt;
+  }
+}
+/** Fill the placeholders in one paragraph.
+ *
+ *  Word splits a paragraph into runs wherever anything about the formatting changes, and it
+ *  changes for reasons nobody typed — a spell-check pass, a language mark, an edit made and
+ *  undone. So [ORDER NO] is routinely stored as "[ORDER", " NO", "]" across three runs, and
+ *  searching each run on its own finds nothing. The paragraph's text is therefore joined
+ *  first, the placeholders are found in that, and the result is written back run by run: the
+ *  run where a placeholder starts takes the whole value, the runs it ran into give up the
+ *  part they were holding. Which means the value is set in the formatting of the bracket's
+ *  first run — where the person marking up the form put it.
+ *
+ *  A placeholder the resolver does not answer for is left exactly as it was found. */
+function fillParagraph(p, resolve){
+  const ts=wEvery(p,'t'); if(!ts.length) return 0;
+  const parts=ts.map(n=>n.textContent||''), text=parts.join('');
+  if(text.indexOf('[')<0) return 0;
+  const hits=[]; TOKEN_RE.lastIndex=0;
+  let m;
+  while((m=TOKEN_RE.exec(text))){
+    const v=resolve(m[1]);
+    if(v==null) continue;
+    hits.push({start:m.index, end:m.index+m[0].length, value:String(v)});
+  }
+  if(!hits.length) return 0;
+  let pos=0;
+  for(let n=0;n<ts.length;n++){
+    const from=pos, to=pos+parts[n].length; pos=to;
+    let out='', touched=false;
+    for(let k=from;k<to;){
+      const hit=hits.find(h=>k>=h.start && k<h.end);
+      if(hit){ if(k===hit.start) out+=hit.value; touched=true; k=Math.min(to, hit.end); }
+      else { out+=text[k]; k++; }
+    }
+    if(touched) setRunText(ts[n], out);
+  }
+  return hits.length;
+}
+/** A table row marked up with the goods tokens is a row per item, not one row. Each clone is
+ *  filled there and then, because each needs its own line's values; every other placeholder in
+ *  the document is left to the pass that follows.
+ *
+ *  With no goods on the trade the row is left alone, brackets and all. An order that went out
+ *  with an empty item table should say so on its face. */
+function expandLineRows(doc, lines, cash){
+  const rows=wEvery(doc,'tr').filter(tr=>{
+    const text=wEvery(tr,'t').map(n=>n.textContent||'').join('');
+    TOKEN_RE.lastIndex=0;
+    let m;
+    while((m=TOKEN_RE.exec(text))) if(LINE_ANCHORS.has(tokenKey(m[1]))) return true;
+    return false;
+  });
+  if(!rows.length || !lines.length) return {rows:rows.length, filled:0};
+  let filled=0;
+  for(const tr of rows){
+    const made=[];
+    lines.forEach((l,idx)=>{
+      const clone=tr.cloneNode(true);
+      const resolve = name => {
+        const f=LINE_MAP.get(tokenKey(name));
+        return f ? String(f.pick(l, idx+1, cash) ?? '') : null;
+      };
+      for(const p of wEvery(clone,'p')) filled+=fillParagraph(p, resolve);
+      made.push(clone);
+    });
+    for(const c of made) tr.parentNode.insertBefore(c, tr);
+    tr.parentNode.removeChild(tr);
+  }
+  return {rows:rows.length, filled};
+}
+
+/* Which parts of a .docx carry text a placeholder could be sitting in. A letterhead's document
+   number lives in a header, and a footer is where a form puts its reference, so neither can be
+   left out. Everything else in the package is passed through untouched. */
+const FILLABLE_PART = /^word\/(document|header\d*|footer\d*|footnotes|endnotes)\.xml$/;
+/** Fill one uploaded template against a deal and a trade.
+ *  Returns the members to write back out, the filled XML of each text part for the preview, and
+ *  every placeholder it could not answer for. */
+async function fillTemplate(buf, ctx){
+  const entries=zipList(buf), dec=new TextDecoder(), enc=new TextEncoder();
+  const unresolved=new Map();
+  const overrides=ctx.overrides||{};
+  const resolve = name => {
+    const key=tokenKey(name);
+    const own=overrides[key];
+    if(own!=null && String(own).trim()!=='') return own;
+    const f=ctx.map.get(key);
+    if(f && String(f.value).trim()!=='') return f.value;
+    if(!unresolved.has(key)) unresolved.set(key, {key, name:String(name).trim(), known:!!f});
+    return null;
+  };
+  const out=[], parts={};
+  let filled=0, lineRows=0;
+  for(const e of entries){
+    if(!FILLABLE_PART.test(e.name)){ out.push(e); continue; }
+    const xml=dec.decode(await zipRead(e));
+    const doc=new DOMParser().parseFromString(xml,'application/xml');
+    if(doc.getElementsByTagName('parsererror').length)
+      throw new Error(e.name+' could not be read as XML, so this template cannot be filled.');
+    const rows=expandLineRows(doc, ctx.lines, ctx.cash);
+    lineRows+=rows.rows; filled+=rows.filled;
+    for(const p of wEvery(doc,'p')) filled+=fillParagraph(p, resolve);
+    /* Chrome's serializer writes the XML declaration back out itself; prepending a second one
+       is not a cosmetic slip but a file no XML parser will read, this app's preview included. */
+    const ser=new XMLSerializer().serializeToString(doc);
+    const text=/^\s*<\?xml/.test(ser) ? ser : XML_DECL+ser;
+    parts[e.name]=text;
+    const data=enc.encode(text);
+    out.push({name:e.name, method:0, crc:crc32(data), size:data.length, comp:data, flags:e.flags});
+  }
+  if(!parts['word/document.xml'])
+    throw new Error('No word/document.xml inside — is this really a Word document?');
+  return {entries:out, parts, filled, lineRows,
+          unresolved:[...unresolved.values()],
+          noGoods: lineRows>0 && !ctx.lines.length,
+          blob: () => zipBuild(out)};
+}
+
+/* ---- the preview ----
+   A readable rendering, not a Word renderer: the text, the tables and the pictures are drawn,
+   and whatever is still in brackets is marked, which is what a preview is for. Fonts, spacing,
+   list numbering and page breaks stay Word's business. */
+const IMG_TYPES = {png:'image/png', jpg:'image/jpeg', jpeg:'image/jpeg', gif:'image/gif',
+                   bmp:'image/bmp', svg:'image/svg+xml', webp:'image/webp'};
+/** Every picture in the package a browser can draw, keyed by the part that refers to it and the
+ *  relationship id it refers to it by — the same image is a different rId in a header. */
+async function docxMedia(entries){
+  const dec=new TextDecoder(), byName=new Map(entries.map(e=>[e.name,e])), out=new Map();
+  for(const e of entries){
+    const m=/^(.*\/)?_rels\/([^/]+)\.rels$/.exec(e.name); if(!m) continue;
+    const dir=m[1]||'', owner=dir+m[2];
+    let doc;
+    try{ doc=new DOMParser().parseFromString(dec.decode(await zipRead(e)),'application/xml'); }
+    catch(err){ continue; }
+    for(const r of [...doc.getElementsByTagName('Relationship')]){
+      const target=r.getAttribute('Target')||'', id=r.getAttribute('Id')||'';
+      if(!id || r.getAttribute('TargetMode')==='External') continue;
+      const type=IMG_TYPES[(target.split('.').pop()||'').toLowerCase()];
+      if(!type) continue;                      // EMF and WMF are pictures no browser can draw
+      const path=(dir+target).replace(/[^/]+\/\.\.\//g,'');
+      const ent=byName.get(path); if(!ent) continue;
+      try{ out.set(owner+'|'+id, 'data:'+type+';base64,'+bytesToB64(await zipRead(ent))); }
+      catch(err){ /* one unreadable image is not a reason to lose the preview */ }
+    }
+  }
+  return out;
+}
+/* An unfilled placeholder is marked in the preview in the same red the app's own documents use
+   for a field nobody has filled in. */
+const markBlanks = s => esc(s).replace(/\[([^\[\]]{1,160})\]/g,'<span class="blank">[$1]</span>');
+const wVal = (el,name) => { if(!el) return null;
+  const k=[...el.children].find(c=>c.localName===name && c.namespaceURI===W_NS);
+  return k ? (k.getAttribute('w:val') ?? '') : null; };
+const wOn = (el,name) => { const v=wVal(el,name);
+  return v!==null && v!=='0' && v!=='false' && v!=='none'; };
+function tplImg(el, media, owner){
+  const blip=el.getElementsByTagName('a:blip')[0] || el.getElementsByTagName('v:imagedata')[0];
+  const id=blip && (blip.getAttribute('r:embed') || blip.getAttribute('r:id'));
+  const src=id ? media.get(owner+'|'+id) : null;
+  if(!src) return '<span class="tplobj">[picture]</span>';
+  const ext=el.getElementsByTagName('wp:extent')[0];
+  const w=ext ? Math.round(Number(ext.getAttribute('cx')||0)/9525) : 0;
+  return '<img src="'+src+'"'+(w?' style="width:'+w+'px;max-width:100%"':'')+' alt="">';
+}
+function tplRuns(el, media, owner){
+  let html='';
+  for(const n of el.children){
+    if(n.namespaceURI!==W_NS) continue;
+    if(n.localName==='r'){
+      const rPr=[...n.children].find(c=>c.localName==='rPr' && c.namespaceURI===W_NS);
+      let inner='';
+      for(const c of n.children){
+        if(c.namespaceURI!==W_NS){ continue; }
+        if(c.localName==='t') inner+=markBlanks(c.textContent||'');
+        else if(c.localName==='br') inner+='<br>';
+        else if(c.localName==='tab') inner+='<span class="tpltab"></span>';
+        else if(c.localName==='drawing'||c.localName==='pict'||c.localName==='object')
+          inner+=tplImg(c, media, owner);
+        else if(c.localName==='sym') inner+='&nbsp;';
+      }
+      if(!inner) continue;
+      if(wOn(rPr,'u')) inner='<u>'+inner+'</u>';
+      if(wOn(rPr,'i')) inner='<i>'+inner+'</i>';
+      if(wOn(rPr,'b')) inner='<b>'+inner+'</b>';
+      const col=wVal(rPr,'color');
+      if(col && /^[0-9A-Fa-f]{6}$/.test(col) && col.toLowerCase()!=='000000')
+        inner='<span style="color:#'+col+'">'+inner+'</span>';
+      html+=inner;
+    }
+    /* A hyperlink, a tracked insertion and a content control all hold runs of their own. Their
+       wrappers carry nothing that prints, so the preview goes straight through them. */
+    else if(['hyperlink','ins','smartTag','fldSimple','bdo','dir'].includes(n.localName))
+      html+=tplRuns(n, media, owner);
+    else if(n.localName==='sdt'){
+      const body=[...n.children].find(c=>c.localName==='sdtContent');
+      if(body) html+=tplRuns(body, media, owner);
+    }
+  }
+  return html;
+}
+function tplPara(p, media, owner){
+  const pPr=[...p.children].find(c=>c.localName==='pPr' && c.namespaceURI===W_NS);
+  const jc=wVal(pPr,'jc'), style=[];
+  if(jc==='center') style.push('text-align:center');
+  else if(jc==='right'||jc==='end') style.push('text-align:right');
+  else if(jc==='both'||jc==='distribute') style.push('text-align:justify');
+  const ind=pPr && [...pPr.children].find(c=>c.localName==='ind' && c.namespaceURI===W_NS);
+  const left=ind && Number(ind.getAttribute('w:left')||ind.getAttribute('w:start')||0);
+  if(left>0) style.push('margin-left:'+Math.round(left/15)+'px');
+  const numbered=!!(pPr && [...pPr.children].some(c=>c.localName==='numPr'));
+  const body=tplRuns(p, media, owner);
+  if(!body.trim()) return '<p class="tplgap">&nbsp;</p>';
+  return '<p'+(style.length?' style="'+style.join(';')+'"':'')+'>'+
+    (numbered?'<span class="tplbul">•</span>':'')+body+'</p>';
+}
+function tplTable(tbl, media, owner){
+  let html='<table>';
+  for(const tr of wKids(tbl,'tr')){
+    html+='<tr>';
+    for(const tc of wKids(tr,'tc')){
+      const tcPr=[...tc.children].find(c=>c.localName==='tcPr' && c.namespaceURI===W_NS);
+      const span=Number(wVal(tcPr,'gridSpan')||1)||1;
+      html+='<td'+(span>1?' colspan="'+span+'"':'')+'>'+
+        tplBlocks([...tc.children], media, owner)+'</td>';
+    }
+    html+='</tr>';
+  }
+  return html+'</table>';
+}
+function tplBlocks(nodes, media, owner){
+  let html='';
+  for(const el of nodes){
+    if(el.namespaceURI!==W_NS) continue;
+    if(el.localName==='p') html+=tplPara(el, media, owner);
+    else if(el.localName==='tbl') html+=tplTable(el, media, owner);
+    /* A tracked block-level insertion wraps paragraphs of its own. */
+    else if(el.localName==='sdt'){
+      const body=[...el.children].find(c=>c.localName==='sdtContent');
+      if(body) html+=tplBlocks([...body.children], media, owner);
+    }
+  }
+  return html;
+}
+function tplPartHtml(xml, media, owner){
+  if(!xml) return '';
+  const doc=new DOMParser().parseFromString(xml,'application/xml');
+  if(doc.getElementsByTagName('parsererror').length) return '';
+  const body=doc.getElementsByTagNameNS(W_NS,'body')[0]
+          || doc.getElementsByTagNameNS(W_NS,'hdr')[0]
+          || doc.getElementsByTagNameNS(W_NS,'ftr')[0]
+          || doc.documentElement;
+  return tplBlocks([...body.children], media, owner);
+}
+/** The whole filled document as HTML: its headers, its body, its footers. The headers and
+ *  footers are drawn where they are because a letterhead filled but not shown reads as a
+ *  letterhead lost. */
+async function templateHtml(filled){
+  const media=await docxMedia(filled.entries);
+  const names=Object.keys(filled.parts);
+  const band=(label,html)=>html.trim()
+    ? '<div class="tplband">'+esc(label)+'</div><div class="tplaux">'+html+'</div>' : '';
+  let html='';
+  for(const n of names.filter(x=>/^word\/header/.test(x)).sort())
+    html+=band('Header — '+n.replace('word/',''), tplPartHtml(filled.parts[n], media, n));
+  html+=tplPartHtml(filled.parts['word/document.xml'], media, 'word/document.xml');
+  for(const n of names.filter(x=>/^word\/(footer|footnotes|endnotes)/.test(x)).sort())
+    html+=band((/footer/.test(n)?'Footer — ':'Notes — ')+n.replace('word/',''),
+      tplPartHtml(filled.parts[n], media, n));
+  return html;
+}
+
+/** What a template asks for, read once when it is uploaded so the deal configuration can list
+ *  its fields without going back into the file on every repaint. A token inside a row of goods
+ *  is marked as such: there it means the line's own value, and it is filled once per line. */
+async function scanTemplate(buf){
+  const entries=zipList(buf), dec=new TextDecoder();
+  const seen=new Map();
+  let parts=0, lineRows=0, hasBody=false;
+  const rowText = tr => wEvery(tr,'t').map(n=>n.textContent||'').join('');
+  const add = (text, inRow) => {
+    TOKEN_RE.lastIndex=0;
+    let m;
+    while((m=TOKEN_RE.exec(text))){
+      const key=tokenKey(m[1]); if(!key) continue;
+      const prev=seen.get(key);
+      if(!prev) seen.set(key, {key, name:String(m[1]).trim(), inRow:!!inRow});
+      else if(inRow) prev.inRow=true;
+    }
+  };
+  for(const e of entries){
+    if(e.name==='word/document.xml') hasBody=true;
+    if(!FILLABLE_PART.test(e.name)) continue;
+    const doc=new DOMParser().parseFromString(dec.decode(await zipRead(e)),'application/xml');
+    if(doc.getElementsByTagName('parsererror').length)
+      throw new Error(e.name+' inside the file could not be read as XML, so it cannot be filled.');
+    parts++;
+    /* Rows first: a token seen in a row of goods stays marked as one even where the same token
+       also appears in a total underneath. */
+    for(const tr of wEvery(doc,'tr')){
+      const text=rowText(tr);
+      TOKEN_RE.lastIndex=0;
+      let m, anchored=false;
+      while((m=TOKEN_RE.exec(text))) if(LINE_ANCHORS.has(tokenKey(m[1]))) anchored=true;
+      if(!anchored) continue;
+      lineRows++; add(text, true);
+    }
+    for(const p of wEvery(doc,'p')) add(wEvery(p,'t').map(n=>n.textContent||'').join(''), false);
+  }
+  if(!hasBody) throw new Error('No word/document.xml inside — is this really a Word document?');
+  return {tokens:[...seen.values()], parts, lineRows};
+}
+
 function download(name, text, type){
   const b=new Blob([text],{type:type||'text/plain;charset=utf-8'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=name;
@@ -9064,7 +10045,12 @@ $('btnPrint').onclick=()=>window.print();
 /* The picker switches panes without a re-render: which document is open is view state, and the
    panes are all drawn already. */
 $('docPicker').addEventListener('click', e=>{
-  const b=e.target.closest('button[data-doc]'); if(b) showDocPane(b.dataset.doc);
+  const b=e.target.closest('button[data-doc]'); if(!b) return;
+  showDocPane(b.dataset.doc);
+  /* A template is drawn out of its file, and only when it is the pane showing — so picking it
+     is what starts that, rather than every repaint doing the work for a pane nobody is on. */
+  const d=currentDeal(), t=currentTrade();
+  if(d) renderTemplateDoc(d, t, t ? computeAll(d,t) : null);
 });
 $('tcInvWhich').onchange=e=>{ tcInvWhich = Number(e.target.value)===2 ? 2 : 1;
   const d=currentDeal(), t=currentTrade();
@@ -9084,6 +10070,102 @@ $('usersBox').addEventListener('click', e=>{
   const pw=e.target.closest('[data-user-pw]');   if(pw) return setUserPassword(pw.dataset.userPw);
   const rm=e.target.closest('[data-user-del]');  if(rm) return removeUser(rm.dataset.userDel);
 });
+/* ---- documents and their templates, on the deal ---- */
+$('btnDealDocAdd').onclick=()=>{
+  const d=currentDeal(); if(!d) return;
+  if(!dealEditable(d)) return alert('Deal configuration is locked. Use “Unlock for editing” on the '+
+    'Deals & Trades tab first.');
+  const name=String($('dealDocNewName').value||'').trim();
+  if(!name) return alert('Give the document a name first — it is what the picker on the Documents '+
+    'tab will call it.');
+  d.docTemplates=dealTemplates(d).concat([newDocTemplate({name})]);
+  audit('deal', d.id, 'CREATE', 'document', null, name, 'Document added to this deal');
+  $('dealDocNewName').value='';
+  save(); render();
+};
+$('dealDocsBox').addEventListener('change', e=>{
+  const tick=e.target.closest('input[data-tpl-on]');
+  if(tick){
+    const d=currentDeal(); if(!d) return;
+    if(!dealEditable(d)){ tick.checked=!tick.checked; return; }
+    const [what,which]=String(tick.dataset.tplOn).split(':');
+    const list=dealTemplates(d);
+    const found = what==='kind' ? list.find(x=>x.kind===which) : list.find(x=>String(x.id)===which);
+    if(tick.checked && !found){
+      d.docTemplates=list.concat([newDocTemplate({kind:which, name:templateDocName(which)})]);
+      audit('deal', d.id, 'CREATE', 'document', null, templateDocName(which),
+        'Document applies to this deal');
+    } else if(!tick.checked && found){
+      /* Unticking throws the uploaded file away with it, so it is worth asking once. */
+      if(found.file && !confirm('Remove “'+templateLabel(found)+'” from this deal?\n\n'+
+        found.file.name+' goes with it, and so does anything typed for its fields.')){
+        tick.checked=true; return;
+      }
+      d.docTemplates=list.filter(x=>x!==found);
+      audit('deal', d.id, 'DELETE', 'document', templateLabel(found)+
+        (found.file?' ('+found.file.name+')':''), null, 'Document no longer applies to this deal');
+    }
+    save(); render();
+    return;
+  }
+  const pick=e.target.closest('input[data-tpl-file]');
+  if(pick){
+    const id=pick.dataset.tplFile, f=pick.files[0];
+    const done=()=>{ pick.value=''; pick.blur(); };
+    if(!f) return done();
+    uploadTemplate(id, f).catch(err=>alert('Could not read '+f.name+':\n\n'+
+      (err && err.message ? err.message : String(err)))).then(done, done);
+  }
+});
+$('dealDocsBox').addEventListener('click', e=>{
+  const clr=e.target.closest('[data-tpl-clear]'); if(!clr) return;
+  const d=currentDeal(); if(!d || !dealEditable(d)) return;
+  const tpl=dealTemplates(d).find(x=>String(x.id)===clr.dataset.tplClear); if(!tpl || !tpl.file) return;
+  if(!confirm('Remove '+tpl.file.name+' from this deal?\n\n“'+templateLabel(tpl)+'” stays ticked, '+
+    'so a replacement can be uploaded. Anything typed for its fields is kept.')) return;
+  audit('deal', d.id, 'DELETE', 'template:'+templateLabel(tpl), tpl.file.name, null, null);
+  tpl.file=null; tpl.tokens=[];
+  save(); render();
+});
+/* A value typed for one field. Blank means no override, not print-nothing: a field nobody has
+   answered should show up in brackets on the page, which is this app's rule everywhere else. */
+$('dealDocsBox').addEventListener('input', e=>{
+  const box=e.target.closest('input[data-tpl-val]'); if(!box) return;
+  const d=currentDeal(); if(!d || !dealEditable(d)) return;
+  const tpl=dealTemplates(d).find(x=>String(x.id)===box.dataset.tplVal); if(!tpl) return;
+  const key=box.dataset.tplKey;
+  if(!tpl.values || typeof tpl.values!=='object') tpl.values={};
+  if(String(box.value).trim()) tpl.values[key]=box.value; else delete tpl.values[key];
+  save();
+  const t=currentTrade();
+  renderTemplateDoc(d, t, t ? computeAll(d,t) : null);
+});
+$('dealDocsBox').addEventListener('change', e=>{
+  const box=e.target.closest('input[data-tpl-val]'); if(!box) return;
+  const d=currentDeal(); if(!d) return;
+  const tpl=dealTemplates(d).find(x=>String(x.id)===box.dataset.tplVal); if(!tpl) return;
+  audit('deal', d.id, 'UPDATE', 'template:'+templateLabel(tpl)+'['+box.dataset.tplKey+']',
+    null, box.value, null);
+});
+$('btnTplPrint').onclick=()=>window.print();
+$('btnTplDocx').onclick=async ()=>{
+  const d=currentDeal(), t=currentTrade(); if(!d) return;
+  const tpl=currentTemplate(d);
+  if(!tpl || !tpl.file) return alert('No .docx uploaded for this document yet.');
+  if(!t) return alert('A document is issued for a trade — pick one first.');
+  try{
+    const ctx=templateFields(d, t, computeAll(d,t).out);
+    ctx.overrides=tpl.values||{};
+    const filled=await fillTemplate(b64ToBytes(tpl.file.b64).buffer, ctx);
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(filled.blob());
+    a.download=(slug(templateLabel(tpl))+'-'+slug(t.identifier||'trade')).toLowerCase()+'.docx';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+  }catch(err){
+    alert('Could not fill '+tpl.file.name+':\n\n'+(err && err.message ? err.message : String(err)));
+  }
+};
 $('btnPoPrint').onclick=()=>window.print();
 $('btnPoDocx').onclick=()=>{
   const d=currentDeal(), t=currentTrade(); if(!d||!t) return;
