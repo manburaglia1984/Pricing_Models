@@ -1053,11 +1053,13 @@ code,.mono{font-family:var(--mono);font-size:12px}
            marked up where a value belongs and filled from the deal and the trade. -->
       <div class="card deal" id="dealDocsCard">
         <h2>Documents &amp; templates<span class="note tip">Tick the documents this facility
-        issues and upload each one as a .docx. Wherever a value belongs, the file should carry
-        the field name in square brackets — [Order No.], [Buyer Name], [Total Amount]. The app
-        fills the brackets it recognises from this deal, the trade and the priced figures,
-        repeats a table row once per goods line, and leaves anything else exactly as it found
-        it. Everything else about the file — its wording, styles, letterhead and logo — is
+        issues. Only those appear on the Documents tab of every trade on the deal. The first
+        three are forms this app draws itself and need nothing else; for any of them — and for
+        every other document here — you can upload the facility's own .docx instead. Wherever a
+        value belongs, the file should carry the field name in square brackets — [Order No.],
+        [Buyer Name], [Total Amount]. The app fills the brackets it recognises from this deal,
+        the trade and the priced figures, repeats a table row once per goods line, and leaves
+        anything else exactly as it found it. The wording, styles, letterhead and logo are
         untouched, which is the point: no two facilities' paperwork has to agree.</span></h2>
         <div class="body">
           <div id="dealDocsBox"></div>
@@ -2705,7 +2707,9 @@ function newDeal(who){
     agentEnabled:false, agentContact:'', agentEmail:'', agentAddress:'', agencyAgreementDate:'',
     agencyFeeEnabled:true, tcInvoiceCount:2, tradecoId:'', tradecoAccountId:'',
     buyerName:'', buyerAddress:'', agreementName:TC_INVOICE_FORM.agreementDefault, agreementDate:'',
-    jurisdictions:[], docTemplates:[],
+    /* Ticked to begin with, because they are what this app has always produced and a deal that
+       issues all three is the common case. Unticking one takes it off the Documents tab. */
+    jurisdictions:[], docTemplates:DRAWN_DOCS.map(k=>newDocTemplate({kind:k})),
     createdBy:who, createdAt:new Date().toISOString(), cancelled:false };
 }
 function newTrade(dealId, who){
@@ -2775,6 +2779,12 @@ function defaultClients(){
    uses it. A const declared later is in its dead zone at that point, and the throw would be
    swallowed by load()'s catch. */
 const PBKDF2_ITERS = 210000;
+
+/* The documents this app draws itself. Read by newDeal() and by normalise() while the store is
+   still loading, so it is declared here with the rest of the store's shape rather than down with
+   the document code — a const declared later is in its dead zone at that point, and the throw
+   would be swallowed by load()'s catch. */
+const DRAWN_DOCS = ['offer','po','tcinv'];
 
 /* Set when a stored book was present but could not be read. Boot turns it into a warning
    rather than leaving the seed to be mistaken for the real thing. */
@@ -2850,6 +2860,18 @@ function normalise(s){
       if(!Array.isArray(x.tokens)) x.tokens=[];
       if(x.file && !x.file.b64) x.file=null;
     }
+  }
+  /* A book written before the documents were something a deal picks has no answer for which ones
+     its deals issue, and neither has one from the build in between that added the list but not
+     the ticks. The three this app has always shown are the answer that leaves yesterday's screen
+     looking like yesterday's screen. Recorded once, by a flag rather than by the list being
+     empty, so a deal that genuinely issues none of them stays that way. */
+  if(!s.docDefaults){
+    for(const d of (s.deals||[])){
+      const have=new Set(d.docTemplates.map(x=>x.kind));
+      for(const k of DRAWN_DOCS) if(!have.has(k)) d.docTemplates.push(newDocTemplate({kind:k}));
+    }
+    s.docDefaults=true;
   }
   if(!s.users || !Array.isArray(s.users.list)) s.users=defaultUsers();
   s.users.requireLogin = s.users.requireLogin===true;
@@ -5849,27 +5871,41 @@ const DOCUMENTS = [
        : 'Two of them: the goods (B34) and the financial cost (B35).')},
 ];
 /** What a template is called: its own name for a bespoke one, the document's name otherwise. */
-const templateLabel = x => String((x && x.name) || templateDocName(x && x.kind) || 'Document');
+const templateLabel = x => String((x && x.name) || dealDocName(x && x.kind) || 'Document');
 /** Every document this deal can issue — the three the app draws itself, then one per template
  *  uploaded against the deal. They share the one picker because from where the user is standing
  *  they are the same thing: a document this trade produces. */
-/* Two of the documents on the template list are ones the app also draws itself. A deal that
-   uploads its own form gets both, because the standard one is still the app's own answer and
-   worth being able to look at — so they are told apart on the picker rather than sharing a
-   name and leaving the user to click and see. */
-const DRAWN_TOO = new Set(['po','tcinv']);
+/** Every document this deal issues — and only those. An Offer File
+ *  on a facility that does not produce one, or a Procurement Order on a deal with no agent, was
+ *  a card on the picker and a form to scroll past on every trade.
+ *
+ *  A ticked document that the app draws itself keeps its own pane. Where the deal has also
+ *  uploaded its own form, both appear: the standard pane is where the fields only that document
+ *  needs are keyed — the order date, the place of loading, the onward buyer — and the deal's own
+ *  form reads them from there, so hiding it would put its own values out of reach. */
 function documentList(deal){
-  return DOCUMENTS.concat(dealTemplates(deal).map(x=>({
-    key:'tpl:'+x.id, tpl:x,
-    name: templateLabel(x)+(DRAWN_TOO.has(x.kind) ? ' — this deal’s form' : ''),
-    desc: () => x.file
-      ? 'From '+x.file.name+' — '+(x.tokens||[]).length+' field(s) marked in it, filled from this '+
-        'deal and the trade.'
-      : 'Ticked on this deal, but no .docx uploaded yet — add it in the deal configuration.'})));
+  const out=[];
+  /* In the order the app lists them, not the order they were ticked: a document unticked and
+     ticked again would otherwise move to the end of the picker. */
+  const rank=x=>{ const i=DEAL_DOCS.findIndex(k=>k.id===x.kind);
+                  return i<0 ? DEAL_DOCS.length : i; };
+  for(const x of dealTemplates(deal).slice().sort((p,q)=>rank(p)-rank(q))){
+    const own=DOCUMENTS.find(b=>b.key===x.kind);
+    if(own) out.push(own);
+    if(x.file || !own) out.push({
+      key:'tpl:'+x.id, tpl:x,
+      name: templateLabel(x)+(own ? ' — this deal’s form' : ''),
+      desc: () => x.file
+        ? 'From '+x.file.name+' — '+(x.tokens||[]).length+' field(s) marked in it, filled from '+
+          'this deal and the trade.'
+        : 'Ticked on this deal, but no .docx uploaded yet — add it in the deal configuration.'});
+  }
+  return out;
 }
 function showDocPane(name){
   const list=documentList(currentDeal());
-  docChoice = list.some(x=>x.key===name) ? name : 'offer';
+  // The first document this deal issues, whatever that is — the Offer File may not be one of them.
+  docChoice = list.some(x=>x.key===name) ? name : (list.length ? list[0].key : '');
   // Every template shares one pane: which one is showing is the picker's answer, and the layout
   // of the document is the document's own business.
   const pane = docChoice.startsWith('tpl:') ? 'tpl' : docChoice;
@@ -5879,9 +5915,12 @@ function showDocPane(name){
     b.setAttribute('aria-selected', String(b.dataset.doc===docChoice));
 }
 function renderDocuments(d,t,r){
-  $('docPicker').innerHTML = documentList(d).map(x=>
-    '<button data-doc="'+esc(x.key)+'" aria-selected="'+(x.key===docChoice)+'">'+
-      '<span class="t">'+esc(x.name)+'</span><span class="d">'+esc(x.desc(d))+'</span></button>').join('');
+  const list=documentList(d);
+  $('docPicker').innerHTML = list.length
+    ? list.map(x=>'<button data-doc="'+esc(x.key)+'" aria-selected="'+(x.key===docChoice)+'">'+
+        '<span class="t">'+esc(x.name)+'</span><span class="d">'+esc(x.desc(d))+'</span></button>').join('')
+    : '<p class="tiny" style="margin:0">This deal issues no documents. Tick the ones it does in '+
+      'the deal configuration, under Documents &amp; templates.</p>';
   $('docScopeNote').textContent = t
     ? '— for trade '+(t.identifier||'(untitled)')+', state '+t.state
     : '— no trade selected';
@@ -6022,11 +6061,19 @@ function renderDealDocs(d,t,r){
 
   const list=dealTemplates(d), locked=!dealEditable(d);
   const ctx=templateFields(d, t, r ? r.out : null);
-  const rows=TEMPLATE_DOCS.map(k=>({key:'kind:'+k.id, name:k.name, tpl:list.find(x=>x.kind===k.id)}))
+  const rows=DEAL_DOCS.map(k=>({key:'kind:'+k.id, name:k.name, drawn:DRAWN_DOCS.includes(k.id),
+                                tpl:list.find(x=>x.kind===k.id)}))
     .concat(list.filter(x=>!x.kind).map(x=>({key:'id:'+x.id, name:templateLabel(x), tpl:x, own:true})));
 
   box.innerHTML='<div class="tpllist">'+rows.map(row=>{
     const tpl=row.tpl, f=tpl && tpl.file;
+    /* Three of these need no template at all — the app has a form for them. Saying "no .docx yet"
+       against one of those would read as something missing, when nothing is. */
+    const meta = !tpl ? ''
+      : f ? esc(f.name)+' · '+kbLabel(f.size)+' · '+esc(fmtShort(String(f.uploadedAt||'').slice(0,10)))+
+            (f.by?' by '+esc(f.by):'')
+      : row.drawn ? 'on this app’s own standard form'
+      : 'no .docx yet';
     return '<div class="tplrow'+(tpl?' on':'')+'">'+
       '<div class="head">'+
         '<label class="toggle"><input type="checkbox" data-tpl-on="'+esc(row.key)+'"'+
@@ -6035,12 +6082,10 @@ function renderDealDocs(d,t,r){
         (row.own?'<span class="tiny">named on this deal</span>':'')+
         '<span class="spacer"></span>'+
         (tpl
-          ? '<span class="meta">'+(f
-              ? esc(f.name)+' · '+kbLabel(f.size)+' · '+esc(fmtShort(String(f.uploadedAt||'').slice(0,10)))+
-                (f.by?' by '+esc(f.by):'')
-              : 'no .docx yet')+'</span>'+
+          ? '<span class="meta">'+meta+'</span>'+
             (locked ? '' :
-              '<label class="btn sm" style="display:inline-flex;align-items:center">'+(f?'Replace':'Upload .docx')+
+              '<label class="btn sm" style="display:inline-flex;align-items:center">'+
+                (f ? 'Replace' : row.drawn ? 'Use our own form' : 'Upload .docx')+
                 '<input type="file" data-tpl-file="'+esc(tpl.id)+'" accept=".docx,'+
                 'application/vnd.openxmlformats-officedocument.wordprocessingml.document" '+
                 'style="display:none"></label>'+
@@ -7838,6 +7883,23 @@ function runTests(){
     T('...and it keeps its brackets, so the gap shows on the page',
       wEvery(bare,'t').map(n=>n.textContent).join('|'),'[ITEM NO]|[QTY]','expandLineRows');
 
+    /* Which documents a deal issues, and how each is drawn. */
+    const docs=x=>documentList(x).map(y=>y.key).join(',') || '(none)';
+    const tick=(kind,file)=>({id:kind==='po'?'p1':'t1', kind, values:{}, tokens:[],
+                              file: file ? {name:'form.docx', b64:'x', size:1} : null});
+    T('A deal issues the documents it ticks', docs({docTemplates:[tick('tcinv')]}),'tcinv','documentList');
+    T('...and nothing it has not', docs({docTemplates:[]}),'(none)','documentList');
+    T('A form the app draws needs no template', docs({docTemplates:[tick('po')]}),'po','documentList');
+    T('A deal with its own form keeps both panes',
+      docs({docTemplates:[tick('po',true)]}),'po,tpl:p1','documentList');
+    T('A document the app has no form for is the template alone',
+      docs({docTemplates:[{id:'s1', kind:'sales', values:{}, tokens:[], file:null}]}),
+      'tpl:s1','documentList');
+    T('The picker order follows the list, not the ticking',
+      docs({docTemplates:[tick('tcinv'), tick('po')]}),'po,tcinv','documentList');
+    T('A new deal issues the three the app draws itself',
+      newDeal('tests').docTemplates.map(x=>x.kind).join(','),'offer,po,tcinv','newDeal');
+
     /* What the deal and the trade answer for, against the golden book. */
     const gd=store.deals[0], gt=tradesOf(gd.id)[0];
     const ctx=templateFields(gd, gt, computeAll(gd,gt).out);
@@ -9506,9 +9568,12 @@ const XML_SPACE='http://www.w3.org/XML/1998/namespace';
 const XML_DECL='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
 const wEvery=(el,name)=>[...el.getElementsByTagNameNS(W_NS,name)];
 
-/* The documents a facility might issue. A deal ticks the ones that apply to it and uploads a
-   template for each; anything not on this list goes on as a named document of its own. */
-const TEMPLATE_DOCS = [
+/* The documents a facility might issue. A deal ticks the ones that apply to it, and the tick is
+   what puts a document on the Documents tab. The first three are forms this app draws itself, so
+   they work with no template at all; every other one exists only as the file uploaded for it, and
+   anything not on this list goes on as a document named on the deal. */
+const DEAL_DOCS = [
+  {id:'offer',      name:'IAA Offer File'},
   {id:'po',         name:'Procurement Order'},
   {id:'tcinv',      name:'TradeCo Invoice'},
   {id:'sales',      name:'Sales Contract'},
@@ -9518,7 +9583,7 @@ const TEMPLATE_DOCS = [
   {id:'receivable', name:'Receivables Purchase Agreement'},
   {id:'inspection', name:'Inspection Certificate'},
 ];
-const templateDocName = kind => (TEMPLATE_DOCS.find(x=>x.id===kind)||{}).name || '';
+const dealDocName = kind => (DEAL_DOCS.find(x=>x.id===kind)||{}).name || '';
 const dealTemplates = deal => (deal && Array.isArray(deal.docTemplates)) ? deal.docTemplates : [];
 function newDocTemplate(seed){
   return {id:uuid(), kind:'', name:'', file:null, values:{}, ...(seed||{})};
@@ -10092,8 +10157,8 @@ $('dealDocsBox').addEventListener('change', e=>{
     const list=dealTemplates(d);
     const found = what==='kind' ? list.find(x=>x.kind===which) : list.find(x=>String(x.id)===which);
     if(tick.checked && !found){
-      d.docTemplates=list.concat([newDocTemplate({kind:which, name:templateDocName(which)})]);
-      audit('deal', d.id, 'CREATE', 'document', null, templateDocName(which),
+      d.docTemplates=list.concat([newDocTemplate({kind:which})]);
+      audit('deal', d.id, 'CREATE', 'document', null, dealDocName(which),
         'Document applies to this deal');
     } else if(!tick.checked && found){
       /* Unticking throws the uploaded file away with it, so it is worth asking once. */

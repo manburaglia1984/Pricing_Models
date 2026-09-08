@@ -48,7 +48,8 @@ trade:
   Issue, Mark settled, Cancel, Duplicate, New version, Edit deal configuration);
 - a **Pricing** pane — the deal's configuration read-only, the trade's own fields, the five panels and the
   validation / rate-quote / business-day / summary rail;
-- an **Offer File** pane, since the Offer File describes one trade and belongs with it.
+- a **Documents** pane holding the documents the deal issues — whichever of them are ticked in its
+  configuration, since they describe one trade and belong with it.
 
 Close it with the Close button, `Esc`, or a click on the backdrop. It is an in-page overlay rather than a
 real browser window: a popup would be blocked by default and could not share state with the page.
@@ -253,24 +254,32 @@ Two caveats worth reading before go-live:
   a reason and is itself an audit event.
 - **IAA Offer File** — the 12-field record with its source-cell mapping, exportable as TSV, CSV,
   JSON or print-to-PDF, hashed with SHA-256 and stored immutably on the deal at ISSUED.
-- **Documents from the deal's own .docx templates.** A facility's paperwork is not the app's to
-  design, so a deal can carry its own: tick the documents it issues, upload a Word template with
-  its fields marked `[in square brackets]`, and the app fills them from the deal, the trade and the
-  priced figures, repeats a table row once per goods line, and leaves the rest of the file — wording,
-  styles, letterhead, logo — exactly as uploaded. See [Documents from your own
-  templates](#documents-from-your-own-templates).
+- **Documents chosen per deal, and drawn from the deal's own .docx templates.** Which documents a
+  facility issues is a deal setting, and only the ticked ones reach the trade's Documents pane. A
+  facility's paperwork is not the app's to design either, so a deal can carry its own: upload a
+  Word template with its fields marked `[in square brackets]`, and the app fills them from the
+  deal, the trade and the priced figures, repeats a table row once per goods line, and leaves the
+  rest of the file — wording, styles, letterhead, logo — exactly as uploaded. See [Documents from
+  your own templates](#documents-from-your-own-templates).
 - **Append-only audit log** at field-level granularity — who changed what, when, from what to what,
   and why. No hard deletes anywhere: cancelling is a soft-delete.
 
 ## Documents from your own templates
 
-The three documents the app draws itself — the Offer File, the Procurement Order and the TradeCo
-invoice — are its own forms. A facility's real paperwork rarely matches them clause for clause, and
-two deals doing the same trade routinely differ in wording that has nothing to do with the trade.
-Adding an input field per difference would be a form that grows without end and is wrong for the
-next deal anyway.
+**Which documents a deal issues is the deal's answer.** Deal configuration → *Documents &
+templates* lists every document a facility might issue, and only the ticked ones appear on the
+Documents pane of every trade on that deal. The Offer File, the Procurement Order and the TradeCo
+Invoice — the three the app draws itself — start ticked, because a deal issuing all three is the
+common case; untick the ones that do not apply and they are gone from the tab. A deal with no
+agent has no procurement order to issue, and the card for one was clutter on every screen.
 
-So a deal can carry its documents as **.docx templates**, and the app fills them.
+**How each one is drawn is also the deal's answer.** Those three have a form the app draws itself,
+so they need nothing else. Every other document on the list — and, if the facility's own form
+differs, any of those three as well — is drawn from a **.docx template** the deal carries and the
+app fills. A facility's real paperwork rarely matches a built-in form clause for clause, and two
+deals doing the same trade routinely differ in wording that has nothing to do with the trade;
+adding an input field per difference would be a form that grows without end and is wrong for the
+next deal anyway.
 
 **Marking up a template.** Wherever a value belongs, put the field name in square brackets:
 
@@ -287,12 +296,17 @@ nobody typed — a spell-check pass, a language mark, an edit made and undone �
 paragraph before looking, which is why a bracket typed in one piece is still found after Word has
 cut it in three.
 
-**Setting one up.** Deal configuration → **Documents & templates**. Tick the documents this
-facility issues, upload a `.docx` for each, and every bracketed field in the file is listed with the
-value it will print and where that value comes from. Any field can be overridden with a typed value
-on the deal — which is also how a field the app has never heard of gets filled. The templates then
-appear on the **Documents** tab beside the app's own, with a preview and a **Download Word (.docx)**
+**Setting one up.** Tick the document, then upload its `.docx`. Every bracketed field in the file
+is listed with the value it will print and where that value comes from. Any field can be overridden
+with a typed value on the deal — which is also how a field the app has never heard of gets filled.
+The template then appears on the **Documents** pane with a preview and a **Download Word (.docx)**
 button.
+
+Uploading a form for one of the three the app draws itself gives that document **two** panes: the
+deal's own form, and the standard one. The standard pane is kept because it is also where the
+fields only that document needs are keyed — the Procurement Order's own date, place of loading and
+onward buyer — and the deal's own form reads them from there, so hiding it would put its own values
+out of reach.
 
 **A row per item.** A table row marked up with `[Item No.]`, `[Description]`, `[Qty]`,
 `[Unit Price]` or `[Amount]` is repeated once per goods line on the trade, off the trade's own
