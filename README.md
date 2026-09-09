@@ -302,10 +302,22 @@ paragraph before looking, which is why a bracket typed in one piece is still fou
 cut it in three.
 
 **Setting one up.** Tick the document, then upload its `.docx`. Every bracketed field in the file
-is listed with the value it will print and where that value comes from. Any field can be overridden
-with a typed value on the deal — which is also how a field the app has never heard of gets filled.
-The document then appears on the **Documents** pane with a preview and a **Download Word (.docx)**
-button.
+is listed with the value it will print and a dropdown of **every field the app keeps** — the deal's
+configuration, the issuing entity and its account, the agent, the trade, the priced figures — to
+say which one it takes that value from. The document then appears on the **Documents** pane with a
+preview and a **Download Word (.docx)** button.
+
+A bracket whose name matches a field is pointed at it already and the dropdown says so ("Matched by
+name — Trade identifier"). One that matches nothing prints in brackets until somebody points it at
+a field: `[Seller LEI]` at *TradeCo tax ID*, `[Our Ref]` at *Deal code*. And a bracket the app
+matched can be pointed somewhere else, because which figure a form means by `[Total]` is the form's
+business.
+
+The dropdown is the way in on purpose. A facility keys its deal and its trades once, and a
+template's brackets should point back at those rather than at values retyped per document — a
+typed value stays as it was while the deal moves on. Typing one is still available, as *Type a
+value instead…* at the bottom of the list, for the odd thing the app keeps no field for at all; a
+field beats a typed value wherever both exist.
 
 The facts a shipment carries but the pricing does not — order date, estimated delivery, place of
 loading, onward buyer, specifications — are keyed on the trade itself, under **Order & Delivery**
@@ -335,6 +347,8 @@ total repeated once per item is the kind of mistake that goes out to a counterpa
 **What is not filled stays visible.** A field the app cannot answer for is left exactly as it was
 found, brackets and all: marked in red in the preview, and printed as `[Buyer Address]` on the page
 that goes out. An unfinished document should be visible on its face and not only in a checklist.
+The pane names the field each open bracket points at — "`[Delivery Terms]` → Delivery terms" — so
+it says where to go rather than only which bracket is empty.
 
 **What is left alone.** Only the XML parts of the file that carry text are rewritten — the body,
 headers, footers and notes. Styles, fonts, numbering, letterhead and images are the bytes that were
@@ -353,6 +367,10 @@ went in, with the brackets filled.
 - `.docx` only. A `.doc` or a PDF has to be saved as `.docx` in Word first.
 - Repeating anything other than a goods row, conditional clauses and content controls are not
   supported. Bracketed fields and goods rows are the whole vocabulary.
+- A bracket is pointed at a field by that field's name, so renaming one in a future build would
+  leave the mapping pointing at nothing. That is said rather than hidden: the row reads "the field
+  it pointed at is gone", the bracket falls back to matching on its own name, and re-picking is one
+  dropdown away.
 
 ## Client list
 

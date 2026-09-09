@@ -2824,6 +2824,7 @@ function normalise(s){
     for(const x of d.docTemplates){
       if(!x.id) x.id=uuid();
       if(!x.values || typeof x.values!=='object') x.values={};
+      if(!x.maps || typeof x.maps!=='object') x.maps={};
       if(!Array.isArray(x.tokens)) x.tokens=[];
       if(x.file && !x.file.b64) x.file=null;
     }
@@ -5940,7 +5941,7 @@ async function fillTemplatePane(d,t,r){
   let filled, html, ctx;
   try{
     ctx=templateFields(d, t, r ? r.out : null, tpl.kind);
-    ctx.overrides=tpl.values||{};
+    ctx.overrides=tpl.values||{}; ctx.maps=tpl.maps||{};
     filled=await fillTemplate(b64ToBytes(tpl.file.b64).buffer, ctx);
     if(!alive()) return;
     html=await templateHtml(filled);
@@ -5962,13 +5963,16 @@ async function fillTemplatePane(d,t,r){
   // The document's own checks, which no bracket would have shown.
   for(const m of (ctx.checks||[])) bits.push(esc(m));
   const known=open.filter(x=>x.known), unknown=open.filter(x=>!x.known);
-  const names=list=>list.map(x=>'<span class="tok">['+esc(x.name)+']</span>').join(' ');
-  if(known.length) bits.push(known.length+' field(s) this app fills, but has nothing to put in '+
-    'yet: '+names(known)+' — fill them where they live, in the deal, on the trade, or on the '+
-    'client’s draft order.');
-  if(unknown.length) bits.push(unknown.length+' field(s) this app has no answer for: '+
-    names(unknown)+' — type a value for each in the deal configuration, under Documents &amp; '+
-    'templates.');
+  /* Named with the field each is pointed at, so "still open" says where to go and not only
+     which bracket is empty. */
+  const names=list=>list.map(x=>'<span class="tok">['+esc(x.name)+']</span>'+
+    (x.from ? ' <span class="tiny">→ '+esc(x.from)+'</span>' : '')).join(', ');
+  if(known.length) bits.push(known.length+' bracket(s) pointed at a field that is empty: '+
+    names(known)+' — fill them where they live, in the deal, on the trade, or on the client’s '+
+    'draft order.');
+  if(unknown.length) bits.push(unknown.length+' bracket(s) pointed at nothing: '+names(unknown)+
+    ' — pick the field each should take its value from, in the deal configuration under '+
+    'Documents &amp; templates.');
   $('tplSub').textContent=' — '+templateLabel(tpl)+' · '+filled.filled+' filled'+
     (open.length ? ' · '+open.length+' still open' : '');
   say(bits.length ? 'warn' : 'ok', bits.length
@@ -5984,38 +5988,99 @@ const kbLabel = n => n<1024 ? n+' B' : (n/1024).toFixed(n<1024*100?1:0)+' KB';
 const oneLine = (v,max) => { const s=String(v==null?'':v).split(/\r?\n/).map(x=>x.trim())
   .filter(Boolean).join(' / ');
   return s.length>(max||58) ? s.slice(0,(max||58)-1)+'…' : s; };
-/** The fields one template asks for, what each will print, and a box to say otherwise.
- *  Every field gets that box, not only the ones the app cannot answer: which figure a form
- *  means by [TOTAL] is the form's business, and arguing with it from here is not the job. */
+/** The fields one template asks for, what each will print, and which field of this app's it is
+ *  pointed at.
+ *
+ *  A dropdown rather than a box to type in, and that is the point: a facility keys its deal and
+ *  its trades once, and a template's brackets should point back at those rather than at values
+ *  retyped per document. A token whose name matches a field is pointed at it already; one that
+ *  does not is pointed at whichever field the person who marked up the form actually meant.
+ *  Typing a literal is still on the list, for the odd thing this app keeps no field for at all,
+ *  but it is one choice among the fields rather than the only box on offer. */
 function templateFieldTable(tpl, ctx, locked){
   const toks=(tpl.tokens||[]);
   if(!toks.length) return '<p class="tiny" style="margin:8px 0 0">Nothing in square brackets in '+
     'this file — it will be issued exactly as uploaded.</p>';
+  const opt=(v,label,sel)=>'<option value="'+esc(v)+'"'+(sel?' selected':'')+'>'+esc(label)+'</option>';
   return '<table><thead><tr><th>Marked in the file</th><th>What will be printed</th>'+
-    '<th style="width:34%">Instead, print</th></tr></thead><tbody>'+
+    '<th style="width:38%">Take it from</th></tr></thead><tbody>'+
     toks.map(tk=>{
-      const f=ctx.map.get(tk.key), lf=LINE_MAP.get(tk.key);
+      const auto=ctx.map.get(tk.key), lf=LINE_MAP.get(tk.key);
       const own=String((tpl.values||{})[tk.key]||'');
+      const mapKey=String((tpl.maps||{})[tk.key]||'');
+      const picked=mapKey ? ctx.map.get(mapKey) : null;
+      const shown=picked||auto;
       let cell;
       if(tk.inRow && lf)
         cell='<span class="inline-tag ok">once per goods line</span> '+esc(lf.label)+
              (ctx.lines.length ? ' · '+ctx.lines.length+' line(s) on this trade'
                                : ' · <span style="color:var(--err)">no goods on this trade</span>');
+      else if(picked && String(picked.value).trim())
+        cell=esc(oneLine(picked.value))+' <span class="tiny">from '+esc(picked.label)+'</span>';
+      else if(picked)
+        cell='<span class="inline-tag warn">'+esc(picked.label)+' is empty</span>';
+      /* A mapping to a field that is no longer on the list. Nothing is lost — the token falls
+         back to its own name — but it is said rather than shown as a blank dropdown. */
+      else if(mapKey)
+        cell='<span class="inline-tag err">the field it pointed at is gone</span>';
       else if(own.trim())
-        cell='<b>'+esc(oneLine(own))+'</b> <span class="tiny">typed here</span>';
-      else if(f && String(f.value).trim())
-        cell=esc(oneLine(f.value))+' <span class="tiny">from '+esc(f.label)+'</span>';
-      else if(f)
-        cell='<span class="inline-tag warn">'+esc(f.label)+' is empty</span>';
+        cell='<b>'+esc(oneLine(own))+'</b> <span class="tiny">typed on this deal</span>';
+      else if(auto && String(auto.value).trim())
+        cell=esc(oneLine(auto.value))+' <span class="tiny">from '+esc(auto.label)+'</span>';
+      else if(auto)
+        cell='<span class="inline-tag warn">'+esc(auto.label)+' is empty</span>';
       else
-        cell='<span class="inline-tag err">not a field this app knows</span>';
-      return '<tr><td class="tok">['+esc(tk.name)+']</td><td>'+cell+'</td><td>'+
-        (tk.inRow && lf ? '<span class="tiny">—</span>'
-          : '<input type="text" class="in" data-tpl-val="'+esc(tpl.id)+'" data-tpl-key="'+
-            esc(tk.key)+'" value="'+esc(own)+'"'+(locked?' disabled':'')+
-            ' placeholder="'+(f?'leave blank to use the value on the left':'give it a value')+'">')+
-        '</td></tr>';
+        cell='<span class="inline-tag err">nothing yet — pick a field</span>';
+
+      const pick = tk.inRow && lf ? '<span class="tiny">—</span>'
+        : '<select class="in" data-tpl-map="'+esc(tpl.id)+'" data-tpl-key="'+esc(tk.key)+'"'+
+            (locked?' disabled':'')+' style="text-align:left">'+
+          opt('', auto ? 'Matched by name — '+auto.label : 'Nothing — leave ['+tk.name+'] on the page',
+              !mapKey && !own.trim())+
+          (mapKey && !picked ? opt(mapKey, '(a field that is gone: '+mapKey+')', true) : '')+
+          ctx.groups.map(g=>'<optgroup label="'+esc(g.title)+'">'+
+            g.rows.map(r=>opt(r.key, r.label, r.key===mapKey)).join('')+'</optgroup>').join('')+
+          '<optgroup label="If no field fits">'+
+            opt('=type', own.trim() ? 'Typed: '+oneLine(own,28) : 'Type a value instead…', !!own.trim())+
+          '</optgroup></select>';
+      return '<tr><td class="tok">['+esc(tk.name)+']</td><td>'+cell+'</td><td>'+pick+'</td></tr>';
     }).join('')+'</tbody></table>';
+}
+/** Point one of a template's brackets at a field, at a typed value, or at nothing. */
+function setTemplateField(tplId, key, choice){
+  const d=currentDeal(); if(!d) return;
+  if(!dealEditable(d)) return render();
+  const tpl=dealTemplates(d).find(x=>String(x.id)===String(tplId)); if(!tpl) return;
+  if(!tpl.maps || typeof tpl.maps!=='object') tpl.maps={};
+  if(!tpl.values || typeof tpl.values!=='object') tpl.values={};
+  /* The audit log is read by people, so it names the field rather than its key. */
+  const fields=templateFields(d, currentTrade(), null, tpl.kind).map;
+  const label=k=>{ const f=fields.get(k); return f ? f.label : k; };
+  const say=()=> tpl.maps[key] ? 'the field “'+label(tpl.maps[key])+'”'
+              : tpl.values[key] ? 'the typed value “'+tpl.values[key]+'”' : 'its own name';
+  const was=say();
+  const tok=(tpl.tokens||[]).find(x=>x.key===key);
+  const shown='['+((tok&&tok.name)||key)+']';
+  if(choice==='=type'){
+    const now=prompt('What should '+shown+' print on every document from this template?\n\n'+
+      'A field from the list is the better answer wherever one fits: it follows the deal and the '+
+      'trade, where a value typed here stays as it is until somebody changes it.',
+      tpl.values[key]||'');
+    if(now===null) return render();                  // cancelled — put the dropdown back as it was
+    if(String(now).trim()){ tpl.values[key]=now; delete tpl.maps[key]; }
+    else { delete tpl.values[key]; delete tpl.maps[key]; }
+  } else if(choice){
+    tpl.maps[key]=choice; delete tpl.values[key];
+  } else {
+    delete tpl.maps[key]; delete tpl.values[key];
+  }
+  const now=say();
+  if(now!==was)
+    audit('deal', d.id, 'UPDATE', 'template:'+templateLabel(tpl)+shown, was, now, null);
+  save();
+  // The dropdown holding focus is what would stop the table rebuilding under its own answer.
+  const ae=document.activeElement; if(ae && ae.blur) ae.blur();
+  render();
 }
 function renderDealDocs(d,t,r){
   const box=$('dealDocsBox'); if(!box || !d) return;
@@ -6107,10 +6172,11 @@ async function uploadTemplate(tplId, file){
     scan.tokens.length+' field(s) marked in square brackets'+
     (scan.lineRows ? ', and '+scan.lineRows+' table row(s) that repeat once per goods line' : '')+
     '.\n'+(unknown.length
-      ? '\n'+unknown.length+' of them are not fields this app knows:\n  '+
+      ? '\n'+unknown.length+' of them are not a field name this app recognises:\n  '+
         unknown.map(x=>'['+x.name+']').join('  ')+
-        '\n\nType a value for each below, or leave them and they will print as they are.'
-      : '\nEvery one of them is a field this app can fill.')+
+        '\n\nPoint each one at a field in the list below — everything the deal and the trade '+
+        'hold is on it — or leave them and they will print in brackets as they are.'
+      : '\nEvery one of them matches a field this app can fill.')+
     (file.size>WARN_TEMPLATE_BYTES
       ? '\n\nNote: at '+kbLabel(file.size)+' this is a large template. It is kept inside the data '+
         'store, which is written in full on every change.'
@@ -7755,6 +7821,39 @@ function runTests(){
       fmtLong(todayISO()).replace(/^[A-Za-z]+, /,''),'fmtPlain');
     T('A field nobody has heard of stays unheard of', val('Seller LEI'),'(no such field)','templateFields');
     T('An unfilled field is empty, not guessed', val('Onward buyer'),'','templateFields');
+    /* Which field a bracket takes its value from. */
+    const rz=(maps,overrides)=>templateResolver({...ctx, maps:maps||{}, overrides:overrides||{}},
+                                                new Map());
+    T('A bracket whose name matches a field takes that field',
+      rz()('Order No'), gt.identifier,'templateResolver');
+    T('A bracket pointed at a field takes that one instead',
+      rz({ORDERNO:'DEALCODE'})('Order No'), gd.code,'templateResolver');
+    T('A bracket the app has no field for can be given a value',
+      rz(null,{SELLERLEI:'5493001KJTIIGC8Y1R12'})('Seller LEI'),
+      '5493001KJTIIGC8Y1R12','templateResolver');
+    T('A field beats a typed value, because a field follows the deal',
+      rz({SELLERLEI:'DEALCODE'},{SELLERLEI:'typed'})('Seller LEI'), gd.code,'templateResolver');
+    T('A bracket pointed at nothing is left on the page',
+      String(rz()('Mystery Field')),'null','templateResolver');
+    T('...and so is one pointed at a field that is empty',
+      String(rz({MYSTERYFIELD:'ONWARDBUYER'})('Mystery Field')),'null','templateResolver');
+    T('An open bracket says which field it was pointed at', (()=>{
+        const seen=new Map();
+        templateResolver({...ctx, maps:{MYSTERYFIELD:'ONWARDBUYER'}}, seen)('Mystery Field');
+        const o=seen.get('MYSTERYFIELD');
+        return o.known+'/'+o.from+'/'+o.name;
+      })(),'true/Onward buyer/Mystery Field','templateResolver');
+    T('A mapping to a field that no longer exists falls back to the name', (()=>{
+        const seen=new Map();
+        const v=templateResolver({...ctx, maps:{ORDERNO:'NOSUCHFIELD'}}, seen)('Order No');
+        return v===gt.identifier ? 'fell back' : String(v);
+      })(),'fell back','templateResolver');
+    T('Every field on the dropdown is reachable by its own key',
+      ctx.groups.every(g=>g.rows.every(r=>ctx.map.get(r.key)===r))+'','true','templateFields');
+    T('The dropdown covers the deal, the trade and the figures',
+      ctx.groups.map(g=>g.rows.length).reduce((a,b)=>a+b,0)>50 ? 'plenty' : 'too few',
+      'plenty','templateFields');
+
     T('Marked-up brackets survive into the preview',
       markBlanks('a [B] c'),'a <span class="blank">[B]</span> c','markBlanks');
   }
@@ -9158,7 +9257,10 @@ const DEAL_DOCS = [
 const dealDocName = kind => (DEAL_DOCS.find(x=>x.id===kind)||{}).name || '';
 const dealTemplates = deal => (deal && Array.isArray(deal.docTemplates)) ? deal.docTemplates : [];
 function newDocTemplate(seed){
-  return {id:uuid(), kind:'', name:'', file:null, values:{}, ...(seed||{})};
+  /* `maps` is a token pointed at one of this app's own fields; `values` is a token given a
+     literal. A token has at most one of the two — the register keeps them exclusive — and a
+     token with neither is filled by whichever field its name matches, or left in brackets. */
+  return {id:uuid(), kind:'', name:'', file:null, maps:{}, values:{}, ...(seed||{})};
 }
 /* A template lives in the store as base64, which is what makes it travel with the book to a
    shared folder instead of being something each person has to have a copy of. It is also why
@@ -9436,19 +9538,36 @@ const FILLABLE_PART = /^word\/(document|header\d*|footer\d*|footnotes|endnotes)\
 /** Fill one uploaded template against a deal and a trade.
  *  Returns the members to write back out, the filled XML of each text part for the preview, and
  *  every placeholder it could not answer for. */
-async function fillTemplate(buf, ctx){
-  const entries=zipList(buf), dec=new TextDecoder(), enc=new TextEncoder();
-  const unresolved=new Map();
-  const overrides=ctx.overrides||{};
-  const resolve = name => {
+/** What one bracket becomes. Three answers, in order of how deliberate they are: the field this
+ *  deal has pointed the token at, a value typed for it, and the field whose own name the token
+ *  matches. A mapping beats a typed value because it is both the later word and the living one —
+ *  it follows the deal and the trade, where a typed value stays as it was.
+ *
+ *  Null means no answer, and a null is left on the page in its brackets rather than blanked.
+ *  Every one of them is recorded in `seen`, with the field it was pointed at, so the pane can
+ *  say where to go and not merely which bracket is empty. */
+function templateResolver(ctx, seen){
+  const maps=ctx.maps||{}, overrides=ctx.overrides||{};
+  const open=(key,name,known,from)=>{
+    if(seen && !seen.has(key)) seen.set(key, {key, name:String(name).trim(), known, from:from||''});
+    return null;
+  };
+  return name => {
     const key=tokenKey(name);
+    const picked = maps[key] ? ctx.map.get(maps[key]) : null;
+    if(picked) return String(picked.value).trim()!=='' ? picked.value
+                                                       : open(key, name, true, picked.label);
     const own=overrides[key];
     if(own!=null && String(own).trim()!=='') return own;
     const f=ctx.map.get(key);
     if(f && String(f.value).trim()!=='') return f.value;
-    if(!unresolved.has(key)) unresolved.set(key, {key, name:String(name).trim(), known:!!f});
-    return null;
+    return open(key, name, !!f, f?f.label:'');
   };
+}
+async function fillTemplate(buf, ctx){
+  const entries=zipList(buf), dec=new TextDecoder(), enc=new TextEncoder();
+  const unresolved=new Map();
+  const resolve=templateResolver(ctx, unresolved);
   const out=[], parts={};
   let filled=0, lineRows=0;
   for(const e of entries){
@@ -9778,25 +9897,10 @@ $('dealDocsBox').addEventListener('click', e=>{
   tpl.file=null; tpl.tokens=[];
   save(); render();
 });
-/* A value typed for one field. Blank means no override, not print-nothing: a field nobody has
-   answered should show up in brackets on the page, which is this app's rule everywhere else. */
-$('dealDocsBox').addEventListener('input', e=>{
-  const box=e.target.closest('input[data-tpl-val]'); if(!box) return;
-  const d=currentDeal(); if(!d || !dealEditable(d)) return;
-  const tpl=dealTemplates(d).find(x=>String(x.id)===box.dataset.tplVal); if(!tpl) return;
-  const key=box.dataset.tplKey;
-  if(!tpl.values || typeof tpl.values!=='object') tpl.values={};
-  if(String(box.value).trim()) tpl.values[key]=box.value; else delete tpl.values[key];
-  save();
-  const t=currentTrade();
-  renderTemplateDoc(d, t, t ? computeAll(d,t) : null);
-});
+/* Which field one of a template's brackets takes its value from. */
 $('dealDocsBox').addEventListener('change', e=>{
-  const box=e.target.closest('input[data-tpl-val]'); if(!box) return;
-  const d=currentDeal(); if(!d) return;
-  const tpl=dealTemplates(d).find(x=>String(x.id)===box.dataset.tplVal); if(!tpl) return;
-  audit('deal', d.id, 'UPDATE', 'template:'+templateLabel(tpl)+'['+box.dataset.tplKey+']',
-    null, box.value, null);
+  const sel=e.target.closest('select[data-tpl-map]'); if(!sel) return;
+  setTemplateField(sel.dataset.tplMap, sel.dataset.tplKey, sel.value);
 });
 $('btnTplPrint').onclick=()=>window.print();
 $('btnTplDocx').onclick=async ()=>{
@@ -9806,7 +9910,7 @@ $('btnTplDocx').onclick=async ()=>{
   if(!t) return alert('A document is issued for a trade — pick one first.');
   try{
     const ctx=templateFields(d, t, computeAll(d,t).out, tpl.kind);
-    ctx.overrides=tpl.values||{};
+    ctx.overrides=tpl.values||{}; ctx.maps=tpl.maps||{};
     const filled=await fillTemplate(b64ToBytes(tpl.file.b64).buffer, ctx);
     const a=document.createElement('a');
     a.href=URL.createObjectURL(filled.blob());
