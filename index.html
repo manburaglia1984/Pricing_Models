@@ -5843,6 +5843,9 @@ const DOCUMENTS = [
 ];
 /** What a template is called: its own name for a bespoke one, the document's name otherwise. */
 const templateLabel = x => String((x && x.name) || dealDocName(x && x.kind) || 'Document');
+/** Distinct, in the order first seen, blanks dropped. Four invoices from one supplier name it
+ *  once on a document, not four times. */
+const uniq = list => [...new Set(list.map(x=>String(x==null?'':x).trim()).filter(Boolean))];
 /** Every document this deal can issue — the three the app draws itself, then one per template
  *  uploaded against the deal. They share the one picker because from where the user is standing
  *  they are the same thing: a document this trade produces. */
@@ -6002,19 +6005,24 @@ function templateFieldTable(tpl, ctx, locked){
   if(!toks.length) return '<p class="tiny" style="margin:8px 0 0">Nothing in square brackets in '+
     'this file — it will be issued exactly as uploaded.</p>';
   const opt=(v,label,sel)=>'<option value="'+esc(v)+'"'+(sel?' selected':'')+'>'+esc(label)+'</option>';
+  const {fieldFor}=lineTools({maps:tpl.maps});
   return '<table><thead><tr><th>Marked in the file</th><th>What will be printed</th>'+
     '<th style="width:38%">Take it from</th></tr></thead><tbody>'+
     toks.map(tk=>{
-      const auto=ctx.map.get(tk.key), lf=LINE_MAP.get(tk.key);
+      const auto=ctx.map.get(tk.key);
       const own=String((tpl.values||{})[tk.key]||'');
       const mapKey=String((tpl.maps||{})[tk.key]||'');
-      const picked=mapKey ? ctx.map.get(mapKey) : null;
-      const shown=picked||auto;
+      /* A bracket in a table cell can be a column of the goods table, and then it is filled
+         once per line rather than once per document. */
+      const lf=tk.inRow ? fieldFor(tk.name) : null;
+      const picked=(mapKey && !isLineKey(mapKey)) ? ctx.map.get(mapKey) : null;
       let cell;
-      if(tk.inRow && lf)
+      if(lf)
         cell='<span class="inline-tag ok">once per goods line</span> '+esc(lf.label)+
              (ctx.lines.length ? ' · '+ctx.lines.length+' line(s) on this trade'
                                : ' · <span style="color:var(--err)">no goods on this trade</span>');
+      else if(isLineKey(mapKey))
+        cell='<span class="inline-tag err">a goods column, but not in a table row</span>';
       else if(picked && String(picked.value).trim())
         cell=esc(oneLine(picked.value))+' <span class="tiny">from '+esc(picked.label)+'</span>';
       else if(picked)
@@ -6032,12 +6040,21 @@ function templateFieldTable(tpl, ctx, locked){
       else
         cell='<span class="inline-tag err">nothing yet — pick a field</span>';
 
-      const pick = tk.inRow && lf ? '<span class="tiny">—</span>'
-        : '<select class="in" data-tpl-map="'+esc(tpl.id)+'" data-tpl-key="'+esc(tk.key)+'"'+
+      /* The line fields are offered only where they could work — inside a table row — because a
+         goods column named in a paragraph has no line to take its value from. */
+      const autoLine = (!mapKey && tk.inRow) ? LINE_MAP.get(tk.key) : null;
+      const gone = mapKey && !picked && !isLineKey(mapKey);
+      const pick =
+        '<select class="in" data-tpl-map="'+esc(tpl.id)+'" data-tpl-key="'+esc(tk.key)+'"'+
             (locked?' disabled':'')+' style="text-align:left">'+
-          opt('', auto ? 'Matched by name — '+auto.label : 'Nothing — leave ['+tk.name+'] on the page',
+          opt('', autoLine ? 'Matched by name — '+autoLine.label+', once per goods line'
+                 : auto ? 'Matched by name — '+auto.label
+                 : 'Nothing — leave ['+tk.name+'] on the page',
               !mapKey && !own.trim())+
-          (mapKey && !picked ? opt(mapKey, '(a field that is gone: '+mapKey+')', true) : '')+
+          (gone ? opt(mapKey, '(a field that is gone: '+mapKey+')', true) : '')+
+          (tk.inRow ? '<optgroup label="Once per goods line — the item table">'+
+            LINE_FIELDS.map(f=>opt(LINE_PREFIX+f.key, f.label, LINE_PREFIX+f.key===mapKey)).join('')+
+            '</optgroup>' : '')+
           ctx.groups.map(g=>'<optgroup label="'+esc(g.title)+'">'+
             g.rows.map(r=>opt(r.key, r.label, r.key===mapKey)).join('')+'</optgroup>').join('')+
           '<optgroup label="If no field fits">'+
@@ -6055,7 +6072,10 @@ function setTemplateField(tplId, key, choice){
   if(!tpl.values || typeof tpl.values!=='object') tpl.values={};
   /* The audit log is read by people, so it names the field rather than its key. */
   const fields=templateFields(d, currentTrade(), null, tpl.kind).map;
-  const label=k=>{ const f=fields.get(k); return f ? f.label : k; };
+  const label=k=>{
+    if(isLineKey(k)){ const lf=lineFieldFor(k); return lf ? lf.label+', once per goods line' : k; }
+    const f=fields.get(k); return f ? f.label : k;
+  };
   const say=()=> tpl.maps[key] ? 'the field “'+label(tpl.maps[key])+'”'
               : tpl.values[key] ? 'the typed value “'+tpl.values[key]+'”' : 'its own name';
   const was=say();
@@ -6082,8 +6102,28 @@ function setTemplateField(tplId, key, choice){
   const ae=document.activeElement; if(ae && ae.blur) ae.blur();
   render();
 }
+/* Templates already being re-read, so a repaint mid-flight does not start a second pass. */
+const rescanning=new Set();
+/** Read a template again under the current rules. Only ever a widening — the file is untouched
+ *  and so is every mapping — so it needs no confirmation and makes no noise: the register simply
+ *  has the right brackets marked the next time it draws. */
+async function rescanTemplate(deal, tpl){
+  if(rescanning.has(tpl.id)) return;
+  rescanning.add(tpl.id);
+  try{
+    const scan=await scanTemplate(b64ToBytes(tpl.file.b64).buffer);
+    /* Whatever was said about a bracket stays said: only what the reading of the file knows
+       is replaced, and a token that has gone from the file takes its mapping with it. */
+    tpl.tokens=scan.tokens; tpl.scanV=scan.scanV;
+    save(); render();
+  }catch(e){
+    console.warn('Could not read '+(tpl.file&&tpl.file.name)+' again', e);
+    tpl.scanV=SCAN_VERSION;          // a file this build cannot read will not be retried on a loop
+  }finally{ rescanning.delete(tpl.id); }
+}
 function renderDealDocs(d,t,r){
   const box=$('dealDocsBox'); if(!box || !d) return;
+  for(const x of dealTemplates(d)) if(x.file && x.scanV!==SCAN_VERSION) rescanTemplate(d, x);
   /* A rebuild would tear the field out from under the caret, and every keystroke in one of
      these boxes repaints the app. A focused button must not stop it — the tick that adds a
      document leaves the checkbox holding focus, and skipping there is how the new block
@@ -6161,7 +6201,7 @@ async function uploadTemplate(tplId, file){
   const was=tpl.file ? tpl.file.name : '';
   tpl.file={name:file.name, size:file.size, uploadedAt:new Date().toISOString(),
             by:actor().name, b64:bytesToB64(new Uint8Array(buf))};
-  tpl.tokens=scan.tokens;
+  tpl.tokens=scan.tokens; tpl.scanV=scan.scanV;
   audit('deal', d.id, 'UPDATE', 'template:'+templateLabel(tpl), was||null, file.name,
     scan.tokens.length+' field(s) marked in it');
   save();
@@ -7805,6 +7845,40 @@ function runTests(){
       templateFields(store.deals[0], tradesOf(store.deals[0].id)[0], null, 'sales').checks.length,
       '0','templateFields');
 
+    /* A goods table whose columns are named in another language. Nothing here is recognisable,
+       which is exactly the case the dropdown exists for. */
+    const es=cells=>P(tbl(cells));
+    const esRows=[['Código','Cantidad','Importe'],['[Codigo]','[Cantidad]','[Importe]'],
+                  ['TOTAL','','[Importe Total]']];
+    const unread=es(esRows);
+    T('A table nobody can read stays one row', expandLineRows(unread, lines, cash, {}).rows,
+      '0','expandLineRows');
+    const mapped=es(esRows);
+    const esMaps={maps:{CODIGO:'line:ITEMNO', CANTIDAD:'line:QUANTITY', IMPORTE:'line:LINETOTAL'}};
+    T('Pointing its columns at the item table is what makes it one',
+      expandLineRows(mapped, lines, cash, esMaps).rows,'1','expandLineRows');
+    T('...and then it repeats', wEvery(mapped,'tr').length,'4','expandLineRows');
+    T('...with the line\u2019s own values in it',
+      wEvery(mapped,'tr')[1] && wEvery(wEvery(mapped,'tr')[1],'t').map(n=>n.textContent).join('|'),
+      'A-1|2|USD 11.00','expandLineRows');
+    T('The total underneath is left to the document',
+      wEvery(wEvery(mapped,'tr')[3],'t').map(n=>n.textContent).join('|'),
+      'TOTAL||[Importe Total]','expandLineRows');
+
+    const LT=maps=>lineTools({maps:maps||{}});
+    T('A column named in English is a goods column already',
+      (LT().fieldFor('Qty')||{}).label,'Quantity','lineTools');
+    T('One named in Spanish is when the deal says so',
+      (LT({CANTIDAD:'line:QUANTITY'}).fieldFor('Cantidad')||{}).label,'Quantity','lineTools');
+    T('A column pointed at a field of the document is not a goods column',
+      String(LT({QTY:'DEALCODE'}).fieldFor('Qty')),'null','lineTools');
+    T('[Total] alone does not make a row a row of goods',
+      LT().anchors('Total'),'false','LINE_ANCHORS');
+    T('...but pointing it at the item table does',
+      LT({TOTAL:'line:LINETOTAL'}).anchors('Total'),'true','lineTools');
+    T('A goods column overruled stops anchoring its row',
+      LT({QTY:'DEALCODE'}).anchors('Qty'),'false','lineTools');
+
     /* What the deal and the trade answer for, against the golden book. */
     const gd=store.deals[0], gt=tradesOf(gd.id)[0];
     const ctx=templateFields(gd, gt, computeAll(gd,gt).out);
@@ -9306,6 +9380,7 @@ function templateFields(deal, trade, out, kind){
      way its form reads, and [Total] is B36 either way. */
   const inv = trade ? tcInvoiceDoc({...d, tcInvoiceCount:1}, trade, out, 1) : null;
   const i = trade ? effectiveInputs(d, trade) : null;
+  const sup = i ? supplierTotals(i) : null;
   const groups=[];
   const F=(label,aliases,value)=>({label, aliases:aliases||[], value:String(value==null?'':value)});
   const G=(title,note,rows)=>groups.push({title, note, rows});
@@ -9362,8 +9437,6 @@ function templateFields(deal, trade, out, kind){
     F('Estimated delivery', ['ESTIMATED DELIVERY DATE','DELIVERY DATE'], po ? day(po.estimatedDelivery) : ''),
     F('Onward buyer', [], po ? po.onwardBuyer : ''),
     F('Onward sale days', ['ONWARD DAYS'], po ? po.onwardDays : ''),
-    F('Supplier invoice numbers', ['SUPPLIER INVOICE','SUPPLIER INVOICE NO','SUPPLIER INVOICES'],
-      po ? po.invoiceRefs.join(', ') : ''),
     F('Invoice number', ['INVOICE NO'], inv ? inv.number : ''),
     F('Invoice date', ['ISSUE DATE','TRADECO ISSUE DATE'], i ? day(i.tcIssueDate) : ''),
     F('Payment date', ['DUE DATE','MATURITY DATE','PAYMENT DUE'], out ? day(out.tcMaturityDate) : ''),
@@ -9391,7 +9464,24 @@ function templateFields(deal, trade, out, kind){
     F('Legal fees', [], out ? cash(out.legalFees) : ''),
     F('Pay to supplier', [], out ? cash(out.payToSupplier) : ''),
     F('Pay to TradeCo', [], out ? cash(out.payToTradeCo) : ''),
-    F('Supplier payment date', [], out ? day(out.supplierPaymentDate) : ''),
+  ]);
+  /* What the goods on this trade were bought on. The item table repeats over these, and a
+     document that names the supplier's own paperwork — most do — reads it from here. */
+  G('The supplier invoices', 'Panel 1, and the item detail under each invoice', [
+    F('Supplier', ['SUPPLIER NAME','SELLER OF THE GOODS','VENDOR'],
+      sup ? uniq(sup.rows.map(v=>String(v.name||'').trim())).join(', ') : ''),
+    F('Supplier invoice numbers', ['SUPPLIER INVOICE','SUPPLIER INVOICE NO','SUPPLIER INVOICES'],
+      sup ? uniq(sup.rows.map(v=>String(v.invoiceNumber||'').trim())).join(', ') : ''),
+    F('Supplier invoice date', ['SUPPLIER ISSUE DATE'], sup ? day(sup.firstIssueDate) : ''),
+    F('Supplier tenor (days)', ['SUPPLIER TENOR'],
+      sup ? uniq(sup.rows.map(v=>String(v.tenorDays==null?'':v.tenorDays))).join(', ') : ''),
+    F('Supplier payment date', ['SUPPLIER PAYMENT DUE'], out ? day(out.supplierPaymentDate) : ''),
+    F('Supplier invoice total', ['SUPPLIER AMOUNT'], sup ? cash(sup.amount) : ''),
+    F('Supplier goods total', ['SUPPLIER GOODS'], sup ? cash(sup.goods) : ''),
+    F('Supplier jurisdictions', [],
+      sup ? uniq(sup.rows.map(v=>(CALENDARS[v.jurisdiction]||{}).name||v.jurisdiction||'')).join(', ') : ''),
+    F('Invoices on this trade', ['INVOICE COUNT'], sup ? String(sup.count) : ''),
+    F('Items on this trade', ['ITEM COUNT','NUMBER OF ITEMS'], sup ? String(sup.itemCount) : ''),
   ]);
   G('Today', '', [
     F('Today', ['DATE','TODAY’S DATE','CURRENT DATE','DATED'], day(todayISO())),
@@ -9432,10 +9522,18 @@ const LINE_FIELDS = [
   {label:'Line total', aliases:['LINE AMOUNT','TOTAL PRICE','AMOUNT','TOTAL'], pick:(l,n,cash)=>cash(l.net)},
   {label:'Line no.',   aliases:['LINE NUMBER','NO'],               pick:(l,n,cash)=>String(n)},
 ];
+/* A goods line's fields share the dropdown with the document's, so they are kept apart by a
+   prefix: a stored "line:UNITPRICE" is a column of the item table, a stored "UNITPRICE" would
+   be a field of the document. Nothing today collides, but the two lists are maintained
+   separately and one day something would. */
+const LINE_PREFIX='line:';
 const LINE_MAP = (()=>{ const m=new Map();
-  for(const f of LINE_FIELDS) for(const n of [f.label, ...f.aliases]){
-    const k=tokenKey(n); if(!m.has(k)) m.set(k, f); }
+  for(const f of LINE_FIELDS){ f.key=tokenKey(f.label);
+    for(const n of [f.label, ...f.aliases]){ const k=tokenKey(n); if(!m.has(k)) m.set(k, f); } }
   return m; })();
+const LINE_BY_KEY = new Map(LINE_FIELDS.map(f=>[f.key, f]));
+const lineFieldFor = k => LINE_BY_KEY.get(String(k||'').slice(LINE_PREFIX.length)) || null;
+const isLineKey = k => String(k||'').startsWith(LINE_PREFIX);
 /** What makes a table row a row of goods. AMOUNT and TOTAL are deliberately not on this list:
  *  "Total amount: [TOTAL]" is a footer, and repeating it once per item is the kind of mistake
  *  that goes out to a counterparty. Inside a row that IS a row of goods they resolve per line,
@@ -9504,12 +9602,37 @@ function fillParagraph(p, resolve){
  *
  *  With no goods on the trade the row is left alone, brackets and all. An order that went out
  *  with an empty item table should say so on its face. */
-function expandLineRows(doc, lines, cash){
+/** Which of a template's brackets belong to a goods line, and which of them make a row one.
+ *
+ *  A column headed [Cantidad] is a quantity as soon as the deal says so, and saying so is also
+ *  what makes its row a row of goods — a form written in another language has no English column
+ *  names to recognise, and no amount of guessing would find them. So a bracket pointed at a line
+ *  field anchors its row, on top of the names this app knows. A bracket pointed at a field of
+ *  the document is not a line's at all, even where its name looks like one: that is the deal
+ *  overruling the guess, which is the whole point of being able to. */
+function lineTools(ctx){
+  const maps=(ctx && ctx.maps) || {};
+  const fieldFor = name => {
+    const key=tokenKey(name), m=String(maps[key]||'');
+    if(isLineKey(m)) return lineFieldFor(m);
+    if(m) return null;
+    return LINE_MAP.get(key) || null;
+  };
+  const anchors = name => {
+    const key=tokenKey(name);
+    if(isLineKey(String(maps[key]||''))) return true;
+    if(maps[key]) return false;
+    return LINE_ANCHORS.has(key);
+  };
+  return {fieldFor, anchors};
+}
+function expandLineRows(doc, lines, cash, ctx){
+  const {fieldFor, anchors}=lineTools(ctx);
   const rows=wEvery(doc,'tr').filter(tr=>{
     const text=wEvery(tr,'t').map(n=>n.textContent||'').join('');
     TOKEN_RE.lastIndex=0;
     let m;
-    while((m=TOKEN_RE.exec(text))) if(LINE_ANCHORS.has(tokenKey(m[1]))) return true;
+    while((m=TOKEN_RE.exec(text))) if(anchors(m[1])) return true;
     return false;
   });
   if(!rows.length || !lines.length) return {rows:rows.length, filled:0};
@@ -9519,7 +9642,7 @@ function expandLineRows(doc, lines, cash){
     lines.forEach((l,idx)=>{
       const clone=tr.cloneNode(true);
       const resolve = name => {
-        const f=LINE_MAP.get(tokenKey(name));
+        const f=fieldFor(name);
         return f ? String(f.pick(l, idx+1, cash) ?? '') : null;
       };
       for(const p of wEvery(clone,'p')) filled+=fillParagraph(p, resolve);
@@ -9576,7 +9699,7 @@ async function fillTemplate(buf, ctx){
     const doc=new DOMParser().parseFromString(xml,'application/xml');
     if(doc.getElementsByTagName('parsererror').length)
       throw new Error(e.name+' could not be read as XML, so this template cannot be filled.');
-    const rows=expandLineRows(doc, ctx.lines, ctx.cash);
+    const rows=expandLineRows(doc, ctx.lines, ctx.cash, ctx);
     lineRows+=rows.rows; filled+=rows.filled;
     for(const p of wEvery(doc,'p')) filled+=fillParagraph(p, resolve);
     /* Chrome's serializer writes the XML declaration back out itself; prepending a second one
@@ -9748,9 +9871,13 @@ async function templateHtml(filled){
   return html;
 }
 
+/* What the reading of a file understood at the time. A template read by an older build is read
+   again when the register next draws it, rather than leaving its brackets marked by rules that
+   have since changed — nobody should have to re-upload a file to get the current answer. */
+const SCAN_VERSION = 2;
 /** What a template asks for, read once when it is uploaded so the deal configuration can list
- *  its fields without going back into the file on every repaint. A token inside a row of goods
- *  is marked as such: there it means the line's own value, and it is filled once per line. */
+ *  its fields without going back into the file on every repaint. A token inside any table row is
+ *  marked as such, because there it could be a column of the goods table. */
 async function scanTemplate(buf){
   const entries=zipList(buf), dec=new TextDecoder();
   const seen=new Map();
@@ -9773,20 +9900,22 @@ async function scanTemplate(buf){
     if(doc.getElementsByTagName('parsererror').length)
       throw new Error(e.name+' inside the file could not be read as XML, so it cannot be filled.');
     parts++;
-    /* Rows first: a token seen in a row of goods stays marked as one even where the same token
-       also appears in a total underneath. */
+    /* Rows first, and every row: a bracket in a table cell is one that COULD be a goods column,
+       which is what the register needs to know to offer it the choice. Whether its row actually
+       repeats is decided later, from the names this app knows plus whatever the deal has said —
+       and the deal can say it after the file was read, so it cannot be settled here. */
     for(const tr of wEvery(doc,'tr')){
       const text=rowText(tr);
       TOKEN_RE.lastIndex=0;
       let m, anchored=false;
       while((m=TOKEN_RE.exec(text))) if(LINE_ANCHORS.has(tokenKey(m[1]))) anchored=true;
-      if(!anchored) continue;
-      lineRows++; add(text, true);
+      if(anchored) lineRows++;
+      add(text, true);
     }
     for(const p of wEvery(doc,'p')) add(wEvery(p,'t').map(n=>n.textContent||'').join(''), false);
   }
   if(!hasBody) throw new Error('No word/document.xml inside — is this really a Word document?');
-  return {tokens:[...seen.values()], parts, lineRows};
+  return {tokens:[...seen.values()], parts, lineRows, scanV:SCAN_VERSION};
 }
 
 function download(name, text, type){

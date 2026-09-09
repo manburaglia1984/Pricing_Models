@@ -303,8 +303,8 @@ cut it in three.
 
 **Setting one up.** Tick the document, then upload its `.docx`. Every bracketed field in the file
 is listed with the value it will print and a dropdown of **every field the app keeps** — the deal's
-configuration, the issuing entity and its account, the agent, the trade, the priced figures — to
-say which one it takes that value from. The document then appears on the **Documents** pane with a
+configuration, the issuing entity and its account, the agent, the trade, the priced figures, the
+supplier invoices and their items — to say which one it takes that value from. The document then appears on the **Documents** pane with a
 preview and a **Download Word (.docx)** button.
 
 A bracket whose name matches a field is pointed at it already and the dropdown says so ("Matched by
@@ -341,8 +341,17 @@ nowhere to be paid does not show up anywhere else.
 
 **A row per item.** A table row marked up with `[Item No.]`, `[Description]`, `[Qty]`,
 `[Unit Price]` or `[Amount]` is repeated once per goods line on the trade, off the trade's own
-supplier invoices. `[Total]` and `[Amount]` in a footer row are *not* treated as line fields — a
-total repeated once per item is the kind of mistake that goes out to a counterparty.
+supplier invoices and their item detail. `[Total]` and `[Amount]` in a footer row are *not*
+treated as line fields — a total repeated once per item is the kind of mistake that goes out to a
+counterparty.
+
+Column names in another language are the ordinary case, not the exception, and nothing could
+guess them. So the dropdown for a bracket that sits **in a table row** opens with *Once per goods
+line — the item table*: Item No., Item, Quantity, Unit price, Line total, Line no. Point
+`[Cantidad]` at *Quantity* and `[Importe]` at *Line total*, and that is also what tells the app
+the row is a row of goods — an order in Spanish repeats over its 23 items with no English in the
+file at all. The reverse holds too: point `[Qty]` at a field of the document and its row stops
+being one, which is the deal overruling the guess.
 
 **What is not filled stays visible.** A field the app cannot answer for is left exactly as it was
 found, brackets and all: marked in red in the preview, and printed as `[Buyer Address]` on the page
@@ -367,6 +376,9 @@ went in, with the brackets filled.
 - `.docx` only. A `.doc` or a PDF has to be saved as `.docx` in Word first.
 - Repeating anything other than a goods row, conditional clauses and content controls are not
   supported. Bracketed fields and goods rows are the whole vocabulary.
+- A template read by an older build of the app is read again, once, the next time the register
+  draws it — so a file never has to be re-uploaded to pick up rules that have changed since.
+  Mappings survive that; only what the reading of the file itself knows is replaced.
 - A bracket is pointed at a field by that field's name, so renaming one in a future build would
   leave the mapping pointing at nothing. That is said rather than hidden: the row reads "the field
   it pointed at is gone", the bracket falls back to matching on its own name, and re-picking is one
