@@ -668,6 +668,8 @@ code,.mono{font-family:var(--mono);font-size:12px}
         <div class="row wideval"><div class="lbl">Funder<span class="note">Provides the funding and sets the margin. Names the Settlement Date, Margin and Cost of Funds fields below.</span></div><div class="cell"><input type="text" class="in" id="f_funder" data-trade="funder" list="funderList"><datalist id="funderList"></datalist></div></div>
         <div class="row wideval"><div class="lbl">Relevant Obligor<span class="note">Offer File!A3 — may differ per trade.</span></div><div class="cell"><input type="text" class="in" id="f_obligor" data-trade="obligor"></div></div>
         <div class="row"><div class="lbl">Incoterm<span class="note">Delivery term for the goods. With the place named on the client's draft Procurement Order, it becomes the order's delivery instruction — "delivered FOB at Veracruz, Mexico".</span></div><div class="cell"><select class="in" id="f_incoterm" data-trade="incoterm" style="text-align:left"></select></div></div>
+        <div class="row"><div class="lbl">TradeCo Pro Forma invoice<span class="note">Whether this trade carries one. When off, panel 2 is removed from the pricing screen and excluded from pricing, validation and the rate snapshot — panels 3 to 5 and the Offer File never read it, so every figure the trade prices on is untouched either way.</span></div>
+          <div class="cell"><label class="toggle" style="justify-content:flex-end;width:100%"><input type="checkbox" id="f_proforma" data-field="pfEnabled" checked><span id="proformaLabel">Used on this trade</span></label></div></div>
         <div class="row"><div class="lbl">TradeCo Fee<span class="note">This desk's own fee. Added to the investor's margin to give the Margin used by panels 2 and 3.</span></div><div class="cell suffix" data-suffix="%"><input type="number" class="in" id="f_tcFee" data-field="tcFee" step="0.00001"></div></div>
         <!-- Keyed here rather than in panels 2 and 3, which used to hold one field each for the
              same rate. Shown only when the deal charges one at all. -->
@@ -852,6 +854,12 @@ code,.mono{font-family:var(--mono);font-size:12px}
       <span class="d">The entities that issue the TradeCo invoice — their registration details and the accounts they are paid into.</span>
       <span class="m" id="refMetaTradecos"></span>
     </button>
+    <button class="reftile" data-ref="suppliers">
+      <span class="mk">S</span>
+      <span class="t">Suppliers</span>
+      <span class="d">Who the goods are bought from — their address, contact and the accounts they are paid into. A deal names the ones it buys through.</span>
+      <span class="m" id="refMetaSuppliers"></span>
+    </button>
     <button class="reftile" data-ref="investors">
       <span class="mk">£</span>
       <span class="t">Investors</span>
@@ -970,11 +978,9 @@ code,.mono{font-family:var(--mono);font-size:12px}
         <h2>Configuration</h2>
         <div class="body">
           <div id="dealLockBox"></div>
-          <div class="row"><div class="lbl">Client<span class="note" id="clientNote">From the monday.com Global Pipeline. Drives every client-named label in this model.</span></div><div class="cell"><select class="in" id="d_client" data-deal="clientId"></select></div></div>
+          <div class="row"><div class="lbl">Deal<span class="note" id="clientNote">From the monday.com Global Pipeline. Drives every client-named label in this model.</span></div><div class="cell"><select class="in" id="d_client" data-deal="clientId"></select></div></div>
           <div class="row"><div class="lbl">Transaction Code<span class="note">Cantu!B4 — identifies the facility. Every trade on this deal carries it.</span></div><div class="cell"><input type="text" class="in" id="d_code" data-deal="code"></div></div>
           <div class="row"><div class="lbl">Currency<span class="note" id="ccyNote">Selects the base rate index and the day-count basis.</span></div><div class="cell"><select class="in" id="d_currency" data-deal="currency"></select></div></div>
-          <div class="row"><div class="lbl">TradeCo Pro Forma invoices<span class="note">When off, panel 2 is removed from every trade on this deal and excluded from pricing, validation and the rate snapshot.</span></div>
-            <div class="cell"><label class="toggle" style="justify-content:flex-end;width:100%"><input type="checkbox" id="d_proforma" data-deal="proformaEnabled" checked><span id="proformaLabel">Used on this deal</span></label></div></div>
           <div class="row"><div class="lbl">Agency Fee<span class="note">Whether this facility carries one at all. When off, the rate disappears from every trade on this deal and is excluded from both mark-ups and the agency-fee payment leg (B52).</span></div>
             <div class="cell"><label class="toggle" style="justify-content:flex-end;width:100%"><input type="checkbox" id="d_agencyFee" data-deal="agencyFeeEnabled" checked><span id="agencyFeeLabel">Charged on this deal</span></label></div></div>
           <div class="row"><div class="lbl">TradeCo invoices per trade<span class="note">How this client wants to be billed. Two is the workbook's own split — the amount and the financial cost on separate invoices. One bills them together, on a single invoice for the same total. It changes only how the amount is documented; every figure the trade prices on is untouched.</span></div>
@@ -985,13 +991,18 @@ code,.mono{font-family:var(--mono);font-size:12px}
           <!-- Document text. Everything on the TradeCo invoice that varies by facility rather than
                by trade: who issues it, where it is paid, who it is billed to, and the agreement it
                is issued under. Only the wording is the same on every trade. -->
-          <div class="row"><div class="lbl">Issued by (TradeCo)<span class="note">The entity the TradeCo invoice is issued from. Its name, address and tax number fill the invoice's INVOICE FROM block. Maintained in Settings → TradeCos.</span></div><div class="cell"><select class="in" id="d_tradeco" data-deal="tradecoId" style="text-align:left"></select></div></div>
-          <div class="row"><div class="lbl">Paid into<span class="note">Which of that entity's accounts the invoice asks to be paid into. Only this account is printed, and it is never inferred — no account, no bank block.</span></div><div class="cell"><select class="in" id="d_tradecoAccount" data-deal="tradecoAccountId" style="text-align:left"></select></div></div>
-          <div class="row"><div class="lbl">Invoice to<span class="note">Buyer's legal name as it should read on the TradeCo invoice. Left blank, the client's own name is used.</span></div><div class="cell"><input type="text" class="in" id="d_buyer" data-deal="buyerName" placeholder="the client's name"></div></div>
-          <div class="row wide"><div class="lbl">Invoice-to address<span class="note">Printed under the buyer's name on the TradeCo invoice. One line per line.</span>
-            <textarea class="in" id="d_buyerAddress" data-deal="buyerAddress" rows="3" style="margin-top:6px" placeholder="Street&#10;City, postcode&#10;Country"></textarea></div></div>
-          <div class="row"><div class="lbl">Issued under<span class="note">The agreement the TradeCo invoice is issued under, named in its opening line.</span></div><div class="cell"><input type="text" class="in" id="d_agreement" data-deal="agreementName" style="text-align:left"></div></div>
-          <div class="row"><div class="lbl">Agreement date<span class="note">Date of that agreement, quoted in the same line.</span></div><div class="cell"><input type="date" class="in" id="d_agreementDate" data-deal="agreementDate"></div></div>
+          <div class="row"><div class="lbl">TradeCo<span class="note">The entity this facility's documents are issued from. Its name, address and tax number are what a template's [TradeCo] fields print. Maintained in Settings → TradeCos.</span></div><div class="cell"><select class="in" id="d_tradeco" data-deal="tradecoId" style="text-align:left"></select></div></div>
+          <div class="row"><div class="lbl">TradeCo Pay-To Account<span class="note">Which of that entity's accounts a document asks to be paid into. Only this account is printed, and it is never inferred — no account, no bank block.</span></div><div class="cell"><select class="in" id="d_tradecoAccount" data-deal="tradecoAccountId" style="text-align:left"></select></div></div>
+          <div class="row"><div class="lbl">Obligor<span class="note">The party the documents are issued to — whose legal name they carry. Left blank, the deal's own name is used.</span></div><div class="cell"><input type="text" class="in" id="d_obligor" data-deal="obligorName" placeholder="the deal's name"></div></div>
+          <div class="row"><div class="lbl">Obligor Registration Number<span class="note">Company or tax registration as it should appear on a document. [Obligor Registration Number] on a template.</span></div><div class="cell"><input type="text" class="in" id="d_obligorRegNo" data-deal="obligorRegNo" style="text-align:left"></div></div>
+          <!-- Four fields rather than a block of text, because a document that wants only the city
+               or only the country should not have to be given the whole address to find it. The
+               block a template asks for by [Obligor Address] is these four put back together. -->
+          <div class="row wide"><div class="lbl">Obligor Address<span class="note">Street address, one line per line. The city, ZIP and country below are added under it wherever a document asks for the address as a block.</span>
+            <textarea class="in" id="d_obligorAddress" data-deal="obligorAddress" rows="2" style="margin-top:6px" placeholder="Avenida Balboa 100&#10;Torre BICSA, Piso 40"></textarea></div></div>
+          <div class="row"><div class="lbl">Obligor City<span class="note">Printed on its own wherever a document asks for [Obligor City].</span></div><div class="cell"><input type="text" class="in" id="d_obligorCity" data-deal="obligorCity" style="text-align:left"></div></div>
+          <div class="row"><div class="lbl">Obligor ZIP Code<span class="note">Postal code. Printed beside the city in the address block.</span></div><div class="cell"><input type="text" class="in" id="d_obligorZip" data-deal="obligorZip" style="text-align:left"></div></div>
+          <div class="row"><div class="lbl">Obligor Country<span class="note">The last line of the address block, and [Obligor Country] on its own.</span></div><div class="cell"><select class="in" id="d_obligorCountry" data-deal="obligorCountry" style="text-align:left"></select></div></div>
           <div class="row"><div class="lbl">Procurement agent<span class="note">Whether this facility is an agency structure. The agent is the party the Procurement Order is issued to — named per trade as the Relevant Obligor, since it can differ, with its contact details held here because they do not.</span></div>
             <div class="cell"><label class="toggle" style="justify-content:flex-end;width:100%"><input type="checkbox" id="d_agent" data-deal="agentEnabled"><span id="agentLabel">Used on this deal</span></label></div></div>
           <div class="row agentrow"><div class="lbl">Agent — contact person<span class="note">Printed in the Procurement Order's Attention line.</span></div><div class="cell"><input type="text" class="in" id="d_agentContact" data-deal="agentContact"></div></div>
@@ -999,6 +1010,16 @@ code,.mono{font-family:var(--mono);font-size:12px}
           <div class="row wide agentrow"><div class="lbl">Agent — address<span class="note">Printed under the agent's name in the Procurement Order's Issued To block. One line per line.</span></div><div class="cell">
             <textarea class="in" id="d_agentAddress" data-deal="agentAddress" rows="3" style="margin-top:6px" placeholder="Street&#10;City, postcode&#10;Country"></textarea></div></div>
           <div class="row agentrow"><div class="lbl">Agency Agreement dated<span class="note">The Procurement Agency Agreement the order is issued pursuant to. Not the agreement the TradeCo invoice is issued under, above.</span></div><div class="cell"><input type="date" class="in" id="d_agencyAgreementDate" data-deal="agencyAgreementDate"></div></div>
+          <div class="row wide"><div class="lbl">Suppliers<span class="note">Who this facility
+            buys through. Maintained in Settings → Suppliers, and named here so a document can ask
+            for the supplier's address, contact or bank block. Where a deal buys through exactly
+            one, that one fills the single-supplier fields on a document; where it buys through
+            several, they are all named and the rest stay blank rather than picking one.</span>
+            <div class="toolbar" style="margin:8px 0 4px">
+              <select id="dealSupAdd" style="min-width:270px;text-align:left"></select>
+              <span class="tiny" id="dealSupCount"></span>
+            </div>
+            <div class="taglist" id="dealSupplierBox"></div></div></div>
           <div class="row wide"><div class="lbl">Associated jurisdictions<span class="note">Holiday calendars every trade's maturity date is checked against. Replaces the fixed rows in BD Dates!B4:B13.</span>
             <div class="toolbar" style="margin:8px 0 4px">
               <select id="jurAdd" style="min-width:270px;text-align:left"></select>
@@ -1112,6 +1133,9 @@ code,.mono{font-family:var(--mono);font-size:12px}
     <div class="body">
       <div class="toolbar">
         <button class="btn" id="btnJurAddToggle">+ Add jurisdiction</button>
+        <!-- Every country is on this list, so finding one is the first thing anybody does. -->
+        <input type="text" id="jurFilter" placeholder="Find a country…" style="min-width:170px;text-align:left">
+        <label class="toggle"><input type="checkbox" id="jurOnlyLoaded"><span>Only those with holidays</span></label>
         <span class="tiny" id="jurAddNote"></span>
       </div>
       <!-- Static markup, so a re-render never wipes what is half-typed into it. -->
@@ -1293,6 +1317,62 @@ code,.mono{font-family:var(--mono);font-size:12px}
         <p>A TradeCo is the entity the <b>TradeCo invoice</b> is issued <i>from</i>. Its name, registered address and tax number fill that document's <code>INVOICE FROM</code> block, and the account a deal names fills the <code>PAY TO BANK ACCOUNT DETAILS</code> block. A deal picks one entity and one of its accounts in the deal configuration.</p>
         <p>An entity can hold <b>any number of accounts</b> — a facility funded in USD through New York and one funded in EUR through Frankfurt are the same company and two accounts. Only the account a deal names is printed, and it is never inferred: no account, no bank block, and the invoice says so rather than guessing.</p>
         <p>Removing a TradeCo is refused while a deal still names it. Editing one changes every invoice not yet issued that it appears on — an <b>issued</b> Offer File keeps the payload it was dispatched with either way.</p>
+      </details>
+    </div>
+  </div>
+</div>
+
+<!-- ---- Suppliers ---- -->
+<div class="refpane" id="refpane-suppliers">
+  <div class="card">
+    <h2>Suppliers</h2>
+    <div class="body">
+      <div class="toolbar">
+        <button class="btn" id="btnSupAddToggle">+ Add supplier</button>
+        <span class="tiny" id="supAddNote"></span>
+      </div>
+      <!-- Static markup, so a re-render never wipes what is half-typed into it. -->
+      <div class="card tight" id="supAddCard" style="display:none;margin:0 0 12px;background:var(--panel-2)"><div class="body">
+        <div class="toolbar" style="margin:0 0 8px">
+          <div class="field-inline" style="flex:1 1 280px"><label for="sup_name">Name</label>
+            <input type="text" id="sup_name" placeholder="Gripmaster Tyres SA" style="flex:1 1 200px"></div>
+          <div class="field-inline" style="flex:1 1 220px"><label for="sup_country">Country</label>
+            <select id="sup_country" style="flex:1 1 150px;text-align:left"></select></div>
+        </div>
+        <div class="toolbar" style="margin:0 0 8px">
+          <div class="field-inline" style="flex:1 1 200px"><label for="sup_city">City</label>
+            <input type="text" id="sup_city" placeholder="Veracruz" style="flex:1 1 130px"></div>
+          <div class="field-inline" style="flex:1 1 170px"><label for="sup_zip">ZIP code</label>
+            <input type="text" id="sup_zip" placeholder="91700" style="flex:1 1 90px"></div>
+          <div class="field-inline" style="flex:1 1 200px"><label for="sup_phone">Telephone</label>
+            <input type="text" id="sup_phone" placeholder="+52 229 000 0000" style="flex:1 1 130px"></div>
+        </div>
+        <div class="toolbar" style="margin:0 0 8px">
+          <div class="field-inline" style="flex:1 1 240px"><label for="sup_contact">Contact</label>
+            <input type="text" id="sup_contact" placeholder="J. Wong — Sales" style="flex:1 1 160px"></div>
+          <div class="field-inline" style="flex:1 1 240px"><label for="sup_email">Email</label>
+            <input type="text" id="sup_email" placeholder="sales@…" style="flex:1 1 160px"></div>
+        </div>
+        <div class="row wide" style="border:0;padding:0;margin:0 0 8px">
+          <div class="lbl">Street address<span class="note">One line per line. The city, ZIP and country above are added under it wherever a document asks for the address as a block.</span>
+            <textarea class="in" id="sup_address" rows="2" style="margin-top:6px;text-align:left" placeholder="Av. Independencia 1200&#10;Col. Centro"></textarea></div>
+        </div>
+        <div class="row wide" style="border:0;padding:0;margin:0 0 8px">
+          <div class="lbl">Note<span class="note">Anything the next person needs to know. Not printed.</span>
+            <input type="text" class="in" id="sup_note" style="margin-top:6px;text-align:left" placeholder="what is bought from them, who approved them"></div>
+        </div>
+        <div class="toolbar" style="margin:0">
+          <button class="btn primary" id="btnSupSave">Add supplier</button>
+          <button class="btn" id="btnSupCancel">Cancel</button>
+          <span class="tiny">Bank accounts are added to the supplier once it exists.</span>
+        </div>
+      </div></div>
+      <div class="scroll"><table id="supTable"></table></div>
+      <details class="help">
+        <summary>What a supplier is used for</summary>
+        <p>A supplier is who the goods are bought <i>from</i>. A deal names the suppliers it buys through, in its configuration, and a document template asks for whichever of their details it needs — the name, the address as a block or field by field, the contact and telephone, and the bank block they are paid into.</p>
+        <p>A supplier holds <b>any number of accounts</b>, the same bank block a TradeCo has. Where a deal buys through exactly one supplier, that one's details fill the single-supplier fields on a document; where it buys through several, the name field lists them all and the rest stay blank rather than picking one arbitrarily.</p>
+        <p>Removing a supplier is refused while a deal still names it.</p>
       </details>
     </div>
   </div>
@@ -1829,12 +1909,6 @@ const RECEIVING_ACCOUNT_TEXT = 'See Part A (Receiving Account(s)) of Annex 2 (Ac
    What is left of the attached template once everything that varies has been taken out of it: the
    wording, and nothing about who is issuing or where the money goes. Those were transcribed here
    when there was one TradeCo; they are register entries now, chosen per deal. */
-const TC_INVOICE_FORM = {
-  governingLaw: 'THE GOVERNING LAW AND JURISDICTION PROVISIONS IN THE SALE AGREEMENT SHALL APPLY '+
-    'EQUALLY TO THIS INVOICE, including the notice of assignment and acknowledgment below.',
-  agreementDefault: 'LNG SALE AND PURCHASE AGREEMENT',
-};
-
 /* ---------------------------- TradeCos ----------------------------
    The issuing entities. A TradeCo is who the invoice is *from*: its legal name, where it is
    incorporated, its address, its registered and tax numbers, and the accounts it can be paid into.
@@ -1884,6 +1958,14 @@ const defaultAccountId = tcId => {
 const addressLines = v => String(v||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
 /** The same address on one line. Each line's own trailing comma goes, or joining them prints two. */
 const addressOneLine = v => addressLines(v).map(x=>x.replace(/[,;]+$/,'')).join(', ');
+/** The obligor's address as a block, from the four fields it is kept in. City and postcode share
+ *  a line the way an envelope has them; the country is its own last line. */
+function obligorAddressLines(deal){
+  const d=deal||{};
+  const town=[String(d.obligorCity||'').trim(), String(d.obligorZip||'').trim()].filter(Boolean).join(' ');
+  const country=(COUNTRIES[d.obligorCountry]||{}).name || String(d.obligorCountry||'').trim();
+  return [...addressLines(d.obligorAddress), town, country].filter(Boolean);
+}
 /** The pay-to block for one account, in the order the Word form has it. A row with nothing in it is
  *  dropped rather than printed empty — an account outside the US has no CHIPS ABA, and a US one has
  *  no IBAN. Currency is the invoice's, not the account's: it is what the payer is being asked for. */
@@ -1894,6 +1976,33 @@ function accountRows(account, currency){
           ['Beneficiary', account.beneficiary], ['Account Number', account.accountNumber]]
     .filter(([,v])=>String(v||'').trim());
 }
+
+/* ---------------------------- Suppliers ----------------------------
+   Who the goods are bought from. Held as a register for the same reason the TradeCos are: one
+   supplier sells across many facilities, and a name re-keyed per deal is a name that will
+   disagree with itself by the third document. A deal names the suppliers it buys through, and
+   a document asks for whichever of their details it needs — including where they are paid,
+   which is the same bank block a TradeCo has because a bank account is a bank account. */
+const supplierList = () => (store.suppliers && Array.isArray(store.suppliers.list)) ? store.suppliers.list : [];
+const findSupplier = id => supplierList().find(x=>String(x.id)===String(id)) || null;
+const supplierLabelOf = s => (s && String(s.name||'').trim()) || '(unnamed supplier)';
+function newSupplier(seed){
+  return {id:uuid(), name:'', address:'', city:'', zip:'', country:'', phone:'', contact:'',
+          email:'', note:'', accounts:[], ...(seed||{})};
+}
+function defaultSuppliers(){ return {list:[]}; }
+/** A supplier's address as a block, the way an envelope has it. */
+function supplierAddressLines(s){
+  if(!s) return [];
+  const town=[String(s.city||'').trim(), String(s.zip||'').trim()].filter(Boolean).join(' ');
+  const country=(COUNTRIES[s.country]||{}).name || String(s.country||'').trim();
+  return [...addressLines(s.address), town, country].filter(Boolean);
+}
+/** The suppliers a deal buys through, in register order. */
+const dealSuppliers = deal =>
+  ((deal && deal.supplierIds) || []).map(findSupplier).filter(Boolean);
+/** How many deals name a supplier — what makes removing one refusable. */
+const supplierDealsUsing = id => (store.deals||[]).filter(d=>(d.supplierIds||[]).includes(id));
 
 /* ---------------------------- calendars ----------------------------
    Business days are derived from rules per jurisdiction rather than transcribed tables,
@@ -2057,8 +2166,58 @@ for(const [code,spec] of Object.entries(SOURCED_CALENDARS)){
     derived:false, days:spec.days, set:new Set(spec.days),
     coverageThrough:spec.days.reduce((a,b)=>a>b?a:b)};
 }
+/* Every country a facility might name, so a jurisdiction is chosen rather than invented. The
+   list is codes and names only — a country here has no holidays until somebody loads them, and
+   a deal cannot be priced against one that has none. Grouped the way the rest of the app groups
+   things, which is by desk rather than by continent. */
+const WORLD_COUNTRIES = {
+  Americas:
+    'AG Antigua and Barbuda|AR Argentina|AW Aruba|BS Bahamas|BB Barbados|BZ Belize|BM Bermuda|'+
+    'BO Bolivia|BR Brazil|CA Canada|KY Cayman Islands|CL Chile|CO Colombia|CR Costa Rica|CU Cuba|'+
+    'CW Curacao|DM Dominica|DO Dominican Republic|EC Ecuador|SV El Salvador|GL Greenland|GD Grenada|'+
+    'GT Guatemala|GY Guyana|HT Haiti|HN Honduras|JM Jamaica|MX Mexico|NI Nicaragua|PA Panama|'+
+    'PY Paraguay|PE Peru|PR Puerto Rico|KN Saint Kitts and Nevis|LC Saint Lucia|'+
+    'VC Saint Vincent and the Grenadines|SR Suriname|TT Trinidad and Tobago|'+
+    'TC Turks and Caicos Islands|US United States|UY Uruguay|VE Venezuela|'+
+    'VG Virgin Islands (British)',
+  EMEA:
+    'AL Albania|DZ Algeria|AD Andorra|AO Angola|AT Austria|BH Bahrain|BY Belarus|BE Belgium|BJ Benin|'+
+    'BA Bosnia and Herzegovina|BW Botswana|BG Bulgaria|BF Burkina Faso|BI Burundi|CV Cabo Verde|'+
+    'CM Cameroon|CF Central African Republic|TD Chad|KM Comoros|CG Congo|CD Congo (DRC)|'+
+    'CI Côte d’Ivoire|HR Croatia|CY Cyprus|CZ Czechia|DK Denmark|DJ Djibouti|EG Egypt|'+
+    'GQ Equatorial Guinea|ER Eritrea|EE Estonia|SZ Eswatini|ET Ethiopia|EU Euro area (TARGET2)|'+
+    'FI Finland|FR France|GA Gabon|GM Gambia|DE Germany|GH Ghana|GI Gibraltar|GR Greece|GG Guernsey|'+
+    'GN Guinea|GW Guinea-Bissau|HU Hungary|IS Iceland|IR Iran|IQ Iraq|IE Ireland|IM Isle of Man|'+
+    'IL Israel|IT Italy|JE Jersey|JO Jordan|KE Kenya|XK Kosovo|KW Kuwait|LV Latvia|LB Lebanon|'+
+    'LS Lesotho|LR Liberia|LY Libya|LI Liechtenstein|LT Lithuania|LU Luxembourg|MG Madagascar|'+
+    'MW Malawi|MT Malta|MR Mauritania|MU Mauritius|MD Moldova|MC Monaco|ME Montenegro|MA Morocco|'+
+    'MZ Mozambique|NA Namibia|NL Netherlands|NE Niger|NG Nigeria|MK North Macedonia|NO Norway|'+
+    'OM Oman|PS Palestine|PL Poland|PT Portugal|QA Qatar|RO Romania|RU Russia|RW Rwanda|'+
+    'ST Sao Tome and Principe|SA Saudi Arabia|SN Senegal|RS Serbia|SC Seychelles|SL Sierra Leone|'+
+    'SK Slovakia|SI Slovenia|SO Somalia|ZA South Africa|SS South Sudan|ES Spain|SD Sudan|SE Sweden|'+
+    'CH Switzerland|SY Syria|TZ Tanzania|TG Togo|TN Tunisia|TR Turkiye|UG Uganda|UA Ukraine|'+
+    'AE United Arab Emirates|GB United Kingdom|VA Vatican City|YE Yemen|ZM Zambia|ZW Zimbabwe|'+
+    'SM San Marino',
+  APAC:
+    'AF Afghanistan|AM Armenia|AU Australia|AZ Azerbaijan|BD Bangladesh|BT Bhutan|'+
+    'BN Brunei Darussalam|KH Cambodia|CN China|FJ Fiji|GE Georgia|HK Hong Kong SAR|IN India|'+
+    'ID Indonesia|JP Japan|KZ Kazakhstan|KI Kiribati|KR Korea (South)|KP Korea (North)|KG Kyrgyzstan|'+
+    'LA Laos|MO Macao SAR|MY Malaysia|MV Maldives|MH Marshall Islands|FM Micronesia|MN Mongolia|'+
+    'MM Myanmar|NR Nauru|NP Nepal|NZ New Zealand|PK Pakistan|PW Palau|PG Papua New Guinea|'+
+    'PH Philippines|WS Samoa|SG Singapore|SB Solomon Islands|LK Sri Lanka|TW Taiwan|TJ Tajikistan|'+
+    'TH Thailand|TL Timor-Leste|TO Tonga|TM Turkmenistan|TV Tuvalu|UZ Uzbekistan|VU Vanuatu|'+
+    'VN Viet Nam',
+};
 const CALENDARS={};
 const REGIONS = ['Americas','EMEA','APAC'];
+/* code → {name, region} for every country, whether or not anything has holidays for it. */
+const COUNTRIES = (()=>{ const m={};
+  for(const region of ['Americas','EMEA','APAC'])
+    for(const entry of WORLD_COUNTRIES[region].split('|')){
+      const code=entry.slice(0,2), name=entry.slice(3);
+      if(code && name) m[code]={code, name, region};
+    }
+  return m; })();
 const ALL_JURISDICTIONS = [];
 const DEFAULT_JURISDICTIONS = ['US','GB','BR','HK'];   // as hardcoded in BD Dates!B4:B13
 
@@ -2072,10 +2231,18 @@ const DEFAULT_JURISDICTIONS = ['US','GB','BR','HK'];   // as hardcoded in BD Dat
 function installCustomCalendars(list){
   // Always rebuilt from the shipped baseline, so removing a stored entry restores what ships.
   for(const code of Object.keys(CALENDARS)) delete CALENDARS[code];
+  /* Every country first, holidayless. A facility does business where it does business, and a
+     country missing from a dropdown is a deal that cannot be keyed at all — whereas a country
+     with no holidays yet is a deal that cannot be PRICED, which is a thing the app can say and
+     somebody can fix by pasting the list in. */
+  for(const [code,c] of Object.entries(COUNTRIES))
+    CALENDARS[code]={code, name:c.name, region:c.region, url:'', note:'', conf:'none',
+      custom:false, edited:false, derived:false, days:[], set:new Set(),
+      estimates:new Set(), coverageThrough:''};
   for(const [code,c] of Object.entries(SHIPPED_CALENDARS)) CALENDARS[code]={...c, estimates:new Set()};
   for(const j of (list || [])){
     if(!j || !j.code) continue;
-    const base=SHIPPED_CALENDARS[j.code] || null;
+    const base=SHIPPED_CALENDARS[j.code] || null, world=COUNTRIES[j.code] || null;
     // A jurisdiction the build never shipped carries its own list; one it did ships that list and
     // the entry holds only the differences, so a rules calendar keeps generating out to CAL_TO.
     const baseDays = Array.isArray(j.days) ? j.days : (base ? base.days : []);
@@ -2085,11 +2252,12 @@ function installCustomCalendars(list){
     const dayset=new Set(days);
     CALENDARS[j.code]={
       code:j.code,
-      name: j.name || (base?base.name:j.code),
-      region: REGIONS.includes(j.region) ? j.region : (base?base.region:'Americas'),
+      name: j.name || (base?base.name:(world?world.name:j.code)),
+      region: REGIONS.includes(j.region) ? j.region
+            : (base?base.region:(world?world.region:'Americas')),
       url: j.url ?? (base?base.url:'') ?? '',
       note: j.note ?? (base?base.note:'') ?? '',
-      conf: base ? 'edited' : 'custom',
+      conf: base ? 'edited' : (days.length ? 'custom' : 'none'),
       custom: !base, edited: !!base, derived: false,
       days, set:dayset,
       // An estimate only means anything on a date that is actually in the list.
@@ -2379,6 +2547,16 @@ function validate(deal, trade, out, quotes, bd){
   if(!String(deal.code||'').trim()) E('DEAL.TXCODE','Transaction Code is required on the deal (Cantu!B4 — blank prints as 0 on the Offer File).');
   if(!RATE_INDICES[deal.currency]) E('DEAL.CCY','Currency '+deal.currency+' has no base rate index configured.');
   if(!(deal.jurisdictions||[]).length) E('DEAL.JURISDICTIONS','Select at least one associated jurisdiction — with none, the maturity date is never checked against a calendar.');
+  /* A country on the deal with no holidays loaded is a calendar that would pass every date,
+     which is worse than no calendar at all: it reads as checked. So the deal does not price
+     until somebody loads the list — Settings → Jurisdictions & Holiday Calendars. */
+  {
+    const bare=(deal.jurisdictions||[]).filter(c=>!((CALENDARS[c]||{}).days||[]).length);
+    if(bare.length) E('DEAL.NO_HOLIDAYS','No holidays loaded for '+
+      bare.map(c=>((CALENDARS[c]||{}).name||c)+' ('+c+')').join(', ')+
+      '. A calendar with no dates in it passes every maturity date, so this deal cannot be '+
+      'priced until the list is loaded — Settings → Jurisdictions & Holiday Calendars.');
+  }
   if(ix.conventionNote) W('CCY.CONVENTION', ix.conventionNote);
 
   // ---- trade-level ----
@@ -2636,7 +2814,7 @@ function addInvoiceItem(v){
  *  30-day tenor is the workbook's own hardcoded B9. */
 function blankTradeInputs(){
   return { supplierInvoices:[newSupplierInvoice()],
-    pfIssueDate:'', pfTenorDays:'', agencyFee:'',
+    pfEnabled:true, pfIssueDate:'', pfTenorDays:'', agencyFee:'',
     tcIssueDate:'', tcFee:'',
     bladexSettlementDate:'', bladexDays:'', bladexMargin:'', legalFees:'0',
     po:newProcurementOrder() };
@@ -2665,13 +2843,13 @@ function copyTradeInputs(src){
       items:(v.items||[]).map(it=>({...it, id:uuid()}))})) };
 }
 function newDeal(who){
-  return { id:uuid(), code:'', clientId:'', clientName:'', currency:'USD', proformaEnabled:true,
+  return { id:uuid(), code:'', clientId:'', clientName:'', currency:'USD',
     agentEnabled:false, agentContact:'', agentEmail:'', agentAddress:'', agencyAgreementDate:'',
     agencyFeeEnabled:true, tcInvoiceCount:2, tradecoId:'', tradecoAccountId:'',
-    buyerName:'', buyerAddress:'', agreementName:TC_INVOICE_FORM.agreementDefault, agreementDate:'',
+    obligorName:'', obligorRegNo:'', obligorAddress:'', obligorCity:'', obligorZip:'', obligorCountry:'',
     /* The Offer File to begin with. Everything else a facility issues is ticked when the deal
        is configured, because only then does anybody know what it issues. */
-    jurisdictions:[], docTemplates:DRAWN_DOCS.map(k=>newDocTemplate({kind:k})),
+    jurisdictions:[], supplierIds:[], docTemplates:DRAWN_DOCS.map(k=>newDocTemplate({kind:k})),
     createdBy:who, createdAt:new Date().toISOString(), cancelled:false };
 }
 function newTrade(dealId, who){
@@ -2702,7 +2880,8 @@ function nextTradeIdentifier(deal){
  *  agrees on it; the pro forma dates and margins stay per trade. */
 function effectiveInputs(deal, trade){
   return { ...trade.inputs, currency:deal.currency, dayCountBasis:basisFor(deal.currency),
-    pfEnabled: deal.proformaEnabled !== false, agencyFeeEnabled: deal.agencyFeeEnabled !== false,
+    // Whether there is a pro forma is the trade's answer: two trades on one facility can differ.
+    pfEnabled: trade.inputs.pfEnabled !== false, agencyFeeEnabled: deal.agencyFeeEnabled !== false,
     discountConvention: conventionFor(trade),
     jurisdictions:deal.jurisdictions, transactionCode:deal.code, clientName:deal.clientName };
 }
@@ -2852,6 +3031,22 @@ function normalise(s){
   if(!s.users || !Array.isArray(s.users.list)) s.users=defaultUsers();
   s.users.requireLogin = s.users.requireLogin===true;
   for(const u of s.users.list) Object.assign(u, newUser(u));
+  /* The supplier register is new; a book from before it has none, and every deal buys through
+     nobody until somebody says otherwise. */
+  if(!s.suppliers || !Array.isArray(s.suppliers.list)) s.suppliers=defaultSuppliers();
+  for(const sp of s.suppliers.list){
+    if(!sp.id) sp.id=uuid();
+    if(!Array.isArray(sp.accounts)) sp.accounts=[];
+    for(const a of sp.accounts){ if(!a.id) a.id=uuid();
+      for(const f of TCO_ACCOUNT_FIELDS) if(a[f]===undefined) a[f]=''; }
+    for(const f of ['name','address','city','zip','country','phone','contact','email','note'])
+      if(sp[f]===undefined) sp[f]='';
+  }
+  for(const d of (s.deals||[])){
+    if(!Array.isArray(d.supplierIds)) d.supplierIds=[];
+    // A supplier removed from the register is not a supplier this deal still buys through.
+    d.supplierIds=d.supplierIds.filter(id=>s.suppliers.list.some(x=>String(x.id)===String(id)));
+  }
   if(!s.tradecos || !Array.isArray(s.tradecos.list)) s.tradecos=defaultTradecos();
   for(const tc of s.tradecos.list){
     if(!tc.id) tc.id=uuid();
@@ -2869,10 +3064,16 @@ function normalise(s){
   // hardcoded ones back, because v1 genuinely ran on BD Dates!B4:B13 — see migrateV1.
   for(const d of s.deals){ if(!Array.isArray(d.jurisdictions)) d.jurisdictions=[];
     if(!RATE_INDICES[d.currency]) d.currency='USD';
-    // Pro forma was per-trade before; lift it to the deal from whatever its trades said.
-    if(d.proformaEnabled===undefined)
-      d.proformaEnabled = s.trades.filter(t=>t.dealId===d.id).some(t=>t.inputs.pfEnabled!==false) ||
-                          !s.trades.some(t=>t.dealId===d.id);
+    /* Whether there is a pro forma went to the deal for a while and has come back to the
+       trade, which is where it belongs: two trades on one facility can differ, and the deal
+       never had a reason to speak for both. Its answer is handed down to every trade that has
+       none of its own, then dropped. */
+    if(d.proformaEnabled!==undefined){
+      for(const t of s.trades)
+        if(t.dealId===d.id && t.inputs && t.inputs.pfEnabled===undefined)
+          t.inputs.pfEnabled = d.proformaEnabled!==false;
+      delete d.proformaEnabled;
+    }
     // Whether a fee is charged is new; every deal stored before it was charging one, since the
     // rate was a required field. Defaulting to true is what keeps those deals pricing unchanged.
     if(d.agencyFeeEnabled===undefined) d.agencyFeeEnabled = true;
@@ -2897,11 +3098,18 @@ function normalise(s){
     const tcSel=s.tradecos.list.find(x=>String(x.id)===String(d.tradecoId));
     if(!tcSel || !tcSel.accounts.some(a=>String(a.id)===String(d.tradecoAccountId)))
       d.tradecoAccountId='';
-    for(const f of ['buyerName','buyerAddress','agreementDate']) if(d[f]===undefined) d[f]='';
-    if(d.agreementName===undefined) d.agreementName = TC_INVOICE_FORM.agreementDefault;
+    /* The party invoiced is the obligor, and its address is four fields rather than one block.
+       A book keyed before that says the same thing in the old words, so it is read across once
+       and the old words are dropped — two names for one field is how they come to disagree. */
+    if(d.obligorName===undefined) d.obligorName = d.buyerName || '';
+    if(d.obligorAddress===undefined) d.obligorAddress = d.buyerAddress || '';
+    for(const f of ['obligorRegNo','obligorCity','obligorZip','obligorCountry'])
+      if(d[f]===undefined) d[f]='';
+    delete d.buyerName; delete d.buyerAddress;
+    delete d.agreementName; delete d.agreementDate;
   }
   for(const t of s.trades){
-    delete t.inputs.pfEnabled;
+    if(t.inputs.pfEnabled===undefined) t.inputs.pfEnabled=true;
     // The margin used to be keyed twice; it is now TradeCo Fee + the investor's margin. Backing the
     // fee out of what was stored keeps an existing trade pricing to the same numbers.
     if(t.inputs.tcFee===undefined){
@@ -2972,7 +3180,6 @@ function migrateV1(v1){
     const d=newDeal(old.createdBy||'migrated');
     d.id=uuid(); d.code=old.inputs.transactionCode||''; d.clientId=old.inputs.clientId||'';
     d.clientName=old.inputs.clientName||''; d.currency=RATE_INDICES[old.inputs.currency]?old.inputs.currency:'USD';
-    d.proformaEnabled = old.inputs.pfEnabled!==false;
     d.agencyFeeEnabled = true;                  // v1 always carried the rate as a required field
     d.createdAt=old.createdAt||d.createdAt;
     d.jurisdictions=[...DEFAULT_JURISDICTIONS];   // v1 had no picker; it ran on BD Dates!B4:B13
@@ -3006,7 +3213,7 @@ function seedStore(){
   if(seed){ d.clientId=seed.id; d.clientName=seed.name; }
   const t=newTrade(d.id, who); t.identifier='DRC-CANTU-SB01'; t.tradeDate=WORKBOOK_CURVE_DATE;
   t.funder='Bladex'; t.obligor='Gripmaster'; t.inputs=workbookTradeInputs();
-  return { v:2, deals:[d], trades:[t], currentDealId:d.id, currentTradeId:t.id,
+  return { v:2, suppliers:defaultSuppliers(), deals:[d], trades:[t], currentDealId:d.id, currentTradeId:t.id,
     curves:defaultCurves(), clients:defaultClients(), investors:defaultInvestors(),
     tradecos:defaultTradecos(), jurisdictions:[], audit:[] };
 }
@@ -3975,7 +4182,7 @@ function liveQuotes(deal, trade){
   if(!(t>=1)) return null;
   const live=curveAsOf(deal.currency, trade.tradeDate);
   if(!live) return null;
-  const pfOn = deal.proformaEnabled !== false;
+  const pfOn = trade.inputs.pfEnabled !== false;
   const pfDate = trade.inputs.pfIssueDate;
   const pf = pfOn ? curveAsOf(deal.currency, pfDate) : null;
   return { live:quoteFrom(live,t,deal.currency,'Trade Submission Date',trade.tradeDate),
@@ -4272,16 +4479,15 @@ function tcInvoiceDoc(deal, trade, out, which){
         ' but this invoice is in '+ccy+'.');
   }
   const ident = String(trade.identifier||'').trim();
-  const buyer = String(deal.buyerName||'').trim() || clientLabel(deal);
-  const address = String(deal.buyerAddress||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+  const buyer = String(deal.obligorName||'').trim() || clientLabel(deal);
+  const address = obligorAddressLines(deal);
   if(!ident) missing.push('The trade has no identifier, so the invoice cannot be numbered.');
-  if(!address.length) missing.push('The deal has no invoice-to address.');
-  if(!isValidDate(deal.agreementDate)) missing.push('The deal has no agreement date.');
+  if(!address.length) missing.push('The deal has no obligor address.');
   if(!isValidDate(i.tcIssueDate)) missing.push('The trade has no TradeCo Issue Date, which is the invoice date.');
   const paymentDate = out ? out.tcMaturityDate : null;
   if(!isValidDate(paymentDate)) missing.push('The payment date comes from B28, which is not priced yet.');
 
-  return { which, count, currency:ccy, form:TC_INVOICE_FORM, seller, bank,
+  return { which, count, currency:ccy, seller, bank,
     tradecoName: seller.name, accountLabel: account ? String(account.label||'').trim() : '',
     // Numbered off the trade identifier, so a pair of invoices is traceable to the one trade.
     number: ident ? ident+'-0'+which : '',
@@ -4289,8 +4495,7 @@ function tcInvoiceDoc(deal, trade, out, which){
          : which===1 ? 'TradeCo Invoice #1 — goods'
          : 'TradeCo Invoice #2 — financial cost',
     sourceCell: count===1 ? 'Cantu!B36' : which===1 ? 'Cantu!B34' : 'Cantu!B35',
-    buyer, address, agreementName:String(deal.agreementName||'').trim() || TC_INVOICE_FORM.agreementDefault,
-    agreementDate: deal.agreementDate, issueDate: i.tcIssueDate, paymentDate,
+    buyer, address, issueDate: i.tcIssueDate, paymentDate,
     lines, netTotal, vat, total: netTotal.add(vat), missing, wrong };
 }
 
@@ -4307,7 +4512,7 @@ const PCT_FIELDS = new Set(['tcFee','agencyFee','bladexMargin']);
 const MONEY_FIELDS = new Set(['legalFees']);
 const INT_FIELDS = new Set(['pfTenorDays','bladexDays']);
 const TRADE_FIELD_IDS = {
-  pfIssueDate:'f_pfIssue', pfTenorDays:'f_pfTenor',
+  pfEnabled:'f_proforma', pfIssueDate:'f_pfIssue', pfTenorDays:'f_pfTenor',
   tcIssueDate:'f_tcIssue', tcFee:'f_tcFee', agencyFee:'f_agencyFee',
   bladexSettlementDate:'f_bladexSettle', bladexDays:'f_bladexDays', bladexMargin:'f_bladexMargin', legalFees:'f_legalFees'};
 const TRADE_TOP_IDS = { identifier:'f_tradeid', tradeDate:'f_tradeDate', funder:'f_funder',
@@ -4316,16 +4521,17 @@ const TRADE_TOP_IDS = { identifier:'f_tradeid', tradeDate:'f_tradeDate', funder:
    draft order, and the Procurement Order writes the two as one sentence. */
 const INCOTERMS = ['EXW','FCA','FAS','FOB','CFR','CIF','CPT','CIP','DAP','DPU','DDP'];
 const DEAL_FIELD_IDS = { clientId:'d_client', code:'d_code', currency:'d_currency',
-  proformaEnabled:'d_proforma', agencyFeeEnabled:'d_agencyFee', tcInvoiceCount:'d_tcInvoiceCount',
+  agencyFeeEnabled:'d_agencyFee', tcInvoiceCount:'d_tcInvoiceCount',
   agentEnabled:'d_agent', agentContact:'d_agentContact', agentEmail:'d_agentEmail',
   agentAddress:'d_agentAddress', agencyAgreementDate:'d_agencyAgreementDate',
   tradecoId:'d_tradeco', tradecoAccountId:'d_tradecoAccount',
-  buyerName:'d_buyer', buyerAddress:'d_buyerAddress', agreementName:'d_agreement',
-  agreementDate:'d_agreementDate' };
+  obligorName:'d_obligor', obligorRegNo:'d_obligorRegNo', obligorAddress:'d_obligorAddress',
+  obligorCity:'d_obligorCity', obligorZip:'d_obligorZip', obligorCountry:'d_obligorCountry' };
 
 function loadFormFromStore(){
   const d=currentDeal(), t=currentTrade();
-  renderClientOptions(); renderCurrencyOptions(); renderJurisdictionBox(); renderIncotermOptions();
+  renderClientOptions(); renderCurrencyOptions(); renderCountryOptions();
+  renderJurisdictionBox(); renderDealSuppliers(); renderIncotermOptions();
   if(!d) return;
   for(const [f,id] of Object.entries(DEAL_FIELD_IDS)){ const el=$(id); if(!el) continue;
     if(el.type==='checkbox') el.checked = d[f]!==false; else el.value=d[f]??''; }
@@ -4432,7 +4638,6 @@ function renderDealForm(){
     : 'From the monday.com Global Pipeline. Drives every client-named label in this model.';
   $('ccyNote').textContent = 'Base rate '+ix.name+' · day count ACT/'+ix.basis+
     (ix.basis!==360 ? ' — the workbook hardcodes /360; trades on this deal use /'+ix.basis+'.' : '');
-  $('proformaLabel').textContent = d.proformaEnabled!==false ? 'Used on this deal' : 'Not used — panel 2 is hidden';
   $('agencyFeeLabel').textContent = d.agencyFeeEnabled!==false
     ? 'Charged on this deal' : 'Not charged — the rate is hidden and reads as zero';
   const agent = d.agentEnabled===true;
@@ -4449,6 +4654,41 @@ function renderIncotermOptions(){
     INCOTERMS.map(k=>'<option value="'+k+'"'+(k===cur?' selected':'')+'>'+k+'</option>').join('');
 }
 /** Jurisdictions: a dropdown to add, and the chosen ones as removable chips. */
+/** The suppliers this deal buys through, as removable chips beside a dropdown of the rest. */
+function renderDealSuppliers(){
+  const d=currentDeal(); if(!d) return;
+  const box=$('dealSupplierBox'); if(!box) return;
+  const locked=!dealEditable(d), sel=(d.supplierIds||[]).map(findSupplier).filter(Boolean);
+  const chosen=new Set(sel.map(x=>String(x.id)));
+  const rest=supplierList().filter(x=>!chosen.has(String(x.id)))
+    .sort((a,b)=>String(a.name).localeCompare(String(b.name)));
+  const add=$('dealSupAdd');
+  add.disabled = locked || !rest.length;
+  add.innerHTML='<option value="">'+
+    (!supplierList().length ? 'No suppliers yet — add them in Settings → Suppliers'
+     : rest.length ? '+ Add supplier…' : 'All suppliers added')+'</option>'+
+    rest.map(x=>'<option value="'+esc(x.id)+'">'+esc(supplierLabelOf(x))+
+      ((COUNTRIES[x.country]||{}).name ? ' — '+esc(COUNTRIES[x.country].name) : '')+'</option>').join('');
+  add.value='';
+  $('dealSupCount').textContent = sel.length
+    ? sel.length+' of '+supplierList().length+' named'
+    : supplierList().length+' in the register';
+  box.innerHTML = sel.length===0
+    ? '<span class="empty">None named — a document asking for the supplier has nothing to print.</span>'
+    : sel.map(x=>'<span class="tag">'+esc(supplierLabelOf(x))+
+        ((x.accounts||[]).length?'':' <small>no bank account</small>')+
+        '<button data-deal-sup-remove="'+esc(x.id)+'"'+(locked?' disabled':'')+
+        ' title="Remove from this deal">×</button></span>').join('');
+}
+/** Every country, for the obligor's own. Filled once — the list does not change. */
+function renderCountryOptions(){
+  const sel=$('d_obligorCountry'); if(!sel || sel.options.length) return;
+  sel.innerHTML='<option value="">— not set —</option>'+
+    REGIONS.map(region=>'<optgroup label="'+esc(region)+'">'+
+      Object.values(COUNTRIES).filter(c=>c.region===region)
+        .map(c=>'<option value="'+c.code+'">'+esc(c.name)+'</option>').join('')+
+      '</optgroup>').join('');
+}
 function renderJurisdictionBox(){
   const d=currentDeal(); if(!d) return;
   const locked=!dealEditable(d), sel=(d.jurisdictions||[]).slice();
@@ -4493,7 +4733,7 @@ function render(){
     $('stateBadge').textContent='—'; $('stateBadge').className='badge DRAFT';
     $('dealCaption').textContent='No deals';
     configOpen=false;
-    renderDeals(); renderClients(); renderInvestors(); renderRefMenu(); renderAudit(); renderAbout();
+    renderDeals(); renderClients(); renderInvestors(); renderSuppliers(); renderRefMenu(); renderAudit(); renderAbout();
     $('topBanners').innerHTML='<div class="banner warn"><div><b>No deals.</b> Create one on the Deals &amp; Trades tab.</div></div>';
     $('dealContextBox').innerHTML=''; closeTradeModal_silent();
     for(const id of ['btnPrice','btnApprove','btnIssue','btnSettle','btnCancel','btnNewTradeFromDeals','btnDupTrade','btnVersion'])
@@ -4504,7 +4744,8 @@ function render(){
   const r=computeAll(d,t);
   applyNaming(clientLabel(d), funderLabel(t));
   renderHeader(d,t,r); renderDealForm(); renderFunderList(); renderPricing(d,t,r);
-  renderRates(); renderClients(); renderInvestors(); renderTradecos(); renderRefMenu(); renderDocuments(d,t,r);
+  renderRates(); renderClients(); renderInvestors(); renderTradecos(); renderSuppliers();
+  renderRefMenu(); renderDocuments(d,t,r);
   renderDealDocs(d,t,r);
   renderDeals(); renderAudit(); renderAbout();
   save(); roGuard();
@@ -4519,12 +4760,13 @@ function renderHeader(d,t,r){
   for(const id of Object.values(DEAL_FIELD_IDS)){ const el=$(id); if(el) el.disabled=dLocked; }
   // The account list has its own reason to be disabled — no entity, or an entity with no accounts —
   // so it is settled after the blanket lock rather than before it.
-  renderTradecoOptions();
+  renderTradecoOptions(); renderDealSuppliers();
   if(dLocked){ const a=$('d_tradecoAccount'); if(a) a.disabled=true; }
   $('dealScopeNote').textContent = dLocked
     ? '— locked: a trade on this deal is approved or later'
     : '— applies to all '+tradesOf(d.id).length+' trade(s) on this deal';
-  const tLocked = !t || LOCKED(t.state), pfOff = d.proformaEnabled===false;
+  const tLocked = !t || LOCKED(t.state), pfOff = !!t && t.inputs.pfEnabled===false;
+  if(t) $('proformaLabel').textContent = pfOff ? 'Not used — panel 2 is hidden' : 'Used on this trade';
   const PF_INPUTS=['f_pfIssue','f_pfTenor'];
   for(const id of [...Object.values(TRADE_FIELD_IDS), ...Object.values(TRADE_TOP_IDS)]){
     const el=$(id); if(!el) continue;
@@ -5086,7 +5328,7 @@ function refreshSupplierCalcs(d,t,o){
     ' · total '+money(o?o.supplierAmount:sup.amount, ccy);
 }
 function renderPricing(d,t,r){
-  const o=r.out, ccy=d.currency, ix=idxFor(ccy), pfOn = d.proformaEnabled!==false,
+  const o=r.out, ccy=d.currency, ix=idxFor(ccy), pfOn = !!t && t.inputs.pfEnabled!==false,
         agencyOn = d.agencyFeeEnabled!==false;
   const basisNote='÷ '+ix.basis+' (ACT/'+ix.basis+', '+ix.name+')';
   $('pfFactorNote').textContent=basisNote; $('tcFactorNote').textContent=basisNote; $('iaaFactorNote').textContent=basisNote;
@@ -5309,7 +5551,7 @@ function renderRates(){
     const d=store.deals.find(x=>x.id===t.dealId); if(!d || idxFor(d.currency).index!==code) continue;
     const tag=(c,role)=>{ if(c) (usedBy[c.businessDate] ||= []).push((t.identifier||'(untitled)')+' · '+role); };
     tag(curveAsOf(d.currency, t.tradeDate), 'trade submission date');
-    if(d.proformaEnabled!==false) tag(curveAsOf(d.currency, t.inputs.pfIssueDate), 'pro forma');
+    if(t.inputs.pfEnabled!==false) tag(curveAsOf(d.currency, t.inputs.pfIssueDate), 'pro forma');
   }
   // Leave the table alone while a cell has focus, so an in-progress edit is not wiped.
   if(!$('curveTable').contains(document.activeElement)){
@@ -5363,13 +5605,33 @@ function renderRates(){
         '<td class="tiny">'+esc(ix.conventionNote||'')+'</td></tr>';
     }).join('')+'</tbody>';
 
+  /* Every country in the world is on this list and only a few of them have holidays, so the
+     ones that do come first and the rest are a search away. A country nobody has loaded is not
+     hidden — a deal can name it, and then it has to be findable to be fixed. */
+  const q=String(($('jurFilter')||{}).value||'').trim().toLowerCase();
+  const onlyLoaded=!!($('jurOnlyLoaded')||{}).checked;
+  const inUse=new Set((store.deals||[]).flatMap(x=>x.jurisdictions||[]));
+  const shown=ALL_JURISDICTIONS
+    .filter(code=>{ const c=CALENDARS[code];
+      if(onlyLoaded && !c.days.length && !inUse.has(code)) return false;
+      return !q || c.name.toLowerCase().includes(q) || code.toLowerCase().includes(q); })
+    .sort((a,b)=>{
+      const A=CALENDARS[a], B=CALENDARS[b];
+      const rank=c=>c.days.length ? 0 : (inUse.has(c.code) ? 1 : 2);
+      return rank(A)-rank(B)
+        || REGIONS.indexOf(A.region)-REGIONS.indexOf(B.region)
+        || A.name.localeCompare(B.name);
+    });
   $('calTable').innerHTML='<thead><tr><th>Jurisdiction</th><th>Code</th><th class="n">Holidays</th>'+
     '<th class="n" title="Dates on the calendar but marked provisional">Estimated</th>'+
     '<th class="n">Coverage through</th><th class="n">Forward days</th><th>Source</th><th></th></tr></thead><tbody>'+
-    ALL_JURISDICTIONS.map(code=>{
+    (shown.length ? '' : '<tr><td colspan="8" class="tiny">Nothing matches “'+esc(q)+'”.</td></tr>')+
+    shown.map(code=>{
       const c=CALENDARS[code], fwd=isValidDate(c.coverageThrough)?dDiff(c.coverageThrough, todayISO()):null;
       const est=c.estimates?c.estimates.size:0;
       return '<tr'+(code===jurEditing?' class="sel"':'')+'><td>'+esc(c.name)+
+        (!c.days.length ? ' <span class="inline-tag '+(inUse.has(code)?'err':'warn')+'">no holidays'+
+          (inUse.has(code)?' — on a deal':'')+'</span>' : '')+
         (c.custom?' <span class="inline-tag">added</span>':'')+
         (c.edited?' <span class="inline-tag warn" title="Differs from the calendar this build ships">edited</span>':'')+
         (c.note?'<span class="note">'+esc(c.note)+'</span>':'')+
@@ -5381,17 +5643,18 @@ function renderRates(){
         '<td>'+(c.url?'<a href="'+esc(c.url)+'" target="_blank" rel="noopener" class="tiny" title="'+esc(c.url)+'">'+esc(hostOf(c.url))+'</a>'
                     :'<span class="tiny">'+(c.custom?'added by '+esc(customAddedBy(code)):'—')+'</span>')+'</td>'+
         '<td class="n" style="white-space:nowrap">'+(admin
-          ? '<button class="btn sm" data-jur-edit="'+code+'">Edit</button>'+
+          ? '<button class="btn sm'+(c.days.length?'':' primary')+'" data-jur-edit="'+code+'">'+
+            (c.days.length?'Edit':'Load holidays')+'</button>'+
             (c.custom?' <button class="btn sm danger" data-jur-delete="'+code+'">Remove</button>':'')
           : '')+'</td></tr>';
     }).join('')+'</tbody>';
 
   // The add form is static markup; only its role notice changes with who is acting.
   $('btnJurAddToggle').disabled = !admin;
-  $('jurAddNote').textContent = admin
-    ? 'Adds a holiday calendar to this book — no new version of this file needed. '+
-      ALL_JURISDICTIONS.length+' jurisdiction(s) available.'
-    : 'Adding a jurisdiction requires the Rates Admin role. '+ALL_JURISDICTIONS.length+' available.';
+  const loaded=ALL_JURISDICTIONS.filter(c=>CALENDARS[c].days.length).length;
+  $('jurAddNote').textContent =
+    shown.length+' shown · '+loaded+' of '+ALL_JURISDICTIONS.length+' have holidays loaded'+
+    (admin ? '' : ' · editing needs the Rates Admin role');
   if(!admin){ showJurAdd(false); showJurEdit(null); }
 }
 /** Just the publisher's host, so a long official URL does not crowd the row out. */
@@ -5427,6 +5690,7 @@ const REF_SETS = {
   jur:       {title:'Jurisdictions & Holiday Calendars', sub:'Calendars a maturity date is checked against'},
   investors: {title:'Investors',               sub:'Funding counterparties a trade can name as its Funder'},
   tradecos:  {title:'TradeCos',                sub:'The entities that issue the TradeCo invoice, and the accounts they are paid into'},
+  suppliers: {title:'Suppliers',               sub:'Who the goods are bought from, and the accounts they are paid into'},
   users:     {title:'Users',                   sub:'Who uses this book, the role each one holds, and whether signing in is required'},
   audit:     {title:'Audit log',               sub:'Append-only — every change, who made it and why'},
   about:     {title:'Spec & traceability',     sub:'What this model is, its cell map, and the parity suite'},
@@ -5447,7 +5711,7 @@ function openRef(name){
   render();
 }
 function closeRef(){
-  if(tcoAcctOpen){ tcoAcctOpen=null; $('tcoAcctModal').classList.remove('open'); }
+  if(acctOpen){ acctOpen=null; $('tcoAcctModal').classList.remove('open'); }
   refOpen = null;
   $('refModal').classList.remove('open');
   document.body.style.overflow='';
@@ -5521,15 +5785,84 @@ let tcoEditing = null;            // the entity the form is editing, or null whe
 const TCO_FIELDS = ['name','jurisdiction','address','companyNumber','taxId','email','note'];
 const TCO_ACCOUNT_FIELDS = ['label','currency','bank','swift','aba','iban','beneficiary','accountNumber','note'];
 
-/** Which entity's accounts are open, or null. View state: not saved, and not part of the entity. */
-let tcoAcctOpen = null;
+/* ---- the supplier register on screen ---- */
+const SUP_FIELDS = ['name','country','city','zip','phone','contact','email','address','note'];
+let supEditing = null;
+function showSupAdd(on, sp){
+  supEditing = on && sp ? sp.id : null;
+  $('supAddCard').style.display = on ? '' : 'none';
+  for(const f of SUP_FIELDS){ const el=$('sup_'+f); if(el) el.value = on && sp ? (sp[f]??'') : ''; }
+  $('btnSupSave').textContent = supEditing ? 'Save changes' : 'Add supplier';
+  $('btnSupAddToggle').textContent = on ? 'Close' : '+ Add supplier';
+  if(on) setTimeout(()=>$('sup_name').focus(), 0);
+}
+function renderSuppliers(){
+  const admin = actor().role==='Rates Admin';
+  const sel=$('sup_country');
+  if(sel && !sel.options.length)
+    sel.innerHTML='<option value="">— not set —</option>'+
+      REGIONS.map(region=>'<optgroup label="'+esc(region)+'">'+
+        Object.values(COUNTRIES).filter(c=>c.region===region)
+          .map(c=>'<option value="'+c.code+'">'+esc(c.name)+'</option>').join('')+
+        '</optgroup>').join('');
+  const list = supplierList().slice().sort((a,b)=>String(a.name).localeCompare(String(b.name)));
+  $('refMetaSuppliers').textContent = list.length
+    ? list.length+' supplier(s) · '+list.filter(x=>(x.accounts||[]).length).length+' with accounts'
+    : 'none yet';
+  $('supTable').innerHTML='<thead><tr><th>Supplier</th><th>Where</th><th>Contact</th>'+
+    '<th class="n">Accounts</th><th class="n">Deals</th><th></th></tr></thead><tbody>'+
+    (list.length ? list.map(sp=>{
+      const used=supplierDealsUsing(sp.id).length, n=(sp.accounts||[]).length;
+      const where=[String(sp.city||'').trim(), (COUNTRIES[sp.country]||{}).name||sp.country]
+        .filter(Boolean).join(', ');
+      return '<tr><td>'+esc(supplierLabelOf(sp))+
+        (sp.note?'<span class="note tip">'+esc(sp.note)+'</span>':'')+
+        (addressOneLine(sp.address)?'<span class="tiny" style="display:block">'+
+          esc(addressOneLine(sp.address))+'</span>':'')+'</td>'+
+        '<td>'+(where?esc(where):'<span class="inline-tag warn">not set</span>')+'</td>'+
+        /* Parenthesised: + binds tighter than ||, so without them the fallback swallowed the
+           closing tag and the row came out a cell short. */
+        '<td class="tiny">'+([esc(sp.contact||''), esc(sp.phone||''), esc(sp.email||'')]
+          .filter(Boolean).join(' · ') || '<span class="inline-tag warn">none</span>')+'</td>'+
+        '<td class="n">'+(n||'<span class="inline-tag warn">none</span>')+'</td>'+
+        '<td class="n">'+used+'</td>'+
+        '<td class="n" style="white-space:nowrap">'+
+          '<button class="btn sm" data-sup-accounts="'+esc(sp.id)+'">Accounts</button> '+
+          (admin ? '<button class="btn sm" data-sup-edit="'+esc(sp.id)+'">Edit</button> '+
+                   '<button class="btn sm danger" data-sup-delete="'+esc(sp.id)+'">Remove</button>' : '')+
+        '</td></tr>';
+    }).join('')
+      : '<tr><td colspan="6" class="tiny">No suppliers yet. Add the ones this desk buys through, '+
+        'then name them on each deal.</td></tr>')+'</tbody>';
+  $('btnSupAddToggle').disabled = !admin;
+  $('supAddNote').textContent = admin
+    ? 'Maintained here and named per deal — a supplier keyed once cannot disagree with itself.'
+    : 'Adding a supplier requires the Rates Admin role.';
+  if(!admin) showSupAdd(false);
+}
+
+
+/** Whose accounts are open — {kind, id} — or null. View state: not saved, not part of the entity.
+ *
+ *  A bank account is a bank account, so the window that edits one serves both registers rather
+ *  than being written twice. What differs between them is three lines: what the noun is, where
+ *  the entity is found, and what a deal points at the account with. */
+const REGISTERS = {
+  tradeco: {noun:'TradeCo',  entity:'tradeco',  find:id=>findTradeco(id),  label:tc=>tcoLabelOf(tc),
+            usedBy:a=>(store.deals||[]).filter(d=>String(d.tradecoAccountId)===String(a.id)),
+            unpoint:d=>{ d.tradecoAccountId=''; }},
+  supplier:{noun:'supplier', entity:'supplier', find:id=>findSupplier(id), label:sp=>supplierLabelOf(sp),
+            usedBy:()=>[], unpoint:()=>{}},
+};
+let acctOpen = null;
+const acctReg = () => (acctOpen && REGISTERS[acctOpen.kind]) || null;
+const acctOwner = () => { const r=acctReg(); return r ? r.find(acctOpen.id) : null; };
 
 function renderTradecos(){
   const admin = actor().role==='Rates Admin';
   // Whether the accounts window is open is render()'s business; what is inside it is not.
-  const openTc = findTradeco(tcoAcctOpen);
-  if(tcoAcctOpen && !openTc) closeTcoAccounts();
-  $('tcoAcctModal').classList.toggle('open', !!openTc);
+  if(acctOpen && !acctOwner()) closeTcoAccounts();
+  $('tcoAcctModal').classList.toggle('open', !!acctOwner());
   const list = tradecoList().slice().sort((a,b)=>String(a.name).localeCompare(String(b.name)));
   // The incorporation dropdown offers every calendar the build ships, since where a company is
   // registered is not the same question as which calendars a deal checks its dates against.
@@ -5581,12 +5914,12 @@ function renderTradecos(){
  *  someone types is written in place instead, the way the derived cells of panel 1 are. */
 function renderTcoAccounts(){
   const box=$('tcoAcctList'); if(!box) return;
-  const tc=findTradeco(tcoAcctOpen);
+  const reg=acctReg(), tc=acctOwner();
   // The entity can be removed while its window is open; the window goes with it.
-  if(tcoAcctOpen && !tc){ closeTcoAccounts(); return; }
+  if(acctOpen && !tc){ closeTcoAccounts(); return; }
   if(!tc){ box.innerHTML=''; return; }
   const admin = actor().role==='Rates Admin';
-  $('tcoAcctSub').textContent = ' — '+tcoLabelOf(tc);
+  $('tcoAcctSub').textContent = ' — '+reg.label(tc);
   $('tcoAcctRole').textContent = admin ? 'Rates Admin — edits are audited' : 'Read-only as '+actor().role;
   $('btnTcoAcctAdd').disabled = !admin;
   const FIELDS=[['label','What this account is for','e.g. USD funding — New York'],
@@ -5599,7 +5932,7 @@ function renderTcoAccounts(){
       ? '<input type="text" class="in" data-tco-acct="'+esc(a.id)+'" data-tco-id="'+esc(tc.id)+
         '" data-tco-afield="'+f+'" value="'+esc(a[f]??'')+'" placeholder="'+esc(ph)+'">'
       : '<span class="calc" style="text-align:left">'+esc(a[f]||'—')+'</span>')+'</label>';
-  const paidBy = a => store.deals.filter(d=>String(d.tradecoAccountId)===String(a.id));
+  const paidBy = a => reg.usedBy(a);
   box.innerHTML = (tc.accounts||[]).length
     ? tc.accounts.map((a,k)=>{
         const on=paidBy(a);
@@ -5616,17 +5949,18 @@ function renderTcoAccounts(){
           field(a,'note','Note — not printed','what this account is used for, who authorises it',true)+
           '</div></div>';
       }).join('')
-    : '<p class="tiny">No accounts on this entity. A deal issuing on it has no bank block to print.</p>';
+    : '<p class="tiny">No accounts on this '+esc(reg.noun)+'. A document that asks where it is '+
+      'paid has no bank block to print.</p>';
 }
-function openTcoAccounts(id){
-  if(!findTradeco(id)) return;
-  tcoAcctOpen=id;
+function openTcoAccounts(kind, id){
+  const reg=REGISTERS[kind]; if(!reg || !reg.find(id)) return;
+  acctOpen={kind, id};
   document.body.style.overflow='hidden';
   render();
   renderTcoAccounts();
 }
 function closeTcoAccounts(){
-  tcoAcctOpen=null;
+  acctOpen=null;
   $('tcoAcctModal').classList.remove('open');
   document.body.style.overflow = (refOpen||modalOpen||invOpen||configOpen) ? 'hidden' : '';
   render();
@@ -5855,6 +6189,12 @@ const uniq = list => [...new Set(list.map(x=>String(x==null?'':x).trim()).filter
  *  Each is drawn from the template uploaded against it. The Offer File is the exception: it is a
  *  record rather than a form, so the app draws it, and a deal that has also uploaded a .docx for
  *  it gets both. */
+/* A picker key for a template, and which of a pair of invoices it is: "tpl:<id>" on its own,
+   "tpl:<id>#2" for the second. */
+const templateChoice = key => {
+  const m=/^tpl:([^#]+)(?:#([12]))?$/.exec(String(key||''));
+  return m ? {id:m[1], which:m[2]?Number(m[2]):0} : null;
+};
 function documentList(deal){
   const out=[];
   /* In the order the app lists them, not the order they were ticked: a document unticked and
@@ -5864,13 +6204,22 @@ function documentList(deal){
   for(const x of dealTemplates(deal).slice().sort((p,q)=>rank(p)-rank(q))){
     const own=DOCUMENTS.find(b=>b.key===x.kind);
     if(own) out.push(own);
-    if(x.file || !own) out.push({
-      key:'tpl:'+x.id, tpl:x,
-      name: templateLabel(x)+(own ? ' — this deal’s form' : ''),
-      desc: () => x.file
-        ? 'From '+x.file.name+' — '+(x.tokens||[]).length+' field(s) marked in it, filled from '+
-          'this deal and the trade.'
-        : 'Ticked on this deal, but no .docx uploaded yet — add it in the deal configuration.'});
+    if(!(x.file || !own)) continue;
+    const desc = () => x.file
+      ? 'From '+x.file.name+' — '+(x.tokens||[]).length+' field(s) marked in it, filled from '+
+        'this deal and the trade.'
+      : 'Ticked on this deal, but no .docx uploaded yet — add it in the deal configuration.';
+    /* A deal billing on two invoices issues two documents, both off the one template: the same
+       form filled twice, once for the goods and once for the financial cost. The split is the
+       deal's own convention, so it is the deal that turns one template into two documents. */
+    if(x.kind==='tcinv' && x.file && tcInvoiceCountOf(deal)===2){
+      out.push({key:'tpl:'+x.id+'#1', tpl:x, which:1, name:templateLabel(x)+' #1 — goods',
+        desc: () => desc()+' Billing the amount (B34).'});
+      out.push({key:'tpl:'+x.id+'#2', tpl:x, which:2, name:templateLabel(x)+' #2 — financial cost',
+        desc: () => desc()+' Billing the financial cost (B35).'});
+      continue;
+    }
+    out.push({key:'tpl:'+x.id, tpl:x, name: templateLabel(x)+(own ? ' — this deal’s form' : ''), desc});
   }
   return out;
 }
@@ -5907,8 +6256,11 @@ function renderDocuments(d,t,r){
    asynchronous, so a repaint that starts while an earlier one is still running has to be able
    to say so: tplSeq is what a finished fill checks before it paints anything. */
 let tplSeq=0, tplTimer=null;
-const currentTemplate = deal =>
-  dealTemplates(deal).find(x=>'tpl:'+x.id===docChoice) || null;
+const currentTemplate = deal => {
+  const c=templateChoice(docChoice);
+  return c ? (dealTemplates(deal).find(x=>String(x.id)===c.id) || null) : null;
+};
+const currentTemplateWhich = () => (templateChoice(docChoice)||{}).which || 0;
 /* Every keystroke in the deal configuration repaints the app, and a template of any size is
    too much work to redo between two of them. The preview settles a moment after the typing. */
 function renderTemplateDoc(d,t,r){
@@ -5927,7 +6279,9 @@ async function fillTemplatePane(d,t,r){
     $('tplSub').textContent=''; say('');
     return;
   }
-  $('tplSub').textContent=' — '+templateLabel(tpl);
+  const which=currentTemplateWhich();
+  const half = which ? ' #'+which+(which===1?' — goods':' — financial cost') : '';
+  $('tplSub').textContent=' — '+templateLabel(tpl)+half;
   if(!tpl.file){
     paper.innerHTML='';
     say('warn','<b>No template uploaded.</b> “'+esc(templateLabel(tpl))+'” is ticked on this deal '+
@@ -5943,7 +6297,7 @@ async function fillTemplatePane(d,t,r){
   paper.innerHTML='<p>Filling '+esc(tpl.file.name)+'…</p>';
   let filled, html, ctx;
   try{
-    ctx=templateFields(d, t, r ? r.out : null, tpl.kind);
+    ctx=templateFields(d, t, r ? r.out : null, tpl.kind, which);
     ctx.overrides=tpl.values||{}; ctx.maps=tpl.maps||{};
     filled=await fillTemplate(b64ToBytes(tpl.file.b64).buffer, ctx);
     if(!alive()) return;
@@ -5976,7 +6330,7 @@ async function fillTemplatePane(d,t,r){
   if(unknown.length) bits.push(unknown.length+' bracket(s) pointed at nothing: '+names(unknown)+
     ' — pick the field each should take its value from, in the deal configuration under '+
     'Documents &amp; templates.');
-  $('tplSub').textContent=' — '+templateLabel(tpl)+' · '+filled.filled+' filled'+
+  $('tplSub').textContent=' — '+templateLabel(tpl)+half+' · '+filled.filled+' filled'+
     (open.length ? ' · '+open.length+' still open' : '');
   say(bits.length ? 'warn' : 'ok', bits.length
     ? '<b>'+bits.length+' thing(s) to look at.</b><ul style="margin:5px 0 0 16px">'+
@@ -6135,7 +6489,8 @@ function renderDealDocs(d,t,r){
   const list=dealTemplates(d), locked=!dealEditable(d);
   // Built per document, and only for the ones with a file to describe: what a field resolves to
   // can depend on the document asking, and an invoice's item rows are not an order's.
-  const ctxFor=tpl=>templateFields(d, t, r ? r.out : null, tpl.kind);
+  const ctxFor=tpl=>templateFields(d, t, r ? r.out : null, tpl.kind,
+    tpl.kind==='tcinv' && tcInvoiceCountOf(d)===2 ? 1 : 0);
   const rows=DEAL_DOCS.map(k=>({key:'kind:'+k.id, name:k.name, drawn:DRAWN_DOCS.includes(k.id),
                                 tpl:list.find(x=>x.kind===k.id)}))
     .concat(list.filter(x=>!x.kind).map(x=>({key:'id:'+x.id, name:templateLabel(x), tpl:x, own:true})));
@@ -6403,7 +6758,12 @@ function renderDeals(){
         '<td class="n">'+money(tot.settled.value,d.currency)+'</td>'+
         countCell(tot.open,'unsettled',cancNote(tot.cancelled))+
         '<td class="n">'+money(tot.open.value,d.currency)+'</td>'+
-        '<td>'+(d.proformaEnabled!==false?'<span class="inline-tag ok">yes</span>':'<span class="inline-tag">no</span>')+'</td>'+
+        '<td>'+(()=>{ const ts=tradesOf(d.id).filter(x=>!x.cancelled);
+          const on=ts.filter(x=>x.inputs.pfEnabled!==false).length;
+          return !ts.length ? '<span class="tiny">—</span>'
+               : on===ts.length ? '<span class="inline-tag ok">all '+ts.length+'</span>'
+               : on ? '<span class="inline-tag warn">'+on+' of '+ts.length+'</span>'
+               : '<span class="inline-tag">none</span>'; })()+'</td>'+
         '<td>'+(d.agencyFeeEnabled!==false?'<span class="inline-tag ok">yes</span>':'<span class="inline-tag">no</span>')+'</td>'+
         '<td class="n">'+tcInvoiceCountOf(d)+'</td>'+
         '<td class="tiny">'+(js.length? esc(js.slice(0,4).join(', '))+(js.length>4?' +'+(js.length-4):'')
@@ -7119,7 +7479,7 @@ function runTests(){
       'C-1,2026-06-16,30,Nothing,0,0,\nC-2,2026-06-16,30,Goods,2,50,\n').skipped.length,'1','group CSV with detail');
 
   /* ---- what validation says about the detail ---- */
-  const vDeal={...newDeal('tester'), currency:'USD', jurisdictions:['BR'], proformaEnabled:true};
+  const vDeal={...newDeal('tester'), currency:'USD', jurisdictions:['BR']};
   const vRules=inv=>{
     const tr=newTrade(vDeal.id,'tester');
     tr.inputs={...workbookTradeInputs(), supplierInvoices:[inv]};
@@ -7180,12 +7540,27 @@ function runTests(){
   T('Pro Forma off — still reconciles', oNoPf.reconciliation.toFixed(10),'0.0000000000','B51+B52+B53−B47');
 
   // Pro forma on/off is a deal-level choice inherited by every trade
-  const dealOn={currency:'USD', proformaEnabled:true, jurisdictions:['US'], code:'X', clientName:'X'};
-  const dealOff={...dealOn, proformaEnabled:false};
+  const dealOn={currency:'USD', jurisdictions:['US'], code:'X', clientName:'X'};
+  const dealOff=dealOn;
   const stubTrade={inputs:blankTradeInputs()};
-  T('Deal pro forma on → trade on', effectiveInputs(dealOn,stubTrade).pfEnabled,'true','deal.proformaEnabled');
-  T('Deal pro forma off → trade off', effectiveInputs(dealOff,stubTrade).pfEnabled,'false','deal.proformaEnabled');
-  T('Trade inputs carry no pfEnabled', 'pfEnabled' in blankTradeInputs(),'false','moved to the deal');
+  T('Trade pro forma on', effectiveInputs(dealOn,stubTrade).pfEnabled,'true','trade.inputs.pfEnabled');
+  T('Trade pro forma off',
+    effectiveInputs(dealOff,{...stubTrade, inputs:{...stubTrade.inputs, pfEnabled:false}}).pfEnabled,
+    'false','trade.inputs.pfEnabled');
+  T('A new trade carries one', blankTradeInputs().pfEnabled,'true','blankTradeInputs()');
+  T('The deal\u2019s old answer is handed down to its trades', (()=>{
+      const st=normalise({v:2, curves:{}, clients:defaultClients(), audit:[],
+        deals:[{id:'d1', proformaEnabled:false},{id:'d2', proformaEnabled:true}],
+        trades:[{id:'t1', dealId:'d1', inputs:{}},{id:'t2', dealId:'d2', inputs:{}}]});
+      return st.trades.map(t=>t.inputs.pfEnabled).join(',')+' · deal keeps it: '+
+        (st.deals[0].proformaEnabled!==undefined);
+    })(),'false,true · deal keeps it: false','normalise()');
+  T('A trade carries its own pfEnabled', 'pfEnabled' in blankTradeInputs(),'true','moved to the trade');
+  T('A stored trade that never had one is taken as having one', (()=>{
+      const st=normalise({v:2, curves:{}, clients:defaultClients(), audit:[], deals:[{id:'d1'}],
+        trades:[{id:'t1', dealId:'d1', inputs:{}}]});
+      return st.trades[0].inputs.pfEnabled;
+    })(),'true','normalise()');
   T('Deal basis reaches the trade', effectiveInputs({...dealOn,currency:'GBP'},stubTrade).dayCountBasis,'365','deal.currency');
 
   /* ---- the agency fee: one rate, charged per the deal ----------------------------------------
@@ -7231,7 +7606,7 @@ function runTests(){
 
   // Validation follows the switch: the rate is required only where it is charged.
   const feeDeal=(on)=>({...newDeal('tester'), currency:'USD', jurisdictions:['BR'],
-    proformaEnabled:true, agencyFeeEnabled:on});
+    agencyFeeEnabled:on});
   const feeRules=(on,rate)=>{
     const tr=newTrade('d','tester');
     tr.inputs={...workbookTradeInputs(), agencyFee:rate};
@@ -7245,7 +7620,7 @@ function runTests(){
      baseline. Run over trades actually on the store, since that is where the previous one is. */
   const ratesOn = (rows, which) => {
     const d = {...newDeal('tester'), id:'rate-deal', currency:'USD', jurisdictions:['BR'],
-      proformaEnabled:true, agencyFeeEnabled:true};
+      agencyFeeEnabled:true};
     const made = rows.map((r,k)=>{
       const t=newTrade('rate-deal','tester');
       t.identifier='RT-0'+(k+1); t.cancelled=!!r.cancelled;
@@ -7275,7 +7650,7 @@ function runTests(){
       .filter(w=>/TradeCo Fee/.test(w.msg)).length,'0','NOTE.RATE_MOVED');
   T('An agency fee the deal does not charge is not checked', (()=>{
       const d={...newDeal('tester'), id:'rate-deal2', currency:'USD', jurisdictions:['BR'],
-        proformaEnabled:true, agencyFeeEnabled:false};
+        agencyFeeEnabled:false};
       const made=[{},{agencyFee:'0.05'}].map((inp,k)=>{
         const t=newTrade('rate-deal2','tester'); t.identifier='RX-0'+(k+1);
         t.inputs={...workbookTradeInputs(), ...inp}; return t; });
@@ -7334,8 +7709,9 @@ function runTests(){
      cannot drift from them: the lines come to the cell the trade is priced on, and the pair of
      invoices comes to B36. */
   const invDeal = {...newDeal('tester'), code:'SC-T', currency:'USD', jurisdictions:['BR'],
-    clientName:'Cantu Store', buyerName:'Gas Natural Atlantico S.A.',
-    buyerAddress:'Avenida Balboa 100\nPanama City', agreementDate:'2026-05-04',
+    clientName:'Cantu Store', obligorName:'Gas Natural Atlantico S.A.',
+    obligorAddress:'Avenida Balboa 100', obligorCity:'Panama City', obligorZip:'0801',
+    obligorCountry:'PA', obligorRegNo:'155-6789-2-2015',
     tradecoId:'sbtc-alpha', tradecoAccountId:'sbtc-alpha-usd'};
   const invTrade = (()=>{ const t=newTrade(invDeal.id,'tester');
     t.identifier='SC-T-01';
@@ -7380,11 +7756,22 @@ function runTests(){
   T('The dates come from panel 3',
     inv1.issueDate+' → '+inv1.paymentDate,'2026-07-16 → 2027-01-12','B26 / B28');
   T('A complete deal leaves nothing to fill in', inv1.missing.length,'0','document checklist');
-  T('A deal with no buyer address says so',
-    tcInvoiceDoc({...invDeal, buyerAddress:''}, invTrade, invOut, 1)
-      .missing.filter(m=>/address/.test(m)).length,'1','document checklist');
-  T('The buyer falls back to the client',
-    tcInvoiceDoc({...invDeal, buyerName:''}, invTrade, invOut, 1).buyer,'Cantu Store','invoice to');
+  T('The obligor address is its four fields, in an envelope\u2019s order',
+    obligorAddressLines(invDeal).join(' / '),
+    'Avenida Balboa 100 / Panama City 0801 / Panama','obligorAddressLines()');
+  T('A deal with no obligor address says so',
+    tcInvoiceDoc({...invDeal, obligorAddress:'', obligorCity:'', obligorZip:'', obligorCountry:''},
+      invTrade, invOut, 1).missing.filter(m=>/address/.test(m)).length,'1','document checklist');
+  T('The obligor falls back to the deal',
+    tcInvoiceDoc({...invDeal, obligorName:''}, invTrade, invOut, 1).buyer,'Cantu Store','obligor');
+  T('A book keyed under the old names is read across', (()=>{
+      const st=normalise({v:2, trades:[], curves:{}, clients:defaultClients(), audit:[],
+        deals:[{id:'d', buyerName:'Old Buyer SA', buyerAddress:'One Street\nTwo Street',
+                agreementName:'X', agreementDate:'2026-01-01'}]});
+      const d=st.deals[0];
+      return [d.obligorName, d.obligorAddress.replace('\n','|'),
+              String(d.buyerName), String(d.agreementName)].join(' · ');
+    })(),'Old Buyer SA · One Street|Two Street · undefined · undefined','normalise()');
   T('An unpriced trade cannot invoice its financial cost',
     tcInvoiceDoc(invDeal, invTrade, null, 2).missing.some(m=>/B35/.test(m))+'','true','document checklist');
 
@@ -7612,7 +7999,7 @@ function runTests(){
     store.curves.TERM_SOFR=saved;
   }
   {
-    const deal={currency:'USD', proformaEnabled:true};
+    const deal={currency:'USD'};
     const trade={tradeDate:WORKBOOK_CURVE_DATE, inputs:{...blankTradeInputs(), pfIssueDate:WORKBOOK_PF_CURVE_DATE, bladexDays:180}};
     const q=liveQuotes(deal,trade);
     T('Trade Submission Date drives the TradeCo rate', D.of(q.live.rate).toFixed(7),'0.0387550','Cantu!B29');
@@ -7777,7 +8164,42 @@ function runTests(){
       docs({docTemplates:[tick('offer')]}),'offer','documentList');
     T('A procurement order comes from the template and nowhere else',
       docs({docTemplates:[tick('po')]}),'tpl:po','documentList');
-    T('...and so does an invoice', docs({docTemplates:[tick('tcinv',true)]}),'tpl:tcinv','documentList');
+    T('...and so does an invoice',
+      docs({tcInvoiceCount:1, docTemplates:[tick('tcinv',true)]}),'tpl:tcinv','documentList');
+    /* Billing on two is a deal's own convention, and the one template answers it twice. */
+    T('A deal billing on two issues two, off the one template',
+      docs({tcInvoiceCount:2, docTemplates:[tick('tcinv',true)]}),
+      'tpl:tcinv#1,tpl:tcinv#2','documentList');
+    T('...but only once it has a template to fill',
+      docs({tcInvoiceCount:2, docTemplates:[tick('tcinv')]}),'tpl:tcinv','documentList');
+    T('A picker key says which of the pair it is',
+      [templateChoice('tpl:abc').which, templateChoice('tpl:abc#2').which,
+       templateChoice('tpl:abc#2').id].join(','),'0,2,abc','templateChoice');
+    {
+      const d2={...store.deals[0], tcInvoiceCount:2}, t2=tradesOf(store.deals[0].id)[0];
+      const o2=computeAll(d2,t2).out;
+      const one=templateFields(d2,t2,o2,'tcinv',1), two=templateFields(d2,t2,o2,'tcinv',2);
+      const v=(c,k)=>c.map.get(tokenKey(k)).value;
+      T('Invoice #1 bills the goods', v(one,'Invoice total'),'USD '+
+        Number(o2.tcInvoice1.toFixed(2)).toLocaleString('en-US',
+          {minimumFractionDigits:2,maximumFractionDigits:2}),'Cantu!B34');
+      T('Invoice #2 bills the financial cost', v(two,'Invoice total'),'USD '+
+        Number(o2.tcInvoice2.toFixed(2)).toLocaleString('en-US',
+          {minimumFractionDigits:2,maximumFractionDigits:2}),'Cantu!B35');
+      T('...and the two come to B36',
+        one.lines.concat(two.lines).reduce((a,l)=>a.add(l.net),ZERO)
+          .add(D.of(v(one,'VAT').replace(/[^0-9.]/g,''))).toFixed(2),
+        o2.tcTotal.toFixed(2),'B34 + B35');
+      T('Each is numbered for its half', v(one,'Invoice number')+' / '+v(two,'Invoice number'),
+        t2.identifier+'-01 / '+t2.identifier+'-02','tcInvoiceDoc');
+      T('Only the goods invoice carries VAT',
+        v(two,'VAT'),'USD 0.00','tcInvoiceDoc');
+      T('A deal billing on one still gets B36 on it',
+        templateFields({...store.deals[0], tcInvoiceCount:1}, t2, o2, 'tcinv', 0)
+          .map.get(tokenKey('Invoice total')).value,
+        'USD '+Number(o2.tcTotal.toFixed(2)).toLocaleString('en-US',
+          {minimumFractionDigits:2,maximumFractionDigits:2}),'Cantu!B36');
+    }
     T('A document the app has no form for is the template alone',
       docs({docTemplates:[{id:'s1', kind:'sales', values:{}, tokens:[], file:null}]}),
       'tpl:s1','documentList');
@@ -7838,8 +8260,8 @@ function runTests(){
       })(),'true','tcinv.wrong');
     T('An invoice missing only a date does not', (()=>{
         const d=store.deals[0], t=tradesOf(d.id)[0];
-        return tcInvoiceDoc({...d, agreementDate:''},t,computeAll(d,t).out,1)
-          .wrong.some(m=>/agreement date/.test(m))+'';
+        return tcInvoiceDoc({...d, obligorName:''},t,computeAll(d,t).out,1)
+          .wrong.some(m=>/obligor/i.test(m))+'';
       })(),'false','tcinv.wrong');
     T('A document with no checks of its own has none',
       templateFields(store.deals[0], tradesOf(store.deals[0].id)[0], null, 'sales').checks.length,
@@ -8246,7 +8668,7 @@ document.addEventListener('change', e=>{
   const d=currentDeal(), t=currentTrade();
   if(el.dataset.deal){
     audit('deal',d.id,'UPDATE',el.dataset.deal, el.dataset.prev??null, String(d[el.dataset.deal]));
-    if(['proformaEnabled','agencyFeeEnabled','tradecoId'].includes(el.dataset.deal)) loadFormFromStore();
+    if(['agencyFeeEnabled','tradecoId'].includes(el.dataset.deal)) loadFormFromStore();
   }
   if(el.dataset.trade && t) audit('trade',t.id,'UPDATE',el.dataset.trade, el.dataset.prev??null, String(t[el.dataset.trade]));
   if(el.dataset.field && t) audit('trade',t.id,'UPDATE',el.dataset.field, el.dataset.prev??null, String(t.inputs[el.dataset.field]));
@@ -8595,6 +9017,79 @@ function closeDealConfig(){ configOpen=false; showJurEdit(null); render(); }
 $('dealModal').addEventListener('click', e=>{ if(e.target.closest('[data-close-deal]')) closeDealConfig(); });
 $('dealLockBox').addEventListener('click', e=>{ if(e.target.closest('#btnUnlockDeal')) unlockDealConfig(); });
 $('btnNewTradeFromDeals').onclick=()=>{ if(createTrade()) openTradeModal(); };
+/* ---- the supplier register ---- */
+$('btnSupAddToggle').onclick=()=>{
+  if(actor().role!=='Rates Admin') return alert('Adding a supplier requires the Rates Admin role.');
+  showSupAdd($('supAddCard').style.display==='none', null);
+};
+$('btnSupCancel').onclick=()=>showSupAdd(false);
+$('btnSupSave').onclick=()=>{
+  if(actor().role!=='Rates Admin') return alert('Editing suppliers requires the Rates Admin role.');
+  const name=String($('sup_name').value||'').trim();
+  if(!name) return alert('A supplier needs a name — it is what every document calls it.');
+  const vals={}; for(const f of SUP_FIELDS) vals[f]=String(($('sup_'+f)||{}).value||'').trim();
+  const existing = supEditing ? findSupplier(supEditing) : null;
+  if(existing){
+    const was=[existing.name, existing.city, existing.country].filter(Boolean).join(' · ');
+    Object.assign(existing, vals);
+    audit('supplier', existing.id, 'UPDATE', null, was,
+      [existing.name, existing.city, existing.country].filter(Boolean).join(' · '), null);
+  } else {
+    const sp=newSupplier(vals);
+    if(!store.suppliers) store.suppliers=defaultSuppliers();
+    store.suppliers.list.push(sp);
+    audit('supplier', sp.id, 'CREATE', null, null, sp.name, null);
+  }
+  showSupAdd(false); save(); render();
+};
+$('supTable').addEventListener('click', e=>{
+  const acc=e.target.closest('button[data-sup-accounts]');
+  if(acc) return openTcoAccounts('supplier', acc.dataset.supAccounts);
+  const admin = actor().role==='Rates Admin';
+  const ed=e.target.closest('button[data-sup-edit]');
+  if(ed){
+    if(!admin) return alert('Editing a supplier requires the Rates Admin role.');
+    return showSupAdd(true, findSupplier(ed.dataset.supEdit));
+  }
+  const del=e.target.closest('button[data-sup-delete]');
+  if(del){
+    if(!admin) return alert('Removing a supplier requires the Rates Admin role.');
+    const sp=findSupplier(del.dataset.supDelete); if(!sp) return;
+    /* A deal that buys through this supplier keeps naming it, so removing one out from under a
+       deal is refused rather than quietly unpicking it. */
+    const used=supplierDealsUsing(sp.id);
+    if(used.length) return alert('“'+supplierLabelOf(sp)+'” is named on '+used.length+' deal(s): '+
+      used.map(d=>d.code||'(untitled)').join(', ')+
+      '.\n\nTake it off those deals first, in each deal configuration.');
+    if(!confirm('Remove “'+supplierLabelOf(sp)+'” from the register?'+
+      ((sp.accounts||[]).length?'\n\nIts '+sp.accounts.length+' bank account(s) go with it.':''))) return;
+    store.suppliers.list = supplierList().filter(x=>x!==sp);
+    audit('supplier', sp.id, 'DELETE', null, supplierLabelOf(sp), null, null);
+    if(supEditing===sp.id) showSupAdd(false);
+    save(); render();
+  }
+});
+/* ---- which suppliers a deal buys through ---- */
+$('dealSupplierBox').addEventListener('click', e=>{
+  const rm=e.target.closest('button[data-deal-sup-remove]'); if(!rm) return;
+  const d=currentDeal(); if(!d || !dealEditable(d)) return;
+  const sp=findSupplier(rm.dataset.dealSupRemove);
+  d.supplierIds=(d.supplierIds||[]).filter(id=>String(id)!==String(rm.dataset.dealSupRemove));
+  audit('deal', d.id, 'UPDATE', 'suppliers', sp?supplierLabelOf(sp):rm.dataset.dealSupRemove, null,
+    'No longer bought through on this deal');
+  save(); render();
+});
+$('dealSupAdd').addEventListener('change', e=>{
+  const id=e.target.value; if(!id) return;
+  const d=currentDeal(); if(!d || !dealEditable(d)){ e.target.value=''; return; }
+  const sp=findSupplier(id);
+  if(sp && !(d.supplierIds||[]).includes(id)){
+    d.supplierIds=[...(d.supplierIds||[]), id];
+    audit('deal', d.id, 'UPDATE', 'suppliers', null, supplierLabelOf(sp), 'Bought through on this deal');
+    save();
+  }
+  e.target.value=''; render();
+});
 /* ---------------------------- adding a jurisdiction ---------------------------- */
 /** Read a pasted holiday list: one date per line, or separated by commas, semicolons or tabs.
  *  Every format readDateCell takes is accepted, and the day-first vs month-first question is
@@ -8843,7 +9338,7 @@ $('refModal').addEventListener('click', e=>{ if(e.target.closest('[data-close-re
 document.addEventListener('keydown', e=>{
   if(e.key!=='Escape') return;
   // Topmost first: the accounts window sits above the reference window it was opened from.
-  if(tcoAcctOpen) return closeTcoAccounts();
+  if(acctOpen) return closeTcoAccounts();
   if(!modalOpen && !invOpen && refOpen) closeRef();
 });
 document.addEventListener('keydown', e=>{
@@ -8894,15 +9389,15 @@ $('tcoTable').addEventListener('click', e=>{
     save(); render(); return;
   }
   const acc=e.target.closest('button[data-tco-accounts]');
-  if(acc){ openTcoAccounts(acc.dataset.tcoAccounts); return; }
+  if(acc){ openTcoAccounts('tradeco', acc.dataset.tcoAccounts); return; }
 });
 /* The accounts window. Its own listener, because its cards are not in the entity list any more. */
 $('btnTcoAcctAdd').onclick=()=>{
   if(actor().role!=='Rates Admin') return alert('Adding a bank account requires the Rates Admin role.');
-  const tc=findTradeco(tcoAcctOpen); if(!tc) return;
+  const reg=acctReg(), tc=acctOwner(); if(!tc) return;
   const a={id:uuid()}; for(const k of TCO_ACCOUNT_FIELDS) a[k]='';
   (tc.accounts ||= []).push(a);
-  audit('tradeco',tc.id,'CREATE','account#'+tc.accounts.length,null,'(empty account)',
+  audit(reg.entity,tc.id,'CREATE','account#'+tc.accounts.length,null,'(empty account)',
     'Fill it in before a deal is pointed at it.');
   save(); render(); renderTcoAccounts();
   const box=document.querySelector('[data-tco-acct="'+CSS.escape(String(a.id))+'"]');
@@ -8914,20 +9409,20 @@ $('tcoAcctModal').addEventListener('click', e=>{
   const rm=e.target.closest('button[data-tco-acct-remove]');
   if(rm){
     if(!admin) return alert('Removing a bank account requires the Rates Admin role.');
-    const tc=findTradeco(rm.dataset.tcoId); if(!tc) return;
+    const reg=acctReg(), tc=acctOwner(); if(!tc) return;
     const list=tc.accounts||[], n=list.findIndex(x=>String(x.id)===rm.dataset.tcoAcctRemove);
     if(n<0) return;
     const a=list[n];
     // A deal paid into this account must not keep a reference to an account that no longer exists.
-    const paid=store.deals.filter(d=>String(d.tradecoAccountId)===String(a.id));
+    const paid=reg.usedBy(a);
     const filled=[a.label,a.bank,a.accountNumber].some(x=>String(x||'').trim());
     if((filled || paid.length) && !confirm('Remove this account?'+
       (a.label?'\n\n'+a.label:'')+
       (paid.length?'\n\n'+paid.length+' deal(s) are paid into it and will be left with no account: '+
         paid.map(d=>d.code||'(untitled)').join(', ')+'.':''))) return;
     list.splice(n,1);
-    for(const d of paid) d.tradecoAccountId='';
-    audit('tradeco',tc.id,'DELETE','account#'+(n+1),
+    for(const d of paid) reg.unpoint(d);
+    audit(reg.entity,tc.id,'DELETE','account#'+(n+1),
       [a.label,a.bank,a.accountNumber].filter(Boolean).join(' · ')||'(empty account)', null,
       paid.length?'Cleared it from '+paid.length+' deal(s).':null);
     save(); render(); renderTcoAccounts(); return;
@@ -8941,7 +9436,7 @@ document.addEventListener('input', e=>{
   const el=e.target;
   if(!el.dataset || !el.dataset.tcoAfield) return;
   if(actor().role!=='Rates Admin') return;
-  const tc=findTradeco(el.dataset.tcoId); if(!tc) return;
+  const tc=acctOwner(); if(!tc || String(tc.id)!==String(el.dataset.tcoId)) return;
   const a=findTradecoAccount(tc, el.dataset.tcoAcct); if(!a) return;
   a[el.dataset.tcoAfield]=el.value;
   save();
@@ -8952,16 +9447,16 @@ document.addEventListener('input', e=>{
 });
 document.addEventListener('focusin', e=>{
   const el=e.target; if(!el.dataset || !el.dataset.tcoAfield) return;
-  const tc=findTradeco(el.dataset.tcoId), a=tc && findTradecoAccount(tc, el.dataset.tcoAcct);
+  const tc=acctOwner(), a=tc && findTradecoAccount(tc, el.dataset.tcoAcct);
   if(a) el.dataset.prev=String(a[el.dataset.tcoAfield]??'');
 });
 document.addEventListener('change', e=>{
   const el=e.target; if(!el.dataset || !el.dataset.tcoAfield) return;
-  const tc=findTradeco(el.dataset.tcoId); if(!tc) return;
+  const reg=acctReg(), tc=acctOwner(); if(!tc) return;
   const a=findTradecoAccount(tc, el.dataset.tcoAcct); if(!a) return;
   const n=(tc.accounts||[]).indexOf(a)+1;
   if(el.dataset.prev!==undefined && el.dataset.prev===String(a[el.dataset.tcoAfield]??'')) return;
-  audit('tradeco',tc.id,'UPDATE','account#'+n+'.'+el.dataset.tcoAfield,
+  audit(reg.entity,tc.id,'UPDATE','account#'+n+'.'+el.dataset.tcoAfield,
     el.dataset.prev??null, String(a[el.dataset.tcoAfield]??''));
   el.dataset.prev=String(a[el.dataset.tcoAfield]??'');   // one entry per edit, not per visit
   render();
@@ -8985,6 +9480,8 @@ $('btnJurAddToggle').onclick=()=>showJurAdd($('jurAddCard').style.display==='non
 $('btnJurCancel').onclick=()=>showJurAdd(false);
 $('btnJurSave').onclick=addJurisdictionFromForm;
 $('ja_days').addEventListener('input', refreshJurAddCount);
+for(const id of ['jurFilter','jurOnlyLoaded'])
+  $(id).addEventListener('input', ()=>renderRates());
 $('calTable').addEventListener('click', e=>{
   const del=e.target.closest('button[data-jur-delete]'); if(del) return removeJurisdiction(del.dataset.jurDelete);
   const ed=e.target.closest('button[data-jur-edit]');
@@ -9363,7 +9860,7 @@ function b64ToBytes(b64){
 /* ---- what the app can fill ----
    Every field is listed with the names it answers to, so a form marked up by a lawyer rather
    than by whoever wrote this has a fair chance of matching without anyone editing the file. */
-function templateFields(deal, trade, out, kind){
+function templateFields(deal, trade, out, kind, which){
   const d=deal||{}, ccy=d.currency||'USD';
   const cash = v => v==null ? '' : ccy+' '+Number(v.toFixed(2)).toLocaleString('en-US',
     {minimumFractionDigits:2, maximumFractionDigits:2});
@@ -9375,10 +9872,13 @@ function templateFields(deal, trade, out, kind){
      between them — the goods table, the agency fee, the totals. A template is another way of
      printing the same answers, not another way of computing them. */
   const po = trade ? procurementOrderDoc(d, trade, out) : null;
-  /* Billed as one document whatever the deal's own split. A deal that bills on two invoices is
-     using this app's convention for its own form; a facility issuing its own invoice bills the
-     way its form reads, and [Total] is B36 either way. */
-  const inv = trade ? tcInvoiceDoc({...d, tcInvoiceCount:1}, trade, out, 1) : null;
+  /* One document or two is the deal's own convention, and it applies to its own form as much
+     as to any other: a deal billing on two gets the template filled twice, once for the goods
+     and once for the financial cost, and each one totals its own half. A deal billing on one
+     gets B36 on a single document. */
+  const split = kind==='tcinv' && (which===1 || which===2) && tcInvoiceCountOf(d)===2;
+  const inv = trade
+    ? tcInvoiceDoc(split ? d : {...d, tcInvoiceCount:1}, trade, out, split ? which : 1) : null;
   const i = trade ? effectiveInputs(d, trade) : null;
   const sup = i ? supplierTotals(i) : null;
   const groups=[];
@@ -9388,12 +9888,15 @@ function templateFields(deal, trade, out, kind){
   G('The deal', 'Deal configuration', [
     F('Deal code', ['TRANSACTION CODE','FACILITY','FACILITY CODE','DEAL'], d.code),
     F('Client', ['CLIENT NAME','CUSTOMER'], deal ? clientLabel(d) : ''),
-    F('Buyer', ['BUYER NAME','PURCHASER','INVOICE TO'],
-      String(d.buyerName||'').trim() || (deal ? clientLabel(d) : '')),
-    F('Buyer address', ['INVOICE TO ADDRESS','PURCHASER ADDRESS'], addressLines(d.buyerAddress).join('\n')),
+    F('Obligor', ['BUYER','BUYER NAME','PURCHASER','INVOICE TO','OBLIGOR NAME'],
+      String(d.obligorName||'').trim() || (deal ? clientLabel(d) : '')),
+    F('Obligor registration number', ['REGISTRATION NUMBER','REG NO','OBLIGOR REG NO'], d.obligorRegNo),
+    F('Obligor address', ['BUYER ADDRESS','INVOICE TO ADDRESS','PURCHASER ADDRESS'],
+      obligorAddressLines(d).join('\n')),
+    F('Obligor city', ['BUYER CITY'], d.obligorCity),
+    F('Obligor ZIP code', ['OBLIGOR POSTCODE','BUYER ZIP','ZIP CODE','POSTCODE'], d.obligorZip),
+    F('Obligor country', ['BUYER COUNTRY'], (COUNTRIES[d.obligorCountry]||{}).name || d.obligorCountry),
     F('Currency', ['CCY','CURRENCY CODE'], ccy),
-    F('Agreement', ['AGREEMENT NAME','ISSUED UNDER'], d.agreementName),
-    F('Agreement date', [], day(d.agreementDate)),
     F('Jurisdictions', ['ASSOCIATED JURISDICTIONS'],
       (d.jurisdictions||[]).map(c=>(CALENDARS[c]||{}).name||c).join(', ')),
   ]);
@@ -9450,11 +9953,12 @@ function templateFields(deal, trade, out, kind){
     /* B36 either way. A deal that bills on two invoices splits the same total between them,
        and which of the two a form means by [AMOUNT] is not a question its billing convention
        should be answering. */
-    F('Invoice total', ['TOTAL','TOTAL AMOUNT','AMOUNT','AMOUNT DUE'], out ? cash(out.tcTotal) : ''),
+    F('Invoice total', ['TOTAL','TOTAL AMOUNT','AMOUNT','AMOUNT DUE'],
+      inv ? cash(inv.total) : (out ? cash(out.tcTotal) : '')),
     /* The lines added up, VAT out. So a form that prints rows, then Net, then VAT, then Total
        adds up on the page: netTotal + vat is the B36 above. */
     F('Invoice net', ['NET','NET TOTAL','SUBTOTAL'], inv ? cash(inv.netTotal) : ''),
-    F('VAT', ['VAT AMOUNT','TAX'], out ? cash(out.supplierVat) : ''),
+    F('VAT', ['VAT AMOUNT','TAX'], inv ? cash(inv.vat) : (out ? cash(out.supplierVat) : '')),
     F('Freight', [], out ? cash(out.supplierFreight) : ''),
     F('Insurance', [], out ? cash(out.supplierInsurance) : ''),
     F('Other costs', [], out ? cash(out.supplierOtherCosts) : ''),
@@ -9467,9 +9971,30 @@ function templateFields(deal, trade, out, kind){
   ]);
   /* What the goods on this trade were bought on. The item table repeats over these, and a
      document that names the supplier's own paperwork — most do — reads it from here. */
-  G('The supplier invoices', 'Panel 1, and the item detail under each invoice', [
+  /* The register, named on this deal. Where a deal buys through exactly one supplier its
+     details fill these; where it buys through several the name lists them all and the rest stay
+     blank, because picking one of three arbitrarily is how a document goes out addressed to the
+     wrong company. */
+  const sups = dealSuppliers(d), oneSup = sups.length===1 ? sups[0] : null;
+  const supAcct = oneSup ? ((oneSup.accounts||[])[0] || {}) : {};
+  G('The supplier', 'Settings → Suppliers, named on this deal', [
     F('Supplier', ['SUPPLIER NAME','SELLER OF THE GOODS','VENDOR'],
-      sup ? uniq(sup.rows.map(v=>String(v.name||'').trim())).join(', ') : ''),
+      sups.length ? sups.map(supplierLabelOf).join(', ')
+        : (sup ? uniq(sup.rows.map(v=>String(v.name||'').trim())).join(', ') : '')),
+    F('Supplier address', [], supplierAddressLines(oneSup).join('\n')),
+    F('Supplier city', [], oneSup ? oneSup.city : ''),
+    F('Supplier ZIP code', ['SUPPLIER POSTCODE'], oneSup ? oneSup.zip : ''),
+    F('Supplier country', [], oneSup ? ((COUNTRIES[oneSup.country]||{}).name || oneSup.country) : ''),
+    F('Supplier telephone', ['SUPPLIER PHONE','SUPPLIER TEL'], oneSup ? oneSup.phone : ''),
+    F('Supplier contact', ['SUPPLIER ATTENTION'], oneSup ? oneSup.contact : ''),
+    F('Supplier email', [], oneSup ? oneSup.email : ''),
+    F('Supplier bank', ['SUPPLIER BANK NAME'], supAcct.bank || ''),
+    F('Supplier SWIFT', ['SUPPLIER BIC'], supAcct.swift || ''),
+    F('Supplier IBAN', [], supAcct.iban || ''),
+    F('Supplier account number', ['SUPPLIER ACCOUNT NO'], supAcct.accountNumber || ''),
+    F('Supplier beneficiary', ['SUPPLIER ACCOUNT NAME'], supAcct.beneficiary || ''),
+  ]);
+  G('The supplier invoices', 'Panel 1, and the item detail under each invoice', [
     F('Supplier invoice numbers', ['SUPPLIER INVOICE','SUPPLIER INVOICE NO','SUPPLIER INVOICES'],
       sup ? uniq(sup.rows.map(v=>String(v.invoiceNumber||'').trim())).join(', ') : ''),
     F('Supplier invoice date', ['SUPPLIER ISSUE DATE'], sup ? day(sup.firstIssueDate) : ''),
@@ -10038,12 +10563,14 @@ $('btnTplDocx').onclick=async ()=>{
   if(!tpl || !tpl.file) return alert('No .docx uploaded for this document yet.');
   if(!t) return alert('A document is issued for a trade — pick one first.');
   try{
-    const ctx=templateFields(d, t, computeAll(d,t).out, tpl.kind);
+    const which=currentTemplateWhich();
+    const ctx=templateFields(d, t, computeAll(d,t).out, tpl.kind, which);
     ctx.overrides=tpl.values||{}; ctx.maps=tpl.maps||{};
     const filled=await fillTemplate(b64ToBytes(tpl.file.b64).buffer, ctx);
     const a=document.createElement('a');
     a.href=URL.createObjectURL(filled.blob());
-    a.download=(slug(templateLabel(tpl))+'-'+slug(t.identifier||'trade')).toLowerCase()+'.docx';
+    a.download=(slug(templateLabel(tpl))+'-'+slug(t.identifier||'trade')+
+      (which?'-0'+which:'')).toLowerCase()+'.docx';
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
   }catch(err){

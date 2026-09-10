@@ -191,9 +191,16 @@ them. Pricing is hard-blocked with `RATE.NO_CURVE` until a curve is loaded.
 
 ## Jurisdictions
 
-**29 jurisdictions**, selected per deal and checked against every trade's maturity date. The picker is a
-region-grouped dropdown that adds one at a time, with the chosen jurisdictions shown as removable chips.
-Selecting none is a blocking error, not a silent pass.
+**Every country** is selectable per deal, and each one selected is checked against every trade's
+maturity date. The picker is a region-grouped dropdown that adds one at a time, with the chosen
+jurisdictions shown as removable chips. Selecting none is a blocking error, not a silent pass.
+
+**29 of them ship with a holiday calendar**; the rest have none until somebody loads one. A country
+with no holidays is not silently accepted: a calendar with no dates in it would pass every maturity
+date, which reads as *checked* and is worse than no calendar at all — so a deal naming one **cannot
+be priced** until the list is loaded, and the validation rail says which country. Settings →
+Jurisdictions & Holiday Calendars lists all of them with the loaded ones first, a search box, and a
+**Load holidays** button on every country that has none.
 
 Business days are **derived from rules**, not transcribed tables — fixed dates, nth-weekday, Easter
 offsets, Monday-on-or-after (Colombia's Emiliani law), nearest-Monday (the Dominican Ley 139-97),
@@ -234,12 +241,13 @@ Two caveats worth reading before go-live:
   client-named label in the model: the page title, the two payment legs in panel 5, the settlement
   and confirmed-days notes, the standard-terms warnings and Offer File column H. See
   *Client list* below.
-- **An optional Pro Forma block, set per deal.** Not every facility uses a TradeCo pro forma invoice,
-  so it is a deal-level switch — every trade on a deal agrees on it. When off, panel 2 is removed from
-  the pricing screen entirely and excluded from pricing, validation and the rate snapshot (no pro forma
-  curve is quoted or bound). Panel 2 is a leaf — panels 3 to 5 and the Offer File never read it — so
+- **An optional Pro Forma block, set per trade.** Not every trade carries a TradeCo pro forma
+  invoice, so it is a switch in the trade workspace beside the rest of the trade's own fields —
+  two trades on one facility can differ. When off, panel 2 is removed from the pricing screen
+  entirely and excluded from pricing, validation and the rate snapshot (no pro forma curve is
+  quoted or bound). Panel 2 is a leaf — panels 3 to 5 and the Offer File never read it — so
   B27:B53 stay bit-for-bit identical either way. The parity tests assert that on every downstream
-  output. The pro forma dates and margins remain per trade, for deals that do use them.
+  output.
 - **Five pricing panels** in the same vertical order as the `Cantu` tab (*Spec – Overview §7*),
   carrying the workbook's visual grammar: yellow cells are editable inputs, grey cells are
   computed and show their source cell plus a formula tooltip on hover, and the purple italic
@@ -329,9 +337,13 @@ specifications and the incoterm by itself.
 **An invoice's rows are the invoice's.** A goods table in a procurement order template repeats over
 the trade's goods; the same table in a TradeCo Invoice template repeats over what is actually
 billed — the goods, then the charges, then the financial cost — so the rows add up to `[Net]`, and
-`[Net]` plus `[VAT]` to `[Total]`, which is B36. An invoice template bills as one document whatever
-the deal's *TradeCo invoices per trade* setting says: that split was this app's own form's
-convention, and a facility issuing its own invoice bills the way its form reads.
+`[Net]` plus `[VAT]` to `[Total]`.
+
+**And two invoices are two documents off the one template.** A deal set to *TradeCo invoices per
+trade: two* issues its invoice template twice — `#1 — goods` billing B34 and `#2 — financial cost`
+billing B35, each numbered for its half (`…-01`, `…-02`) and totalling only its own. Set to one, it
+issues once and totals B36. The split is the deal's convention and the template answers it; nothing
+about the trade's pricing changes either way.
 
 **Two checklists.** The pane lists every bracket still unfilled, and separately anything that makes
 the document wrong rather than merely incomplete — no agent configured on an agency deal, no bank
@@ -383,6 +395,28 @@ went in, with the brackets filled.
   leave the mapping pointing at nothing. That is said rather than hidden: the row reads "the field
   it pointed at is gone", the bracket falls back to matching on its own name, and re-picking is one
   dropdown away.
+
+## Suppliers, TradeCos and the obligor
+
+Three parties, kept in three places, and none of them re-keyed per document.
+
+A **TradeCo** is the entity a facility's documents are issued *from*: its legal name, where it is
+incorporated, its registered address, its company and tax numbers, and the accounts it can be paid
+into. A deal picks one TradeCo and one of its accounts.
+
+A **supplier** is who the goods are bought *from*: name, street address, city, ZIP, country,
+telephone, contact, email, and the same bank block a TradeCo has. Both registers live under
+Settings and share one accounts window, because a bank account is a bank account. A deal names the
+suppliers it buys through; where it names exactly one, that one's details fill the
+single-supplier fields on a document, and where it names several the name field lists them all and
+the rest stay blank rather than picking one arbitrarily. Removing a supplier is refused while a
+deal still names it.
+
+The **obligor** is the party a deal's documents are issued *to* — its name, registration number,
+street address, city, ZIP code and country. The address is four fields rather than one block so a
+document that wants only the city can ask for only the city; `[Obligor Address]` puts them back
+together in an envelope's order. (The trade's own **Relevant Obligor**, `Offer File!A3`, is a
+separate field and stays where it is.)
 
 ## Client list
 
