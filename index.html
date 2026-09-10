@@ -666,29 +666,16 @@ code,.mono{font-family:var(--mono);font-size:12px}
         <div class="row"><div class="lbl">Trade Identifier<span class="note">Unique within the deal. Offer File column D.</span></div><div class="cell"><input type="text" class="in" id="f_tradeid" data-trade="identifier"></div></div>
         <div class="row"><div class="lbl">Trade Submission Date<span class="note">Date the trade is submitted. Selects the base rate curve — the latest one published on or before this date.</span></div><div class="cell"><input type="date" class="in" id="f_tradeDate" data-trade="tradeDate"></div></div>
         <div class="row wideval"><div class="lbl">Funder<span class="note">Provides the funding and sets the margin. Names the Settlement Date, Margin and Cost of Funds fields below.</span></div><div class="cell"><input type="text" class="in" id="f_funder" data-trade="funder" list="funderList"><datalist id="funderList"></datalist></div></div>
-        <div class="row wideval"><div class="lbl">Relevant Obligor<span class="note">Offer File!A3 — may differ per trade.</span></div><div class="cell"><input type="text" class="in" id="f_obligor" data-trade="obligor"></div></div>
-        <div class="row"><div class="lbl">Incoterm<span class="note">Delivery term for the goods. With the place named on the client's draft Procurement Order, it becomes the order's delivery instruction — "delivered FOB at Veracruz, Mexico".</span></div><div class="cell"><select class="in" id="f_incoterm" data-trade="incoterm" style="text-align:left"></select></div></div>
+        <div class="row"><div class="lbl"><span data-tpl="{funder} Margin">Funder Margin</span><span class="note" data-tpl="Should be always the same unless pricing discussion with {client}/{funder}">Should be always the same unless pricing discussion with the client and funder. B44 on the Offer File.</span></div><div class="cell suffix" data-suffix="%"><input type="number" class="in" id="f_bladexMargin" data-field="bladexMargin" step="0.00001"></div></div>
+        <div class="row wideval"><div class="lbl">Supplier<span class="note">Who this trade's goods are bought from. Only the suppliers named on the deal are offered — add them in the deal configuration, and maintain them in Settings → Suppliers.</span></div><div class="cell"><select class="in" id="f_supplier" data-trade="supplierId" style="text-align:left"></select></div></div>
         <div class="row"><div class="lbl">TradeCo Pro Forma invoice<span class="note">Whether this trade carries one. When off, panel 2 is removed from the pricing screen and excluded from pricing, validation and the rate snapshot — panels 3 to 5 and the Offer File never read it, so every figure the trade prices on is untouched either way.</span></div>
           <div class="cell"><label class="toggle" style="justify-content:flex-end;width:100%"><input type="checkbox" id="f_proforma" data-field="pfEnabled" checked><span id="proformaLabel">Used on this trade</span></label></div></div>
         <div class="row"><div class="lbl">TradeCo Fee<span class="note">This desk's own fee. Added to the investor's margin to give the Margin used by panels 2 and 3.</span></div><div class="cell suffix" data-suffix="%"><input type="number" class="in" id="f_tcFee" data-field="tcFee" step="0.00001"></div></div>
         <!-- Keyed here rather than in panels 2 and 3, which used to hold one field each for the
              same rate. Shown only when the deal charges one at all. -->
         <div class="row" id="row_agencyFee"><div class="lbl">Agency Fee<span class="note">Read by both mark-ups (B18 and B31) and by the agency-fee payment leg (B52). Charged per the deal configuration.</span></div><div class="cell suffix" data-suffix="%"><input type="number" class="in" id="f_agencyFee" data-field="agencyFee" step="0.00001"></div></div>
-        </div>
-        </div>
-        <!-- The shipment's own facts. They belong to the trade, not to any one document: a
-             procurement order, a sales contract and an inspection certificate all ask for the
-             place of loading, and the client's draft order fills three of these by itself. -->
-        <div class="card tight">
-        <h2>Order &amp; Delivery</h2>
-        <div class="body">
-        <div class="row"><div class="lbl">Order Date<span class="note">Date the order is placed. Printed wherever a document asks for [Order Date] or [Procurement Order Date]; left blank, the trade submission date stands in.</span></div><div class="cell"><input type="date" class="in" data-po="date"></div></div>
-        <div class="row"><div class="lbl">Estimated delivery<span class="note">When the goods are expected. [Estimated Delivery] or [Delivery Date] on a document.</span></div><div class="cell"><input type="date" class="in" data-po="estimatedDelivery"></div></div>
-        <div class="row wideval"><div class="lbl">Place of loading<span class="note">Read off the client's draft Procurement Order when one is uploaded against an invoice. With the incoterm above it becomes the delivery instruction — "delivered FOB at Veracruz, Mexico".</span></div><div class="cell"><input type="text" class="in" data-po="portOfLoading" placeholder="e.g. Veracruz, Mexico"></div></div>
-        <div class="row wideval"><div class="lbl">Onward buyer<span class="note">Who the agent sells the goods on to. [Onward Buyer] on a document.</span></div><div class="cell"><input type="text" class="in" data-po="onwardBuyer"></div></div>
-        <div class="row"><div class="lbl">Onward sale within (days)<span class="note">How long the agent has to complete that sale.</span></div><div class="cell"><input type="number" min="0" step="1" class="in" data-po="onwardDays"></div></div>
-        <div class="row wide"><div class="lbl">Specifications &amp; quality requirements<span class="note">One requirement per line. Read off the client's draft Procurement Order when one is uploaded, and printed wherever a document asks for [Specifications] or [Quality Requirements] — each line as its own line.</span>
-            <textarea class="in" data-po="specifications" rows="4" style="margin-top:6px" placeholder="One requirement per line"></textarea></div></div>
+        <div class="row"><div class="lbl">Incoterm<span class="note">Delivery term for the goods. With the port below it becomes a document's delivery instruction — "delivered FOB at Veracruz, Mexico".</span></div><div class="cell"><select class="in" id="f_incoterm" data-trade="incoterm" style="text-align:left"></select></div></div>
+        <div class="row wideval"><div class="lbl">Port of Loading<span class="note">Where the goods ship from. Read off the client's draft Procurement Order when one is uploaded against an invoice, and printed wherever a document asks for [Port of Loading].</span></div><div class="cell"><input type="text" class="in" data-po="portOfLoading" placeholder="e.g. Veracruz, Mexico"></div></div>
         </div>
         </div>
     </div>
@@ -743,12 +730,11 @@ code,.mono{font-family:var(--mono);font-size:12px}
         <div class="card">
         <h2>4 — IAA Offer File</h2>
         <div class="body">
-        <div class="row"><div class="lbl">TradeCo Invoices/BoE Face Value</div><div class="cell"><span class="calc" id="o_faceValue" title="B39 = B36"><span class="f">B39</span>—</span></div></div>
         <div class="row"><div class="lbl"><span data-tpl="{funder} Settlement Date">Settlement Date</span><span class="note" data-tpl="Date when {funder} will disburse funds to {client}">Date the funder will disburse funds to the client</span></div><div class="cell"><input type="date" class="in" id="f_bladexSettle" data-field="bladexSettlementDate"></div></div>
         <div class="row"><div class="lbl">Days<span class="note" data-tpl="Number of days confirmed with {client} — also the interpolation tenor for both curves">Number of days confirmed with the client — also the interpolation tenor for both curves</span></div><div class="cell"><input type="number" class="in" id="f_bladexDays" data-field="bladexDays" min="1" step="1"></div></div>
+        <div class="row"><div class="lbl">TradeCo Invoices/BoE Face Value</div><div class="cell"><span class="calc" id="o_faceValue" title="B39 = B36"><span class="f">B39</span>—</span></div></div>
         <div class="row"><div class="lbl">TradeCo Invoice/BoE Maturity Date <span id="o_bdCheck" class="inline-tag">—</span></div><div class="cell"><span class="calc" id="o_iaaMaturity" title="B42 = B40 + B41"><span class="f">B42</span>—</span></div></div>
         <div class="row"><div class="lbl"><span id="o_iaaRateLabel">Base rate</span></div><div class="cell"><span class="calc" id="o_iaaRate" title="B43 = B29"><span class="f">B43</span>—</span></div></div>
-        <div class="row"><div class="lbl"><span data-tpl="{funder} Margin">Funder Margin</span><span class="note" data-tpl="Should be always the same unless pricing discussion with {client}/{funder}">Should be always the same unless pricing discussion with the client and funder</span></div><div class="cell suffix" data-suffix="%"><input type="number" class="in" id="f_bladexMargin" data-field="bladexMargin" step="0.00001"></div></div>
         <div class="row"><div class="lbl"><span data-tpl="{funder} Cost of Funds">Cost of Funds</span></div><div class="cell"><span class="calc" id="o_bladexCoF" title="B45 = B44 + B43"><span class="f">B45</span>—</span></div></div>
         <div class="row"><div class="lbl">Factor<span class="note" id="iaaFactorNote"></span></div><div class="cell"><span class="calc" id="o_iaaFactor" title="B46 = B45 × (B42 − B40) / basis"><span class="f">B46</span>—</span></div></div>
         <div class="row"><div class="lbl"><b>IAA Purchase Price</b></div><div class="cell"><span class="calc strong" id="o_purchasePrice" title="B47 = B39 × (1 − B46)"><span class="f">B47</span>—</span></div></div>
@@ -1005,6 +991,7 @@ code,.mono{font-family:var(--mono);font-size:12px}
           <div class="row"><div class="lbl">Obligor Country<span class="note">The last line of the address block, and [Obligor Country] on its own.</span></div><div class="cell"><select class="in" id="d_obligorCountry" data-deal="obligorCountry" style="text-align:left"></select></div></div>
           <div class="row"><div class="lbl">Procurement agent<span class="note">Whether this facility is an agency structure. The agent is the party the Procurement Order is issued to — named per trade as the Relevant Obligor, since it can differ, with its contact details held here because they do not.</span></div>
             <div class="cell"><label class="toggle" style="justify-content:flex-end;width:100%"><input type="checkbox" id="d_agent" data-deal="agentEnabled"><span id="agentLabel">Used on this deal</span></label></div></div>
+          <div class="row wideval agentrow"><div class="lbl">Agent<span class="note">The party the Procurement Order is issued to. [Agent] on a template.</span></div><div class="cell"><input type="text" class="in" id="d_agentName" data-deal="agentName"></div></div>
           <div class="row agentrow"><div class="lbl">Agent — contact person<span class="note">Printed in the Procurement Order's Attention line.</span></div><div class="cell"><input type="text" class="in" id="d_agentContact" data-deal="agentContact"></div></div>
           <div class="row agentrow"><div class="lbl">Agent — email<span class="note">Printed under the Attention line.</span></div><div class="cell"><input type="email" class="in" id="d_agentEmail" data-deal="agentEmail" style="text-align:left"></div></div>
           <div class="row wide agentrow"><div class="lbl">Agent — address<span class="note">Printed under the agent's name in the Procurement Order's Issued To block. One line per line.</span></div><div class="cell">
@@ -1960,6 +1947,10 @@ const addressLines = v => String(v||'').split(/\r?\n/).map(x=>x.trim()).filter(B
 const addressOneLine = v => addressLines(v).map(x=>x.replace(/[,;]+$/,'')).join(', ');
 /** The obligor's address as a block, from the four fields it is kept in. City and postcode share
  *  a line the way an envelope has them; the country is its own last line. */
+/** The party a deal's documents are issued to. Named on the deal, and the deal's own name where
+ *  nobody has said otherwise — it was on the trade as well until the two turned out to be the
+ *  same party said twice. */
+const dealObligor = deal => String((deal&&deal.obligorName)||'').trim() || (deal ? clientLabel(deal) : '');
 function obligorAddressLines(deal){
   const d=deal||{};
   const town=[String(d.obligorCity||'').trim(), String(d.obligorZip||'').trim()].filter(Boolean).join(' ');
@@ -2567,7 +2558,8 @@ function validate(deal, trade, out, quotes, bd){
           String(t.identifier||'').trim().toLowerCase()===String(trade.identifier).trim().toLowerCase()))
     E('TRADE.ID_UNIQUE','Another trade on this deal already uses the identifier "'+trade.identifier+
       '" at version '+trade.versionNo+'.');
-  if(!String(trade.obligor||'').trim()) E('TRADE.OBLIGOR','Relevant Obligor is required (Offer File!A3).');
+  if(!dealObligor(deal).trim()) E('DEAL.OBLIGOR','The deal has no Obligor and no client to fall back on — '+
+    'Offer File!A3 would print blank. Name one in the deal configuration.');
 
   for(const [k,lbl,needed] of [['pfIssueDate','Pro Forma Issue Date',pfOn],
                         ['tcIssueDate','TradeCo Invoice Issue Date',true],['bladexSettlementDate',FUNDER+' Settlement Date',true]])
@@ -2844,7 +2836,7 @@ function copyTradeInputs(src){
 }
 function newDeal(who){
   return { id:uuid(), code:'', clientId:'', clientName:'', currency:'USD',
-    agentEnabled:false, agentContact:'', agentEmail:'', agentAddress:'', agencyAgreementDate:'',
+    agentEnabled:false, agentName:'', agentContact:'', agentEmail:'', agentAddress:'', agencyAgreementDate:'',
     agencyFeeEnabled:true, tcInvoiceCount:2, tradecoId:'', tradecoAccountId:'',
     obligorName:'', obligorRegNo:'', obligorAddress:'', obligorCity:'', obligorZip:'', obligorCountry:'',
     /* The Offer File to begin with. Everything else a facility issues is ticked when the deal
@@ -2854,7 +2846,7 @@ function newDeal(who){
 }
 function newTrade(dealId, who){
   return { id:uuid(), dealId, identifier:'', tradeDate:todayISO(), funder:'',
-    obligor:'', incoterm:'', versionNo:1, state:'DRAFT',
+    supplierId:'', incoterm:'', versionNo:1, state:'DRAFT',
     inputs:blankTradeInputs(), createdBy:who, createdAt:new Date().toISOString(),
     approvedBy:null, approvedAt:null, actualSettlementDate:null,
     rateQuotes:null, acks:{}, offerFiles:[], cancelled:false };
@@ -3043,6 +3035,7 @@ function normalise(s){
       if(sp[f]===undefined) sp[f]='';
   }
   for(const d of (s.deals||[])){
+    if(d.agentName===undefined) d.agentName='';
     if(!Array.isArray(d.supplierIds)) d.supplierIds=[];
     // A supplier removed from the register is not a supplier this deal still buys through.
     d.supplierIds=d.supplierIds.filter(id=>s.suppliers.list.some(x=>String(x.id)===String(id)));
@@ -3108,7 +3101,17 @@ function normalise(s){
     delete d.buyerName; delete d.buyerAddress;
     delete d.agreementName; delete d.agreementDate;
   }
+  /* Relevant Obligor sat on the trade and was read as two different parties: the obligor on the
+     Offer File, and the agent a Procurement Order is issued to. It is the agent that varied, so
+     that is what it becomes — lifted onto the deal, where the rest of the agent's details already
+     were, and only where the deal has not been given one since. */
   for(const t of s.trades){
+    if(t.obligor!==undefined){
+      const d=(s.deals||[]).find(x=>x.id===t.dealId);
+      if(d && !String(d.agentName||'').trim()) d.agentName=String(t.obligor||'').trim();
+      delete t.obligor;
+    }
+    if(t.supplierId===undefined) t.supplierId='';
     if(t.inputs.pfEnabled===undefined) t.inputs.pfEnabled=true;
     // The margin used to be keyed twice; it is now TradeCo Fee + the investor's margin. Backing the
     // fee out of what was stored keeps an existing trade pricing to the same numbers.
@@ -3184,7 +3187,7 @@ function migrateV1(v1){
     d.createdAt=old.createdAt||d.createdAt;
     d.jurisdictions=[...DEFAULT_JURISDICTIONS];   // v1 had no picker; it ran on BD Dates!B4:B13
     const t=newTrade(d.id, old.createdBy||'migrated');
-    t.id=old.id; t.identifier=old.inputs.tradeIdentifier||''; t.obligor=old.inputs.obligor||'';
+    t.id=old.id; t.identifier=old.inputs.tradeIdentifier||''; d.agentName=old.inputs.obligor||'';
     t.versionNo=old.versionNo||1; t.state=old.state||'DRAFT'; t.createdAt=old.createdAt||t.createdAt;
     t.approvedBy=old.approvedBy||null; t.approvedAt=old.approvedAt||null;
     t.actualSettlementDate=old.actualSettlementDate||null;
@@ -3211,8 +3214,10 @@ function seedStore(){
   d.tradecoId=SEED_TRADECOS[0].id; d.tradecoAccountId=SEED_TRADECOS[0].accounts[0].id;
   const seed=SEED_CLIENTS.find(c=>/^cantu/i.test(c.name));
   if(seed){ d.clientId=seed.id; d.clientName=seed.name; }
+  // The worked example's own agent, which the Procurement Order is issued to.
+  d.agentName='Gripmaster';
   const t=newTrade(d.id, who); t.identifier='DRC-CANTU-SB01'; t.tradeDate=WORKBOOK_CURVE_DATE;
-  t.funder='Bladex'; t.obligor='Gripmaster'; t.inputs=workbookTradeInputs();
+  t.funder='Bladex'; t.inputs=workbookTradeInputs();
   return { v:2, suppliers:defaultSuppliers(), deals:[d], trades:[t], currentDealId:d.id, currentTradeId:t.id,
     curves:defaultCurves(), clients:defaultClients(), investors:defaultInvestors(),
     tradecos:defaultTradecos(), jurisdictions:[], audit:[] };
@@ -4383,7 +4388,7 @@ function payloadFor(deal, trade, r){
 }
 function offerPayload(deal, trade, r){
   const o=r.out;
-  return { relevantObligor:trade.obligor, transactionCode:deal.code,
+  return { relevantObligor:dealObligor(deal), transactionCode:deal.code,
     settlementDate:fmtShort(trade.inputs.bladexSettlementDate), identifier:trade.identifier, currency:deal.currency,
     supplierPayment:o?o.payToSupplier.toFixed(2):null, tradeCoPayment:o?o.payToTradeCo.toFixed(2):null,
     agencyFeeToCantu:o?o.payToCantuAgency.toFixed(2):null, totalPurchasePrice:o?o.purchasePrice.toFixed(2):null,
@@ -4479,7 +4484,7 @@ function tcInvoiceDoc(deal, trade, out, which){
         ' but this invoice is in '+ccy+'.');
   }
   const ident = String(trade.identifier||'').trim();
-  const buyer = String(deal.obligorName||'').trim() || clientLabel(deal);
+  const buyer = dealObligor(deal);
   const address = obligorAddressLines(deal);
   if(!ident) missing.push('The trade has no identifier, so the invoice cannot be numbered.');
   if(!address.length) missing.push('The deal has no obligor address.');
@@ -4516,13 +4521,13 @@ const TRADE_FIELD_IDS = {
   tcIssueDate:'f_tcIssue', tcFee:'f_tcFee', agencyFee:'f_agencyFee',
   bladexSettlementDate:'f_bladexSettle', bladexDays:'f_bladexDays', bladexMargin:'f_bladexMargin', legalFees:'f_legalFees'};
 const TRADE_TOP_IDS = { identifier:'f_tradeid', tradeDate:'f_tradeDate', funder:'f_funder',
-  obligor:'f_obligor', incoterm:'f_incoterm' };
+  supplierId:'f_supplier', incoterm:'f_incoterm' };
 /* Incoterms 2020. The delivery term is the trade's, the place it names comes off the client's
    draft order, and the Procurement Order writes the two as one sentence. */
 const INCOTERMS = ['EXW','FCA','FAS','FOB','CFR','CIF','CPT','CIP','DAP','DPU','DDP'];
 const DEAL_FIELD_IDS = { clientId:'d_client', code:'d_code', currency:'d_currency',
   agencyFeeEnabled:'d_agencyFee', tcInvoiceCount:'d_tcInvoiceCount',
-  agentEnabled:'d_agent', agentContact:'d_agentContact', agentEmail:'d_agentEmail',
+  agentEnabled:'d_agent', agentName:'d_agentName', agentContact:'d_agentContact', agentEmail:'d_agentEmail',
   agentAddress:'d_agentAddress', agencyAgreementDate:'d_agencyAgreementDate',
   tradecoId:'d_tradeco', tradecoAccountId:'d_tradecoAccount',
   obligorName:'d_obligor', obligorRegNo:'d_obligorRegNo', obligorAddress:'d_obligorAddress',
@@ -4531,7 +4536,7 @@ const DEAL_FIELD_IDS = { clientId:'d_client', code:'d_code', currency:'d_currenc
 function loadFormFromStore(){
   const d=currentDeal(), t=currentTrade();
   renderClientOptions(); renderCurrencyOptions(); renderCountryOptions();
-  renderJurisdictionBox(); renderDealSuppliers(); renderIncotermOptions();
+  renderJurisdictionBox(); renderDealSuppliers(); renderIncotermOptions(); renderTradeSupplierOptions();
   if(!d) return;
   for(const [f,id] of Object.entries(DEAL_FIELD_IDS)){ const el=$(id); if(!el) continue;
     if(el.type==='checkbox') el.checked = d[f]!==false; else el.value=d[f]??''; }
@@ -4653,6 +4658,22 @@ function renderIncotermOptions(){
   el.innerHTML='<option value="">— not set —</option>'+
     INCOTERMS.map(k=>'<option value="'+k+'"'+(k===cur?' selected':'')+'>'+k+'</option>').join('');
 }
+/** Which supplier this trade buys from — of the ones the deal buys through, and no others. A
+ *  supplier taken off the deal is still shown while a trade names it, because dropping a stored
+ *  answer out of a list is how it comes to read as never having been given. */
+function renderTradeSupplierOptions(){
+  const el=$('f_supplier'); if(!el) return;
+  const d=currentDeal(), t=currentTrade();
+  const cur=t ? String(t.supplierId||'') : '';
+  const onDeal=dealSuppliers(d);
+  const orphan = cur && !onDeal.some(x=>String(x.id)===cur) ? findSupplier(cur) : null;
+  el.innerHTML='<option value="">'+
+    (onDeal.length ? '— not set —' : '— none on this deal —')+'</option>'+
+    onDeal.map(x=>'<option value="'+esc(x.id)+'"'+(String(x.id)===cur?' selected':'')+'>'+
+      esc(supplierLabelOf(x))+'</option>').join('')+
+    (orphan ? '<option value="'+esc(orphan.id)+'" selected>'+esc(supplierLabelOf(orphan))+
+      ' — no longer on this deal</option>' : '');
+}
 /** Jurisdictions: a dropdown to add, and the chosen ones as removable chips. */
 /** The suppliers this deal buys through, as removable chips beside a dropdown of the rest. */
 function renderDealSuppliers(){
@@ -4760,7 +4781,7 @@ function renderHeader(d,t,r){
   for(const id of Object.values(DEAL_FIELD_IDS)){ const el=$(id); if(el) el.disabled=dLocked; }
   // The account list has its own reason to be disabled — no entity, or an entity with no accounts —
   // so it is settled after the blanket lock rather than before it.
-  renderTradecoOptions(); renderDealSuppliers();
+  renderTradecoOptions(); renderDealSuppliers(); renderTradeSupplierOptions();
   if(dLocked){ const a=$('d_tradecoAccount'); if(a) a.disabled=true; }
   $('dealScopeNote').textContent = dLocked
     ? '— locked: a trade on this deal is approved or later'
@@ -5375,7 +5396,7 @@ function renderPricing(d,t,r){
     // esc() has to wrap the code alone — folding the fallback inside it printed the markup.
     ['Transaction Code', d.code ? esc(d.code) : '<span class="tiny">not set</span>'],
     ['Currency', esc(ccy)+' <span class="tiny">· '+esc(ix.name)+' · ACT/'+ix.basis+'</span>'],
-    ['Pro forma invoices', pfOn ? '<span class="inline-tag ok">used</span>' : '<span class="inline-tag">not used</span>'],
+    ['Obligor', esc(dealObligor(d))],
     ['Agency Fee', agencyOn ? '<span class="inline-tag ok">charged</span>' : '<span class="inline-tag">not charged</span>'],
     ['TradeCo invoices', '<span class="inline-tag">'+(tcInvoiceCountOf(d)===1?'one':'two')+' per trade</span>'],
     ['Jurisdictions', (d.jurisdictions||[]).length
@@ -6589,8 +6610,11 @@ async function uploadTemplate(tplId, file){
    rather than the order's — a sales contract and an inspection certificate ask for the place of
    loading too — but the store's key stays `po`, which is where they have always lived. */
 function newProcurementOrder(){
-  return {date:'', specifications:'', portOfLoading:'', estimatedDelivery:'',
-          onwardBuyer:'', onwardDays:''};
+  /* Two, and both of them come off the client's draft order: the port and the specifications.
+     The rest of what this used to hold — the order's own date, the estimated delivery, the
+     onward buyer and the days it has — nothing filled but a person, and a template that wants
+     one can point its bracket at a field or be given a value. */
+  return {specifications:'', portOfLoading:''};
 }
 /** A quantity as the form writes it: grouped, and without the trailing zeros a decimal
  *  quantity would otherwise carry. */
@@ -6604,7 +6628,7 @@ function procurementOrderDoc(deal, trade, out){
   const lines=[], missing=[], invoiceRefs=[];
   /* Two lists, because they have two readers. `missing` is every field the form wants; `wrong`
      is the subset a document's own brackets could never show — facts about the deal and the
-     trade rather than fields on a page. A template that asks for the onward buyer says so
+     trade rather than fields on a page. A template that asks for the port of loading says so
      itself by leaving [Onward Buyer] on the page, so repeating it in a checklist is noise; a
      deal with no bank account named produces a payable document with nowhere to pay, and
      nothing on the page says so. */
@@ -6646,7 +6670,7 @@ function procurementOrderDoc(deal, trade, out){
   if(!tradeco) bad('No TradeCo is named on this deal, so the order has no issuing entity.');
   if(!account) bad('No TradeCo bank account is named on this deal, so the order has no payment details.');
   if(!String(trade.identifier||'').trim()) missing.push('The trade has no identifier, which is the order number.');
-  if(!String(trade.obligor||'').trim()) missing.push('No Relevant Obligor on the trade, so the order has no agent.');
+  if(!String(deal.agentName||'').trim()) bad('No agent named on this deal, so the order has nobody to issue to.');
   if(deal.agentEnabled===true && !String(deal.agentAddress||'').trim())
     missing.push('The agent’s address is empty in the deal configuration.');
   if(!feeRate) missing.push('No agency fee rate on the trade, so the fee payable to the agent cannot be computed.');
@@ -6654,8 +6678,6 @@ function procurementOrderDoc(deal, trade, out){
   if(!String(po.portOfLoading||'').trim()) missing.push('No place of loading — it is read from the client’s draft order.');
   if(!String(po.specifications||'').trim())
     missing.push('Specifications and quality requirements are empty — they are read from the client’s draft order.');
-  if(!isValidDate(po.estimatedDelivery)) missing.push('No estimated delivery date.');
-  if(!String(po.onwardBuyer||'').trim()) missing.push('No onward buyer named.');
   if(deal.agentEnabled===true && !isValidDate(deal.agencyAgreementDate))
     missing.push('No date for the Procurement Agency Agreement in the deal configuration.');
 
@@ -6664,19 +6686,16 @@ function procurementOrderDoc(deal, trade, out){
   const term=String(trade.incoterm||'').trim(), place=String(po.portOfLoading||'').trim();
   return {
     number:String(trade.identifier||'').trim(),
-    date: isValidDate(po.date) ? po.date : (trade.tradeDate||''),
+    date: trade.tradeDate||'',
     currency:ccy, lines, goods, units, agencyFee, feeRate, missing, wrong, invoiceRefs,
     hasAgent: deal.agentEnabled===true,
     principal:{ name:(tradeco && tradeco.name) || '', address:addressLines(tradeco && tradeco.address) },
-    agent:{ name:String(trade.obligor||'').trim(), address:addressLines(deal.agentAddress),
+    agent:{ name:String(deal.agentName||'').trim(), address:addressLines(deal.agentAddress),
             attention:String(deal.agentContact||'').trim(), email:String(deal.agentEmail||'').trim() },
     account,
     specifications: addressLines(po.specifications),
     incoterm:term, portOfLoading:place,
     deliveryTerms: (term && place) ? 'Goods to be delivered '+term+' at '+place+'.' : '',
-    estimatedDelivery:po.estimatedDelivery||'',
-    onwardBuyer:String(po.onwardBuyer||'').trim(),
-    onwardDays:String(po.onwardDays||'').trim(),
     agencyAgreementDate:deal.agencyAgreementDate||'',
     supplierPaymentDate: out ? out.supplierPaymentDate : '',
   };
@@ -7548,6 +7567,47 @@ function runTests(){
     effectiveInputs(dealOff,{...stubTrade, inputs:{...stubTrade.inputs, pfEnabled:false}}).pfEnabled,
     'false','trade.inputs.pfEnabled');
   T('A new trade carries one', blankTradeInputs().pfEnabled,'true','blankTradeInputs()');
+  /* One obligor, on the deal, and the agent gets a name of its own. */
+  T('The obligor is the deal\u2019s, falling back to its name',
+    dealObligor({obligorName:'Gas Natural SA'})+' / '+dealObligor({clientName:'Cantu Store'}),
+    'Gas Natural SA / Cantu Store','dealObligor()');
+  T('A trade carries no obligor of its own', 'obligor' in newTrade('d','x'),'false','newTrade()');
+  T('The trade\u2019s old one becomes the deal\u2019s agent', (()=>{
+      const st=normalise({v:2, curves:{}, clients:defaultClients(), audit:[],
+        deals:[{id:'d1'}], trades:[{id:'t1', dealId:'d1', obligor:'Gripmaster', inputs:{}}]});
+      return st.deals[0].agentName+' / trade keeps it: '+('obligor' in st.trades[0]);
+    })(),'Gripmaster / trade keeps it: false','normalise()');
+  T('...and not over one the deal already has', (()=>{
+      const st=normalise({v:2, curves:{}, clients:defaultClients(), audit:[],
+        deals:[{id:'d1', agentName:'Already Named'}],
+        trades:[{id:'t1', dealId:'d1', obligor:'Gripmaster', inputs:{}}]});
+      return st.deals[0].agentName;
+    })(),'Already Named','normalise()');
+  /* What the order's own box left behind. */
+  T('The order keeps two fields, both off the client\u2019s draft',
+    Object.keys(newProcurementOrder()).join(','),'specifications,portOfLoading','newProcurementOrder()');
+  T('The order\u2019s date is the trade\u2019s', (()=>{
+      const d=store.deals[0], t=tradesOf(d.id)[0];
+      return procurementOrderDoc(d,t,computeAll(d,t).out).date===t.tradeDate;
+    })(),'true','procurementOrderDoc()');
+  /* A new trade opens on the rates the last one used. */
+  T('A new trade carries the last trade\u2019s rates', (()=>{
+      const d=store.deals[0], got=lastTradeRates(d), was=tradesOf(d.id).slice(-1)[0].inputs;
+      return RATES_CARRIED.every(f=>got[f]===was[f])+'';
+    })(),'true','lastTradeRates()');
+  T('...and zero where there is no last trade', (()=>{
+      const saved=store.trades; store.trades=[];
+      const got=lastTradeRates({id:'nope'});
+      store.trades=saved;
+      return RATES_CARRIED.map(f=>got[f]).join(',');
+    })(),'0,0,0','lastTradeRates()');
+  T('...and zero for a rate the last trade left blank', (()=>{
+      const saved=store.trades;
+      store.trades=[{id:'x', dealId:'nope', inputs:{tcFee:'0.0065', agencyFee:'', bladexMargin:null}}];
+      const got=lastTradeRates({id:'nope'});
+      store.trades=saved;
+      return RATES_CARRIED.map(f=>got[f]).join(',');
+    })(),'0.0065,0,0','lastTradeRates()');
   T('The deal\u2019s old answer is handed down to its trades', (()=>{
       const st=normalise({v:2, curves:{}, clients:defaultClients(), audit:[],
         deals:[{id:'d1', proformaEnabled:false},{id:'d2', proformaEnabled:true}],
@@ -8252,7 +8312,7 @@ function runTests(){
         const doc=procurementOrderDoc(d,t,o);
         return (doc.wrong.length<doc.missing.length &&
           doc.wrong.every(m=>doc.missing.includes(m)) &&
-          !doc.wrong.some(m=>/onward buyer|estimated delivery|place of loading/i.test(m)))+'';
+          !doc.wrong.some(m=>/place of loading|specification|incoterm/i.test(m)))+'';
       })(),'true','po.wrong');
     T('An invoice with nowhere to be paid says so', (()=>{
         const d={...store.deals[0], tradecoAccountId:''}, t=tradesOf(store.deals[0].id)[0];
@@ -8316,7 +8376,7 @@ function runTests(){
     T('...and it is the same date the app prints', val('Today'),
       fmtLong(todayISO()).replace(/^[A-Za-z]+, /,''),'fmtPlain');
     T('A field nobody has heard of stays unheard of', val('Seller LEI'),'(no such field)','templateFields');
-    T('An unfilled field is empty, not guessed', val('Onward buyer'),'','templateFields');
+    T('An unfilled field is empty, not guessed', val('Agent contact'),'','templateFields');
     /* Which field a bracket takes its value from. */
     const rz=(maps,overrides)=>templateResolver({...ctx, maps:maps||{}, overrides:overrides||{}},
                                                 new Map());
@@ -8332,13 +8392,13 @@ function runTests(){
     T('A bracket pointed at nothing is left on the page',
       String(rz()('Mystery Field')),'null','templateResolver');
     T('...and so is one pointed at a field that is empty',
-      String(rz({MYSTERYFIELD:'ONWARDBUYER'})('Mystery Field')),'null','templateResolver');
+      String(rz({MYSTERYFIELD:'AGENTCONTACT'})('Mystery Field')),'null','templateResolver');
     T('An open bracket says which field it was pointed at', (()=>{
         const seen=new Map();
-        templateResolver({...ctx, maps:{MYSTERYFIELD:'ONWARDBUYER'}}, seen)('Mystery Field');
+        templateResolver({...ctx, maps:{MYSTERYFIELD:'AGENTCONTACT'}}, seen)('Mystery Field');
         const o=seen.get('MYSTERYFIELD');
         return o.known+'/'+o.from+'/'+o.name;
-      })(),'true/Onward buyer/Mystery Field','templateResolver');
+      })(),'true/Agent contact/Mystery Field','templateResolver');
     T('A mapping to a field that no longer exists falls back to the name', (()=>{
         const seen=new Map();
         const v=templateResolver({...ctx, maps:{ORDERNO:'NOSUCHFIELD'}}, seen)('Order No');
@@ -9529,9 +9589,26 @@ $('btnNewDeal').onclick=()=>{ const d=newDeal(actor().name);
   configOpen=true;                             // a new deal opens straight into configuration
   audit('deal',d.id,'CREATE',null,null,'new deal');
   loadFormFromStore(); render(); showTab('deals'); };
+/** The three rates a new trade opens on: whatever the last trade used. A desk's fee and margin
+ *  are the same on Tuesday as they were on Monday, and re-keying them is how one of them ends up
+ *  a decimal place out. The deal's own last trade is asked first, then the book's; with neither,
+ *  they open at zero rather than blank, which is a rate somebody agreed rather than a gap. */
+const RATES_CARRIED = ['tcFee','agencyFee','bladexMargin'];
+function lastTradeRates(deal){
+  const mine=tradesOf(deal.id), all=store.trades||[];
+  const pick = list => list.filter(x=>x.inputs).slice(-1)[0] || null;
+  const src = pick(mine) || pick(all);
+  const out={};
+  for(const f of RATES_CARRIED){
+    const v = src ? src.inputs[f] : undefined;
+    out[f] = (v===undefined || v===null || String(v).trim()==='') ? '0' : v;
+  }
+  return out;
+}
 function createTrade(){
   const d=currentDeal(); if(!d) return false;
   const t=newTrade(d.id, actor().name);
+  Object.assign(t.inputs, lastTradeRates(d));
   t.identifier=nextTradeIdentifier(d);
   store.trades.push(t); store.currentTradeId=t.id;
   audit('trade',t.id,'CREATE',null,null,'Trade '+t.identifier+' on deal '+(d.code||d.id));
@@ -9539,13 +9616,13 @@ function createTrade(){
 }
 $('btnDupTrade').onclick=()=>{ const d=currentDeal(), src=currentTrade(); if(!src) return;
   const t=newTrade(d.id, actor().name);
-  t.inputs=copyTradeInputs(src.inputs); t.obligor=src.obligor; t.identifier=nextTradeIdentifier(d);
+  t.inputs=copyTradeInputs(src.inputs); t.supplierId=src.supplierId; t.identifier=nextTradeIdentifier(d);
   store.trades.push(t); store.currentTradeId=t.id;
   audit('trade',t.id,'CREATE',null,null,'Duplicated from '+(src.identifier||src.id));
   loadFormFromStore(); render(); };
 $('btnVersion').onclick=()=>{ const d=currentDeal(), src=currentTrade(); if(!src) return;
   const t=newTrade(d.id, actor().name);
-  t.inputs=copyTradeInputs(src.inputs); t.obligor=src.obligor; t.identifier=src.identifier; t.versionNo=src.versionNo+1;
+  t.inputs=copyTradeInputs(src.inputs); t.supplierId=src.supplierId; t.identifier=src.identifier; t.versionNo=src.versionNo+1;
   store.trades.push(t); store.currentTradeId=t.id;
   audit('trade',t.id,'CREATE',null,null,'Version '+t.versionNo+' of '+(src.identifier||src.id));
   loadFormFromStore(); render(); };
@@ -9888,8 +9965,8 @@ function templateFields(deal, trade, out, kind, which){
   G('The deal', 'Deal configuration', [
     F('Deal code', ['TRANSACTION CODE','FACILITY','FACILITY CODE','DEAL'], d.code),
     F('Client', ['CLIENT NAME','CUSTOMER'], deal ? clientLabel(d) : ''),
-    F('Obligor', ['BUYER','BUYER NAME','PURCHASER','INVOICE TO','OBLIGOR NAME'],
-      String(d.obligorName||'').trim() || (deal ? clientLabel(d) : '')),
+    F('Obligor', ['BUYER','BUYER NAME','PURCHASER','INVOICE TO','OBLIGOR NAME','RELEVANT OBLIGOR'],
+      deal ? dealObligor(d) : ''),
     F('Obligor registration number', ['REGISTRATION NUMBER','REG NO','OBLIGOR REG NO'], d.obligorRegNo),
     F('Obligor address', ['BUYER ADDRESS','INVOICE TO ADDRESS','PURCHASER ADDRESS'],
       obligorAddressLines(d).join('\n')),
@@ -9918,7 +9995,7 @@ function templateFields(deal, trade, out, kind, which){
     F('Account number', ['ACCOUNT NO'], a.accountNumber),
   ]);
   G('The agent', 'Deal configuration, when the facility is an agency structure', [
-    F('Agent', ['AGENT NAME','RELEVANT OBLIGOR'], trade ? String(trade.obligor||'').trim() : ''),
+    F('Agent', ['AGENT NAME','RELEVANT OBLIGOR'], d.agentName),
     F('Agent contact', ['CONTACT PERSON','ATTENTION','ATTN'], d.agentContact),
     F('Agent email', [], d.agentEmail),
     F('Agent address', [], addressLines(d.agentAddress).join('\n')),
@@ -9932,14 +10009,13 @@ function templateFields(deal, trade, out, kind, which){
     F('Trade state', ['STATE','STATUS'], trade ? trade.state : ''),
     F('Funder', ['INVESTOR'], trade ? String(trade.funder||'').trim() : ''),
     F('Incoterm', ['INCOTERMS','DELIVERY TERM'], trade ? String(trade.incoterm||'').trim() : ''),
-    F('Place of loading', ['PORT OF LOADING','LOADING PORT'], po ? po.portOfLoading : ''),
+    F('Port of loading', ['PLACE OF LOADING','LOADING PORT'], po ? po.portOfLoading : ''),
     F('Delivery terms', ['DELIVERY'], po ? po.deliveryTerms : ''),
     F('Specifications', ['SPECIFICATION','QUALITY REQUIREMENTS',
       'SPECIFICATIONS AND QUALITY REQUIREMENTS'], po ? po.specifications.join('\n') : ''),
-    F('Procurement Order date', ['ORDER DATE'], po ? day(po.date) : ''),
-    F('Estimated delivery', ['ESTIMATED DELIVERY DATE','DELIVERY DATE'], po ? day(po.estimatedDelivery) : ''),
-    F('Onward buyer', [], po ? po.onwardBuyer : ''),
-    F('Onward sale days', ['ONWARD DAYS'], po ? po.onwardDays : ''),
+    /* The order's date is the trade's: it is issued when the trade is submitted, and a second
+       date to key was a second date to disagree. */
+    F('Order date', ['PROCUREMENT ORDER DATE'], trade ? day(trade.tradeDate) : ''),
     F('Invoice number', ['INVOICE NO'], inv ? inv.number : ''),
     F('Invoice date', ['ISSUE DATE','TRADECO ISSUE DATE'], i ? day(i.tcIssueDate) : ''),
     F('Payment date', ['DUE DATE','MATURITY DATE','PAYMENT DUE'], out ? day(out.tcMaturityDate) : ''),
@@ -9975,7 +10051,11 @@ function templateFields(deal, trade, out, kind, which){
      details fill these; where it buys through several the name lists them all and the rest stay
      blank, because picking one of three arbitrarily is how a document goes out addressed to the
      wrong company. */
-  const sups = dealSuppliers(d), oneSup = sups.length===1 ? sups[0] : null;
+  /* The trade names one where it can, and the deal's list stands in where it has not: a deal
+     that buys through exactly one supplier has already answered for every trade on it. */
+  const onTrade = trade ? findSupplier(trade.supplierId) : null;
+  const sups = onTrade ? [onTrade] : dealSuppliers(d);
+  const oneSup = sups.length===1 ? sups[0] : null;
   const supAcct = oneSup ? ((oneSup.accounts||[])[0] || {}) : {};
   G('The supplier', 'Settings → Suppliers, named on this deal', [
     F('Supplier', ['SUPPLIER NAME','SELLER OF THE GOODS','VENDOR'],

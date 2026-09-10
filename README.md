@@ -48,8 +48,6 @@ trade:
   Issue, Mark settled, Cancel, Duplicate, New version, Edit deal configuration);
 - a **Pricing** pane — the deal's configuration read-only, the trade's own fields, the five panels and the
   validation / rate-quote / business-day / summary rail;
-- an **Order & Delivery** card holding the shipment's own facts — order date, estimated delivery,
-  place of loading, onward buyer and specifications — which any document template can ask for;
 - a **Documents** pane holding the documents the deal issues — whichever of them are ticked in its
   configuration, since they describe one trade and belong with it.
 
@@ -70,12 +68,13 @@ A **deal** holds everything its trades share. A **trade** is what gets priced, a
 
 | Deal (shared) | Trade (per trade) |
 |---|---|
-| Client | Trade Identifier — `Cantu!B5` |
+| Deal (the client) | Trade Identifier — `Cantu!B5` |
 | Transaction Code — `Cantu!B4` | **Trade Date** — selects the base rate curve |
-| | **Funder** — names the Settlement Date, Margin and Cost of Funds fields |
-| | Relevant Obligor — `Offer File!A3` |
+| Obligor — `Offer File!A3` | **Funder**, and the Funder Margin |
+| The agent, and the suppliers bought through | Which supplier this trade buys from |
 | Currency → base rate index + day count | The invoice/pricing blocks |
-| Pro forma invoices used, yes/no | Pro forma dates and margins, when used |
+| | Pro forma invoices used, yes/no, and its dates |
+| | Incoterm and Port of Loading |
 | Associated jurisdictions | Lifecycle, rate snapshot, Offer File, audit |
 
 This matches the SharePoint layout, where `Trade 1 - DRC` holds SB01 / SB02 / SB03 under one facility.
@@ -327,12 +326,12 @@ typed value stays as it was while the deal moves on. Typing one is still availab
 value instead…* at the bottom of the list, for the odd thing the app keeps no field for at all; a
 field beats a typed value wherever both exist.
 
-The facts a shipment carries but the pricing does not — order date, estimated delivery, place of
-loading, onward buyer, specifications — are keyed on the trade itself, under **Order & Delivery**
-in the trade workspace. They belong to the trade rather than to any one document: a procurement
-order, a sales contract and an inspection certificate all ask for the place of loading. Uploading
-the client's draft Procurement Order against a supplier invoice fills the place of loading, the
-specifications and the incoterm by itself.
+The facts a shipment carries but the pricing does not are the trade's: the **Incoterm** and the
+**Port of Loading** are keyed in Trade Info, and the **specifications** come off the client's draft
+Procurement Order when one is uploaded against a supplier invoice — which fills the port and the
+incoterm at the same time. The order's own date is the trade's submission date; a second date to
+key was a second date to disagree. Anything else a template wants and the app has no field for is
+a dropdown away, or a typed value.
 
 **An invoice's rows are the invoice's.** A goods table in a procurement order template repeats over
 the trade's goods; the same table in a TradeCo Invoice template repeats over what is actually
@@ -415,8 +414,18 @@ deal still names it.
 The **obligor** is the party a deal's documents are issued *to* — its name, registration number,
 street address, city, ZIP code and country. The address is four fields rather than one block so a
 document that wants only the city can ask for only the city; `[Obligor Address]` puts them back
-together in an envelope's order. (The trade's own **Relevant Obligor**, `Offer File!A3`, is a
-separate field and stays where it is.)
+together in an envelope's order. It is one field on the deal and nothing on the trade: the trade
+carried a *Relevant Obligor* until the two turned out to be the same party said twice, and
+`Offer File!A3` now prints the deal's. The trade's Deal box shows it.
+
+The **agent** — the party a Procurement Order is issued to — has a name of its own on the deal,
+beside the contact, email and address it already had. It was standing behind the trade's Relevant
+Obligor, which is what made that field mean two different parties at once; a book keyed that way
+has its trades' answers lifted onto the deal.
+
+Which **supplier** a trade buys from is picked on the trade, from the ones the deal names and no
+others. A trade that names one answers for its own documents; one that does not falls back to the
+deal's list.
 
 ## Client list
 
