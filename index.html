@@ -901,10 +901,13 @@ code,.mono{font-family:var(--mono);font-size:12px}
             <button class="btn" id="btnSupInvTemplate">CSV template</button>
             <span class="tiny">Every block prices off the total. A row's Payment Date is its own Issue Date + tenor; open <b>Detail</b> to itemise it.</span>
           </div>
+          <!-- What the goods on THIS trade are measured and priced by. Both are the trade's own
+               answer because both change from one trade to the next. -->
+          <div class="toolbar" id="itemColsBar" style="margin:0 0 10px"></div>
           <div class="scroll"><table id="supInvTable"></table></div>
           <details class="help"><summary>How the CSVs are read</summary>
-          <p class="tiny" id="supInvHelp" style="margin:2px 0 0">There are two uploads. <b>Here, at the group level:</b> <code>invoice number, supplier name, jurisdiction, issue date, tenor days, amount</code> — one row per invoice. Add <code>item, quantity, unit price</code> (and optionally <code>line total</code>, <code>vat</code>, <code>freight</code>, <code>insurance</code>, <code>other costs</code>) and the file may carry several invoices <i>and</i> their items at once: rows sharing an <code>invoice number</code> become one invoice, one item per row, and its total is derived from them. A group in such a file with no item rows falls back to its <code>amount</code> cell, so itemised and flat invoices can travel in one file. <b>Inside an open Detail row:</b> the same item columns for that one invoice, with no invoice columns needed.</p>
-          <p class="tiny" style="margin:7px 0 0">Give a <code>payment date</code> instead of a tenor and the tenor is worked out from it. Jurisdiction takes a code (<code>BR</code>) or a name (<code>Brazil</code>); dates, amounts and delimiters are read as loosely as on the curve upload. An item row naming a charge — <code>VAT</code>, <code>Freight</code>, <code>Insurance</code>, <code>Other costs</code> — is read as that charge rather than as goods, which is how most invoice extracts list them.</p></details>
+          <p class="tiny" id="supInvHelp" style="margin:2px 0 0">There are two uploads. <b>Here, at the group level:</b> <code>invoice number, issue date, tenor days, amount</code> — one row per invoice. Add <code>item, quantity, unit price</code> (and optionally <code>weight (kg)</code>, <code>line total</code>, <code>vat</code>, <code>freight</code>, <code>insurance</code>, <code>other costs</code>) and the file may carry several invoices <i>and</i> their items at once: rows sharing an <code>invoice number</code> become one invoice, one item per row, and its total is derived from them. A group in such a file with no item rows falls back to its <code>amount</code> cell, so itemised and flat invoices can travel in one file. <b>Inside an open Detail row:</b> the same item columns for that one invoice, with no invoice columns needed.</p>
+          <p class="tiny" style="margin:7px 0 0">Give a <code>payment date</code> instead of a tenor and the tenor is worked out from it. Dates, amounts and delimiters are read as loosely as on the curve upload. A supplier column is no longer read here — the supplier is the trade's, picked in Trade Info from the ones the deal buys through. An item row naming a charge — <code>VAT</code>, <code>Freight</code>, <code>Insurance</code>, <code>Other costs</code> — is read as that charge rather than as goods, which is how most invoice extracts list them.</p></details>
         </div>
       </div>
       <div class="card tight"><h2>Totals the pricing blocks read</h2>
@@ -2352,9 +2355,10 @@ function interpolate(pillars, tenorDays){
  *  top, so `total` is the one figure the rest of the model ever reads and neither shape is a
  *  special case anywhere else. Nothing is dropped for being blank — an empty item row is worth
  *  zero, and validation, not the engine, is what says a row is unfinished. */
-function invoiceBreakdown(v){
+function invoiceBreakdown(v, basis){
+  const b = LINE_BASES[basis] ? basis : 'qty';
   const items = Array.isArray(v && v.items) ? v.items : [];
-  const lines = items.map(it => ({item:it, lineTotal: D.of(it.qty||0).mul(D.of(it.unitPrice||0))}));
+  const lines = items.map(it => ({item:it, lineTotal: lineMeasure(it,b).mul(D.of(it.unitPrice||0))}));
   const itemised = items.length>0;
   const goods = itemised ? lines.reduce((a,l)=>a.add(l.lineTotal), ZERO) : D.of((v&&v.amount)||0);
   const vat=D.of((v&&v.vat)||0), freight=D.of((v&&v.freight)||0),
@@ -2364,15 +2368,16 @@ function invoiceBreakdown(v){
           charges, total:goods.add(charges)};
 }
 /** What one invoice adds to Cantu!B10. */
-const invoiceTotal = v => invoiceBreakdown(v).total;
+const invoiceTotal = (v, basis) => invoiceBreakdown(v, basis).total;
 function supplierTotals(i){
   const rows = Array.isArray(i.supplierInvoices) && i.supplierInvoices.length
     ? i.supplierInvoices
     : [{issueDate:i.supplierIssueDate, tenorDays:i.supplierTenorDays, amount:i.supplierAmount}];
   let amount=ZERO, goods=ZERO, charges=ZERO, vat=ZERO, freight=ZERO, insurance=ZERO, otherCosts=ZERO,
       itemCount=0, itemisedCount=0, firstIssueDate=null, lastPaymentDate=null;
+  const basis = lineBasisOf(i);
   for(const v of rows){
-    const b = invoiceBreakdown(v);
+    const b = invoiceBreakdown(v, basis);
     amount = amount.add(b.total);
     goods = goods.add(b.goods); charges = charges.add(b.charges);
     vat = vat.add(b.vat); freight = freight.add(b.freight);
@@ -2570,10 +2575,10 @@ function validate(deal, trade, out, quotes, bd){
   if(!invoices.length)
     E('SUP.NONE','At least one supplier invoice is required — their total is Cantu!B10, which every block prices off.');
   invoices.forEach((v,n)=>{
-    const who = 'Supplier invoice '+(n+1)+(String(v.name||'').trim()?' ('+String(v.name).trim()+')':'');
+    const who = 'Supplier invoice '+(n+1)+(String(v.invoiceNumber||'').trim()?' ('+String(v.invoiceNumber).trim()+')':'');
     if(!isValidDate(v.issueDate)) E('DATE.REQUIRED', who+': Issue Date is required.');
     if(Number(v.tenorDays)<1) E('TENOR.SUPPLIER', who+': tenor must be at least 1 day.');
-    const b = invoiceBreakdown(v);
+    const b = invoiceBreakdown(v, lineBasisOf(i));
     if(!(b.total.gt(ZERO))) E('AMT.POSITIVE', who+': amount must be greater than zero (Cantu!B10).'+
       (b.itemised ? ' Its total is the '+b.itemCount+' item line(s) plus VAT, freight, insurance and other costs.' : ''));
     // ---- item lines and the four charges ----
@@ -2610,16 +2615,24 @@ function validate(deal, trade, out, quotes, bd){
         String(x.invoiceNumber||'').trim().toLowerCase()===String(v.invoiceNumber).trim().toLowerCase() &&
         String(x.name||'').trim().toLowerCase()===String(v.name||'').trim().toLowerCase());
       if(dup>=0 && dup<n) W('NOTE.SUP_DUPLICATE','Supplier invoices '+(dup+1)+' and '+(n+1)+
-        ' both quote invoice number "'+String(v.invoiceNumber).trim()+'"'+
-        (String(v.name||'').trim()?' from '+String(v.name).trim():'')+
-        ' — confirm this is not the same invoice counted twice.');
+        ' both quote invoice number "'+String(v.invoiceNumber).trim()+
+        '" — confirm this is not the same invoice counted twice.');
     }
-    if(!String(v.jurisdiction||'').trim())
-      W('NOTE.SUP_JURISDICTION', who+' has no Supplier Jurisdiction.');
-    else if(!(deal.jurisdictions||[]).includes(v.jurisdiction))
-      W('NOTE.SUP_JURISDICTION', who+' is in '+((CALENDARS[v.jurisdiction]||{}).name||v.jurisdiction)+
-        ", which is not one of the deal's associated jurisdictions, so its dates are checked against no calendar.");
   });
+  /* Where the supplier is comes off the register through the trade, so it is one check for the
+     trade rather than one per invoice repeating the same answer. */
+  {
+    const sp=findSupplier(trade.supplierId);
+    if(!sp) W('NOTE.SUP_SUPPLIER','No supplier named on this trade — pick one in Trade Info, from '+
+      "the ones the deal buys through.");
+    else if(!String(sp.country||'').trim())
+      W('NOTE.SUP_JURISDICTION','“'+supplierLabelOf(sp)+'” has no country in Settings → Suppliers.');
+    else if(!(deal.jurisdictions||[]).includes(sp.country))
+      W('NOTE.SUP_JURISDICTION','“'+supplierLabelOf(sp)+'” is in '+
+        ((COUNTRIES[sp.country]||{}).name||sp.country)+
+        ", which is not one of the deal's associated jurisdictions, so its dates are checked "+
+        'against no calendar.');
+  }
   if(invoices.length>1 && out)
     W('NOTE.SUP_MULTI', invoices.length+' supplier invoices totalling '+money(out.supplierAmount,deal.currency)+
       ' are priced as one position: B10 is their sum, B8 the earliest issue date and B9 the latest payment date ('+
@@ -2774,8 +2787,34 @@ const uuid = () => (crypto.randomUUID ? crypto.randomUUID()
 /** One line of an invoice: what was bought, how many, and the price of one. The line total is
  *  never stored — it is quantity x unitPrice, and a stored copy is a second figure to disagree. */
 function newInvoiceItem(seed){
-  return {id:uuid(), itemNo:'', name:'', qty:'', unitPrice:'', ...(seed||{})};
+  return {id:uuid(), itemNo:'', name:'', qty:'', weight:'', unitPrice:'', ...(seed||{})};
 }
+/* What a line total is arithmetic on. Goods sold by the piece price per item; goods sold by the
+   tonne price per kilo, and the quantity is then a count of bales nobody multiplies by. It is the
+   trade's answer because it is the trade's goods — and it defaults to the quantity, which is what
+   every trade keyed before this was doing. */
+/* The optional columns of the item detail. Item, price and line total are not on the list:
+   a line without them is not a line. Everything else is a fact some trades carry and others do
+   not — a supplier's own part number, a count of pieces, a weight — and a column of empty cells
+   on every screen is what the list is for. */
+const ITEM_COL_SPEC = [
+  {key:'itemNo',  label:'Item No.', width:'17%'},
+  {key:'qty',     label:'Qty',      width:'12%', n:true},
+  {key:'weight',  label:'Weight (kg)', width:'14%', n:true},
+];
+const DEFAULT_ITEM_COLS = ['itemNo','qty'];
+/** Which of them this trade shows. The basis column is always one of them: a line priced per
+ *  kilo with the weight hidden is a line total nobody on the screen can check. */
+function itemColsOf(inputs){
+  const want = Array.isArray(inputs && inputs.itemCols) ? inputs.itemCols : DEFAULT_ITEM_COLS;
+  const basisField = LINE_BASES[lineBasisOf(inputs)].field;
+  return ITEM_COL_SPEC.filter(c=>want.includes(c.key) || c.key===basisField).map(c=>c.key);
+}
+const LINE_BASES = {qty:{label:'Quantity', per:'item', field:'qty'},
+                    weight:{label:'Weight (kg)', per:'kg',  field:'weight'}};
+const lineBasisOf = x => (x && LINE_BASES[x.lineBasis]) ? x.lineBasis : 'qty';
+/** The measure one line is priced on, under a given basis. */
+const lineMeasure = (item, basis) => D.of((item && item[LINE_BASES[basis||'qty'].field]) || 0);
 /** One row of panel 1. Name and jurisdiction are new; the rest are the workbook's B8/B9/B10.
  *  items[] and the four charges are the invoice's own breakdown: an invoice with no items keeps
  *  its typed amount as the goods figure, which is why both start empty rather than seeded. */
@@ -2806,6 +2845,7 @@ function addInvoiceItem(v){
  *  30-day tenor is the workbook's own hardcoded B9. */
 function blankTradeInputs(){
   return { supplierInvoices:[newSupplierInvoice()],
+    lineBasis:'qty', itemCols:[...DEFAULT_ITEM_COLS],
     pfEnabled:true, pfIssueDate:'', pfTenorDays:'', agencyFee:'',
     tcIssueDate:'', tcFee:'',
     bladexSettlementDate:'', bladexDays:'', bladexMargin:'', legalFees:'0',
@@ -3106,6 +3146,13 @@ function normalise(s){
      that is what it becomes — lifted onto the deal, where the rest of the agent's details already
      were, and only where the deal has not been given one since. */
   for(const t of s.trades){
+    /* A trade keyed before any of this priced its lines on the quantity and showed the columns
+       that were there to show. Both are said out loud now rather than assumed. */
+    if(t.inputs){
+      if(!LINE_BASES[t.inputs.lineBasis]) t.inputs.lineBasis='qty';
+      if(!Array.isArray(t.inputs.itemCols)) t.inputs.itemCols=[...DEFAULT_ITEM_COLS];
+      else t.inputs.itemCols=t.inputs.itemCols.filter(k=>ITEM_COL_SPEC.some(c=>c.key===k));
+    }
     if(t.obligor!==undefined){
       const d=(s.deals||[]).find(x=>x.id===t.dealId);
       if(d && !String(d.agentName||'').trim()) d.agentName=String(t.obligor||'').trim();
@@ -3137,8 +3184,9 @@ function normalise(s){
     for(const v of t.inputs.supplierInvoices){
       if(!v.id) v.id = uuid();
       if(v.invoiceNumber===undefined) v.invoiceNumber='';
-      if(v.name===undefined) v.name='';
-      if(v.jurisdiction===undefined) v.jurisdiction='';
+      /* The supplier and its country were keyed per invoice and are the trade's and the
+         register's now. Anything typed before is left in the file rather than thrown away, but
+         nothing reads it: Trade Info names the supplier, Settings → Suppliers holds where it is. */
       // An invoice stored before it could be itemised keeps its amount as the goods figure and
       // gains an empty breakdown, so it prices to the same number it always did.
       if(!Array.isArray(v.items)) v.items=[];
@@ -3146,6 +3194,7 @@ function normalise(s){
         if(!it.id) it.id = uuid();
         if(it.itemNo===undefined) it.itemNo='';
         if(it.name===undefined) it.name='';
+        if(it.weight===undefined) it.weight='';
         if(it.qty===undefined) it.qty='';
         if(it.unitPrice===undefined) it.unitPrice='';
       }
@@ -4429,7 +4478,7 @@ function tcInvoiceDoc(deal, trade, out, which){
 
   if(wantGoods){
     for(const v of (i.supplierInvoices||[])){
-      const b = invoiceBreakdown(v);
+      const b = invoiceBreakdown(v, lineBasisOf(i));
       const ref = String(v.invoiceNumber||'').trim();
       if(b.itemised) for(const l of b.lines){
         const name = String(l.item.name||'').trim();
@@ -4835,28 +4884,58 @@ const supInvOpen = new Set();
  *  with the first cell focused, so an upload done straight afterwards would leave the old rows on
  *  screen with the new totals under them. The field that held focus is about to be replaced by the
  *  rebuild anyway, so letting it go is what makes the rebuild safe. */
+/* The guard that protects a caret mid-edit must not be able to swallow a row that has gone.
+   Blurring first is usually enough — but the browser restores focus after a confirm() and a
+   click does not always land where it looks like it landed, and a deleted line still on screen
+   is the one outcome that cannot be allowed to wait for the next keystroke. So the rebuild says
+   so, and the guard stands aside for it. */
+let forceInvoiceRebuild = false;
 function rebuildInvoiceList(){
   const ae=document.activeElement, box=$('supInvTable');
   if(ae && box && box.contains(ae) && ae.blur) ae.blur();
-  render();
+  forceInvoiceRebuild=true;
+  try{ render(); } finally{ forceInvoiceRebuild=false; }
 }
 
+/** The line basis and the optional columns, both the trade's. */
+function renderItemCols(t){
+  const bar=$('itemColsBar'); if(!bar) return;
+  if(!t){ bar.innerHTML=''; return; }
+  const locked=LOCKED(t.state), basis=lineBasisOf(t.inputs), cols=itemColsOf(t.inputs);
+  const want = Array.isArray(t.inputs.itemCols) ? t.inputs.itemCols : DEFAULT_ITEM_COLS;
+  const forced = LINE_BASES[basis].field;
+  bar.innerHTML =
+    '<label class="tiny" style="display:flex;align-items:center;gap:6px">Line total from'+
+      '<select class="in" id="lineBasis" style="width:auto;text-align:left"'+(locked?' disabled':'')+'>'+
+      Object.entries(LINE_BASES).map(([k,v])=>'<option value="'+k+'"'+(k===basis?' selected':'')+'>'+
+        esc(v.label)+' \u00d7 price per '+esc(v.per)+'</option>').join('')+
+      '</select></label>'+
+    '<span class="tiny" style="opacity:.75">Columns</span>'+
+    ITEM_COL_SPEC.map(c=>{
+      const on=cols.includes(c.key), pinned=c.key===forced;
+      return '<label class="toggle"'+(pinned?' title="The line total is priced on this, so it stays"':'')+'>'+
+        '<input type="checkbox" data-item-col="'+c.key+'"'+(on?' checked':'')+
+        ((locked||pinned)?' disabled':'')+'><span>'+esc(c.label)+'</span></label>';
+    }).join('')+
+    '<span class="tiny" id="itemColsNote"></span>';
+  /* A column carrying figures can be hidden, and the figures stay — so it says so rather than
+     letting a total be checked against a table that no longer shows what it was made of. */
+  const hiddenWithData=ITEM_COL_SPEC.filter(c=>!cols.includes(c.key)).filter(c=>
+    (t.inputs.supplierInvoices||[]).some(v=>(v.items||[]).some(it=>String(it[c.key]||'').trim())));
+  $('itemColsNote').textContent = hiddenWithData.length
+    ? hiddenWithData.map(c=>c.label).join(' and ')+' hidden, but still keyed on some lines.'
+    : '';
+}
 function renderSupplierInvoices(d,t){
   const box=$('supInvTable'); if(!box) return;
   const locked=!t || LOCKED(t.state), rows=(t&&t.inputs.supplierInvoices)||[];
   const ccy=d.currency, sym=idxFor(ccy).symbol.trim()||ccy;
-  const NCOL=9;
-  const jurCell=v=>{
-    if(locked) return esc((CALENDARS[v.jurisdiction]||{}).name || v.jurisdiction || '—');
-    return '<select class="in" data-sup-id="'+esc(v.id)+'" data-sup-field="jurisdiction" style="min-width:128px">'+
-      '<option value="">— none —</option>'+
-      REGIONS.map(region=>{
-        const codes=ALL_JURISDICTIONS.filter(c=>CALENDARS[c].region===region);
-        if(!codes.length) return '';
-        return '<optgroup label="'+esc(region)+'">'+codes.map(c=>'<option value="'+c+'"'+
-          (c===v.jurisdiction?' selected':'')+'>'+esc(CALENDARS[c].name)+' ('+c+')</option>').join('')+'</optgroup>';
-      }).join('')+'</select>';
-  };
+  /* Who supplied the goods and where they are is the trade's answer and the register's — it was
+     keyed per invoice until both had somewhere better to live, and two places to key one fact is
+     how they come to disagree. */
+  const NCOL=7;
+  const basis=lineBasisOf(t&&t.inputs), B=LINE_BASES[basis];
+  const cols=itemColsOf(t&&t.inputs);
   const txt=(v,field,type,extra)=>locked
     // A locked cell holds no input to show the value, so it writes it out — money separated and to
     // two places, a date the way every other date in the app is written rather than as the ISO the
@@ -4891,9 +4970,13 @@ function renderSupplierInvoices(d,t){
       '<span class="car" aria-hidden="true">&#9656;</span>'+esc(label)+'</button>';
   };
   /* ---- the open row: item lines on the left, the four charges and the build-up on the right ---- */
+  const NITEMCOL = cols.length + 3 + (locked?0:1);
   const itemsTable=(v,b)=>'<div class="items"><table>'+
-    '<thead><tr><th style="width:17%">Item No.</th><th>Item</th><th class="n" style="width:13%">Qty</th>'+
-    '<th class="n" style="width:17%">Price / item ('+esc(sym)+')</th>'+
+    '<thead><tr>'+
+    ITEM_COL_SPEC.filter(c=>cols.includes(c.key)).map(c=>
+      '<th'+(c.n?' class="n"':'')+' style="width:'+c.width+'">'+esc(c.label)+'</th>').join('')+
+    '<th>Item</th>'+
+    '<th class="n" style="width:17%">Price / '+esc(B.per)+' ('+esc(sym)+')</th>'+
     '<th class="n" style="width:18%">Line total</th>'+(locked?'':'<th style="width:26px"></th>')+
     '</tr></thead><tbody>'+
     (b.lines.length ? b.lines.map(l=>{
@@ -4903,16 +4986,21 @@ function renderSupplierInvoices(d,t){
             : (it[field]===''||it[field]==null ? '—' : String(it[field])))
         : '<input type="'+type+'" class="in" data-sup-id="'+esc(v.id)+'" data-sup-item="'+esc(it.id)+
           '" data-sup-field="'+field+'" value="'+esc(supFieldText(field, it[field]))+'"'+(extra||'')+'>';
-      return '<tr><td>'+f('itemNo','text',' placeholder="Supplier\u2019s code"')+'</td>'+
+      const cell={
+        itemNo: ()=>'<td>'+f('itemNo','text',' placeholder="Supplier\u2019s code"')+'</td>',
+        qty:    ()=>'<td class="n">'+f('qty','number',' min="0" step="any" style="text-align:right"')+'</td>',
+        weight: ()=>'<td class="n">'+f('weight','number',' min="0" step="any" style="text-align:right"')+'</td>',
+      };
+      return '<tr>'+cols.map(k=>cell[k]()).join('')+
         '<td>'+f('name','text',' placeholder="What was supplied"')+'</td>'+
-        '<td class="n">'+f('qty','number',' min="0" step="any" style="text-align:right"')+'</td>'+
         '<td class="n">'+f('unitPrice','text',' inputmode="decimal" placeholder="0.00" style="text-align:right"')+'</td>'+
-        '<td class="n"><span class="calc" data-sup-line="'+esc(it.id)+'" title="Qty &times; price per item">—</span></td>'+
+        '<td class="n"><span class="calc" data-sup-line="'+esc(it.id)+'" title="'+
+          esc(B.label+' \u00d7 price per '+B.per)+'">—</span></td>'+
         (locked?'':'<td class="n"><button class="btn sm danger" data-sup-item-remove="'+esc(it.id)+
           '" data-sup-id="'+esc(v.id)+'" title="Remove this item" aria-label="Remove item">&times;</button></td>')+
         '</tr>';
     }).join('')
-     : '<tr><td colspan="'+(locked?5:6)+'" class="tiny">No items on this invoice'+
+     : '<tr><td colspan="'+NITEMCOL+'" class="tiny">No items on this invoice'+
        (locked?'.':' — add one, or upload the detail as a CSV. Until then its Amount stands alone.')+'</td></tr>')+
     '</tbody></table></div>'+
     (locked?'':'<div class="acts">'+
@@ -4944,17 +5032,15 @@ function renderSupplierInvoices(d,t){
   // <select> full of "Dominican Republic (DO)" and a native date input push the amount column off
   // the edge. Fixed shares out what there is.
   box.innerHTML='<colgroup>'+
-      ['12%','17%','12%','13%','7%','11%','12%','12%','4%'].map(w=>'<col style="width:'+w+'">').join('')+
+      ['20%','16%','9%','14%','16%','20%','5%'].map(w=>'<col style="width:'+w+'">').join('')+
     '</colgroup>'+
-    '<thead><tr><th>Invoice #</th><th>Supplier</th><th>Jur.</th><th>Issue</th>'+
+    '<thead><tr><th>Invoice #</th><th>Issue</th>'+
     '<th class="n">Tenor</th><th class="n" style="white-space:nowrap">Payment</th><th>Detail</th>'+
     '<th class="n">Total ('+esc(sym)+')</th><th></th></tr></thead><tbody>'+
     (rows.length ? rows.map(v=>{
-      const b=invoiceBreakdown(v);
+      const b=invoiceBreakdown(v, basis);
       return '<tr'+(supInvOpen.has(String(v.id))?' class="sel"':'')+'>'+
       '<td>'+txt(v,'invoiceNumber','text',' placeholder="INV-0001"')+'</td>'+
-      '<td>'+txt(v,'name','text',' placeholder="Supplier legal name"')+'</td>'+
-      '<td>'+jurCell(v)+'</td>'+
       '<td>'+txt(v,'issueDate','date','')+'</td>'+
       '<td class="n">'+txt(v,'tenorDays','number',' min="1" step="1" style="text-align:right"')+'</td>'+
       '<td class="n" style="white-space:nowrap"><span class="calc" data-sup-pay="'+esc(v.id)+'" title="Issue Date + tenor">—</span></td>'+
@@ -4995,6 +5081,8 @@ const ITEM_COLS = {
             'productname','goods','lineitem','line','concept','particulars','material','sku','part'],
   qty:['qty','qtd','quantity','units','noofunits','unitcount','count','pieces','pcs','volume',
        'cantidad','quantidade'],
+  weight:['weight','weightkg','kg','kgs','kilos','kilograms','netweight','netweightkg','grossweight',
+          'peso','pesokg','pesoneto','massa','mass'],
   unitPrice:['unitprice','priceperitem','priceperunit','pricepereach','price','unitcost','unitrate',
              'unitvalue','rateperunit','preciounitario','valorunitario'],
   lineTotal:['linetotal','lineamount','linevalue','itemtotal','itemamount','totalperitem',
@@ -5102,7 +5190,11 @@ function readItemRow(get){
   else return {kind:'bad', why:(name?'"'+name+'"':'an unnamed line')+' has no price per item and no line total'};
   if(qty.lt(ZERO)||price.lt(ZERO))
     return {kind:'bad', why:(name?'"'+name+'"':'an unnamed line')+' has a negative quantity or price'};
-  return {kind:'item', item:newInvoiceItem({itemNo, name, qty:numStr(qty), unitPrice:numStr(price)}), note};
+  /* The weight is carried but never derived: a line total over a weight would be a price per
+     kilo inferred from a basis the file never said it was using. It is a column or it is blank. */
+  const w=readAmount(get('weight'));
+  return {kind:'item', item:newInvoiceItem({itemNo, name, qty:numStr(qty), unitPrice:numStr(price),
+    weight: isNum(w) ? numStr(D.of(w)) : ''}), note};
 }
 /** Column indices for one alias table, over an already-normalised header row. */
 function colsAt(head, table, extra){
@@ -5280,6 +5372,7 @@ function parseSupplierInvoicesCsv(text){
 /** Derived cells only: safe to run on every keystroke, including while panel 1 has focus. */
 function refreshSupplierCalcs(d,t,o){
   const rows=(t&&t.inputs.supplierInvoices)||[], ccy=d.currency;
+  const basis=lineBasisOf(t&&t.inputs);
   const put=(sel,text,title)=>{
     const el=document.querySelector(sel);
     if(!el) return;
@@ -5287,7 +5380,7 @@ function refreshSupplierCalcs(d,t,o){
     if(title!==undefined) el.title=title;
   };
   for(const v of rows){
-    const id=CSS.escape(String(v.id)), b=invoiceBreakdown(v);
+    const id=CSS.escape(String(v.id)), b=invoiceBreakdown(v, basis);
     put('[data-sup-pay="'+id+'"]',
       isValidDate(v.issueDate) ? fmtShort(dAdd(v.issueDate, Number(v.tenorDays||0))) : '—');
     // Written in place rather than re-rendered: the row it sits in holds the fields being typed.
@@ -5387,7 +5480,7 @@ function renderPricing(d,t,r){
      handlers that rebuild put focus back where it belongs. */
   const ae=document.activeElement;
   const editing = ae && $('supInvTable').contains(ae) && /^(INPUT|SELECT|TEXTAREA)$/.test(ae.tagName);
-  if(!editing) renderSupplierInvoices(d,t);
+  if(forceInvoiceRebuild || !editing){ renderSupplierInvoices(d,t); renderItemCols(t); }
   refreshSupplierCalcs(d,t,r.out);
 
   const cl=findClient(d.clientId);
@@ -6637,7 +6730,7 @@ function procurementOrderDoc(deal, trade, out){
   let goods=ZERO, units=ZERO, anyUnnumbered=false;
 
   for(const v of (i.supplierInvoices||[])){
-    const b=invoiceBreakdown(v), ref=String(v.invoiceNumber||'').trim();
+    const b=invoiceBreakdown(v, lineBasisOf(i)), ref=String(v.invoiceNumber||'').trim();
     if(ref) invoiceRefs.push(ref);
     if(b.itemised) for(const l of b.lines){
       const no=String(l.item.itemNo||'').trim();
@@ -7567,6 +7660,49 @@ function runTests(){
     effectiveInputs(dealOff,{...stubTrade, inputs:{...stubTrade.inputs, pfEnabled:false}}).pfEnabled,
     'false','trade.inputs.pfEnabled');
   T('A new trade carries one', blankTradeInputs().pfEnabled,'true','blankTradeInputs()');
+  /* What a line total is arithmetic on. */
+  {
+    const it={qty:'10', weight:'250', unitPrice:'4'};
+    const inv={items:[newInvoiceItem(it)]};
+    T('Priced per item, the quantity is the measure',
+      invoiceBreakdown(inv,'qty').goods.toFixed(2),'40.00','invoiceBreakdown()');
+    T('Priced per kilo, the weight is',
+      invoiceBreakdown(inv,'weight').goods.toFixed(2),'1000.00','invoiceBreakdown()');
+    T('No basis given is the quantity, as every trade keyed before this was',
+      invoiceBreakdown(inv).goods.toFixed(2),'40.00','invoiceBreakdown()');
+    T('A basis nobody has heard of is the quantity too',
+      invoiceBreakdown(inv,'furlongs').goods.toFixed(2),'40.00','invoiceBreakdown()');
+    T('A new item carries a weight', 'weight' in newInvoiceItem(),'true','newInvoiceItem()');
+    T('A new trade prices on the quantity', blankTradeInputs().lineBasis,'qty','blankTradeInputs()');
+    T('The whole trade follows the basis, not just one invoice', (()=>{
+        const i={...workbookTradeInputs(), lineBasis:'weight',
+          supplierInvoices:[newSupplierInvoice({items:[newInvoiceItem(it)]})]};
+        return supplierTotals(i).goods.toFixed(2);
+      })(),'1000.00','supplierTotals()');
+  }
+  /* Which columns the detail carries, and which it cannot be without. */
+  T('A trade shows the item number and the quantity to begin with',
+    itemColsOf(blankTradeInputs()).join(','),'itemNo,qty','itemColsOf()');
+  T('Hiding a column takes it off', itemColsOf({itemCols:['qty']}).join(','),'qty','itemColsOf()');
+  T('The column the line is priced on cannot be hidden',
+    itemColsOf({itemCols:['itemNo'], lineBasis:'weight'}).join(','),'itemNo,weight','itemColsOf()');
+  T('...and it comes back on its own if it was off',
+    itemColsOf({itemCols:[], lineBasis:'qty'}).join(','),'qty','itemColsOf()');
+  T('A book keyed before any of this prices on the quantity', (()=>{
+      const st=normalise({v:2, curves:{}, clients:defaultClients(), audit:[], deals:[{id:'d1'}],
+        trades:[{id:'t1', dealId:'d1', inputs:{supplierInvoices:[]}}]});
+      const i=st.trades[0].inputs;
+      return i.lineBasis+' · '+i.itemCols.join(',');
+    })(),'qty · itemNo,qty','normalise()');
+  /* The weight rides in on an upload, and is never inferred from a line total. */
+  T('A weight column is read onto the line',
+    parseInvoiceItemsCsv('item,quantity,weight (kg),unit price\nYarn,10,250,4\n')
+      .items[0].weight,'250','parseInvoiceItemsCsv()');
+  T('kg on its own is the same column',
+    parseInvoiceItemsCsv('item,qty,kg,price\nYarn,10,250,4\n').items[0].weight,'250','ITEM_COLS.weight');
+  T('No weight column leaves it blank, not guessed',
+    JSON.stringify(parseInvoiceItemsCsv('item,quantity,unit price\nYarn,10,4\n').items[0].weight),
+    '""','parseInvoiceItemsCsv()');
   /* One obligor, on the deal, and the agent gets a name of its own. */
   T('The obligor is the deal\u2019s, falling back to its name',
     dealObligor({obligorName:'Gas Natural SA'})+' / '+dealObligor({clientName:'Cantu Store'}),
@@ -8769,6 +8905,32 @@ $('btnSupInvAdd').onclick=()=>{
 /* One delegated listener for everything the invoice list's buttons do. The table is rebuilt on
    every keystroke, so nothing here may be bound to an element — the disclosure, the item buttons
    and the row delete all come and go with the rebuild. */
+$('itemColsBar').addEventListener('change', e=>{
+  const t=currentTrade(); if(!t) return;
+  if(LOCKED(t.state)){ renderItemCols(t); return alert('This trade is '+t.state+' — its inputs are locked.'); }
+  const sel=e.target.closest('#lineBasis');
+  if(sel){
+    const was=lineBasisOf(t.inputs);
+    if(sel.value===was) return;
+    t.inputs.lineBasis = LINE_BASES[sel.value] ? sel.value : 'qty';
+    /* It is arithmetic on every line, so every figure the trade prices off moves with it. */
+    voidPricedSnapshot(t);
+    audit('trade',t.id,'UPDATE','lineBasis', LINE_BASES[was].label, LINE_BASES[t.inputs.lineBasis].label,
+      'Line totals now priced per '+LINE_BASES[t.inputs.lineBasis].per);
+    rebuildInvoiceList();
+    return;
+  }
+  const box=e.target.closest('input[data-item-col]');
+  if(box){
+    const key=box.dataset.itemCol;
+    const want=new Set(Array.isArray(t.inputs.itemCols)?t.inputs.itemCols:DEFAULT_ITEM_COLS);
+    if(box.checked) want.add(key); else want.delete(key);
+    t.inputs.itemCols=ITEM_COL_SPEC.map(c=>c.key).filter(k=>want.has(k));
+    audit('trade',t.id,'UPDATE','itemCols', null, t.inputs.itemCols.join(', ')||'(none)',
+      'Which columns the item detail carries — display only');
+    rebuildInvoiceList();
+  }
+});
 $('supInvTable').addEventListener('click', e=>{
   const t=currentTrade();
   const list=(t&&t.inputs.supplierInvoices)||[];
@@ -8827,9 +8989,9 @@ $('supInvTable').addEventListener('click', e=>{
   const tpl=e.target.closest('button[data-sup-item-template]');
   if(tpl){
     download('invoice-item-detail-template.csv',
-      'item no,item,quantity,unit price,vat,freight,insurance,other costs\n'+
-      'YRN-40-1,Cotton yarn 40/1,10000,72.50,38000,4200,1800,0\n'+
-      'DYE-A17,Dye lot A-17,500,180,,,,\n', 'text/csv');
+      'item no,item,quantity,weight (kg),unit price,vat,freight,insurance,other costs\n'+
+      'YRN-40-1,Cotton yarn 40/1,10000,24500,72.50,38000,4200,1800,0\n'+
+      'DYE-A17,Dye lot A-17,500,,180,,,,\n', 'text/csv');
     return;
   }
   const b=e.target.closest('button[data-sup-remove]'); if(!b) return;
@@ -8837,16 +8999,16 @@ $('supInvTable').addEventListener('click', e=>{
   const n=list.findIndex(x=>String(x.id)===b.dataset.supRemove);
   if(n<0) return;
   if(list.length===1) return alert('A trade needs at least one supplier invoice. Edit this one instead.');
-  const v=list[n], bk=invoiceBreakdown(v);
-  const filled=[v.name,v.issueDate,v.amount].some(x=>String(x||'').trim()) || bk.total.gt(ZERO);
-  if(filled && !confirm('Remove supplier invoice '+(n+1)+(v.name?' ('+v.name+')':'')+'?\n\n'+
+  const v=list[n], bk=invoiceBreakdown(v, lineBasisOf(t.inputs));
+  const filled=[v.invoiceNumber,v.issueDate,v.amount].some(x=>String(x||'').trim()) || bk.total.gt(ZERO);
+  if(filled && !confirm('Remove supplier invoice '+(n+1)+(v.invoiceNumber?' ('+v.invoiceNumber+')':'')+'?\n\n'+
     (bk.itemCount ? 'Its '+bk.itemCount+' item line(s) go with it. ' : '')+
     'The total every block prices off will fall by '+money(bk.total, currentDeal().currency)+'.')) return;
   list.splice(n,1);
   supInvOpen.delete(String(v.id));
   voidPricedSnapshot(t);
   audit('trade',t.id,'DELETE','supplierInvoice#'+(n+1),
-    [v.invoiceNumber,v.name,v.jurisdiction,v.issueDate,v.tenorDays+'d',bk.total.toFixed(2),
+    [v.invoiceNumber,v.issueDate,v.tenorDays+'d',bk.total.toFixed(2),
      bk.itemCount?bk.itemCount+' item(s)':''].filter(Boolean).join(' · '), null);
   rebuildInvoiceList();
 });
@@ -8968,10 +9130,10 @@ $('supInvTable').addEventListener('change', e=>{
 $('btnSupInvTemplate').onclick=()=>download('supplier-invoices-template.csv',
   /* Both shapes in one file, because both are accepted and the difference is not obvious: INV-0001
      is two rows of detail that add up to one invoice, INV-0002 is a flat amount with no detail. */
-  'invoice number,supplier name,jurisdiction,issue date,tenor days,item,quantity,unit price,vat,freight,insurance,other costs,amount\n'+
-  'INV-0001,Cantu Supplier,BR,2026-06-16,30,Cotton yarn 40/1,10000,72.50,38000,4200,1800,0,\n'+
-  'INV-0001,Cantu Supplier,BR,2026-06-16,30,Dye lot A-17,500,180,,,,,\n'+
-  'INV-0002,Segunda Fornecedora Ltda,Brazil,2026-06-02,75,,,,,,,,250000\n','text/csv');
+  'invoice number,issue date,tenor days,item,quantity,weight (kg),unit price,vat,freight,insurance,other costs,amount\n'+
+  'INV-0001,2026-06-16,30,Cotton yarn 40/1,10000,24500,72.50,38000,4200,1800,0,\n'+
+  'INV-0001,2026-06-16,30,Dye lot A-17,500,,180,,,,,\n'+
+  'INV-0002,2026-06-02,75,,,,,,,,,250000\n','text/csv');
 $('supInvImportFile').onchange=e=>{
   const f=e.target.files[0]; if(!f) return;
   const t=currentTrade(), d=currentDeal();
@@ -10684,8 +10846,12 @@ const TENOR_COLS = {'on':1,'o/n':1,'overnight':1,'1d':1,'1day':1,
   '12m':360,'12mo':360,'12month':360,'1y':360,'1yr':360,'1year':360,'360d':360,'360days':360};
 const DATE_COLS = ['date','businessdate','curvedate','valuedate','effectivedate','asof','asofdate'];
 const MONTH_ABBR = {jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+/* A trailing parenthetical on a header names the unit, not the column: a file writes
+   "Weight (kg)" and "Unit Price (USD)" for what this app calls weight and unit price, and a
+   header that has to be spelt without its unit to be recognised is a header nobody will spell. */
 const normHead = h => String(h==null?'':h).replace(/^\uFEFF/,'').trim()
-  .replace(/^"|"$/g,'').toLowerCase().replace(/[\s_\-.]+/g,'');
+  .replace(/^"|"$/g,'').toLowerCase().replace(/\([^)]*\)\s*$/,'')
+  .replace(/[\s_\-.]+/g,'');
 /** y/m/d → ISO, or null when the calendar rejects it (30 Feb, month 13, a bad month name). */
 function isoFromParts(y, m, d){
   if(!(y>0) || !(m>=1 && m<=12) || !(d>=1 && d<=31)) return null;

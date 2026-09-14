@@ -425,7 +425,32 @@ has its trades' answers lifted onto the deal.
 
 Which **supplier** a trade buys from is picked on the trade, from the ones the deal names and no
 others. A trade that names one answers for its own documents; one that does not falls back to the
-deal's list.
+deal's list. Supplier invoices carry neither a supplier nor a jurisdiction of their own — both were
+keyed per invoice until each had somewhere better to live, and two places to key one fact is how
+they come to disagree.
+
+## The item detail: columns, and what a line total is arithmetic on
+
+A supplier invoice's item lines carry an **Item No.**, a **Quantity**, a **Weight (kg)**, the item
+itself, a unit price and the line total. Which of the first three a trade shows is the trade's own
+answer — goods sold by the piece have no weight worth a column, goods sold by the tonne have no
+part number — and the toggles sit above the invoice list.
+
+**What the line total is arithmetic on is also the trade's answer.** *Line total from* offers
+`Quantity × price per item` or `Weight (kg) × price per kg`; the price column's header follows it,
+and so does every figure the trade prices off, up to `Cantu!B10`. It defaults to the quantity,
+which is what every trade keyed before this was doing. Changing it voids the rate snapshot, as any
+change to a priced input does.
+
+The column a line is priced on cannot be hidden — a line total per kilo with the weight off screen
+is a figure nobody can check — so choosing a basis pins its column on. A column hidden while some
+line still carries a value says so rather than letting a total be checked against a table that no
+longer shows what it was made of. Hiding is display only: nothing is dropped and nothing is
+recomputed.
+
+Uploads carry the weight too: `weight (kg)`, `kg`, `peso` and the rest of the usual spellings. It
+is read as a column or left blank — never inferred from a line total, which would be a price per
+kilo derived from a basis the file never said it was using.
 
 ## Client list
 
