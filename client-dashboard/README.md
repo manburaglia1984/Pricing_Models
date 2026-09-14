@@ -1,66 +1,111 @@
 # Americas Origination Desk
 
-A client-tracking dashboard for the Americas Originate to Distribute book: Global Pipeline
-by stage, revenue against budget, contact recency, open tasks and recent news, in one page.
+A client-tracking dashboard for the Americas Originate to Distribute book: Global Pipeline by
+stage, 2026 revenue against forecast, contact recency and documentation state, in one page.
 
-Open `index.html` in any browser. Single self-contained file — no server, no build step.
-It is also published as a private Artifact for phone access.
-
----
-
-## Status: running on sample data
-
-The `monday.com` connector is currently in `needs_reconnect` state, so the dashboard has
-never seen the real Global Pipeline board. Every figure in `index.html` today is
-illustrative and is flagged as such by a banner that cannot be dismissed.
-
-To connect it: **claude.ai → Settings → Connectors → monday.com → reconnect**, then ask for
-a refresh. The dashboard code does not change — only the data block does.
+**It holds no data.** Every figure is read live from monday.com with the viewer's own credentials
+when the page loads, and again when they press Refresh. There is no snapshot to go stale and
+nothing confidential is stored in the file.
 
 ---
 
-## How a refresh works
+## How it works
 
-All data lives in exactly one place: a JSON block inside the page.
+The page is published as a private Artifact and declares the `mcp` runtime capability:
 
-```html
-<script type="application/json" id="pipeline-data"> … </script>
+```
+capabilities: { mcp: { servers: [ { server: "monday.com", tools: ["get_board_items_page"] } ] } }
 ```
 
-A refresh replaces that block and nothing else. It is raw text inside a `<script>` element,
-so the JSON must use literal characters (`&`, not `&amp;`) — HTML entities there render
-literally. Setting `"source"` to anything other than `"sample"` swaps the sample banner for
-a staleness check, which warns on the page once the snapshot is more than 7 days old.
+At load it calls `claude.use("mcp")` and then issues two `get_board_items_page` calls — one for
+deals, one for 2026 trade subitems — joining them on `parent_item_id`. Calls run with the viewer's
+monday.com credentials; the page never sees a token.
+
+Because of this it **only works when opened from claude.ai**. Opened as a local file or from a
+share it has no `window.claude`, and says so rather than appearing broken.
+
+### Refresh
+
+The Refresh button re-issues both calls with `{cache: {refresh: true}}`, bypassing the cache. On
+load the calls use a 2-minute `staleTime`, so reopening the page is instant but never more than two
+minutes behind. The two dots in the header show each source independently, with the time its data
+was actually produced (`result.cache.storedAt`, not the clock).
+
+If one of the two calls fails the other still renders — a revenue failure leaves pipeline, stage and
+contact figures live, with a banner naming what is missing.
 
 ---
 
-## monday.com column mapping
+## monday.com mapping
 
-Board: **Global Pipeline**. Each item is one client. Map board columns to these JSON fields.
+Workspace **SilverBirchFinance** (`9845168`).
 
-| JSON field | monday.com column | Notes |
+| What | Board | Id |
 |---|---|---|
-| `name` | Item name | |
-| `id` | Item ID or a `Deal ref` text column | Shown in the client drawer |
-| `stage` | `Stage` (status) | Must be one of `Live`, `Implementation`, `Validation`, `Discovery` — anything else is dropped |
-| `product` | `Product` (dropdown) | `PRM`, `Inventory Finance`, `Securitisation-as-a-Service` |
-| `sector`, `country` | `Sector`, `Country` | |
-| `facility` | `Facility limit` (numbers) | Absolute currency units, not millions |
-| `revenueYtd` | `Revenue YTD` (numbers) | Fee revenue recognised this FY |
-| `budgetFy` | `Budget FY` (numbers) | Full-year budget |
-| `vehicle` | `Vehicle` | `AFL`, `SB TradeCo`, `Tradeteq / Luxembourg SPV` |
-| `instrument` | `Instrument` | `IPU`, `Title transfer`, `Note issuance` |
-| `docs` | `Documentation status` (long text) | RTA / PUA / IAA state |
-| `nextMilestone` | `Next milestone` (long text) | |
-| `tasks[]` | Subitems, or a linked Tasks board | `title`, `owner`, `due` (ISO date) |
+| Deals | Global Pipeline | `18299408349` |
+| Trades (revenue) | Subitems of Global Pipeline | `18299408615` |
+| Group | Americas | `group_mkx6kssm` |
 
-Amounts are absolute (`180000000`, not `180`). Dates are ISO `YYYY-MM-DD`.
+Deals are filtered to the Americas group and to `Status` label ids `[0, 1, 2, 8]`.
 
-**If a column is renamed on the board, change the mapping here — not the page.**
+> **The status filter matches on label *id*, not index.** Live = `1`, Implementation = `0`,
+> Validation = `8`, Discovery = `2`. Passing indices silently returns Prospect and drops Validation.
 
-### Stage tolerances
+### Deal columns
 
-Contact tolerance is per stage, set in `stages[].toleranceDays` and independent of monday.com:
+| JSON field | Column | Id |
+|---|---|---|
+| `client` | Client (board relation → Global Database) | `board_relation_mkx6fyx4` |
+| `solution` | Solution | `dropdown_mkxjs6dq` |
+| `subSol` | Sub Solution | `dropdown_mkxj8y3q` |
+| `o2d` | O2D | `multiple_person_mkx6qm8z` |
+| `stage` | Status | `color_mkx6xtq7` |
+| `country` | Country | `country_mkx6d0kq` |
+| `lastContact` | Date Last Contact | `date_mkxjfs3x` |
+| `days` | Days since last contact | `formula_mkxsfck2` |
+| `calls` | Number of calls | `numeric_mm3tx17x` |
+| `facility` | Facility Amount, falling back to Indicative Facility Size | `numeric_mm07p198`, `numeric_mm3mn6g7` |
+| `indRev` | Indicative Revenue | `numeric_mm3mr3bc` |
+| `legalDoc` | Legal Documentation | `color_mkxvykz6` |
+| `termSheet` | Term Sheet | `color_mm2p96gr` |
+| `afl` | AFL Deal? | `dropdown_mkx6a8g2` |
+
+### Revenue columns (subitems, filtered to trade dates in 2026)
+
+| JSON field | Column | Id |
+|---|---|---|
+| `booked` | Total Revenue (Booked) 2026 | `formula_mkzd8c7v` |
+| `forecast` | Total Revenue Estimated 2026 | `formula_mkxft3xn` |
+| — | Exp Trade Date (drives the monthly chart) | `date_mkwx4xga` |
+
+### Two traps in the monday MCP responses
+
+1. **Mirror (`lookup_*`) columns are unreadable.** They return the literal string
+   `"Column value type is not supported"`. That rules out the roll-ups on the deal row —
+   `Total Revenue (Booked) 2026 Top`, `Total Revenue (Estimated) 2026 Top`, `Budget vs. Exec 2026` —
+   which is why the page sums the underlying subitem formulas itself. Formula columns *do* resolve.
+2. **An empty dropdown returns an object, not null** — `{"ids":[],"changed_at":"…"}`. Anything not a
+   non-empty string is treated as absent.
+
+---
+
+## Revenue: read this before trusting the number
+
+The board has no absolute per-deal budget column. What it has is **Booked** (revenue with a linked
+row on the Trades board) and **Estimated/Forecast** for 2026. The dashboard shows booked against
+forecast, and the pace marker is *forecast dated on or before today* — not a straight-line share of
+the year, because this book's forecast is heavily back-loaded.
+
+**Booked revenue only appears once a trade subitem is linked to the Trades board.** Several Live
+deals carry forecast with zero booked. That is either genuinely unbilled or a missing trade link,
+and the dashboard cannot tell which — so any deal in that state gets a "Worth checking" note in its
+drawer rather than being presented as a zero-revenue client.
+
+---
+
+## Stage tolerances
+
+Set in the page, not on the board:
 
 | Stage | Tolerance | Rationale |
 |---|---|---|
@@ -69,57 +114,30 @@ Contact tolerance is per stage, set in `stages[].toleranceDays` and independent 
 | Validation | 21 days | Structuring work, slower cadence |
 | Discovery | 30 days | Early, low intensity |
 
-Past tolerance is **Watch**; past double tolerance is **Overdue**. "Current" is deliberately
-left uncoloured, so only what needs attention reads as coloured on the page.
-
----
-
-## Last contact — the rule that matters
-
-`lastContact` counts **only** two things from Outlook:
-
-1. mail **you sent** to a client domain, and
-2. calendar meetings **you attended** with a client attendee.
-
-Inbound mail, auto-replies, out-of-office bounces, newsletters and distribution-list traffic
-are excluded on purpose. A dashboard that counts an OOO bounce as a client touch will tell you
-a relationship is warm days before it goes cold — the exact failure this page exists to prevent.
-The subject line and counterparty are shown in the drawer so the signal can be checked, not
-just trusted.
-
-Graph scopes in use: `Mail.Read`, `Calendars.Read`.
-
----
-
-## News
-
-A per-client web search over a domain whitelist (company IR pages, named trade press, named
-market wires), restricted to the last 90 days. Generic name searches on mid-market private
-corporates return mostly noise — name collisions and press-release spam — so the whitelist is
-the point, not an optimisation. Clients with no hits show "Nothing picked up in the last 90 days"
-rather than filler.
+Past tolerance is **Watch**, past double is **Overdue**, and a deal with no `Date Last Contact` is
+ranked Overdue until the column is filled. "Current" is deliberately uncoloured so only what needs
+attention reads as coloured.
 
 ---
 
 ## Design notes
 
-- **Stage is ordinal, not categorical.** It is a funnel, so it uses a single-hue ramp from light
-  (Discovery) to dark (Live): darker literally means closer to revenue. Colouring stages as four
-  unrelated hues would throw away that ordering.
-- **Attainment alone flatters you.** `62.0% of budget` in September sounds healthy until you see
-  the calendar is 70.4% through the year. Every revenue figure on the page — headline meter,
-  cumulative chart, per-client row — carries the pace marker beside it.
-- **Attention ranking** is contact gap ÷ stage tolerance, weighted by budget at risk. A 39-day gap
-  on a $1.85mm Live account outranks a 76-day gap on a $400k Discovery name, which is why the
-  list is not simply sorted by days.
+- **Stage is ordinal, not categorical** — a single teal ramp from light (Discovery) to dark (Live):
+  darker means closer to revenue. Four unrelated hues would throw that ordering away.
+- **Attention ranking** is contact gap ÷ stage tolerance, weighted by 2026 forecast at risk, so a
+  large Live account outranks a small Discovery name at the same number of days.
 - Palette validated for colour-vision deficiency and contrast in both themes.
+- Every connector error branches on its own code — `needs_reauth`, `server_not_connected`,
+  `selection_required`, `blocked_by_policy` and the rest each get the copy that names the fix.
+  Only `retryable` errors auto-retry, once.
 
 ---
 
 ## Not built, deliberately
 
-**Editable tasks and write-back to monday.com.** Monday stays the system of record. A dashboard
-you can tick things off in becomes a second source of truth that silently disagrees with the
-board, and you find out which one was wrong at the worst moment. If write-back is wanted later
-it should go through the monday.com API so the board stays authoritative — a decision worth
-taking after the read-only version has been used for a few weeks.
+- **Write-back to monday.com.** The board stays the system of record. A dashboard you can edit
+  becomes a second source of truth that silently disagrees with the board.
+- **Outlook last-contact.** Superseded: the board's own `Date Last Contact` column is maintained by
+  the deal owner and is more reliable than inferring contact from mail traffic.
+- **Client news.** A published page cannot run a web search. It needs either an agent writing news
+  into the artifact's `db` store on a schedule, or a scheduled refresh that rewrites the page.
