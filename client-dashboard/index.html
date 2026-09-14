@@ -1,0 +1,1242 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Americas Origination Desk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@600&display=swap">
+<style>
+/* ============================================================
+   Americas Origination Desk — Silver Birch Finance
+   Tokens: complete light palette on bare :root; dark redefined
+   under both prefers-color-scheme and [data-theme="dark"].
+   Stage ramp + status palette validated (dataviz six checks).
+   ============================================================ */
+:root{
+  color-scheme: light;
+
+  --bg:#e6ecea;
+  --surface:#f4f6f5;
+  --surface-2:#eaefed;
+  --surface-3:#dfe6e4;
+  --line:#d3dcd9;
+  --line-2:#bcc9c5;
+  --ink:#0f1614;
+  --ink-2:#485653;
+  --ink-3:#76827f;
+
+  /* stage ordinal ramp — Discovery (light) → Live (dark) */
+  --st-1:#7cb0aa;   /* Discovery      */
+  --st-2:#4f9089;   /* Validation     */
+  --st-3:#2d6d67;   /* Implementation */
+  --st-4:#145049;   /* Live           */
+
+  --accent:#145049;
+  --accent-ink:#ffffff;
+  --accent-soft:#dde9e7;
+
+  /* reserved status — contact gap only, never a series colour */
+  --watch:#b07d12;
+  --watch-soft:#f4ecd9;
+  --overdue:#b3243a;
+  --overdue-soft:#f7e2e5;
+
+  --grid:#dbe3e1;
+  --track:#dde4e2;
+
+  --serif:"IBM Plex Serif",Georgia,"Times New Roman",serif;
+  --sans:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+
+  --shadow:0 1px 2px rgba(10,30,26,.05),0 2px 6px rgba(10,30,26,.04);
+  --radius:6px;
+}
+
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --bg:#0c1211;
+    --surface:#121917;
+    --surface-2:#18211f;
+    --surface-3:#1f2927;
+    --line:#243130;
+    --line-2:#33423f;
+    --ink:#e8efec;
+    --ink-2:#a2b0ac;
+    --ink-3:#74827e;
+
+    --st-1:#3f7a74;
+    --st-2:#559b93;
+    --st-3:#74b8b0;
+    --st-4:#9ad4cc;
+
+    --accent:#9ad4cc;
+    --accent-ink:#0c1211;
+    --accent-soft:#172b28;
+
+    --watch:#bf8a26;
+    --watch-soft:#2a2210;
+    --overdue:#cf4e68;
+    --overdue-soft:#2c151a;
+
+    --grid:#202b29;
+    --track:#212c2a;
+
+    --shadow:0 1px 2px rgba(0,0,0,.45),0 2px 6px rgba(0,0,0,.3);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --bg:#0c1211;
+  --surface:#121917;
+  --surface-2:#18211f;
+  --surface-3:#1f2927;
+  --line:#243130;
+  --line-2:#33423f;
+  --ink:#e8efec;
+  --ink-2:#a2b0ac;
+  --ink-3:#74827e;
+
+  --st-1:#3f7a74;
+  --st-2:#559b93;
+  --st-3:#74b8b0;
+  --st-4:#9ad4cc;
+
+  --accent:#9ad4cc;
+  --accent-ink:#0c1211;
+  --accent-soft:#172b28;
+
+  --watch:#bf8a26;
+  --watch-soft:#2a2210;
+  --overdue:#cf4e68;
+  --overdue-soft:#2c151a;
+
+  --grid:#202b29;
+  --track:#212c2a;
+
+  --shadow:0 1px 2px rgba(0,0,0,.45),0 2px 6px rgba(0,0,0,.3);
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font:14px/1.5 var(--sans);
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3{margin:0;font-weight:600;letter-spacing:-.01em;text-wrap:balance}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:3px}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+
+/* ---------- shell ---------- */
+.wrap{max-width:1280px;margin:0 auto;padding-inline:20px;padding-block:0}
+
+/* ---------- header ---------- */
+.top{background:var(--surface);border-bottom:1px solid var(--line)}
+.top-in{display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap;padding-block:16px 14px}
+.mark{display:flex;flex-direction:column;gap:1px;min-width:0}
+.mark b{font-family:var(--serif);font-weight:600;font-size:21px;letter-spacing:-.02em;line-height:1.1}
+.mark span{font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3);font-weight:500}
+.top-meta{margin-left:auto;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.asof{display:flex;flex-direction:column;align-items:flex-end;gap:1px;line-height:1.35}
+.asof em{font-style:normal;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);font-weight:500}
+.asof b{font-weight:500;font-size:13px}
+.ghost{background:transparent;border:1px solid var(--line-2);border-radius:var(--radius);padding:6px 11px;font-size:12.5px;font-weight:500;color:var(--ink-2)}
+.ghost:hover{border-color:var(--accent);color:var(--accent)}
+
+/* ---------- provenance strip ---------- */
+.prov{background:var(--watch-soft);border-bottom:1px solid var(--line)}
+.prov-in{display:flex;gap:12px;align-items:baseline;padding-block:9px;flex-wrap:wrap}
+.prov-tag{font-family:var(--mono);font-size:10.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--watch);white-space:nowrap}
+.prov p{margin:0;font-size:12.5px;color:var(--ink-2);max-width:88ch}
+
+/* ---------- KPI band ---------- */
+.kpi{display:grid;grid-template-columns:repeat(4,1fr);background:var(--surface);
+     border:1px solid var(--line);border-radius:var(--radius);margin-top:22px;overflow:hidden}
+.kpi > div{padding:15px 18px 16px;border-left:1px solid var(--line);min-width:0}
+.kpi > div:first-child{border-left:0}
+.kpi-l{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);font-weight:500;margin-bottom:7px}
+.kpi-v{font-family:var(--serif);font-weight:600;font-size:30px;line-height:1;letter-spacing:-.02em;
+       font-variant-numeric:tabular-nums;word-break:break-word}
+.kpi-v small{font-size:16px;font-weight:600;color:var(--ink-3);margin-left:1px}
+.kpi-s{font-size:12px;color:var(--ink-2);margin-top:7px;line-height:1.4}
+.kpi-s .neg{color:var(--overdue);font-weight:600}
+.kpi-s .pos{color:var(--accent);font-weight:600}
+
+/* ---------- panels ---------- */
+.grid2{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:16px;margin-top:16px;align-items:start}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);min-width:0}
+.panel-h{display:flex;align-items:baseline;gap:10px;padding:14px 18px 12px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.panel-h h2{font-size:14px;letter-spacing:-.005em}
+.panel-h p{margin:0;font-size:11.5px;color:var(--ink-3);line-height:1.4}
+.panel-h .cnt{margin-left:auto;font-family:var(--mono);font-size:11.5px;color:var(--ink-3);white-space:nowrap}
+.panel-b{padding:14px 18px 17px}
+
+/* ---------- attention list ---------- */
+.att{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.att li{display:grid;grid-template-columns:3px minmax(0,1fr) auto;gap:0 13px;align-items:center;
+        padding:11px 0;border-top:1px solid var(--line)}
+.att li:first-child{border-top:0;padding-top:2px}
+.att .stripe{align-self:stretch;border-radius:2px;min-height:34px}
+.att .stripe.overdue{background:var(--overdue)}
+.att .stripe.watch{background:var(--watch)}
+.att-main{min-width:0}
+.att-name{font-weight:600;font-size:13.5px;letter-spacing:-.005em;display:block;
+          overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.att-why{font-size:11.5px;color:var(--ink-2);margin-top:2px;line-height:1.4}
+.att-why b{font-family:var(--mono);font-weight:500;color:var(--ink)}
+.att-act{text-align:right;white-space:nowrap}
+.att-days{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:19px;font-weight:500;line-height:1.05;display:block}
+.att-days.overdue{color:var(--overdue)}
+.att-days.watch{color:var(--watch)}
+.att-days small{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);display:block;
+                font-family:var(--sans);font-weight:500;margin-top:2px}
+.att-open{margin-top:8px;font-size:12px;color:var(--ink-3)}
+
+/* ---------- meter ---------- */
+.meter-fig{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;margin-bottom:12px}
+.meter-fig b{font-family:var(--serif);font-weight:600;font-size:27px;line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.meter-fig span{font-size:12.5px;color:var(--ink-2)}
+.meter{position:relative;height:30px;background:var(--track);border-radius:3px;overflow:hidden}
+.meter-fill{position:absolute;inset-block:0;left:0;background:var(--st-4);border-radius:3px 0 0 3px}
+.meter-pace{position:absolute;inset-block:-4px;width:2px;background:var(--ink);border-radius:1px}
+.meter-key{display:flex;gap:16px;flex-wrap:wrap;margin-top:9px;font-size:11.5px;color:var(--ink-2)}
+.meter-key i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;vertical-align:baseline}
+.meter-key .k-act i{background:var(--st-4)}
+.meter-key .k-pace i{width:2px;height:11px;border-radius:1px;background:var(--ink);margin-right:8px;margin-left:3px}
+.meter-key .k-bud i{background:var(--track);border:1px solid var(--line-2)}
+
+/* ---------- funnel ---------- */
+.fun{display:flex;flex-direction:column;gap:9px;margin-top:4px}
+.fun-row{display:grid;grid-template-columns:96px minmax(0,1fr) auto;gap:11px;align-items:center}
+.fun-lab{font-size:12px;font-weight:500;color:var(--ink-2);white-space:nowrap;
+         overflow:hidden;text-overflow:ellipsis}
+.fun-track{height:17px;background:var(--surface-3);border-radius:3px;overflow:hidden}
+.fun-bar{height:100%;border-radius:3px}
+.fun-val{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:12px;white-space:nowrap;color:var(--ink)}
+.fun-val small{color:var(--ink-3);font-size:11px;margin-left:7px;font-family:var(--sans)}
+
+/* ---------- chart ---------- */
+.chart-wrap{overflow-x:auto}
+.chart{display:block;width:100%;min-width:430px;height:auto}
+.chart .gl{stroke:var(--grid);stroke-width:1}
+.chart .ax{stroke:var(--line-2);stroke-width:1}
+.chart text{font-family:var(--mono);font-size:10px;fill:var(--ink-3);font-variant-numeric:tabular-nums}
+.chart text.lab{font-family:var(--sans);font-size:10.5px;font-weight:600}
+.chart .act-line{fill:none;stroke:var(--st-4);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.chart .act-area{fill:var(--accent-soft);stroke:none}
+.chart .bud-line{fill:none;stroke:var(--ink-3);stroke-width:2;stroke-dasharray:5 4;stroke-linecap:round}
+.chart .dot{stroke:var(--surface);stroke-width:2}
+
+/* ---------- controls ---------- */
+.ctrls{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin:22px 0 11px}
+.ctrls h2{font-size:14px;margin-right:4px}
+.seg{display:flex;border:1px solid var(--line-2);border-radius:var(--radius);overflow:hidden;background:var(--surface)}
+.seg button{border:0;background:transparent;padding:6px 11px;font-size:12.5px;font-weight:500;color:var(--ink-2);
+            border-left:1px solid var(--line);white-space:nowrap}
+.seg button:first-child{border-left:0}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.srch{flex:1;min-width:150px;max-width:260px;margin-left:auto}
+.srch input{width:100%;padding:6px 10px;font:inherit;font-size:12.5px;color:var(--ink);
+            background:var(--surface);border:1px solid var(--line-2);border-radius:var(--radius)}
+.srch input::placeholder{color:var(--ink-3)}
+.srch input:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:var(--accent)}
+
+/* ---------- table ---------- */
+.tbl-wrap{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow-x:auto}
+table{width:100%;min-width:880px;border-collapse:collapse}
+thead th{position:sticky;top:0;background:var(--surface-2);text-align:left;font-size:10.5px;letter-spacing:.09em;
+         text-transform:uppercase;color:var(--ink-3);font-weight:600;padding:10px 12px;white-space:nowrap;
+         border-bottom:1px solid var(--line);z-index:2}
+thead th.sortable{cursor:pointer;user-select:none}
+thead th.sortable:hover{color:var(--accent)}
+thead th .arr{opacity:.45;margin-left:3px;font-family:var(--mono)}
+thead th[aria-sort] .arr{opacity:1;color:var(--accent)}
+th.r,td.r{text-align:right}
+tbody tr{border-bottom:1px solid var(--line);cursor:pointer}
+tbody tr:last-child{border-bottom:0}
+tbody tr:hover{background:var(--surface-2)}
+tbody tr[aria-selected="true"]{background:var(--accent-soft)}
+tbody td{padding:10px 12px;vertical-align:middle}
+.c-name{font-weight:600;font-size:13px;letter-spacing:-.005em;white-space:nowrap}
+.c-sub{font-size:11px;color:var(--ink-3);font-weight:400;margin-top:1px;white-space:nowrap}
+.stage-pill{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:500;white-space:nowrap}
+.stage-dot{width:9px;height:9px;border-radius:2px;flex:none}
+.pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;
+      letter-spacing:.02em;white-space:nowrap;border:1px solid transparent}
+.pill.overdue{background:var(--overdue-soft);color:var(--overdue);border-color:var(--overdue)}
+.pill.watch{background:var(--watch-soft);color:var(--watch);border-color:var(--watch)}
+.pill.current{background:transparent;color:var(--ink-3);border-color:var(--line-2)}
+.minimeter{display:flex;align-items:center;gap:8px;justify-content:flex-end}
+.minimeter .mm{position:relative;width:62px;height:7px;background:var(--track);border-radius:2px;overflow:hidden;flex:none}
+.minimeter .mm i{position:absolute;inset-block:0;left:0;background:var(--st-4);border-radius:2px}
+.minimeter .mm u{position:absolute;inset-block:-2px;width:1.5px;background:var(--ink);text-decoration:none}
+.minimeter .pct{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:12px;min-width:42px;text-align:right}
+.empty{padding:34px 18px;text-align:center;color:var(--ink-3);font-size:13px}
+
+/* ---------- drawer ---------- */
+.scrim{position:fixed;inset:0;background:rgba(8,20,18,.42);z-index:50;opacity:0;pointer-events:none;transition:opacity .18s}
+.scrim.on{opacity:1;pointer-events:auto}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(470px,100%);background:var(--surface);z-index:51;
+        border-left:1px solid var(--line);display:flex;flex-direction:column;
+        transform:translateX(100%);transition:transform .2s ease;box-shadow:var(--shadow)}
+.drawer.on{transform:translateX(0)}
+.dr-h{padding:17px 20px 14px;border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:flex-start}
+.dr-h h3{font-size:16px;letter-spacing:-.015em}
+.dr-h .c-sub{white-space:normal}
+.dr-x{margin-left:auto;background:transparent;border:1px solid var(--line-2);border-radius:var(--radius);
+      width:28px;height:28px;line-height:1;font-size:15px;color:var(--ink-2);flex:none;padding:0}
+.dr-x:hover{border-color:var(--accent);color:var(--accent)}
+.dr-b{overflow-y:auto;padding:0 20px 26px}
+.dr-sec{padding-top:17px}
+.dr-sec > h4{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);
+             font-weight:600;margin:0 0 9px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+.dl{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:12.5px;margin:0}
+.dl dt{color:var(--ink-3);white-space:nowrap}
+.dl dd{margin:0;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.dl dd.txt{font-family:var(--sans)}
+.contact{background:var(--surface-2);border:1px solid var(--line);border-radius:var(--radius);padding:11px 13px}
+.contact .ch{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
+.contact .sub{font-size:13px;font-weight:500;margin-top:4px;line-height:1.4}
+.contact .wh{font-size:11.5px;color:var(--ink-2);margin-top:5px;font-family:var(--mono)}
+.tasks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.tasks li{display:grid;grid-template-columns:1fr auto;gap:4px 12px;font-size:12.5px;
+          padding-bottom:8px;border-bottom:1px solid var(--line)}
+.tasks li:last-child{border-bottom:0;padding-bottom:0}
+.tasks .t-due{font-family:var(--mono);font-size:11.5px;color:var(--ink-3);white-space:nowrap;text-align:right}
+.tasks .t-due.late{color:var(--overdue);font-weight:600}
+.news{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:11px}
+.news li{font-size:12.5px;line-height:1.45}
+.news .n-date{font-family:var(--mono);font-size:11px;color:var(--ink-3);display:block;margin-bottom:2px}
+.news .n-src{color:var(--ink-3);font-size:11.5px}
+.note{font-size:11.5px;color:var(--ink-3);line-height:1.45;margin:9px 0 0}
+
+/* ---------- footer ---------- */
+footer{margin:26px 0 34px;padding-top:15px;border-top:1px solid var(--line);
+       font-size:11.5px;color:var(--ink-3);line-height:1.55}
+footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
+            padding:1px 5px;border-radius:3px;color:var(--ink-2)}
+
+@media (max-width:900px){
+  .kpi{grid-template-columns:1fr 1fr}
+  .kpi > div:nth-child(3){border-left:0}
+  .kpi > div:nth-child(n+3){border-top:1px solid var(--line)}
+  .grid2{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:560px){
+  .wrap{padding-inline:16px}
+  .kpi{grid-template-columns:1fr}
+  .kpi > div{border-left:0}
+  .kpi > div + div{border-top:1px solid var(--line)}
+  .kpi-v{font-size:26px}
+  .srch{margin-left:0;max-width:none}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{transition-duration:.01ms !important;animation-duration:.01ms !important}
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap top-in">
+    <div class="mark">
+      <b>Silver Birch</b>
+      <span>Americas &middot; Originate to Distribute</span>
+    </div>
+    <div class="top-meta">
+      <div class="asof">
+        <em>Global Pipeline as of</em>
+        <b class="num" id="asof-date">—</b>
+      </div>
+      <button class="ghost" id="theme-btn" type="button" aria-label="Switch colour theme">Theme</button>
+    </div>
+  </div>
+</header>
+
+<div class="prov" id="prov-strip">
+  <div class="wrap prov-in">
+    <span class="prov-tag">Sample data</span>
+    <p id="prov-text">Not connected to Global Pipeline. The monday.com connector needs reauthorising before this shows real clients, revenue or tasks. Figures below are illustrative and are not Silver Birch numbers.</p>
+  </div>
+</div>
+
+<main class="wrap">
+
+  <section class="kpi" aria-label="Year to date summary">
+    <div>
+      <div class="kpi-l">Revenue YTD</div>
+      <div class="kpi-v" id="k-rev">—</div>
+      <div class="kpi-s" id="k-rev-sub">&nbsp;</div>
+    </div>
+    <div>
+      <div class="kpi-l">Against pace</div>
+      <div class="kpi-v" id="k-pace">—</div>
+      <div class="kpi-s" id="k-pace-sub">&nbsp;</div>
+    </div>
+    <div>
+      <div class="kpi-l">Facilities in pipeline</div>
+      <div class="kpi-v" id="k-fac">—</div>
+      <div class="kpi-s" id="k-fac-sub">&nbsp;</div>
+    </div>
+    <div>
+      <div class="kpi-l">Clients needing contact</div>
+      <div class="kpi-v" id="k-att">—</div>
+      <div class="kpi-s" id="k-att-sub">&nbsp;</div>
+    </div>
+  </section>
+
+  <div class="grid2">
+
+    <section class="panel" aria-labelledby="att-h">
+      <div class="panel-h">
+        <div>
+          <h2 id="att-h">Needs you now</h2>
+          <p>Ranked by contact gap against the stage&rsquo;s own tolerance, weighted by revenue at risk.</p>
+        </div>
+        <span class="cnt" id="att-count"></span>
+      </div>
+      <div class="panel-b">
+        <ul class="att" id="att-list"></ul>
+        <p class="att-open" id="att-clear" hidden>Every client is inside its contact tolerance.</p>
+      </div>
+    </section>
+
+    <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
+
+      <section class="panel" aria-labelledby="rev-h">
+        <div class="panel-h">
+          <div>
+            <h2 id="rev-h">Revenue against budget</h2>
+            <p>Fee revenue recognised this financial year, against the marker for where the calendar sits.</p>
+          </div>
+        </div>
+        <div class="panel-b">
+          <div class="meter-fig">
+            <b class="num" id="m-att">—</b>
+            <span id="m-sub"></span>
+          </div>
+          <div class="meter" id="meter" role="img" aria-label="Revenue attainment against budget">
+            <div class="meter-fill" id="meter-fill"></div>
+            <div class="meter-pace" id="meter-pace"></div>
+          </div>
+          <div class="meter-key">
+            <span class="k-act"><i></i>Recognised</span>
+            <span class="k-pace"><i></i>Calendar pace</span>
+            <span class="k-bud"><i></i>Full-year budget</span>
+          </div>
+          <div class="chart-wrap" style="margin-top:16px">
+            <svg class="chart" id="chart" viewBox="0 0 520 190" role="img" aria-labelledby="chart-t"></svg>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="fun-h">
+        <div class="panel-h">
+          <div>
+            <h2 id="fun-h">Global Pipeline by stage</h2>
+            <p>Facility limits under discussion. Darker is closer to revenue.</p>
+          </div>
+        </div>
+        <div class="panel-b">
+          <div class="fun" id="funnel"></div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <div class="ctrls">
+    <h2>Clients</h2>
+    <div class="seg" id="stage-seg" role="group" aria-label="Filter by stage"></div>
+    <div class="srch">
+      <label for="q" class="visually-hidden" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Search clients</label>
+      <input id="q" type="search" placeholder="Search client, sector or product" autocomplete="off">
+    </div>
+  </div>
+
+  <div class="tbl-wrap">
+    <table id="tbl">
+      <thead>
+        <tr>
+          <th class="sortable" data-k="name" scope="col">Client<span class="arr"></span></th>
+          <th class="sortable" data-k="stageRank" scope="col">Stage<span class="arr"></span></th>
+          <th class="sortable" data-k="product" scope="col">Product<span class="arr"></span></th>
+          <th class="sortable r" data-k="facility" scope="col">Facility<span class="arr"></span></th>
+          <th class="sortable r" data-k="attain" scope="col">Revenue vs budget<span class="arr"></span></th>
+          <th class="sortable r" data-k="days" scope="col">Last contact<span class="arr"></span></th>
+          <th class="sortable r" data-k="openTasks" scope="col">Open<span class="arr"></span></th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <div class="empty" id="tbl-empty" hidden>No clients match that search.</div>
+  </div>
+
+  <footer>
+    <strong style="color:var(--ink-2)">Sources.</strong>
+    Pipeline, stage, facility, revenue and budget from the <em>Global Pipeline</em> board on monday.com.
+    Last contact from Outlook &mdash; mail you sent and calendar meetings you attended only, so auto-replies
+    and distribution-list traffic do not register as a touch. News from a per-client web search over a
+    domain whitelist.
+    Refresh replaces the <code>&lt;script id="pipeline-data"&gt;</code> block in this file; nothing else changes.
+    See <code>client-dashboard/README.md</code> for the monday.com column mapping.
+  </footer>
+
+</main>
+
+<div class="scrim" id="scrim" hidden></div>
+<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="dr-name" hidden>
+  <div class="dr-h">
+    <div style="min-width:0">
+      <h3 id="dr-name">—</h3>
+      <div class="c-sub" id="dr-sub"></div>
+    </div>
+    <button class="dr-x" id="dr-close" type="button" aria-label="Close client detail">&times;</button>
+  </div>
+  <div class="dr-b" id="dr-body"></div>
+</aside>
+
+<script type="application/json" id="pipeline-data">
+{
+  "asOf": "2026-09-14",
+  "source": "sample",
+  "owner": "Manuel Buraglia",
+  "region": "Americas",
+  "fy": 2026,
+  "fyStart": "2026-01-01",
+  "fyEnd": "2026-12-31",
+  "currency": "USD",
+  "stages": [
+    { "key": "Discovery",      "rank": 1, "toleranceDays": 30 },
+    { "key": "Validation",     "rank": 2, "toleranceDays": 21 },
+    { "key": "Implementation", "rank": 3, "toleranceDays": 10 },
+    { "key": "Live",           "rank": 4, "toleranceDays": 14 }
+  ],
+  "monthly": [
+    { "m": "Jan", "doy": 31,  "actual": 620000 },
+    { "m": "Feb", "doy": 59,  "actual": 1325000 },
+    { "m": "Mar", "doy": 90,  "actual": 2135000 },
+    { "m": "Apr", "doy": 120, "actual": 3075000 },
+    { "m": "May", "doy": 151, "actual": 4090000 },
+    { "m": "Jun", "doy": 181, "actual": 5210000 },
+    { "m": "Jul", "doy": 212, "actual": 6415000 },
+    { "m": "Aug", "doy": 243, "actual": 7705000 },
+    { "m": "Sep", "doy": 257, "actual": 8433000 }
+  ],
+  "clients": [
+    {
+      "id": "SB-AM-0104",
+      "name": "Meridian Foods Corp",
+      "sector": "Food & beverage",
+      "country": "United States",
+      "product": "PRM",
+      "stage": "Live",
+      "facility": 180000000,
+      "revenueYtd": 2180000,
+      "budgetFy": 2400000,
+      "vehicle": "AFL",
+      "instrument": "IPU",
+      "docs": "RTA and PUA executed Mar 2026; IAA in place",
+      "nextMilestone": "Limit increase to $220mm — credit committee 02 Oct",
+      "lastContact": { "date": "2026-09-09", "channel": "meeting", "subject": "Q4 volume forecast and limit uplift", "with": "Treasurer, Meridian Foods" },
+      "tasks": [
+        { "title": "Circulate revised Offer File template for the two new obligors", "due": "2026-09-18", "owner": "Manuel Buraglia" },
+        { "title": "Confirm Servicer reporting cutover date with operations", "due": "2026-09-25", "owner": "Operations" }
+      ],
+      "news": [
+        { "date": "2026-09-03", "headline": "Meridian Foods raises full-year guidance on North American volume growth", "source": "Company release" }
+      ]
+    },
+    {
+      "id": "SB-AM-0087",
+      "name": "Calyx Health Systems",
+      "sector": "Healthcare services",
+      "country": "United States",
+      "product": "PRM",
+      "stage": "Live",
+      "facility": 125000000,
+      "revenueYtd": 1720000,
+      "budgetFy": 1850000,
+      "vehicle": "AFL",
+      "instrument": "IPU",
+      "docs": "RTA and PUA executed Nov 2025; IAA in place",
+      "nextMilestone": "Annual facility review — papers due 15 Oct",
+      "lastContact": { "date": "2026-08-06", "channel": "email-sent", "subject": "August Offer File — confirmation of settlement", "with": "Head of Treasury Operations" },
+      "tasks": [
+        { "title": "Annual review pack — pull 12-month dilution and DSO history", "due": "2026-09-05", "owner": "Manuel Buraglia" },
+        { "title": "Re-paper IPU schedule for the two divested subsidiaries", "due": "2026-09-30", "owner": "Legal" }
+      ],
+      "news": [
+        { "date": "2026-08-28", "headline": "Calyx Health completes divestment of its two Midwest outpatient networks", "source": "Trade press" },
+        { "date": "2026-07-14", "headline": "Calyx Health names new group CFO from outside the sector", "source": "Company release" }
+      ]
+    },
+    {
+      "id": "SB-AM-0112",
+      "name": "Northbridge Steel",
+      "sector": "Metals & mining",
+      "country": "United States",
+      "product": "Inventory Finance",
+      "stage": "Live",
+      "facility": 95000000,
+      "revenueYtd": 1452000,
+      "budgetFy": 1600000,
+      "vehicle": "SB TradeCo",
+      "instrument": "Title transfer",
+      "docs": "Master purchase and sale agreements executed Feb 2026",
+      "nextMilestone": "Second TradeCo line for the Gary WIP facility — 20 Oct",
+      "lastContact": { "date": "2026-08-28", "channel": "email-sent", "subject": "September coil pricing and extended terms", "with": "VP Procurement" },
+      "tasks": [
+        { "title": "Agree hot-rolled coil valuation basis for Q4 with risk", "due": "2026-09-12", "owner": "Manuel Buraglia" },
+        { "title": "Site visit to Gary warehouse before the WIP line goes live", "due": "2026-10-09", "owner": "Manuel Buraglia" }
+      ],
+      "news": [
+        { "date": "2026-09-08", "headline": "US steel import quotas tightened for Q4, lifting domestic coil prices", "source": "Market wire" }
+      ]
+    },
+    {
+      "id": "SB-AM-0131",
+      "name": "Talara Energy",
+      "sector": "Energy",
+      "country": "Colombia",
+      "product": "PRM",
+      "stage": "Implementation",
+      "facility": 110000000,
+      "revenueYtd": 902000,
+      "budgetFy": 1450000,
+      "vehicle": "AFL",
+      "instrument": "IPU",
+      "docs": "RTA signed Jul 2026; PUA in final form; IAA pending",
+      "nextMilestone": "First Offer File — target 29 Sep",
+      "lastContact": { "date": "2026-09-11", "channel": "meeting", "subject": "Implementation walkthrough — Servicer file formats", "with": "CFO and Head of Credit" },
+      "tasks": [
+        { "title": "Close out IAA comments from counsel", "due": "2026-09-19", "owner": "Legal" },
+        { "title": "Test Offer File ingestion with the client's ERP extract", "due": "2026-09-22", "owner": "Operations" },
+        { "title": "Confirm obligor concentration limits for the first three Offer Files", "due": "2026-09-26", "owner": "Manuel Buraglia" }
+      ],
+      "news": [
+        { "date": "2026-09-01", "headline": "Talara Energy signs five-year offtake with a European refiner", "source": "Company release" }
+      ]
+    },
+    {
+      "id": "SB-AM-0128",
+      "name": "Vantage Aerospace",
+      "sector": "Aerospace & defence",
+      "country": "United States",
+      "product": "Inventory Finance",
+      "stage": "Implementation",
+      "facility": 70000000,
+      "revenueYtd": 560000,
+      "budgetFy": 1100000,
+      "vehicle": "SB TradeCo",
+      "instrument": "Title transfer",
+      "docs": "Purchase and sale agreements in negotiation",
+      "nextMilestone": "First titanium purchase through SB TradeCo — slipped from Sep",
+      "lastContact": { "date": "2026-08-19", "channel": "email-sent", "subject": "Revised structure — consignment vs title transfer", "with": "Group Treasurer" },
+      "tasks": [
+        { "title": "Resolve export-control treatment of TradeCo-held titanium stock", "due": "2026-09-04", "owner": "Legal" },
+        { "title": "Re-run pricing at the lower assumed turn rate", "due": "2026-09-10", "owner": "Manuel Buraglia" }
+      ],
+      "news": [
+        { "date": "2026-09-05", "headline": "Vantage Aerospace flags raw material shortages in its Q3 update", "source": "Company release" }
+      ]
+    },
+    {
+      "id": "SB-AM-0119",
+      "name": "Corriente Agro",
+      "sector": "Agriculture",
+      "country": "Brazil",
+      "product": "PRM",
+      "stage": "Implementation",
+      "facility": 60000000,
+      "revenueYtd": 690000,
+      "budgetFy": 900000,
+      "vehicle": "AFL",
+      "instrument": "IPU",
+      "docs": "RTA and PUA executed Jun 2026; IAA in place",
+      "nextMilestone": "Scale to full obligor list — Nov",
+      "lastContact": { "date": "2026-09-02", "channel": "email-sent", "subject": "Offer File cadence — moving to weekly", "with": "Finance Director" },
+      "tasks": [
+        { "title": "Add the four Argentine obligors to the approved schedule", "due": "2026-09-30", "owner": "Credit" }
+      ],
+      "news": []
+    },
+    {
+      "id": "SB-AM-0142",
+      "name": "Halcyon Chemicals",
+      "sector": "Chemicals",
+      "country": "United States",
+      "product": "Securitisation-as-a-Service",
+      "stage": "Validation",
+      "facility": 150000000,
+      "revenueYtd": 355000,
+      "budgetFy": 850000,
+      "vehicle": "Tradeteq / Luxembourg SPV",
+      "instrument": "Note issuance",
+      "docs": "Structuring term sheet agreed; note documentation not started",
+      "nextMilestone": "Investor sounding on the first note tranche — early Oct",
+      "lastContact": { "date": "2026-09-08", "channel": "meeting", "subject": "Note structure and rating approach", "with": "Treasurer and Group Controller" },
+      "tasks": [
+        { "title": "Draft the asset eligibility schedule for the Luxembourg SPV", "due": "2026-09-24", "owner": "Structuring" },
+        { "title": "Line up two anchor investors before the Oct sounding", "due": "2026-09-29", "owner": "Manuel Buraglia" }
+      ],
+      "news": [
+        { "date": "2026-08-30", "headline": "Halcyon Chemicals announces $400m capacity expansion on the Gulf Coast", "source": "Company release" }
+      ]
+    },
+    {
+      "id": "SB-AM-0136",
+      "name": "Pike & Rowan Industrial",
+      "sector": "Industrial distribution",
+      "country": "United States",
+      "product": "Inventory Finance",
+      "stage": "Validation",
+      "facility": 45000000,
+      "revenueYtd": 196000,
+      "budgetFy": 700000,
+      "vehicle": "SB TradeCo",
+      "instrument": "Title transfer",
+      "docs": "Indicative terms issued Jun 2026; no response since",
+      "nextMilestone": "None scheduled — needs re-engagement",
+      "lastContact": { "date": "2026-07-22", "channel": "email-sent", "subject": "Following up on the indicative terms", "with": "CFO" },
+      "tasks": [
+        { "title": "Decide whether to keep this in Validation or move to dormant", "due": "2026-08-29", "owner": "Manuel Buraglia" }
+      ],
+      "news": [
+        { "date": "2026-09-10", "headline": "Pike & Rowan acquires a regional fastener distributor for $90m", "source": "Trade press" }
+      ]
+    },
+    {
+      "id": "SB-AM-0139",
+      "name": "Solvent Bay Pharma",
+      "sector": "Pharmaceuticals",
+      "country": "United States",
+      "product": "PRM",
+      "stage": "Validation",
+      "facility": 80000000,
+      "revenueYtd": 268000,
+      "budgetFy": 650000,
+      "vehicle": "AFL",
+      "instrument": "IPU",
+      "docs": "RTA in first draft with client counsel",
+      "nextMilestone": "Credit approval on the top five obligors — 08 Oct",
+      "lastContact": { "date": "2026-08-21", "channel": "meeting", "subject": "Obligor review and IPU mechanics", "with": "Assistant Treasurer" },
+      "tasks": [
+        { "title": "Chase counsel on RTA mark-up — two weeks outstanding", "due": "2026-09-08", "owner": "Legal" },
+        { "title": "Model the wholesaler concentration under stress", "due": "2026-09-23", "owner": "Credit" }
+      ],
+      "news": []
+    },
+    {
+      "id": "SB-AM-0147",
+      "name": "Andes Copper Partners",
+      "sector": "Metals & mining",
+      "country": "Chile",
+      "product": "Inventory Finance",
+      "stage": "Validation",
+      "facility": 55000000,
+      "revenueYtd": 110000,
+      "budgetFy": 600000,
+      "vehicle": "SB TradeCo",
+      "instrument": "Title transfer",
+      "docs": "Structure agreed in principle; documentation not started",
+      "nextMilestone": "Cathode valuation methodology sign-off — 30 Sep",
+      "lastContact": { "date": "2026-09-01", "channel": "email-sent", "subject": "Cathode valuation and hedging basis", "with": "Commercial Director" },
+      "tasks": [
+        { "title": "Agree the LME reference and haircut with risk", "due": "2026-09-30", "owner": "Risk" }
+      ],
+      "news": [
+        { "date": "2026-09-11", "headline": "Copper holds above multi-year highs as Chilean supply stays tight", "source": "Market wire" }
+      ]
+    },
+    {
+      "id": "SB-AM-0151",
+      "name": "Brightline Logistics",
+      "sector": "Transport & logistics",
+      "country": "United States",
+      "product": "PRM",
+      "stage": "Discovery",
+      "facility": 40000000,
+      "revenueYtd": 0,
+      "budgetFy": 450000,
+      "vehicle": "AFL",
+      "instrument": "IPU",
+      "docs": "NDA executed Aug 2026",
+      "nextMilestone": "Structure workshop with treasury — 24 Sep",
+      "lastContact": { "date": "2026-08-27", "channel": "meeting", "subject": "Introductory call — working capital priorities", "with": "VP Finance" },
+      "tasks": [
+        { "title": "Send the PRM overview deck and an indicative pricing range", "due": "2026-09-19", "owner": "Manuel Buraglia" }
+      ],
+      "news": []
+    },
+    {
+      "id": "SB-AM-0149",
+      "name": "Kestrel Semiconductor",
+      "sector": "Technology hardware",
+      "country": "United States",
+      "product": "Inventory Finance",
+      "stage": "Discovery",
+      "facility": 65000000,
+      "revenueYtd": 0,
+      "budgetFy": 400000,
+      "vehicle": "SB TradeCo",
+      "instrument": "Title transfer",
+      "docs": "NDA executed May 2026",
+      "nextMilestone": "None scheduled — no reply since June",
+      "lastContact": { "date": "2026-06-30", "channel": "email-sent", "subject": "Wafer inventory structure — following up", "with": "Director of Treasury" },
+      "tasks": [
+        { "title": "Decide whether to route this through the channel partner instead", "due": "2026-08-14", "owner": "Manuel Buraglia" }
+      ],
+      "news": [
+        { "date": "2026-09-09", "headline": "Kestrel Semiconductor commits $1.2bn to a new Arizona fabrication plant", "source": "Company release" }
+      ]
+    },
+    {
+      "id": "SB-AM-0153",
+      "name": "Rio Verde Pulp & Paper",
+      "sector": "Paper & packaging",
+      "country": "Brazil",
+      "product": "PRM",
+      "stage": "Discovery",
+      "facility": 35000000,
+      "revenueYtd": 0,
+      "budgetFy": 350000,
+      "vehicle": "AFL",
+      "instrument": "IPU",
+      "docs": "NDA in circulation",
+      "nextMilestone": "Return the executed NDA — chasing",
+      "lastContact": { "date": "2026-08-12", "channel": "email-sent", "subject": "NDA for signature", "with": "Group Treasurer" },
+      "tasks": [
+        { "title": "Chase the executed NDA", "due": "2026-09-02", "owner": "Manuel Buraglia" }
+      ],
+      "news": []
+    },
+    {
+      "id": "SB-AM-0155",
+      "name": "Atwater Grid Solutions",
+      "sector": "Utilities & infrastructure",
+      "country": "United States",
+      "product": "Securitisation-as-a-Service",
+      "stage": "Discovery",
+      "facility": 90000000,
+      "revenueYtd": 0,
+      "budgetFy": 300000,
+      "vehicle": "Tradeteq / Luxembourg SPV",
+      "instrument": "Note issuance",
+      "docs": "Initial discussions only",
+      "nextMilestone": "Feasibility session on note issuance — 07 Oct",
+      "lastContact": { "date": "2026-09-04", "channel": "meeting", "subject": "Whether the receivables book can be noted", "with": "Head of Structured Finance" },
+      "tasks": [
+        { "title": "Confirm with Tradeteq that the asset class is in scope", "due": "2026-09-26", "owner": "Structuring" }
+      ],
+      "news": []
+    }
+  ]
+}
+</script>
+
+<script>
+(function () {
+  "use strict";
+
+  var DATA = JSON.parse(document.getElementById("pipeline-data").textContent);
+  var $ = function (id) { return document.getElementById(id); };
+
+  /* ---------- theme ---------- */
+  var store = {
+    get: function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set: function (k, v) { try { localStorage.setItem(k, v); } catch (e) { /* private mode */ } }
+  };
+  var saved = store.get("sb-desk-theme");
+  if (saved === "dark" || saved === "light") document.documentElement.setAttribute("data-theme", saved);
+  $("theme-btn").addEventListener("click", function () {
+    var cur = document.documentElement.getAttribute("data-theme");
+    if (!cur) cur = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    var next = cur === "dark" ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", next);
+    store.set("sb-desk-theme", next);
+  });
+
+  /* ---------- dates & numbers ---------- */
+  function parseDate(s) {
+    var p = String(s).split("-");
+    return Date.UTC(+p[0], +p[1] - 1, +p[2]);
+  }
+  var now = new Date();
+  var TODAY = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  var DAY = 86400000;
+  function daysSince(s) { return Math.round((TODAY - parseDate(s)) / DAY); }
+
+  var MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  function fmtDate(s) {
+    var d = new Date(parseDate(s));
+    return String(d.getUTCDate()).padStart(2, "0") + " " + MON[d.getUTCMonth()] + " " + d.getUTCFullYear();
+  }
+  function trimZeros(s) { return s.replace(/\.00$/, "").replace(/(\.\d)0$/, "$1"); }
+  function fmtM(v) {
+    var sign = v < 0 ? "−" : "";
+    var a = Math.abs(v);
+    if (a >= 1e9) return sign + "$" + (a / 1e9).toFixed(2) + "bn";
+    if (a >= 1e6) return sign + "$" + trimZeros((a / 1e6).toFixed(2)) + "mm";
+    if (a >= 1e3) return sign + "$" + Math.round(a / 1e3) + "k";
+    return sign + "$" + a;
+  }
+  function pct(x) { return (x * 100).toFixed(1) + "%"; }
+  function plural(n, one, many) { return n + " " + (n === 1 ? one : many); }
+
+  /* ---------- derive ---------- */
+  var STAGE = {};
+  DATA.stages.forEach(function (s) { STAGE[s.key] = s; });
+  var STAGE_VAR = { Discovery: "--st-1", Validation: "--st-2", Implementation: "--st-3", Live: "--st-4" };
+  function stageColor(k) {
+    return getComputedStyle(document.documentElement).getPropertyValue(STAGE_VAR[k] || "--st-1").trim();
+  }
+
+  var yearStart = parseDate(DATA.fyStart);
+  var yearEnd = parseDate(DATA.fyEnd);
+  var yearDays = Math.round((yearEnd - yearStart) / DAY) + 1;
+  var elapsedDays = Math.min(yearDays, Math.max(0, Math.round((parseDate(DATA.asOf) - yearStart) / DAY) + 1));
+  var yearFrac = elapsedDays / yearDays;
+
+  var CLIENTS = DATA.clients.map(function (c) {
+    var st = STAGE[c.stage] || { rank: 0, toleranceDays: 30 };
+    var days = daysSince(c.lastContact.date);
+    var ratio = days / st.toleranceDays;
+    var status = ratio > 2 ? "overdue" : (ratio > 1 ? "watch" : "current");
+    var tasks = (c.tasks || []).map(function (t) {
+      return { title: t.title, owner: t.owner, due: t.due, late: parseDate(t.due) < TODAY };
+    });
+    var attain = c.budgetFy > 0 ? c.revenueYtd / c.budgetFy : 0;
+    return Object.assign({}, c, {
+      stageRank: st.rank,
+      tolerance: st.toleranceDays,
+      days: days,
+      ratio: ratio,
+      status: status,
+      attain: attain,
+      paceGap: c.revenueYtd - c.budgetFy * yearFrac,
+      tasksD: tasks,
+      openTasks: tasks.length,
+      lateTasks: tasks.filter(function (t) { return t.late; }).length
+    });
+  });
+
+  var totBudget = CLIENTS.reduce(function (a, c) { return a + c.budgetFy; }, 0);
+  var totRev = CLIENTS.reduce(function (a, c) { return a + c.revenueYtd; }, 0);
+  var totFac = CLIENTS.reduce(function (a, c) { return a + c.facility; }, 0);
+  var paceTarget = totBudget * yearFrac;
+  var paceGap = totRev - paceTarget;
+  var attainAll = totBudget > 0 ? totRev / totBudget : 0;
+  var maxBudget = Math.max.apply(null, CLIENTS.map(function (c) { return c.budgetFy; }));
+
+  var needsContact = CLIENTS.filter(function (c) { return c.status !== "current"; });
+  var nOverdue = CLIENTS.filter(function (c) { return c.status === "overdue"; }).length;
+  var nWatch = CLIENTS.filter(function (c) { return c.status === "watch"; }).length;
+
+  /* ---------- provenance ---------- */
+  $("asof-date").textContent = fmtDate(DATA.asOf);
+  if (DATA.source !== "sample") {
+    var stale = daysSince(DATA.asOf);
+    var strip = $("prov-strip");
+    if (stale > 7) {
+      strip.querySelector(".prov-tag").textContent = "Stale";
+      $("prov-text").textContent = "This snapshot is " + plural(stale, "day", "days") +
+        " old. Contact gaps below are measured against today, so they are current, but stage, revenue and tasks are not. Ask for a refresh.";
+    } else {
+      strip.hidden = true;
+    }
+  }
+
+  /* ---------- KPI band ---------- */
+  $("k-rev").innerHTML = fmtM(totRev) + ' <small>/ ' + fmtM(totBudget) + "</small>";
+  $("k-rev-sub").textContent = pct(attainAll) + " of full-year budget recognised";
+
+  $("k-pace").textContent = (paceGap < 0 ? "−" : "+") + fmtM(Math.abs(paceGap)).replace("$", "$");
+  $("k-pace-sub").innerHTML = (paceGap < 0
+    ? '<span class="neg">Behind</span> the ' + fmtM(paceTarget) + " the calendar implies"
+    : '<span class="pos">Ahead of</span> the ' + fmtM(paceTarget) + " the calendar implies") +
+    " (" + pct(yearFrac) + " of FY" + String(DATA.fy).slice(-2) + " elapsed)";
+
+  $("k-fac").textContent = fmtM(totFac);
+  $("k-fac-sub").textContent = CLIENTS.length + " clients across four stages";
+
+  $("k-att").textContent = String(needsContact.length);
+  $("k-att-sub").innerHTML = nOverdue > 0
+    ? '<span class="neg">' + nOverdue + " overdue</span>, " + nWatch + " on watch"
+    : nWatch + " on watch, none overdue";
+
+  /* ---------- revenue meter ---------- */
+  $("m-att").textContent = pct(attainAll);
+  $("m-sub").textContent = "of " + fmtM(totBudget) + " budget · calendar is " + pct(yearFrac) + " through the year";
+  $("meter-fill").style.width = Math.min(100, attainAll * 100) + "%";
+  $("meter-pace").style.left = "calc(" + Math.min(100, yearFrac * 100) + "% - 1px)";
+  $("meter").setAttribute("aria-label",
+    "Revenue " + fmtM(totRev) + " of " + fmtM(totBudget) + " budget, " + pct(attainAll) +
+    ". Calendar pace marker at " + pct(yearFrac) + ".");
+
+  /* ---------- cumulative chart ---------- */
+  (function drawChart() {
+    var svg = $("chart");
+    var W = 560, H = 190, L = 44, R = 112, T = 16, B = 26;
+    var pw = W - L - R, ph = H - T - B, y1 = H - B;
+    var pts = DATA.monthly;
+    var n = pts.length;
+    var yMax = 10e6;
+    var X = function (i) { return L + (n === 1 ? 0 : (i / (n - 1)) * pw); };
+    var Y = function (v) { return y1 - Math.min(1, v / yMax) * ph; };
+
+    var actual = pts.map(function (p, i) { return [X(i), Y(p.actual)]; });
+    var budget = pts.map(function (p, i) { return [X(i), Y(totBudget * (p.doy / yearDays))]; });
+    var line = function (a) { return a.map(function (p, i) { return (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1); }).join(" "); };
+
+    var s = "";
+    [0, 2.5e6, 5e6, 7.5e6, 10e6].forEach(function (v) {
+      var y = Y(v).toFixed(1);
+      s += '<line class="' + (v === 0 ? "ax" : "gl") + '" x1="' + L + '" y1="' + y + '" x2="' + (L + pw) + '" y2="' + y + '"></line>';
+      s += '<text x="' + (L - 8) + '" y="' + (Y(v) + 3.5).toFixed(1) + '" text-anchor="end">' + (v === 0 ? "0" : trimZeros((v / 1e6).toFixed(2))) + "</text>";
+    });
+    pts.forEach(function (p, i) {
+      s += '<text x="' + X(i).toFixed(1) + '" y="' + (y1 + 15) + '" text-anchor="middle">' + p.m + "</text>";
+    });
+
+    s += '<path class="act-area" d="' + line(actual) + " L" + X(n - 1).toFixed(1) + " " + y1 + " L" + L + " " + y1 + ' Z"></path>';
+    s += '<path class="bud-line" d="' + line(budget) + '"></path>';
+    s += '<path class="act-line" d="' + line(actual) + '"></path>';
+
+    var la = actual[n - 1], lb = budget[n - 1];
+    s += '<circle class="dot" cx="' + lb[0].toFixed(1) + '" cy="' + lb[1].toFixed(1) + '" r="4" fill="var(--ink-3)"></circle>';
+    s += '<circle class="dot" cx="' + la[0].toFixed(1) + '" cy="' + la[1].toFixed(1) + '" r="4.5" fill="var(--st-4)"></circle>';
+    s += '<text class="lab" x="' + (lb[0] + 8).toFixed(1) + '" y="' + (lb[1] - 3).toFixed(1) + '" fill="var(--ink-2)">Pace ' + trimZeros(((totBudget * yearFrac) / 1e6).toFixed(2)) + "</text>";
+    s += '<text class="lab" x="' + (la[0] + 8).toFixed(1) + '" y="' + (la[1] + 13).toFixed(1) + '" fill="var(--st-4)">Actual ' + trimZeros((totRev / 1e6).toFixed(2)) + "</text>";
+    s += '<text x="' + L + '" y="10" text-anchor="start">$mm cumulative</text>';
+
+    svg.innerHTML = '<title id="chart-t">Cumulative fee revenue against budget pace, January to ' +
+      pts[n - 1].m + " " + DATA.fy + ". Actual " + fmtM(totRev) + " against a pace of " + fmtM(totBudget * yearFrac) + ".</title>" + s;
+  })();
+
+  /* ---------- stage funnel ---------- */
+  (function drawFunnel() {
+    var order = DATA.stages.slice().sort(function (a, b) { return b.rank - a.rank; });
+    var rows = order.map(function (s) {
+      var inStage = CLIENTS.filter(function (c) { return c.stage === s.key; });
+      return {
+        key: s.key,
+        n: inStage.length,
+        fac: inStage.reduce(function (a, c) { return a + c.facility; }, 0)
+      };
+    });
+    var max = Math.max.apply(null, rows.map(function (r) { return r.fac; })) || 1;
+    $("funnel").innerHTML = rows.map(function (r) {
+      return '<div class="fun-row">' +
+        '<span class="fun-lab">' + r.key + "</span>" +
+        '<div class="fun-track"><div class="fun-bar" style="width:' + ((r.fac / max) * 100).toFixed(1) +
+        "%;background:var(" + STAGE_VAR[r.key] + ')"></div></div>' +
+        '<span class="fun-val">' + fmtM(r.fac) + "<small>" + r.n + " clients</small></span>" +
+        "</div>";
+    }).join("");
+  })();
+
+  /* ---------- attention list ---------- */
+  (function drawAttention() {
+    var ranked = needsContact.slice().sort(function (a, b) {
+      var sa = a.ratio * (0.6 + 0.4 * (a.budgetFy / maxBudget));
+      var sb = b.ratio * (0.6 + 0.4 * (b.budgetFy / maxBudget));
+      return sb - sa;
+    }).slice(0, 6);
+
+    $("att-count").textContent = needsContact.length + " of " + CLIENTS.length;
+    if (!ranked.length) { $("att-clear").hidden = false; return; }
+
+    $("att-list").innerHTML = ranked.map(function (c) {
+      var why = c.stage + " · tolerance " + c.tolerance + "d · " + fmtM(c.budgetFy) + " budget";
+      if (c.lateTasks) why += " · <b>" + plural(c.lateTasks, "task", "tasks") + " past due</b>";
+      return '<li data-id="' + c.id + '">' +
+        '<span class="stripe ' + c.status + '"></span>' +
+        '<span class="att-main"><span class="att-name">' + esc(c.name) + "</span>" +
+        '<span class="att-why">' + why + "</span></span>" +
+        '<span class="att-act"><span class="att-days ' + c.status + '">' + c.days + "<small>days</small></span></span>" +
+        "</li>";
+    }).join("");
+
+    $("att-list").addEventListener("click", function (e) {
+      var li = e.target.closest("li[data-id]");
+      if (li) openDrawer(li.getAttribute("data-id"));
+    });
+  })();
+
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (ch) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch];
+    });
+  }
+
+  /* ---------- filters, sort, table ---------- */
+  var state = { stage: "All", q: "", key: "days", dir: -1 };
+
+  (function buildSeg() {
+    var keys = ["All"].concat(DATA.stages.slice().sort(function (a, b) { return b.rank - a.rank; })
+      .map(function (s) { return s.key; }));
+    $("stage-seg").innerHTML = keys.map(function (k) {
+      var n = k === "All" ? CLIENTS.length : CLIENTS.filter(function (c) { return c.stage === k; }).length;
+      return '<button type="button" data-stage="' + k + '" aria-pressed="' + (k === state.stage) + '">' +
+        k + " <span class=\"num\" style=\"opacity:.62\">" + n + "</span></button>";
+    }).join("");
+    $("stage-seg").addEventListener("click", function (e) {
+      var b = e.target.closest("button[data-stage]");
+      if (!b) return;
+      state.stage = b.getAttribute("data-stage");
+      Array.prototype.forEach.call($("stage-seg").children, function (x) {
+        x.setAttribute("aria-pressed", String(x === b));
+      });
+      render();
+    });
+  })();
+
+  $("q").addEventListener("input", function (e) { state.q = e.target.value.toLowerCase().trim(); render(); });
+
+  Array.prototype.forEach.call(document.querySelectorAll("th.sortable"), function (th) {
+    th.addEventListener("click", function () {
+      var k = th.getAttribute("data-k");
+      if (state.key === k) { state.dir = -state.dir; }
+      else { state.key = k; state.dir = (k === "name" || k === "product") ? 1 : -1; }
+      render();
+    });
+  });
+
+  function visible() {
+    return CLIENTS.filter(function (c) {
+      if (state.stage !== "All" && c.stage !== state.stage) return false;
+      if (!state.q) return true;
+      return (c.name + " " + c.sector + " " + c.product + " " + c.country).toLowerCase().indexOf(state.q) > -1;
+    }).sort(function (a, b) {
+      var x = a[state.key], y = b[state.key];
+      if (typeof x === "string") return x.localeCompare(y) * state.dir;
+      return (x - y) * state.dir;
+    });
+  }
+
+  function render() {
+    var rows = visible();
+    Array.prototype.forEach.call(document.querySelectorAll("th.sortable"), function (th) {
+      var on = th.getAttribute("data-k") === state.key;
+      if (on) th.setAttribute("aria-sort", state.dir === 1 ? "ascending" : "descending");
+      else th.removeAttribute("aria-sort");
+      th.querySelector(".arr").textContent = on ? (state.dir === 1 ? "↑" : "↓") : "↕";
+    });
+
+    $("tbl-empty").hidden = rows.length > 0;
+    $("tbody").innerHTML = rows.map(function (c) {
+      var pillTxt = c.status === "overdue" ? "Overdue" : (c.status === "watch" ? "Watch" : "Current");
+      return '<tr data-id="' + c.id + '" tabindex="0">' +
+        '<td><div class="c-name">' + esc(c.name) + '</div><div class="c-sub">' + esc(c.sector) + " · " + esc(c.country) + "</div></td>" +
+        '<td><span class="stage-pill"><span class="stage-dot" style="background:var(' + STAGE_VAR[c.stage] + ')"></span>' + c.stage + "</span></td>" +
+        "<td>" + esc(c.product) + "</td>" +
+        '<td class="r num">' + fmtM(c.facility) + "</td>" +
+        '<td class="r"><span class="minimeter"><span class="mm"><i style="width:' +
+          Math.min(100, c.attain * 100).toFixed(1) + '%"></i><u style="left:calc(' +
+          Math.min(100, yearFrac * 100).toFixed(1) + '% - 0.75px)"></u></span>' +
+          '<span class="pct">' + pct(c.attain) + "</span></span></td>" +
+        '<td class="r"><span class="num" style="margin-right:7px">' + c.days + "d</span>" +
+          '<span class="pill ' + c.status + '">' + pillTxt + "</span></td>" +
+        '<td class="r num">' + c.openTasks + (c.lateTasks ? ' <span style="color:var(--overdue);font-weight:600">(' + c.lateTasks + " late)</span>" : "") + "</td>" +
+        "</tr>";
+    }).join("");
+  }
+
+  $("tbody").addEventListener("click", function (e) {
+    var tr = e.target.closest("tr[data-id]");
+    if (tr) openDrawer(tr.getAttribute("data-id"));
+  });
+  $("tbody").addEventListener("keydown", function (e) {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    var tr = e.target.closest("tr[data-id]");
+    if (tr) { e.preventDefault(); openDrawer(tr.getAttribute("data-id")); }
+  });
+
+  /* ---------- drawer ---------- */
+  var lastFocus = null;
+  function openDrawer(id) {
+    var c = CLIENTS.filter(function (x) { return x.id === id; })[0];
+    if (!c) return;
+    lastFocus = document.activeElement;
+
+    Array.prototype.forEach.call($("tbody").children, function (tr) {
+      tr.setAttribute("aria-selected", String(tr.getAttribute("data-id") === id));
+    });
+
+    $("dr-name").textContent = c.name;
+    $("dr-sub").textContent = c.sector + " · " + c.country + " · " + c.id;
+
+    var ch = c.lastContact.channel === "meeting" ? "Meeting you attended" : "Mail you sent";
+    var html = "";
+
+    html += '<div class="dr-sec"><h4>Last contact &mdash; ' + c.days + " days ago</h4>" +
+      '<div class="contact"><div class="ch">' + ch + " · " + fmtDate(c.lastContact.date) + "</div>" +
+      '<div class="sub">' + esc(c.lastContact.subject) + "</div>" +
+      '<div class="wh">' + esc(c.lastContact.with) + "</div></div>" +
+      '<p class="note">Tolerance for a client in ' + c.stage + " is " + c.tolerance +
+      " days. " + (c.status === "current"
+        ? "This one is inside it."
+        : (c.status === "watch" ? "This one has drifted past it." : "This one is more than double it.")) + "</p></div>";
+
+    html += '<div class="dr-sec"><h4>Position</h4><dl class="dl">' +
+      "<dt>Stage</dt><dd class=\"txt\">" + c.stage + "</dd>" +
+      "<dt>Product</dt><dd class=\"txt\">" + esc(c.product) + "</dd>" +
+      "<dt>Vehicle</dt><dd class=\"txt\">" + esc(c.vehicle) + "</dd>" +
+      "<dt>Instrument</dt><dd class=\"txt\">" + esc(c.instrument) + "</dd>" +
+      "<dt>Facility limit</dt><dd>" + fmtM(c.facility) + "</dd>" +
+      "<dt>Revenue YTD</dt><dd>" + fmtM(c.revenueYtd) + "</dd>" +
+      "<dt>Budget FY" + String(DATA.fy).slice(-2) + "</dt><dd>" + fmtM(c.budgetFy) + "</dd>" +
+      "<dt>Attainment</dt><dd>" + pct(c.attain) + "</dd>" +
+      "<dt>Against pace</dt><dd style=\"color:var(" + (c.paceGap < 0 ? "--overdue" : "--accent") + ")\">" +
+        (c.paceGap < 0 ? "−" : "+") + fmtM(Math.abs(c.paceGap)) + "</dd>" +
+      "</dl>" +
+      '<p class="note"><strong style="color:var(--ink-2)">Documentation.</strong> ' + esc(c.docs) + "<br>" +
+      '<strong style="color:var(--ink-2)">Next milestone.</strong> ' + esc(c.nextMilestone) + "</p></div>";
+
+    html += '<div class="dr-sec"><h4>Open tasks (' + c.tasksD.length + ")</h4>";
+    html += c.tasksD.length
+      ? '<ul class="tasks">' + c.tasksD.map(function (t) {
+          return "<li><span>" + esc(t.title) + '<br><span class="n-src">' + esc(t.owner) + "</span></span>" +
+            '<span class="t-due' + (t.late ? " late" : "") + '">' + fmtDate(t.due) + (t.late ? " · late" : "") + "</span></li>";
+        }).join("") + "</ul>"
+      : '<p class="note">Nothing open on the board.</p>';
+    html += "</div>";
+
+    html += '<div class="dr-sec"><h4>Recent news</h4>';
+    html += (c.news && c.news.length)
+      ? '<ul class="news">' + c.news.map(function (nw) {
+          return '<li><span class="n-date">' + fmtDate(nw.date) + "</span>" + esc(nw.headline) +
+            ' <span class="n-src">&mdash; ' + esc(nw.source) + "</span></li>";
+        }).join("") + "</ul>"
+      : '<p class="note">Nothing picked up in the last 90 days.</p>';
+    html += "</div>";
+
+    $("dr-body").innerHTML = html;
+    $("drawer").hidden = false; $("scrim").hidden = false;
+    requestAnimationFrame(function () { $("drawer").classList.add("on"); $("scrim").classList.add("on"); });
+    $("dr-close").focus();
+  }
+
+  function closeDrawer() {
+    $("drawer").classList.remove("on"); $("scrim").classList.remove("on");
+    Array.prototype.forEach.call($("tbody").children, function (tr) { tr.setAttribute("aria-selected", "false"); });
+    setTimeout(function () { $("drawer").hidden = true; $("scrim").hidden = true; }, 200);
+    if (lastFocus && lastFocus.focus) lastFocus.focus();
+  }
+  $("dr-close").addEventListener("click", closeDrawer);
+  $("scrim").addEventListener("click", closeDrawer);
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && !$("drawer").hidden) closeDrawer();
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
