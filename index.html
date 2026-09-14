@@ -171,9 +171,10 @@ main{padding:18px 20px 60px;max-width:1500px;margin:0 auto}
 /* The invoice list is eight columns inside two grid tracks: every pixel of cell padding costs
    it sixteen. */
 #supInvTable th,#supInvTable td{padding:4px 5px}
-/* Fixed layout, so the colgroup shares out exactly the width available and nothing overflows.
-   Inputs and the jurisdiction select fill their cell rather than demanding an intrinsic minimum —
-   the select's full option names are still there when it is opened. */
+/* Fixed layout, so the colgroup hands each column the width its own kind of value needs and an
+   input fills that rather than an equal share of whatever the window happens to be. Narrower than
+   the fixed widths add up to, the list scrolls sideways: a date field squashed to sixty pixels
+   hides the picker, which is worse than a scrollbar. */
 /* The checks column must not run away either: a trade with a dozen unfinished invoices raises a
    validation entry each, and left uncapped that one card dragged the whole grid down. */
 #validationBox{max-height:340px;overflow-y:auto}
@@ -243,6 +244,9 @@ body.readonly main .card h2 .src button{opacity:.45}
 .modal{position:fixed;inset:0;z-index:60;display:none}
 /* The invoice list opens from inside the trade workspace, so it has to sit above it. */
 #invModal{z-index:70}
+/* The invoice list is eight columns of fixed-width fields, so on a wide screen the window it
+   sits in is mostly empty. Capped where the page itself is capped. */
+#invModal .content{max-width:1500px;margin:0 auto;width:100%}
 /* The deal configuration opens from the deals screen and from a trade, and the trade workspace
    closes as it opens, so the two never stack — but it sits above the reference windows either way. */
 #dealModal{z-index:65}
@@ -514,8 +518,11 @@ tr.booktotal .ccy{display:block;font:600 11px/1.6 var(--mono);color:var(--ink-3)
 #supInvTable tr.supdetail>td{padding:0;border-bottom:2px solid var(--line-2);
   background:var(--panel-2);overflow:visible;text-overflow:clip;white-space:normal}
 #supInvTable tr.supdetail:hover>td{background:var(--panel-2)}
-.supdet{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(255px,1fr);gap:15px;padding:12px 14px 13px}
-@media (max-width:900px){.supdet{grid-template-columns:minmax(0,1fr)}}
+.supdet{display:grid;grid-template-columns:minmax(0,2fr) minmax(250px,1fr);gap:15px;padding:12px 14px 13px}
+/* The item table is seven columns of its own and the four charges are four short fields, so below
+   the width both can be read at the charges go under the items rather than each squeezing the
+   other into headings on two lines and figures cut off mid-number. */
+@media (max-width:1150px){.supdet{grid-template-columns:minmax(0,1fr)}}
 .supdet h3{margin:0 0 7px;font:600 11px/1.4 var(--sans);text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3)}
 /* The item table sits inside a row of the table above it, so it needs its own frame to read as a
    nested thing and not as more columns of its parent. */
@@ -2798,8 +2805,8 @@ function newInvoiceItem(seed){
    not — a supplier's own part number, a count of pieces, a weight — and a column of empty cells
    on every screen is what the list is for. */
 const ITEM_COL_SPEC = [
-  {key:'itemNo',  label:'Item No.', width:'17%'},
-  {key:'qty',     label:'Qty',      width:'12%', n:true},
+  {key:'itemNo',  label:'Item No.', width:'12%'},
+  {key:'qty',     label:'Qty',      width:'11%', n:true},
   {key:'weight',  label:'Weight (kg)', width:'14%', n:true},
 ];
 const DEFAULT_ITEM_COLS = ['itemNo','qty'];
@@ -2810,6 +2817,10 @@ function itemColsOf(inputs){
   const basisField = LINE_BASES[lineBasisOf(inputs)].field;
   return ITEM_COL_SPEC.filter(c=>want.includes(c.key) || c.key===basisField).map(c=>c.key);
 }
+/** The order the item detail is read in, either side of the description. What was supplied is what
+ *  every other cell on the line is read against, so it sits as far left as the trade's own
+ *  numbering lets it: straight after the item number, or first when the trade shows none. */
+const itemColOrder = cols => [cols.filter(k=>k==='itemNo'), cols.filter(k=>k!=='itemNo')];
 const LINE_BASES = {qty:{label:'Quantity', per:'item', field:'qty'},
                     weight:{label:'Weight (kg)', per:'kg',  field:'weight'}};
 const lineBasisOf = x => (x && LINE_BASES[x.lineBasis]) ? x.lineBasis : 'qty';
@@ -4926,6 +4937,12 @@ function renderItemCols(t){
     ? hiddenWithData.map(c=>c.label).join(' and ')+' hidden, but still keyed on some lines.'
     : '';
 }
+/* The width of each column of the invoice list, by what the column holds rather than by an equal
+   share of the window: a date is a date wide, a tenor is three digits and a spinner, an invoice
+   number is about fifteen characters. The one column with no width is the empty one before the
+   total — it takes whatever is left over, so the fields stay grouped where they are read and the
+   figure stays anchored against the right edge instead of every field growing to fill a screen. */
+const INV_COL_W = ['148px','150px','88px','122px','178px','','148px','44px'];
 function renderSupplierInvoices(d,t){
   const box=$('supInvTable'); if(!box) return;
   const locked=!t || LOCKED(t.state), rows=(t&&t.inputs.supplierInvoices)||[];
@@ -4933,7 +4950,7 @@ function renderSupplierInvoices(d,t){
   /* Who supplied the goods and where they are is the trade's answer and the register's — it was
      keyed per invoice until both had somewhere better to live, and two places to key one fact is
      how they come to disagree. */
-  const NCOL=7;
+  const NCOL=8;
   const basis=lineBasisOf(t&&t.inputs), B=LINE_BASES[basis];
   const cols=itemColsOf(t&&t.inputs);
   const txt=(v,field,type,extra)=>locked
@@ -4971,13 +4988,17 @@ function renderSupplierInvoices(d,t){
   };
   /* ---- the open row: item lines on the left, the four charges and the build-up on the right ---- */
   const NITEMCOL = cols.length + 3 + (locked?0:1);
+  /* What was supplied is what every other cell on the line is read against, so it sits as far left
+     as the trade's own numbering lets it: straight after the supplier's item number when the trade
+     carries one, first when it does not. The measures the line is priced on follow it. */
+  const [leadCols,restCols]=itemColOrder(cols);
+  const headOf=k=>{ const c=ITEM_COL_SPEC.find(x=>x.key===k);
+    return '<th'+(c.n?' class="n"':'')+' style="width:'+c.width+'">'+esc(c.label)+'</th>'; };
   const itemsTable=(v,b)=>'<div class="items"><table>'+
-    '<thead><tr>'+
-    ITEM_COL_SPEC.filter(c=>cols.includes(c.key)).map(c=>
-      '<th'+(c.n?' class="n"':'')+' style="width:'+c.width+'">'+esc(c.label)+'</th>').join('')+
-    '<th>Item</th>'+
+    '<thead><tr>'+leadCols.map(headOf).join('')+
+    '<th>Item description</th>'+restCols.map(headOf).join('')+
     '<th class="n" style="width:17%">Price / '+esc(B.per)+' ('+esc(sym)+')</th>'+
-    '<th class="n" style="width:18%">Line total</th>'+(locked?'':'<th style="width:26px"></th>')+
+    '<th class="n" style="width:14%">Line total</th>'+(locked?'':'<th style="width:26px"></th>')+
     '</tr></thead><tbody>'+
     (b.lines.length ? b.lines.map(l=>{
       const it=l.item;
@@ -4991,8 +5012,9 @@ function renderSupplierInvoices(d,t){
         qty:    ()=>'<td class="n">'+f('qty','number',' min="0" step="any" style="text-align:right"')+'</td>',
         weight: ()=>'<td class="n">'+f('weight','number',' min="0" step="any" style="text-align:right"')+'</td>',
       };
-      return '<tr>'+cols.map(k=>cell[k]()).join('')+
+      return '<tr>'+leadCols.map(k=>cell[k]()).join('')+
         '<td>'+f('name','text',' placeholder="What was supplied"')+'</td>'+
+        restCols.map(k=>cell[k]()).join('')+
         '<td class="n">'+f('unitPrice','text',' inputmode="decimal" placeholder="0.00" style="text-align:right"')+'</td>'+
         '<td class="n"><span class="calc" data-sup-line="'+esc(it.id)+'" title="'+
           esc(B.label+' \u00d7 price per '+B.per)+'">—</span></td>'+
@@ -5028,15 +5050,12 @@ function renderSupplierInvoices(d,t){
       esc(String(v.invoiceNumber||'').trim() || '(no number)')+'</h3>'+itemsTable(v,b)+'</div>'+
     '<div>'+chargesBlock(v)+'</div></div></td></tr>';
 
-  // A colgroup with table-layout:fixed rather than intrinsic widths. Left to size itself a
-  // <select> full of "Dominican Republic (DO)" and a native date input push the amount column off
-  // the edge. Fixed shares out what there is.
   box.innerHTML='<colgroup>'+
-      ['20%','16%','9%','14%','16%','20%','5%'].map(w=>'<col style="width:'+w+'">').join('')+
+      INV_COL_W.map(w=>'<col'+(w?' style="width:'+w+'"':'')+'>').join('')+
     '</colgroup>'+
-    '<thead><tr><th>Invoice #</th><th>Issue</th>'+
-    '<th class="n">Tenor</th><th class="n" style="white-space:nowrap">Payment</th><th>Detail</th>'+
-    '<th class="n">Total ('+esc(sym)+')</th><th></th></tr></thead><tbody>'+
+    '<thead><tr><th>Invoice #</th><th>Issue Date</th>'+
+    '<th class="n">Tenor</th><th class="n" style="white-space:nowrap">Payment Date</th><th>Detail</th>'+
+    '<th></th><th class="n">Total ('+esc(sym)+')</th><th></th></tr></thead><tbody>'+
     (rows.length ? rows.map(v=>{
       const b=invoiceBreakdown(v, basis);
       return '<tr'+(supInvOpen.has(String(v.id))?' class="sel"':'')+'>'+
@@ -5044,7 +5063,7 @@ function renderSupplierInvoices(d,t){
       '<td>'+txt(v,'issueDate','date','')+'</td>'+
       '<td class="n">'+txt(v,'tenorDays','number',' min="1" step="1" style="text-align:right"')+'</td>'+
       '<td class="n" style="white-space:nowrap"><span class="calc" data-sup-pay="'+esc(v.id)+'" title="Issue Date + tenor">—</span></td>'+
-      '<td>'+detailCell(v,b)+'</td>'+
+      '<td>'+detailCell(v,b)+'</td><td></td>'+
       '<td class="n">'+amountCell(v,b)+'</td>'+
       '<td class="n">'+(locked?'':'<button class="btn sm danger" data-sup-remove="'+esc(v.id)+'" title="Remove this invoice" aria-label="Remove invoice">&times;</button>')+'</td></tr>'+
       (supInvOpen.has(String(v.id)) ? detailRow(v,b) : '');
@@ -7688,6 +7707,13 @@ function runTests(){
     itemColsOf({itemCols:['itemNo'], lineBasis:'weight'}).join(','),'itemNo,weight','itemColsOf()');
   T('...and it comes back on its own if it was off',
     itemColsOf({itemCols:[], lineBasis:'qty'}).join(','),'qty','itemColsOf()');
+  /* And the order they are read in: the description follows the item number, or leads without it. */
+  T('The description is read straight after the item number',
+    itemColOrder(['itemNo','qty','weight']).map(a=>a.join(',')).join(' | description | '),
+    'itemNo | description | qty,weight','itemColOrder()');
+  T('...and leads the line on a trade that shows no item number',
+    itemColOrder(['qty','weight']).map(a=>a.join(',')).join(' | description | '),
+    ' | description | qty,weight','itemColOrder()');
   T('A book keyed before any of this prices on the quantity', (()=>{
       const st=normalise({v:2, curves:{}, clients:defaultClients(), audit:[], deals:[{id:'d1'}],
         trades:[{id:'t1', dealId:'d1', inputs:{supplierInvoices:[]}}]});
@@ -8989,7 +9015,7 @@ $('supInvTable').addEventListener('click', e=>{
   const tpl=e.target.closest('button[data-sup-item-template]');
   if(tpl){
     download('invoice-item-detail-template.csv',
-      'item no,item,quantity,weight (kg),unit price,vat,freight,insurance,other costs\n'+
+      'item no,item description,quantity,weight (kg),unit price,vat,freight,insurance,other costs\n'+
       'YRN-40-1,Cotton yarn 40/1,10000,24500,72.50,38000,4200,1800,0\n'+
       'DYE-A17,Dye lot A-17,500,,180,,,,\n', 'text/csv');
     return;

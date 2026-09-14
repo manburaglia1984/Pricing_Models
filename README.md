@@ -429,12 +429,23 @@ deal's list. Supplier invoices carry neither a supplier nor a jurisdiction of th
 keyed per invoice until each had somewhere better to live, and two places to key one fact is how
 they come to disagree.
 
+Each invoice reads **Invoice # · Issue Date · Tenor · Payment Date · Detail · Total**, and each of
+those columns is as wide as the kind of value it holds and no wider: a date is a date wide, a tenor
+is three digits and a spinner, an invoice number is about fifteen characters. The slack goes into an
+empty column before the total, so the fields stay grouped where they are read and the figure stays
+anchored against the right edge. Narrower than the fields add up to, the list scrolls sideways
+rather than squashing a date field until its picker is gone.
+
 ## The item detail: columns, and what a line total is arithmetic on
 
-A supplier invoice's item lines carry an **Item No.**, a **Quantity**, a **Weight (kg)**, the item
-itself, a unit price and the line total. Which of the first three a trade shows is the trade's own
+A supplier invoice's item lines carry an **Item No.**, an **Item description**, a **Quantity**, a
+**Weight (kg)**, a unit price and the line total. The description sits straight after the item
+number — first, on a trade that shows no item number — because it is what every other cell on the
+line is read against. Which of Item No., Quantity and Weight a trade shows is the trade's own
 answer — goods sold by the piece have no weight worth a column, goods sold by the tonne have no
-part number — and the toggles sit above the invoice list.
+part number — and the toggles sit above the invoice list. The charges beside the item table move
+underneath it on a window too narrow to read both: seven columns squeezed into half a screen is
+headings on two lines and figures cut off mid-number.
 
 **What the line total is arithmetic on is also the trade's answer.** *Line total from* offers
 `Quantity × price per item` or `Weight (kg) × price per kg`; the price column's header follows it,
