@@ -89,6 +89,39 @@ Deals are filtered to the Americas group and to `Status` label ids `[0, 1, 2, 8]
 
 ---
 
+## News
+
+A published page cannot run a web search, so news is screened in a Claude session and written to the
+artifact's own data store. The page declares the `db` capability and reads one document at load:
+
+```
+news/current  →  { checkedAt, windowFrom, windowTo, items[], noCoverage[] }
+```
+
+Each item carries `appliesTo`, an array of monday.com **deal item ids** — so one story can attach to
+several deals (the Colombia earthquake touches six; Liberty touches three) without duplication, and
+two deals on the same client share one entry.
+
+Items are tiered, and the tier drives the display:
+
+| Tier | Meaning | Shown |
+|---|---|---|
+| `signal` | Affects credit, ownership, financing need or regulatory standing | Always, accent stripe |
+| `context` | Older than the window but changes how a deal should be read | Always, grey stripe |
+| `note` | Routine corporate news | Behind the "show routine items" toggle |
+
+`noCoverage` names the deals searched with nothing credible found — recorded explicitly, because
+silence from a private company is not the same as no news. Every item stores a `why`: one line on
+what it means for the deal, which is the part worth reading.
+
+To re-screen, rewrite the whole document (`write_db`, `db_op: set`, collection `news`, doc `current`).
+The page picks it up on next load; no republish needed.
+
+If `db` is unavailable to a viewer the news panel simply does not render and the rest of the page is
+unaffected.
+
+---
+
 ## Revenue: read this before trusting the number
 
 The board has no absolute per-deal budget column. What it has is **Booked** (revenue with a linked
@@ -139,5 +172,5 @@ attention reads as coloured.
   becomes a second source of truth that silently disagrees with the board.
 - **Outlook last-contact.** Superseded: the board's own `Date Last Contact` column is maintained by
   the deal owner and is more reliable than inferring contact from mail traffic.
-- **Client news.** A published page cannot run a web search. It needs either an agent writing news
-  into the artifact's `db` store on a schedule, or a scheduled refresh that rewrites the page.
+- **Automatic news refresh.** The news below is written by a Claude session, not by the page. It does
+  not update itself; ask for a re-screen, or put it on a Routine.

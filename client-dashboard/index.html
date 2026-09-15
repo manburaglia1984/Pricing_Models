@@ -359,6 +359,30 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
 @keyframes sp{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){.spin{animation:none;border-right-color:currentColor;opacity:.5}}
 
+/* ---------- news ---------- */
+.news-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.news-list li{display:grid;grid-template-columns:3px minmax(0,1fr);gap:0 13px;padding:11px 0;border-top:1px solid var(--line)}
+.news-list li:first-child{border-top:0;padding-top:2px}
+.news-list .nstripe{align-self:stretch;border-radius:2px;background:transparent;min-height:30px}
+.news-list li.signal .nstripe{background:var(--accent)}
+.news-list li.context .nstripe{background:var(--line-2)}
+.news-head{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;margin-bottom:3px}
+.news-head .nclient{font-weight:600;font-size:13px;letter-spacing:-.005em}
+.news-head .ndate{font-family:var(--mono);font-size:11px;color:var(--ink-3)}
+.news-head .ntag{font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;font-weight:600;
+  padding:1px 6px;border-radius:3px;border:1px solid var(--line-2);color:var(--ink-3)}
+.news-list li.signal .ntag{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}
+.news-hl{font-size:12.5px;line-height:1.45;color:var(--ink)}
+.news-why{font-size:11.5px;line-height:1.45;color:var(--ink-2);margin-top:4px}
+.news-src{font-size:11px;color:var(--ink-3);margin-top:4px}
+.news-src a{color:var(--ink-3);text-decoration:underline;text-underline-offset:2px}
+.news-src a:hover{color:var(--accent)}
+.news-more{margin-top:12px}
+.news-none{font-size:12px;color:var(--ink-3);line-height:1.5}
+.nchip{display:inline-block;margin-left:7px;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600;
+  letter-spacing:.04em;vertical-align:1px;border:1px solid var(--line-2);color:var(--ink-3);white-space:nowrap}
+.nchip.signal{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+
 /* ---------- state panels ---------- */
 .state{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
   padding:30px 24px;margin-top:22px;text-align:center}
@@ -462,6 +486,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     </section>
 
     <div class="grid2">
+      <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
       <section class="panel" aria-labelledby="att-h">
         <div class="panel-h">
           <div>
@@ -475,6 +500,22 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
           <p class="att-open" id="att-clear" hidden>Every deal is inside its contact tolerance.</p>
         </div>
       </section>
+
+      <section class="panel" id="news-panel" aria-labelledby="news-h" hidden>
+        <div class="panel-h">
+          <div>
+            <h2 id="news-h">In the news</h2>
+            <p id="news-window">Screened against your deal names.</p>
+          </div>
+          <span class="cnt" id="news-count"></span>
+        </div>
+        <div class="panel-b">
+          <ul class="news-list" id="news-list"></ul>
+          <div class="news-more"><button class="ghost" id="news-toggle" type="button">Show routine items</button></div>
+          <p class="news-none" id="news-none" hidden></p>
+        </div>
+      </section>
+      </div>
 
       <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
         <section class="panel" aria-labelledby="rev-h">
@@ -763,6 +804,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
   /* ---------- runtime state ---------- */
   var MCP = null;
   var DATA = { deals: [], rev: {}, monthly: null, revOk: false };
+  var NEWS = { items: [], byDeal: {}, meta: null, showNotes: false };
   var UI = { stage: "All", mine: false, q: "", key: "days", dir: -1 };
   var stamps = { deals: 0, rev: 0 };
 
@@ -796,6 +838,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
         return;
       }
       MCP = m;
+      loadNews();
       load(false);
     }).catch(function () {
       showOnly("st-error");
@@ -803,6 +846,80 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
       $("err-body").textContent = "The page failed to initialise its connector access.";
       setBusy(false);
     });
+  }
+
+  /* News is written into this artifact's own store by a Claude session,
+     because a published page cannot run a web search itself. Absent store,
+     absent doc and a rejected read all degrade to the same thing: no panel. */
+  function loadNews() {
+    if (!window.claude || typeof window.claude.use !== "function") return;
+    window.claude.use("db").then(function (db) {
+      if (!db) return;
+      return db.doc("news/current").get().then(function (snap) {
+        if (!snap || !snap.exists || !snap.data || !Array.isArray(snap.data.items)) return;
+        NEWS.meta = { checkedAt: snap.data.checkedAt, from: snap.data.windowFrom, to: snap.data.windowTo,
+                      noCoverage: snap.data.noCoverage || [] };
+        NEWS.items = snap.data.items;
+        var by = {};
+        NEWS.items.forEach(function (it) {
+          (it.appliesTo || []).forEach(function (id) { (by[id] = by[id] || []).push(it); });
+        });
+        NEWS.byDeal = by;
+        renderNews();
+        if (DATA.deals.length) renderTable();
+      });
+    }).catch(function () { /* no news panel; the rest of the page is unaffected */ });
+  }
+
+  function newsFor(id) { return NEWS.byDeal[id] || []; }
+  function hasSignal(id) {
+    return newsFor(id).some(function (n) { return n.tier === "signal"; });
+  }
+
+  var TIER_RANK = { signal: 0, context: 1, note: 2 };
+  function renderNews() {
+    if (!NEWS.items.length) return;
+    var panel = $("news-panel");
+    panel.hidden = false;
+
+    var sorted = NEWS.items.slice().sort(function (a, b) {
+      var t = (TIER_RANK[a.tier] || 9) - (TIER_RANK[b.tier] || 9);
+      return t !== 0 ? t : String(b.date).localeCompare(String(a.date));
+    });
+    var shown = NEWS.showNotes ? sorted : sorted.filter(function (n) { return n.tier !== "note"; });
+    var notes = sorted.length - sorted.filter(function (n) { return n.tier !== "note"; }).length;
+
+    if (NEWS.meta) {
+      $("news-window").textContent = "Screened against your deal names for " +
+        fmtDate(NEWS.meta.from) + " to " + fmtDate(NEWS.meta.to) + ".";
+    }
+    $("news-count").textContent = sorted.length + " item" + (sorted.length === 1 ? "" : "s");
+
+    $("news-list").innerHTML = shown.map(function (n) {
+      var tag = n.tier === "signal" ? "Signal" : (n.tier === "context" ? "Context" : "Note");
+      return '<li class="' + n.tier + '"><span class="nstripe"></span><div>' +
+        '<div class="news-head"><span class="nclient">' + esc(n.client) + "</span>" +
+        '<span class="ndate">' + fmtDate(n.date) + "</span>" +
+        '<span class="ntag">' + tag + "</span></div>" +
+        '<div class="news-hl">' + esc(n.headline) + "</div>" +
+        (n.why ? '<div class="news-why">' + esc(n.why) + "</div>" : "") +
+        '<div class="news-src">' + esc(n.source) +
+          (n.url ? ' \u00b7 <a href="' + esc(n.url) + '" target="_blank" rel="noopener noreferrer">source \u2197</a>' : "") +
+        "</div></div></li>";
+    }).join("");
+
+    $("news-toggle").textContent = NEWS.showNotes
+      ? "Hide routine items"
+      : "Show " + notes + " routine item" + (notes === 1 ? "" : "s");
+    $("news-toggle").hidden = notes === 0;
+
+    var nc = (NEWS.meta && NEWS.meta.noCoverage) || [];
+    $("news-none").hidden = nc.length === 0;
+    if (nc.length) {
+      $("news-none").textContent = "No credible coverage in the window for " + nc.length +
+        " names, mostly private or closely held: " + nc.slice(0, 6).join(", ") +
+        (nc.length > 6 ? " and " + (nc.length - 6) + " others." : ".");
+    }
   }
 
   function callOnce(input, force, allowRetry) {
@@ -1122,6 +1239,14 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     });
   }
 
+  function newsChip(id) {
+    var n = newsFor(id);
+    if (!n.length) return "";
+    var sig = hasSignal(id);
+    return '<span class="nchip' + (sig ? " signal" : "") + '">' +
+      (sig ? "news" : n.length + " item" + (n.length === 1 ? "" : "s")) + "</span>";
+  }
+
   function docPill(v) {
     var cls = v === "Executed" ? "done" : (v === "In Progress" ? "prog" : "");
     return '<span class="doc-pill ' + cls + '">' + esc(v) + "</span>";
@@ -1147,7 +1272,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
             : '<span class="pct" style="color:var(--ink-3)">no 2026 trade</span>')
         : '<span class="pct" style="color:var(--ink-3)">—</span>';
       return '<tr data-id="' + d.id + '" tabindex="0">' +
-        '<td><div class="c-name">' + esc(d.name) + '</div><div class="c-sub">' +
+        '<td><div class="c-name">' + esc(d.name) + newsChip(d.id) + '</div><div class="c-sub">' +
           (d.client ? esc(d.client) + " · " : "") + esc(d.country) + ' · <span class="owner-pill">' + esc(d.o2d) + "</span></div></td>" +
         '<td><span class="stage-pill"><span class="stage-dot" style="background:var(' + SVAR[d.stage] + ')"></span>' + esc(d.stage) + "</span></td>" +
         "<td>" + esc(d.solution) + (d.subSol ? '<div class="c-sub">' + esc(d.subSol) + "</div>" : "") + "</td>" +
@@ -1208,6 +1333,27 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
         " of 2026 forecast but nothing booked. On this board booked revenue only appears once a trade subitem is linked to a row on the Trades board — so this is either genuinely unbilled, or the trade link is missing.</p></div>";
     }
 
+    var dn = newsFor(d.id);
+    if (dn.length) {
+      h += '<div class="dr-sec"><h4>In the news (' + dn.length + ")</h4><ul class=\"news-list\">" +
+        dn.slice().sort(function (a, b) {
+          var t = (TIER_RANK[a.tier] || 9) - (TIER_RANK[b.tier] || 9);
+          return t !== 0 ? t : String(b.date).localeCompare(String(a.date));
+        }).map(function (n) {
+          var tag = n.tier === "signal" ? "Signal" : (n.tier === "context" ? "Context" : "Note");
+          return '<li class="' + n.tier + '"><span class="nstripe"></span><div>' +
+            '<div class="news-head"><span class="ndate">' + fmtDate(n.date) + "</span>" +
+            '<span class="ntag">' + tag + "</span></div>" +
+            '<div class="news-hl">' + esc(n.headline) + "</div>" +
+            (n.why ? '<div class="news-why">' + esc(n.why) + "</div>" : "") +
+            '<div class="news-src">' + esc(n.source) +
+              (n.url ? ' \u00b7 <a href="' + esc(n.url) + '" target="_blank" rel="noopener noreferrer">source \u2197</a>' : "") +
+            "</div></div></li>";
+        }).join("") + "</ul></div>";
+    } else if (NEWS.items.length) {
+      h += '<div class="dr-sec"><h4>In the news</h4><p class="note">Nothing picked up for this name in the screened window.</p></div>';
+    }
+
     h += '<div class="dr-sec"><h4>On monday.com</h4><p class="note">' +
       '<a href="' + esc(d.url) + '" target="_blank" rel="noopener">Open this deal on the Global Pipeline board ↗</a></p></div>';
 
@@ -1226,6 +1372,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
   /* ---------- wiring ---------- */
   $("refresh").addEventListener("click", function () { if (MCP) load(true); else start(); });
   $("err-retry").addEventListener("click", function () { if (MCP) load(true); else start(); });
+  $("news-toggle").addEventListener("click", function () { NEWS.showNotes = !NEWS.showNotes; renderNews(); });
   $("q").addEventListener("input", function (e) { UI.q = e.target.value.toLowerCase().trim(); renderTable(); });
   $("btn-all").addEventListener("click", function () {
     UI.mine = false; $("btn-all").setAttribute("aria-pressed", "true"); $("btn-mine").setAttribute("aria-pressed", "false"); renderTable();
