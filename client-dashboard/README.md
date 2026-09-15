@@ -174,6 +174,51 @@ drawer rather than being presented as a zero-revenue client.
 
 ---
 
+## The contact check
+
+`contact/current` holds an Outlook corroboration of the board's `Date Last Contact`, one entry per
+deal, written by a Claude session because a published page cannot reach the mailbox.
+
+**The asymmetry is the whole design.** Outlook can prove the board is *behind* — a touch it can see
+that the board does not know about is a fact. It can never prove the board *wrong*: a phone call, a
+meeting, or mail from another account leaves no trace in a recipient search. So the date only ever
+moves **forward**, never back.
+
+| Verdict | Meaning | Effect |
+|---|---|---|
+| `corroborated` | Board and Outlook agree within 7 days | Nothing shown |
+| `board-stale` | Outlook shows a later touch | The gap uses the Outlook date; a dashed `board stale` chip |
+| `unconfirmed` | Board is more than 21 days newer than anything Outlook can see | Board date still ranks the deal; a solid `unconfirmed` chip |
+| `no-trace` | Nothing credible found, or no client linked | Nothing shown |
+
+Chips are neutral by design: the reserved amber/red belongs to the contact gap and the accent to
+news, so a third hue here would muddy both. Weight carries the meaning — dashed for "the board is
+behind", solid for "this needs checking".
+
+### How the search works
+
+Outlook's `recipient` filter matches **partial** addresses, so a client's own name token finds mail
+addressed to them without needing to know their domain — the Client board's Branch contacts are
+empty, so there were no domains to read. Two things this does NOT do:
+
+- It does not filter to mail *you personally sent*. It catches the whole Silver Birch thread with
+  that client, which is the better question for coverage, and the drawer names the sender so you can
+  see which it was. Searching Sent Items by company name instead was tried and rejected: for Celsia
+  it returned five internal emails between colleagues *about* Celsia and none to Celsia at all.
+- It does not include calendar. `outlook_calendar_search` timed out at 60s.
+
+Substring matching produces false positives — a "cantu" search returned a CEAT thread, "lla.com"
+returned an unrelated one. Those are recorded as `no-trace` rather than reported as evidence.
+
+### Refreshing it
+
+The daily news Routine **cannot** do this: Routine-fired sessions in this organisation get no
+connector tools, so they cannot reach Outlook any more than they can reach monday.com. Re-running
+the check needs a session that holds Microsoft 365 — ask Claude, or create a Routine from the
+claude.ai Routines UI where connectors can be attached.
+
+---
+
 ## Stage tolerances
 
 Set in the page, not on the board:
@@ -208,7 +253,7 @@ attention reads as coloured.
 
 - **Write-back to monday.com.** The board stays the system of record. A dashboard you can edit
   becomes a second source of truth that silently disagrees with the board.
-- **Outlook last-contact.** Superseded: the board's own `Date Last Contact` column is maintained by
-  the deal owner and is more reliable than inferring contact from mail traffic.
+- **Outlook as the primary contact source.** The board's `Date Last Contact` stays the system of
+  record. Outlook only corroborates it — see below.
 - **Automatic news refresh.** The news below is written by a Claude session, not by the page. It does
   not update itself; ask for a re-screen, or put it on a Routine.

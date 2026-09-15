@@ -380,6 +380,13 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
 .nchip{display:inline-block;margin-left:7px;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600;
   letter-spacing:.04em;vertical-align:1px;border:1px solid var(--line-2);color:var(--ink-3);white-space:nowrap}
 .nchip.signal{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+.dchip{display:inline-block;margin-left:7px;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600;
+  letter-spacing:.03em;white-space:nowrap;border:1px dashed var(--line-2);color:var(--ink-3);background:transparent}
+.dchip.unconf{border-style:solid;border-color:var(--ink-3);color:var(--ink-2);font-weight:650}
+.cc-grid{display:grid;grid-template-columns:auto 1fr;gap:5px 14px;font-size:12.5px;margin:0 0 8px}
+.cc-grid dt{color:var(--ink-3);white-space:nowrap}
+.cc-grid dd{margin:0;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.cc-grid dd.txt{font-family:var(--sans);text-align:right}
 
 /* ---------- state panels ---------- */
 .state{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
@@ -427,6 +434,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     <span class="src" id="src-deals"><span class="dot"></span>Global Pipeline <span class="when"></span></span>
     <span class="src" id="src-rev"><span class="dot"></span>2026 revenue <span class="when"></span></span>
     <span class="src" id="src-news" hidden><span class="dot"></span>News <span class="when"></span></span>
+    <span class="src" id="src-contact" hidden><span class="dot"></span>Contact check <span class="when"></span></span>
     <div class="conn-act">
       <button class="btn-refresh" id="refresh" type="button"><span class="spin" aria-hidden="true"></span><span id="refresh-label">Refresh</span></button>
     </div>
@@ -788,6 +796,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
   var MCP = null;
   var DATA = { deals: [], rev: {}, monthly: null, revOk: false };
   var NEWS = { items: [], byDeal: {}, meta: null };
+  var CONTACT = { byDeal: {}, meta: null };
   var DB = null, lastRosterSig = null;
   var UI = { stage: "All", mine: false, q: "", key: "days", dir: -1 };
   var stamps = { deals: 0, rev: 0 };
@@ -844,6 +853,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
       }
       DB = db;
       syncRoster();
+      loadContact(db);
       return db.doc("news/current").get().then(function (snap) {
         if (!snap || !snap.exists) {
           newsUnavailable("No news has been screened yet. The daily screen writes it; ask Claude to run one now if you do not want to wait.");
@@ -895,6 +905,59 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     DB.doc("roster/current").set({ updatedAt: new Date().toISOString().slice(0, 10), deals: deals })
       .then(function () { lastRosterSig = sig; })
       .catch(function () { /* read-only viewer, or the write was refused */ });
+  }
+
+  /* Outlook corroboration of the board's Date Last Contact, written here by a
+     Claude session because a published page cannot reach the mailbox. */
+  function loadContact(db) {
+    db.doc("contact/current").get().then(function (snap) {
+      if (!snap || !snap.exists) { contactUnavailable("No contact check has been run yet."); return; }
+      var d = (typeof snap.data === "function") ? snap.data() : snap.data;
+      if (!d || !Array.isArray(d.deals)) { contactUnavailable("The stored contact check is not in a shape this page can read."); return; }
+      CONTACT.meta = { checkedAt: d.checkedAt, source: d.source, caveats: d.caveats || [] };
+      var by = {};
+      d.deals.forEach(function (x) { if (x && x.id) by[String(x.id)] = x; });
+      CONTACT.byDeal = by;
+      applyContactStatus();
+      if (DATA.deals.length) { recomputeContact(); renderAll(); }
+    }).catch(function (e) {
+      contactUnavailable("Could not read the contact check" + (e && e.code ? " (" + e.code + ")" : "") + ".");
+    });
+  }
+  function applyContactStatus() {
+    var el = $("src-contact"); el.hidden = false;
+    var v = { "board-stale": 0, "unconfirmed": 0, "corroborated": 0, "no-trace": 0 };
+    Object.keys(CONTACT.byDeal).forEach(function (k) {
+      var t = CONTACT.byDeal[k].verdict; if (t in v) v[t]++;
+    });
+    setSrc("src-contact", "ok", v["board-stale"] + " stale \u00b7 " + v["unconfirmed"] + " unconfirmed" +
+      (CONTACT.meta && CONTACT.meta.checkedAt ? " \u00b7 " + fmtDate(CONTACT.meta.checkedAt) : ""));
+    el.title = (CONTACT.meta && CONTACT.meta.source ? CONTACT.meta.source + ". " : "") +
+      ((CONTACT.meta && CONTACT.meta.caveats) || []).join(" ");
+  }
+  function contactUnavailable(msg) {
+    var el = $("src-contact"); el.hidden = false;
+    setSrc("src-contact", "bad", "unavailable"); el.title = msg;
+  }
+
+  /* Outlook may only ever move the last-contact date FORWARD. A touch it can see
+     is proof the board is behind; silence is not proof the board is wrong, because
+     a call or a meeting leaves no trace here. */
+  function recomputeContact() {
+    DATA.deals.forEach(function (d) {
+      var cc = CONTACT.byDeal[d.id] || null;
+      var days = d.boardDays, from = d.boardContact ? "board" : "none";
+      if (cc && cc.verdict === "board-stale" && cc.outlook) {
+        var od = daysSince(cc.outlook);
+        if (!d.boardContact || od < days) { days = od; from = "outlook"; }
+      }
+      d.cc = cc;
+      d.days = days;
+      d.effFrom = from;
+      d.ratio = days / d.tol;
+      d.status = (from === "none") ? "overdue"
+               : (d.ratio > 2 ? "overdue" : (d.ratio > 1 ? "watch" : "current"));
+    });
   }
 
   function newsFor(id) { return NEWS.byDeal[id] || []; }
@@ -1004,7 +1067,6 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
       var st = SMAP[cv[C.stage]] || { rank: 0, tol: 30 };
       var lastCt = txt(cv[C.lastCt]);
       var days = lastCt ? daysSince(lastCt) : num(cv[C.daysCt]);
-      var ratio = days / st.tol;
       var rel = cv[C.client];
       var facility = num(cv[C.facility]) || num(cv[C.indFac]);
       return {
@@ -1020,9 +1082,13 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
         tol: st.tol,
         country: txt(cv[C.country]) || "—",
         lastContact: lastCt,
+        boardContact: lastCt,
+        boardDays: days,
         days: days,
-        ratio: ratio,
-        status: !lastCt ? "overdue" : (ratio > 2 ? "overdue" : (ratio > 1 ? "watch" : "current")),
+        ratio: days / st.tol,
+        status: !lastCt ? "overdue" : ((days / st.tol) > 2 ? "overdue" : ((days / st.tol) > 1 ? "watch" : "current")),
+        cc: null,
+        effFrom: lastCt ? "board" : "none",
         calls: num(cv[C.calls]),
         facility: facility,
         indRev: num(cv[C.indRev]),
@@ -1034,6 +1100,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
         mine: (txt(cv[C.o2d]) || "").indexOf(OWNER) > -1
       };
     });
+    recomputeContact();
   }
 
   function buildRevenue(items) {
@@ -1238,6 +1305,13 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     });
   }
 
+  function divChip(d) {
+    if (!d.cc) return "";
+    if (d.cc.verdict === "board-stale") return '<span class="dchip" title="Outlook shows a later touch than the board. Using the Outlook date.">board stale</span>';
+    if (d.cc.verdict === "unconfirmed") return '<span class="dchip unconf" title="The board claims a touch Outlook cannot corroborate. Not a verdict \u2014 a call or meeting leaves no trace here.">unconfirmed</span>';
+    return "";
+  }
+
   function newsChip(id) {
     var n = newsFor(id);
     if (!n.length) return "";
@@ -1277,8 +1351,8 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
         "<td>" + esc(d.solution) + (d.subSol ? '<div class="c-sub">' + esc(d.subSol) + "</div>" : "") + "</td>" +
         '<td class="r num">' + (d.facility ? fmtM(d.facility) : "—") + "</td>" +
         '<td class="r">' + revCell + "</td>" +
-        '<td class="r"><span class="num" style="margin-right:7px">' + (d.lastContact ? d.days + "d" : "—") + "</span>" +
-          '<span class="pill ' + d.status + '">' + pill + "</span></td>" +
+        '<td class="r"><span class="num" style="margin-right:7px">' + (d.effFrom !== "none" ? d.days + "d" : "—") + "</span>" +
+          '<span class="pill ' + d.status + '">' + pill + "</span>" + divChip(d) + "</td>" +
         "<td>" + docPill(d.legalDoc) + "</td></tr>";
     }).join("");
   }
@@ -1309,6 +1383,25 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
         '<div class="wh">Ranked as overdue until the column is filled in.</div></div>';
     }
     h += "</div>";
+
+    if (d.cc) {
+      var V = { "corroborated": "Corroborated", "board-stale": "Board is behind", "unconfirmed": "Unconfirmed", "no-trace": "No trace" };
+      h += '<div class="dr-sec"><h4>Contact check</h4><dl class="cc-grid">' +
+        "<dt>Board says</dt><dd>" + (d.boardContact ? fmtDate(d.boardContact) : "\u2014") + "</dd>" +
+        "<dt>Outlook shows</dt><dd>" + (d.cc.outlook ? fmtDate(d.cc.outlook) : "nothing found") + "</dd>" +
+        '<dt>Verdict</dt><dd class="txt">' + (V[d.cc.verdict] || d.cc.verdict) + "</dd></dl>";
+      if (d.cc.subject) {
+        h += '<div class="contact"><div class="ch">Most recent thread \u00b7 ' + esc(d.cc.who || "") + "</div>" +
+          '<div class="sub">' + esc(d.cc.subject) + "</div></div>";
+      }
+      if (d.cc.note) h += '<p class="note">' + esc(d.cc.note) + "</p>";
+      if (d.cc.verdict === "unconfirmed") {
+        h += '<p class="note">Outlook cannot see a call, a meeting, or mail from another account, so this is a question rather than a verdict. The board date is still what ranks this deal.</p>';
+      } else if (d.cc.verdict === "board-stale") {
+        h += '<p class="note">There is a later touch the board does not know about, so the gap above uses the Outlook date. Worth updating Date Last Contact on the board.</p>';
+      }
+      h += "</div>";
+    }
 
     h += '<div class="dr-sec"><h4>Position</h4><dl class="dl">' +
       '<dt>Stage</dt><dd class="txt">' + esc(d.stage) + "</dd>" +
