@@ -117,6 +117,27 @@ what it means for the deal, which is the part worth reading.
 To re-screen, rewrite the whole document (`write_db`, `db_op: set`, collection `news`, doc `current`).
 The page picks it up on next load; no republish needed.
 
+### The daily Routine
+
+A Routine fires at 10:30 UTC daily and rewrites `news/current`. Routine-fired sessions in this
+organisation get **no connector tools**, so it cannot read the board itself. Instead:
+
+```
+roster/current  →  { updatedAt, deals: [{ id, name, client, stage, country, solution, url }] }
+```
+
+The dashboard writes that document itself on every successful load (skipping the write when nothing
+changed), so the Routine's search list stays current simply because the dashboard gets used. If the
+roster is ever missing the Routine stops and says so rather than guessing.
+
+To keep a daily cadence affordable it searches Live, Implementation and Validation every day, and
+Discovery on Mondays, Wednesdays and Fridays. It merges rather than replaces: `signal` and `note`
+items age out after 7 days, `context` after 90, and new items are de-duplicated against what is
+already stored by URL, then by client plus headline prefix. It reports only when a new `signal`
+appears — on a daily schedule, silence has to be the normal outcome or the alerts stop being read.
+
+The cron is fixed UTC, so the local fire time shifts by an hour when US daylight saving ends.
+
 If `db` is unavailable to a viewer the news panel simply does not render and the rest of the page is
 unaffected.
 

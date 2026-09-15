@@ -805,6 +805,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
   var MCP = null;
   var DATA = { deals: [], rev: {}, monthly: null, revOk: false };
   var NEWS = { items: [], byDeal: {}, meta: null, showNotes: false };
+  var DB = null, lastRosterSig = null;
   var UI = { stage: "All", mine: false, q: "", key: "days", dir: -1 };
   var stamps = { deals: 0, rev: 0 };
 
@@ -855,6 +856,8 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     if (!window.claude || typeof window.claude.use !== "function") return;
     window.claude.use("db").then(function (db) {
       if (!db) return;
+      DB = db;
+      syncRoster();
       return db.doc("news/current").get().then(function (snap) {
         if (!snap || !snap.exists || !snap.data || !Array.isArray(snap.data.items)) return;
         NEWS.meta = { checkedAt: snap.data.checkedAt, from: snap.data.windowFrom, to: snap.data.windowTo,
@@ -869,6 +872,22 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
         if (DATA.deals.length) renderTable();
       });
     }).catch(function () { /* no news panel; the rest of the page is unaffected */ });
+  }
+
+  /* The daily news Routine runs without connector tools, so it cannot read the
+     board itself. Publishing the roster here keeps its search list current for
+     free: opening the dashboard is what refreshes it. */
+  function syncRoster() {
+    if (!DB || !DATA.deals.length) return;
+    var deals = DATA.deals.map(function (d) {
+      return { id: d.id, name: d.name, client: d.client, stage: d.stage,
+               country: d.country, solution: d.solution, url: d.url };
+    });
+    var sig = JSON.stringify(deals);
+    if (sig === lastRosterSig) return;
+    DB.doc("roster/current").set({ updatedAt: new Date().toISOString().slice(0, 10), deals: deals })
+      .then(function () { lastRosterSig = sig; })
+      .catch(function () { /* read-only viewer, or the write was refused */ });
   }
 
   function newsFor(id) { return NEWS.byDeal[id] || []; }
@@ -993,6 +1012,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
       }
 
       showOnly(null);
+      syncRoster();
       renderAll();
       setBusy(false);
     });
