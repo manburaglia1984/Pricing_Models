@@ -383,6 +383,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
 .dchip{display:inline-block;margin-left:7px;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600;
   letter-spacing:.03em;white-space:nowrap;border:1px dashed var(--line-2);color:var(--ink-3);background:transparent}
 .dchip.unconf{border-style:solid;border-color:var(--ink-3);color:var(--ink-2);font-weight:650}
+.dchip.meet{border-style:solid;border-color:var(--ink-2);color:var(--ink);font-weight:650}
 .cc-grid{display:grid;grid-template-columns:auto 1fr;gap:5px 14px;font-size:12.5px;margin:0 0 8px}
 .cc-grid dt{color:var(--ink-3);white-space:nowrap}
 .cc-grid dd{margin:0;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
@@ -1305,6 +1306,16 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     });
   }
 
+  /* A meeting already in the diary says more than any gap number. */
+  function meetChip(d) {
+    if (!d.cc || !d.cc.nextMeeting) return "";
+    if (parseDate(d.cc.nextMeeting) < TODAY) return "";
+    var dt = new Date(parseDate(d.cc.nextMeeting));
+    return '<span class="dchip meet" title="' + esc((d.cc.nextMeetingSubject || "Meeting scheduled") +
+      (d.cc.nextMeetingWith ? " \u00b7 " + d.cc.nextMeetingWith : "")) + '">mtg ' +
+      dt.getUTCDate() + " " + MON[dt.getUTCMonth()] + "</span>";
+  }
+
   function divChip(d) {
     if (!d.cc) return "";
     if (d.cc.verdict === "board-stale") return '<span class="dchip" title="Outlook shows a later touch than the board. Using the Outlook date.">board stale</span>';
@@ -1352,7 +1363,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
         '<td class="r num">' + (d.facility ? fmtM(d.facility) : "—") + "</td>" +
         '<td class="r">' + revCell + "</td>" +
         '<td class="r"><span class="num" style="margin-right:7px">' + (d.effFrom !== "none" ? d.days + "d" : "—") + "</span>" +
-          '<span class="pill ' + d.status + '">' + pill + "</span>" + divChip(d) + "</td>" +
+          '<span class="pill ' + d.status + '">' + pill + "</span>" + divChip(d) + meetChip(d) + "</td>" +
         "<td>" + docPill(d.legalDoc) + "</td></tr>";
     }).join("");
   }
@@ -1389,10 +1400,17 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
       h += '<div class="dr-sec"><h4>Contact check</h4><dl class="cc-grid">' +
         "<dt>Board says</dt><dd>" + (d.boardContact ? fmtDate(d.boardContact) : "\u2014") + "</dd>" +
         "<dt>Outlook shows</dt><dd>" + (d.cc.outlook ? fmtDate(d.cc.outlook) : "nothing found") + "</dd>" +
+        (d.cc.channel ? '<dt>Channel</dt><dd class="txt">' + (d.cc.channel === "meeting" ? "Calendar meeting" : "Email thread") + "</dd>" : "") +
+        (d.cc.nextMeeting ? '<dt>Next meeting</dt><dd>' + fmtDate(d.cc.nextMeeting) + "</dd>" : "") +
         '<dt>Verdict</dt><dd class="txt">' + (V[d.cc.verdict] || d.cc.verdict) + "</dd></dl>";
       if (d.cc.subject) {
         h += '<div class="contact"><div class="ch">Most recent thread \u00b7 ' + esc(d.cc.who || "") + "</div>" +
           '<div class="sub">' + esc(d.cc.subject) + "</div></div>";
+      }
+      if (d.cc.nextMeeting && parseDate(d.cc.nextMeeting) >= TODAY) {
+        h += '<div class="contact" style="margin-top:9px"><div class="ch">In the diary \u00b7 ' + fmtDate(d.cc.nextMeeting) + "</div>" +
+          '<div class="sub">' + esc(d.cc.nextMeetingSubject || "Meeting scheduled") + "</div>" +
+          (d.cc.nextMeetingWith ? '<div class="wh">' + esc(d.cc.nextMeetingWith) + "</div>" : "") + "</div>";
       }
       if (d.cc.note) h += '<p class="note">' + esc(d.cc.note) + "</p>";
       if (d.cc.verdict === "unconfirmed") {

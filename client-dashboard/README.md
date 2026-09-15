@@ -205,17 +205,37 @@ empty, so there were no domains to read. Two things this does NOT do:
   that client, which is the better question for coverage, and the drawer names the sender so you can
   see which it was. Searching Sent Items by company name instead was tried and rejected: for Celsia
   it returned five internal emails between colleagues *about* Celsia and none to Celsia at all.
-- It does not include calendar. `outlook_calendar_search` timed out at 60s.
+- **Calendar is included**, and outranks mail. `outlook_calendar_search` with `query: "*"` plus an
+  `attendee` filter returns the full attendee list, so the client is *verifiably* in the room rather
+  than inferred from a name appearing in an address. The earlier timeout came from a wide free-text
+  search; the attendee filter is fast.
+- A **future** meeting is never counted as last contact. It is recorded separately as `nextMeeting`
+  and shown as its own chip — a meeting already in the diary says more than any gap number.
 
 Substring matching produces false positives — a "cantu" search returned a CEAT thread, "lla.com"
 returned an unrelated one. Those are recorded as `no-trace` rather than reported as evidence.
+Calendar later proved Cantu's real domains are `cantustore.com.br` and `cantu.inc`, which is exactly
+why calendar outranks mail.
+
+**Microsoft Graph rate-limits concurrent mailbox calls** (`ApplicationThrottled`, MailboxConcurrency).
+Run at most three in parallel and honour `retryAfterSeconds`; a full sweep takes several rounds.
 
 ### Refreshing it
 
-The daily news Routine **cannot** do this: Routine-fired sessions in this organisation get no
-connector tools, so they cannot reach Outlook any more than they can reach monday.com. Re-running
-the check needs a session that holds Microsoft 365 — ask Claude, or create a Routine from the
-claude.ai Routines UI where connectors can be attached.
+Routine-fired **fresh** sessions in this organisation get no connector tools, so the daily news
+Routine cannot do this. The weekly contact Routine works around that by binding to an existing
+session (`persistent_session_id`) rather than spawning a new one: it resumes a session that already
+holds monday.com and Microsoft 365 instead of creating one that holds neither.
+
+That workaround depends on the bound session still existing when the Routine fires. The durable
+alternative is a Routine created from the claude.ai Routines UI, where connectors can be attached to
+fresh sessions directly — that cannot be done through the API in this organisation.
+
+### Making the matching exact
+
+Token matching on client names is the weak link. The Client board's Branch subitems have an `email`
+column that is currently empty for all 35 clients; filling it would replace name-token guessing with
+real domains and remove the false-positive class entirely.
 
 ---
 
