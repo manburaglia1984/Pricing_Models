@@ -102,13 +102,14 @@ Each item carries `appliesTo`, an array of monday.com **deal item ids** — so o
 several deals (the Colombia earthquake touches six; Liberty touches three) without duplication, and
 two deals on the same client share one entry.
 
-Items are tiered, and the tier drives the display:
+There is no news panel. News surfaces in two places only:
 
-| Tier | Meaning | Shown |
-|---|---|---|
-| `signal` | Affects credit, ownership, financing need or regulatory standing | Always, accent stripe |
-| `context` | Older than the window but changes how a deal should be read | Always, grey stripe |
-| `note` | Routine corporate news | Behind the "show routine items" toggle |
+- a chip on the deal's table row — reading `news` in the accent colour when the deal has a
+  `signal` item, otherwise `1 item` / `3 items` in neutral;
+- the full list, tiered and with sources, inside that deal's drawer.
+
+A deal with nothing attached gets no chip, so the table stays quiet. Tiers (`signal`, `context`,
+`note`) still order the drawer list and decide whether the row chip is accented.
 
 `noCoverage` names the deals searched with nothing credible found — recorded explicitly, because
 silence from a private company is not the same as no news. Every item stores a `why`: one line on
@@ -138,9 +139,11 @@ appears — on a daily schedule, silence has to be the normal outcome or the ale
 
 The cron is fixed UTC, so the local fire time shifts by an hour when US daylight saving ends.
 
-If the store cannot be read the panel still renders, carrying the reason. "Nothing found this week" and
-"the read failed" must never look like the same blank space — the first version of this shipped with a
-silent `return` on a bad read and a silent `catch`, and the panel simply never appeared.
+With no panel, a failed read would look exactly like a quiet week — every chip simply absent. So the
+connection bar carries a third status dot: green with the item and signal counts, red with the reason
+on hover when the read fails. "Nothing found" and "nothing worked" must never be the same blank space;
+the first version of this shipped with a silent `return` and a silent `catch`, and nothing appeared
+at all.
 
 ### A trap in the db contract
 

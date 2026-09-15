@@ -377,8 +377,6 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
 .news-src{font-size:11px;color:var(--ink-3);margin-top:4px}
 .news-src a{color:var(--ink-3);text-decoration:underline;text-underline-offset:2px}
 .news-src a:hover{color:var(--accent)}
-.news-more{margin-top:12px}
-.news-none{font-size:12px;color:var(--ink-3);line-height:1.5}
 .nchip{display:inline-block;margin-left:7px;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600;
   letter-spacing:.04em;vertical-align:1px;border:1px solid var(--line-2);color:var(--ink-3);white-space:nowrap}
 .nchip.signal{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
@@ -428,6 +426,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
   <div class="wrap conn-in">
     <span class="src" id="src-deals"><span class="dot"></span>Global Pipeline <span class="when"></span></span>
     <span class="src" id="src-rev"><span class="dot"></span>2026 revenue <span class="when"></span></span>
+    <span class="src" id="src-news" hidden><span class="dot"></span>News <span class="when"></span></span>
     <div class="conn-act">
       <button class="btn-refresh" id="refresh" type="button"><span class="spin" aria-hidden="true"></span><span id="refresh-label">Refresh</span></button>
     </div>
@@ -486,7 +485,6 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     </section>
 
     <div class="grid2">
-      <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
       <section class="panel" aria-labelledby="att-h">
         <div class="panel-h">
           <div>
@@ -501,21 +499,6 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
         </div>
       </section>
 
-      <section class="panel" id="news-panel" aria-labelledby="news-h" hidden>
-        <div class="panel-h">
-          <div>
-            <h2 id="news-h">In the news</h2>
-            <p id="news-window">Screened against your deal names.</p>
-          </div>
-          <span class="cnt" id="news-count"></span>
-        </div>
-        <div class="panel-b">
-          <ul class="news-list" id="news-list"></ul>
-          <div class="news-more"><button class="ghost" id="news-toggle" type="button">Show routine items</button></div>
-          <p class="news-none" id="news-none" hidden></p>
-        </div>
-      </section>
-      </div>
 
       <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
         <section class="panel" aria-labelledby="rev-h">
@@ -804,7 +787,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
   /* ---------- runtime state ---------- */
   var MCP = null;
   var DATA = { deals: [], rev: {}, monthly: null, revOk: false };
-  var NEWS = { items: [], byDeal: {}, meta: null, showNotes: false };
+  var NEWS = { items: [], byDeal: {}, meta: null };
   var DB = null, lastRosterSig = null;
   var UI = { stage: "All", mine: false, q: "", key: "days", dir: -1 };
   var stamps = { deals: 0, rev: 0 };
@@ -880,7 +863,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
           (it.appliesTo || []).forEach(function (id) { (by[id] = by[id] || []).push(it); });
         });
         NEWS.byDeal = by;
-        renderNews();
+        applyNews();
         if (DATA.deals.length) renderTable();
       });
     }).catch(function (e) {
@@ -889,16 +872,13 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     });
   }
 
-  /* Show the panel carrying a reason, so "nothing found" and "nothing worked"
-     are never the same blank space. */
+  /* Never fail silently: with no panel, the status dot is where a broken
+     read has to show up, or the absent chips look exactly like no news. */
   function newsUnavailable(msg) {
-    $("news-panel").hidden = false;
-    $("news-window").textContent = "Screened against your deal names.";
-    $("news-count").textContent = "";
-    $("news-list").innerHTML = "";
-    $("news-toggle").hidden = true;
-    $("news-none").hidden = false;
-    $("news-none").textContent = msg;
+    var el = $("src-news");
+    el.hidden = false;
+    setSrc("src-news", "bad", "unavailable");
+    el.title = msg;
   }
 
   /* The daily news Routine runs without connector tools, so it cannot read the
@@ -923,49 +903,21 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
   }
 
   var TIER_RANK = { signal: 0, context: 1, note: 2 };
-  function renderNews() {
-    if (!NEWS.items.length) return;
-    var panel = $("news-panel");
-    panel.hidden = false;
 
-    var sorted = NEWS.items.slice().sort(function (a, b) {
-      var t = (TIER_RANK[a.tier] || 9) - (TIER_RANK[b.tier] || 9);
-      return t !== 0 ? t : String(b.date).localeCompare(String(a.date));
-    });
-    var shown = NEWS.showNotes ? sorted : sorted.filter(function (n) { return n.tier !== "note"; });
-    var notes = sorted.length - sorted.filter(function (n) { return n.tier !== "note"; }).length;
-
-    if (NEWS.meta) {
-      $("news-window").textContent = "Screened against your deal names for " +
-        fmtDate(NEWS.meta.from) + " to " + fmtDate(NEWS.meta.to) + ".";
-    }
-    $("news-count").textContent = sorted.length + " item" + (sorted.length === 1 ? "" : "s");
-
-    $("news-list").innerHTML = shown.map(function (n) {
-      var tag = n.tier === "signal" ? "Signal" : (n.tier === "context" ? "Context" : "Note");
-      return '<li class="' + n.tier + '"><span class="nstripe"></span><div>' +
-        '<div class="news-head"><span class="nclient">' + esc(n.client) + "</span>" +
-        '<span class="ndate">' + fmtDate(n.date) + "</span>" +
-        '<span class="ntag">' + tag + "</span></div>" +
-        '<div class="news-hl">' + esc(n.headline) + "</div>" +
-        (n.why ? '<div class="news-why">' + esc(n.why) + "</div>" : "") +
-        '<div class="news-src">' + esc(n.source) +
-          (n.url ? ' \u00b7 <a href="' + esc(n.url) + '" target="_blank" rel="noopener noreferrer">source \u2197</a>' : "") +
-        "</div></div></li>";
-    }).join("");
-
-    $("news-toggle").textContent = NEWS.showNotes
-      ? "Hide routine items"
-      : "Show " + notes + " routine item" + (notes === 1 ? "" : "s");
-    $("news-toggle").hidden = notes === 0;
-
+  /* No news panel: the row chips carry it, and the drawer holds the detail.
+     The connection bar keeps a status dot so a failed read is still visible. */
+  function applyNews() {
+    var el = $("src-news");
+    el.hidden = false;
+    var sig = NEWS.items.filter(function (n) { return n.tier === "signal"; }).length;
+    setSrc("src-news", "ok", NEWS.items.length + " item" + (NEWS.items.length === 1 ? "" : "s") +
+      (sig ? " \u00b7 " + sig + " signal" + (sig === 1 ? "" : "s") : "") +
+      (NEWS.meta && NEWS.meta.to ? " \u00b7 to " + fmtDate(NEWS.meta.to) : ""));
     var nc = (NEWS.meta && NEWS.meta.noCoverage) || [];
-    $("news-none").hidden = nc.length === 0;
-    if (nc.length) {
-      $("news-none").textContent = "No credible coverage in the window for " + nc.length +
-        " names, mostly private or closely held: " + nc.slice(0, 6).join(", ") +
-        (nc.length > 6 ? " and " + (nc.length - 6) + " others." : ".");
-    }
+    el.title = "Screened against your deal names" +
+      (NEWS.meta && NEWS.meta.from ? " for " + fmtDate(NEWS.meta.from) + " to " + fmtDate(NEWS.meta.to) : "") +
+      ". Open a deal to read its items." +
+      (nc.length ? " No credible coverage for " + nc.length + " names: " + nc.join(", ") + "." : "");
   }
 
   function callOnce(input, force, allowRetry) {
@@ -1419,7 +1371,6 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
   /* ---------- wiring ---------- */
   $("refresh").addEventListener("click", function () { if (MCP) load(true); else start(); });
   $("err-retry").addEventListener("click", function () { if (MCP) load(true); else start(); });
-  $("news-toggle").addEventListener("click", function () { NEWS.showNotes = !NEWS.showNotes; renderNews(); });
   $("q").addEventListener("input", function (e) { UI.q = e.target.value.toLowerCase().trim(); renderTable(); });
   $("btn-all").addEventListener("click", function () {
     UI.mine = false; $("btn-all").setAttribute("aria-pressed", "true"); $("btn-mine").setAttribute("aria-pressed", "false"); renderTable();
