@@ -855,14 +855,26 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
   function loadNews() {
     if (!window.claude || typeof window.claude.use !== "function") return;
     window.claude.use("db").then(function (db) {
-      if (!db) return;
+      if (!db) {
+        newsUnavailable("This view cannot reach the artifact's data store, so screened news is unavailable here.");
+        return;
+      }
       DB = db;
       syncRoster();
       return db.doc("news/current").get().then(function (snap) {
-        if (!snap || !snap.exists || !snap.data || !Array.isArray(snap.data.items)) return;
-        NEWS.meta = { checkedAt: snap.data.checkedAt, from: snap.data.windowFrom, to: snap.data.windowTo,
-                      noCoverage: snap.data.noCoverage || [] };
-        NEWS.items = snap.data.items;
+        if (!snap || !snap.exists) {
+          newsUnavailable("No news has been screened yet. The daily screen writes it; ask Claude to run one now if you do not want to wait.");
+          return;
+        }
+        /* DocumentSnapshot.data is a METHOD, not a property. */
+        var d = (typeof snap.data === "function") ? snap.data() : snap.data;
+        if (!d || !Array.isArray(d.items)) {
+          newsUnavailable("The stored news document is not in a shape this page can read.");
+          return;
+        }
+        NEWS.meta = { checkedAt: d.checkedAt, from: d.windowFrom, to: d.windowTo,
+                      noCoverage: d.noCoverage || [] };
+        NEWS.items = d.items;
         var by = {};
         NEWS.items.forEach(function (it) {
           (it.appliesTo || []).forEach(function (id) { (by[id] = by[id] || []).push(it); });
@@ -871,7 +883,22 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
         renderNews();
         if (DATA.deals.length) renderTable();
       });
-    }).catch(function () { /* no news panel; the rest of the page is unaffected */ });
+    }).catch(function (e) {
+      /* Never fail silently: an empty panel and a broken one must look different. */
+      newsUnavailable("Could not read screened news" + (e && e.code ? " (" + e.code + ")" : "") + ".");
+    });
+  }
+
+  /* Show the panel carrying a reason, so "nothing found" and "nothing worked"
+     are never the same blank space. */
+  function newsUnavailable(msg) {
+    $("news-panel").hidden = false;
+    $("news-window").textContent = "Screened against your deal names.";
+    $("news-count").textContent = "";
+    $("news-list").innerHTML = "";
+    $("news-toggle").hidden = true;
+    $("news-none").hidden = false;
+    $("news-none").textContent = msg;
   }
 
   /* The daily news Routine runs without connector tools, so it cannot read the

@@ -138,8 +138,22 @@ appears — on a daily schedule, silence has to be the normal outcome or the ale
 
 The cron is fixed UTC, so the local fire time shifts by an hour when US daylight saving ends.
 
-If `db` is unavailable to a viewer the news panel simply does not render and the rest of the page is
-unaffected.
+If the store cannot be read the panel still renders, carrying the reason. "Nothing found this week" and
+"the read failed" must never look like the same blank space — the first version of this shipped with a
+silent `return` on a bad read and a silent `catch`, and the panel simply never appeared.
+
+### A trap in the db contract
+
+`DocumentSnapshot.data` is a **method**, not a property:
+
+```js
+var d = snap.data();        // correct
+var d = snap.data;          // a function object — every field reads undefined
+```
+
+Reading it as a property is silent: `snap.data.items` is `undefined`, the array check fails, and the
+panel never shows. Writes are unaffected (`set()` takes a plain object), so the roster kept saving
+while news never loaded — which is exactly what made it hard to spot.
 
 ---
 
