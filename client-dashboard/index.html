@@ -12,109 +12,122 @@
    Americas Origination Desk — Silver Birch Finance
    Tokens: complete light palette on bare :root; dark redefined
    under both prefers-color-scheme and [data-theme="dark"].
-   Stage ramp + status palette validated (dataviz six checks).
+   Stage ramp + accent validated against the reserved status colours
+   (dataviz checks; accent is deliberately not the ramp endpoint).
    ============================================================ */
 :root{
   color-scheme: light;
 
-  --bg:#e6ecea;
-  --surface:#f4f6f5;
-  --surface-2:#eaefed;
-  --surface-3:#dfe6e4;
-  --line:#d3dcd9;
-  --line-2:#bcc9c5;
-  --ink:#0f1614;
-  --ink-2:#485653;
-  --ink-3:#76827f;
+  --bg:#eae8ef;
+  --surface:#f6f5f8;
+  --surface-2:#efedf4;
+  --surface-3:#e5e2ed;
+  --line:#dad6e4;
+  --line-2:#c4bfd4;
+  --ink:#17131f;
+  --ink-2:#514a5e;
+  --ink-3:#807a8c;
 
-  /* stage ordinal ramp — Discovery (light) → Live (dark) */
-  --st-1:#7cb0aa;   /* Discovery      */
-  --st-2:#4f9089;   /* Validation     */
-  --st-3:#2d6d67;   /* Implementation */
-  --st-4:#145049;   /* Live           */
+  /* stage ordinal ramp — Discovery (light) → Live (dark). Brand purple. */
+  --st-1:#9d8ecb;   /* Discovery      */
+  --st-2:#7a63b8;   /* Validation     */
+  --st-3:#5a3fa0;   /* Implementation */
+  --st-4:#3b2183;   /* Live           */
 
-  --accent:#145049;
+  /* accent is NOT the ramp endpoint: it is picked to clear the
+     categorical checks against the reserved status colours. */
+  --accent:#563aa6;
   --accent-ink:#ffffff;
-  --accent-soft:#dde9e7;
+  --accent-soft:#e7e1f4;
+
+  /* logo: silver-grey leaf, deep-purple wordmark */
+  --leaf:#9aa0ac;
+  --brand:#3b2183;
 
   /* reserved status — contact gap only, never a series colour */
   --watch:#b07d12;
-  --watch-soft:#f4ecd9;
+  --watch-soft:#f5efdd;
   --overdue:#b3243a;
-  --overdue-soft:#f7e2e5;
+  --overdue-soft:#f8e3e6;
 
-  --grid:#dbe3e1;
-  --track:#dde4e2;
+  --grid:#e2dfea;
+  --track:#e3e0eb;
 
   --serif:"IBM Plex Serif",Georgia,"Times New Roman",serif;
   --sans:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
 
-  --shadow:0 1px 2px rgba(10,30,26,.05),0 2px 6px rgba(10,30,26,.04);
+  --shadow:0 1px 2px rgba(23,19,31,.06),0 2px 6px rgba(23,19,31,.04);
   --radius:6px;
 }
 
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     color-scheme: dark;
-    --bg:#0c1211;
-    --surface:#121917;
-    --surface-2:#18211f;
-    --surface-3:#1f2927;
-    --line:#243130;
-    --line-2:#33423f;
-    --ink:#e8efec;
-    --ink-2:#a2b0ac;
-    --ink-3:#74827e;
+    --bg:#100d18;
+    --surface:#161320;
+    --surface-2:#1d1929;
+    --surface-3:#252034;
+    --line:#2e2840;
+    --line-2:#3f3854;
+    --ink:#ece9f3;
+    --ink-2:#aaa2bd;
+    --ink-3:#7c7490;
 
-    --st-1:#3f7a74;
-    --st-2:#559b93;
-    --st-3:#74b8b0;
-    --st-4:#9ad4cc;
+    --st-1:#6249a8;
+    --st-2:#7d61c6;
+    --st-3:#9a7fe0;
+    --st-4:#b9a0f5;
 
-    --accent:#9ad4cc;
-    --accent-ink:#0c1211;
-    --accent-soft:#172b28;
+    --accent:#9a7fe0;
+    --accent-ink:#100d18;
+    --accent-soft:#241d38;
+
+    --leaf:#b6bcc9;
+    --brand:#b9a0f5;
 
     --watch:#bf8a26;
-    --watch-soft:#2a2210;
+    --watch-soft:#2b2311;
     --overdue:#cf4e68;
-    --overdue-soft:#2c151a;
+    --overdue-soft:#2d1620;
 
-    --grid:#202b29;
-    --track:#212c2a;
+    --grid:#251f36;
+    --track:#272038;
 
     --shadow:0 1px 2px rgba(0,0,0,.45),0 2px 6px rgba(0,0,0,.3);
   }
 }
 :root[data-theme="dark"]{
   color-scheme: dark;
-  --bg:#0c1211;
-  --surface:#121917;
-  --surface-2:#18211f;
-  --surface-3:#1f2927;
-  --line:#243130;
-  --line-2:#33423f;
-  --ink:#e8efec;
-  --ink-2:#a2b0ac;
-  --ink-3:#74827e;
+  --bg:#100d18;
+  --surface:#161320;
+  --surface-2:#1d1929;
+  --surface-3:#252034;
+  --line:#2e2840;
+  --line-2:#3f3854;
+  --ink:#ece9f3;
+  --ink-2:#aaa2bd;
+  --ink-3:#7c7490;
 
-  --st-1:#3f7a74;
-  --st-2:#559b93;
-  --st-3:#74b8b0;
-  --st-4:#9ad4cc;
+  --st-1:#6249a8;
+  --st-2:#7d61c6;
+  --st-3:#9a7fe0;
+  --st-4:#b9a0f5;
 
-  --accent:#9ad4cc;
-  --accent-ink:#0c1211;
-  --accent-soft:#172b28;
+  --accent:#9a7fe0;
+  --accent-ink:#100d18;
+  --accent-soft:#241d38;
+
+  --leaf:#b6bcc9;
+  --brand:#b9a0f5;
 
   --watch:#bf8a26;
-  --watch-soft:#2a2210;
+  --watch-soft:#2b2311;
   --overdue:#cf4e68;
-  --overdue-soft:#2c151a;
+  --overdue-soft:#2d1620;
 
-  --grid:#202b29;
-  --track:#212c2a;
+  --grid:#251f36;
+  --track:#272038;
 
   --shadow:0 1px 2px rgba(0,0,0,.45),0 2px 6px rgba(0,0,0,.3);
 }
@@ -138,8 +151,13 @@ button{font:inherit;color:inherit;cursor:pointer}
 /* ---------- header ---------- */
 .top{background:var(--surface);border-bottom:1px solid var(--line)}
 .top-in{display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap;padding-block:16px 14px}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.leaf{flex:none;width:36px;height:36px;display:block}
+.leaf svg,.leaf img{display:block;width:100%;height:100%}
+.leaf img{object-fit:contain;object-position:left center}
+.leaf.full{width:auto;height:38px;max-width:230px}
 .mark{display:flex;flex-direction:column;gap:1px;min-width:0}
-.mark b{font-family:var(--serif);font-weight:600;font-size:21px;letter-spacing:-.02em;line-height:1.1}
+.mark b{font-family:var(--serif);font-weight:600;font-size:21px;letter-spacing:-.02em;line-height:1.1;color:var(--brand)}
 .mark span{font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3);font-weight:500}
 .top-meta{margin-left:auto;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .asof{display:flex;flex-direction:column;align-items:flex-end;gap:1px;line-height:1.35}
@@ -279,7 +297,7 @@ tbody td{padding:10px 12px;vertical-align:middle}
 .empty{padding:34px 18px;text-align:center;color:var(--ink-3);font-size:13px}
 
 /* ---------- drawer ---------- */
-.scrim{position:fixed;inset:0;background:rgba(8,20,18,.42);z-index:50;opacity:0;pointer-events:none;transition:opacity .18s}
+.scrim{position:fixed;inset:0;background:rgba(16,13,24,.46);z-index:50;opacity:0;pointer-events:none;transition:opacity .18s}
 .scrim.on{opacity:1;pointer-events:auto}
 .drawer{position:fixed;top:0;right:0;bottom:0;width:min(470px,100%);background:var(--surface);z-index:51;
         border-left:1px solid var(--line);display:flex;flex-direction:column;
@@ -423,9 +441,17 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
 
 <header class="top">
   <div class="wrap top-in">
-    <div class="mark">
-      <b>Silver Birch</b>
-      <span>Americas &middot; Originate to Distribute</span>
+    <div class="brand">
+      <span class="leaf" id="brand-logo" aria-hidden="true">
+        <svg viewBox="0 0 36 36" role="img">
+          <path d="M5 31C5 16.6 16.6 5 31 5c0 14.4-11.6 26-26 26Z" fill="var(--leaf)"/>
+          <path d="M4 32 26.5 9.5" stroke="var(--brand)" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+        </svg>
+      </span>
+      <div class="mark">
+        <b>Silver Birch</b>
+        <span>Americas &middot; Originate to Distribute</span>
+      </div>
     </div>
     <div class="top-meta">
       <div class="asof">
@@ -866,6 +892,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
       loadContact(db);
       loadActivity(db);
       loadKeys(db);
+      loadLogo(db);
       return db.doc("news/current").get().then(function (snap) {
         if (!snap || !snap.exists) {
           newsUnavailable("No news has been screened yet. The daily screen writes it; ask Claude to run one now if you do not want to wait.");
@@ -965,6 +992,29 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
       });
       KEYS.byDeal = by;
       if (DATA.deals.length) renderTable();
+    }).catch(function () {});
+  }
+
+  /* The header ships a drawn leaf so the page is never unbranded. When the real
+     asset is stored at brand/current ({src, full}), it replaces the drawing;
+     `full` means the file already contains the wordmark, so the typeset one is
+     dropped rather than printed twice. */
+  function loadLogo(db) {
+    db.doc("brand/current").get().then(function (snap) {
+      if (!snap || !snap.exists) return;
+      var d = (typeof snap.data === "function") ? snap.data() : snap.data;
+      if (!d || !d.src) return;
+      var host = $("brand-logo"); if (!host) return;
+      var img = document.createElement("img");
+      img.alt = "Silver Birch Finance";
+      img.onerror = function () { /* keep the drawn mark rather than a broken image */ };
+      img.onload = function () {
+        host.textContent = "";
+        host.appendChild(img);
+        host.removeAttribute("aria-hidden");
+        if (d.full) { host.classList.add("full"); var m = document.querySelector(".mark b"); if (m) m.hidden = true; }
+      };
+      img.src = d.src;
     }).catch(function () {});
   }
 

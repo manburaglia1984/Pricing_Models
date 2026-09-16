@@ -304,16 +304,45 @@ attention reads as coloured.
 
 ## Design notes
 
-- **Stage is ordinal, not categorical** — a single teal ramp from light (Discovery) to dark (Live):
-  darker means closer to revenue. Four unrelated hues would throw that ordering away.
+- **Stage is ordinal, not categorical** — a single ramp in the brand purple from light (Discovery)
+  to dark (Live): darker means closer to revenue. Four unrelated hues would throw that ordering away.
 - **Attention ranking** is contact gap ÷ stage tolerance, weighted by 2026 forecast at risk, so a
   large Live account outranks a small Discovery name at the same number of days.
-- Palette validated for colour-vision deficiency and contrast in both themes.
+- **The accent is not the ramp endpoint.** The stage ramp is validated as an ordinal ramp (monotone
+  lightness, visible step gaps, one hue). The accent is validated separately as a categorical colour
+  against the two reserved status colours, which is a stricter test — it has to clear a lightness
+  band, a chroma floor and colour-vision separation from Watch amber and Overdue red. No single
+  value passes both, so `--accent` (`#563aa6` light, `#9a7fe0` dark) sits inside the ramp's hue but
+  is picked on its own. `--brand` is the wordmark purple and is display-only.
+- Palette validated for colour-vision deficiency and contrast in both themes. The brand purple is a
+  material improvement on the teal it replaced, which collided with Overdue red under protanopia
+  (ΔE 2.4, well under the floor); purple against the same red scores ΔE 12.9.
 - Every connector error branches on its own code — `needs_reauth`, `server_not_connected`,
   `selection_required`, `blocked_by_policy` and the rest each get the copy that names the fix.
   Only `retryable` errors auto-retry, once.
 
 ---
+
+## Brand
+
+The header carries a drawn leaf mark in `--leaf` silver-grey with a `--brand` purple midrib, so the
+page is never unbranded. It is a stand-in, not the real asset: the logo file was not reachable from
+the session that built this, so the purples are **read off the image by eye, not from a brand
+specification**. Replace both when the real values are to hand.
+
+To swap in the real logo without touching the code, write the artifact-db document `brand/current`:
+
+```json
+{ "src": "https://…/silver-birch.svg", "full": true }
+```
+
+- `src` — a URL or a `data:` URI. A `data:` URI is safer here: it survives with the artifact and
+  needs no host. SVG is preferred; PNG at 3× the rendered height also works.
+- `full` — `true` when the file already contains the "Silver Birch" wordmark, which drops the
+  typeset one so it is not printed twice. `false` (or omitted) for a mark-only file.
+
+The page falls back to the drawn leaf if the document is missing or the image fails to load, so a
+bad URL degrades rather than breaks.
 
 ## Not built, deliberately
 
