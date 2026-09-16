@@ -231,11 +231,24 @@ That workaround depends on the bound session still existing when the Routine fir
 alternative is a Routine created from the claude.ai Routines UI, where connectors can be attached to
 fresh sessions directly — that cannot be done through the API in this organisation.
 
-### Making the matching exact
+### Search keys
 
-Token matching on client names is the weak link. The Client board's Branch subitems have an `email`
-column that is currently empty for all 35 clients; filling it would replace name-token guessing with
-real domains and remove the false-positive class entirely.
+Token matching on client names was the weak link, and it is what produced the CEAT and `lla.com`
+false positives. `domains/current` in the artifact database now holds a per-client search key, seeded
+from the first sweep:
+
+| Status | Count | Key used |
+|---|---|---|
+| `confirmed` | 14 | A real domain seen in mail or on a meeting invitation — exact, needs no corroboration |
+| `token-only` | 15 | A name token — works, but a hit must be tied to the client before it counts |
+| `unknown` | 7 | No usable key; recorded as `no-trace` rather than guessed |
+
+Each weekly run is told to add any new client address it discovers, so the map improves on its own.
+
+This lives in the artifact store rather than on monday.com deliberately. The Global Database Branch
+subitems do carry an `email` column, but it is empty for **all 1,152 clients** on the board, not just
+these 35 — the structure has never been used. Filling it would be org-wide manual data entry to
+recover information the Outlook sweep already produces.
 
 ---
 

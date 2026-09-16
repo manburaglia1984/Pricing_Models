@@ -1,7 +1,15 @@
 # Weekly contact check — Routine setup
 
-The API cannot attach connectors to a Routine in this organisation, so the durable version has to be
-created from the web form, where connectors are attached by default. Ten minutes, once.
+**Status: done.** The Routine exists as `trig_01WXy6qUr1JNpcxmDSqDTVeC`, created from the web form
+with Microsoft-365 and monday-com attached and this repository selected. Its first run succeeded on
+15 Sep and matched a manual pass on 36 of 39 deals, finding fresher evidence on three of them and two
+deals that had been added to the board since.
+
+Edit it at https://claude.ai/code/routines/trig_01WXy6qUr1JNpcxmDSqDTVeC — routines created in the
+web UI cannot be updated by an agent, so prompt changes have to be pasted there by hand.
+
+The steps below are kept for rebuilding it, and the prompt below is the current one: it adds the
+`domains/current` search-key step, which the first run did not have.
 
 ## Steps
 
@@ -46,10 +54,18 @@ nothing, and say which one is gone. Never write a partial or guessed result.
 2. BOARD DATES. Pull each deal's Date Last Contact (`date_mkxjfs3x`) fresh from monday.com. The board
    moves, and a stale board date makes every verdict wrong.
 
-3. OUTLOOK, PACED. For each distinct client:
-   - outlook_email_search with `recipient` set to a distinctive token from the client name — partial
-     addresses match, so no domain is needed — limit 1, newest first.
-   - outlook_calendar_search with query "*", `attendee` set to the same token, order "newest",
+3. SEARCH KEYS. Read `domains/current` from the artifact database. For each client it gives either a
+   confirmed `domains` list or a `tokens` list. ALWAYS prefer a domain: it is exact, and a hit needs
+   no further corroboration. Fall back to tokens only where no domain is recorded, and treat a token
+   hit as evidence only once you can tie it to the client. Clients with status "unknown" have no
+   usable key — record them as no-trace and say so in the report rather than guessing.
+   When a run discovers a real client address that `domains/current` does not have, add it to that
+   document (status "confirmed", with the address in `seen`). The map should get better every week.
+
+4. OUTLOOK, PACED. For each distinct client:
+   - outlook_email_search with `recipient` set to its domain, or its token, limit 1, newest first.
+     Partial addresses match, so a bare domain works without a full address.
+   - outlook_calendar_search with query "*", `attendee` set to the same value, order "newest",
      afterDateTime two years back, limit 1.
    Microsoft Graph rate-limits concurrent mailbox calls (ApplicationThrottled / MailboxConcurrency).
    Run at most THREE calls in parallel and honour retryAfterSeconds on a 429. A sweep of ~35 clients
@@ -59,7 +75,7 @@ nothing, and say which one is gone. Never write a partial or guessed result.
    sweep matched "cantu" to a CEAT thread and "lla.com" to an unrelated one — and record those as
    no-trace rather than inventing evidence.
 
-4. VERDICTS, per deal. Last touch = the later of the newest mail and the newest PAST meeting.
+5. VERDICTS, per deal. Last touch = the later of the newest mail and the newest PAST meeting.
    - corroborated: board and Outlook agree within 7 days
    - board-stale: Outlook shows a later touch than the board (the page then uses the Outlook date)
    - unconfirmed: the board is more than 21 days newer than anything Outlook can see
@@ -69,13 +85,13 @@ nothing, and say which one is gone. Never write a partial or guessed result.
    Capture any FUTURE meeting with a client attendee separately as nextMeeting / nextMeetingSubject /
    nextMeetingWith. A meeting already in the diary matters more than the gap number.
 
-5. WRITE `contact/current` to the artifact database, whole-document replace, with: checkedAt, method,
+6. WRITE `contact/current` to the artifact database, whole-document replace, with: checkedAt, method,
    source, caveats[], toleranceDays 7, unconfirmedAfterDays 21, and deals[] of { id, verdict, board,
    outlook, channel ("email" or "meeting"), who, subject, gap, note?, nextMeeting?,
    nextMeetingSubject?, nextMeetingWith? }. Plain ASCII punctuation only. Pin the write with
    if_version from your read. Do NOT republish the artifact — the page reads this live.
 
-6. REPORT. Under 120 words, no preamble. Only: deals that moved into unconfirmed since last week; any
+7. REPORT. Under 120 words, no preamble. Only: deals that moved into unconfirmed since last week; any
    Live or Implementation deal whose real gap is now past double its stage tolerance; and any client
    meeting in the diary for the coming week. If none of those apply, say "No change worth acting on"
    and nothing else.
@@ -88,6 +104,11 @@ PRM (not receivables finance), SB TradeCo (not trading entity), Offer File (not 
 
 ## Notes
 
+- The client domain map lives at `domains/current` in the artifact database, seeded from the first
+  Outlook sweep: 14 clients with a confirmed domain, 15 with a name token only, 7 with nothing usable.
+  It is deliberately NOT on the monday.com board — the Global Database Branch subitems have an Email
+  column, but it is empty for all 1,152 clients, so filling it would be org-wide data entry for a
+  structure nobody uses.
 - Routines belong to your individual claude.ai account, are not shared with the team, and count
   against your daily routine run allowance.
 - A green status in the run list means the session started and exited cleanly — not that the task
