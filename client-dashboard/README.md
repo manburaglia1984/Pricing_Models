@@ -174,6 +174,21 @@ drawer rather than being presented as a zero-revenue client.
 
 ---
 
+## An intermediary, not a missing domain
+
+A large part of the Americas book is transacted **through Bladex**, with IADB and Kapital on some
+Colombian deals. For those, correspondence goes to the partner and never to a client address, so a
+client-domain search structurally under-reports them.
+
+Vitali is the clearest case: Trade #24 documentation went to the Bladex team on 24 Aug — the deal is
+plainly active — while a client-domain search sees nothing at all and the deal reads as `no-trace`.
+
+**Deal activity and client contact are different signals and should not be conflated.** The check
+currently measures only the second. Measuring the first needs a subject-line key on the deal or
+programme name ("Vitali", "Cartera Brilla", "Audio TEF"), kept as its own field.
+
+---
+
 ## The contact check
 
 `contact/current` holds an Outlook corroboration of the board's `Date Last Contact`, one entry per
@@ -239,9 +254,15 @@ from the first sweep:
 
 | Status | Count | Key used |
 |---|---|---|
-| `confirmed` | 14 | A real domain seen in mail or on a meeting invitation — exact, needs no corroboration |
+| `confirmed` | 18 | A real domain seen in mail or on a meeting invitation — exact, needs no corroboration |
 | `token-only` | 15 | A name token — works, but a hit must be tied to the client before it counts |
-| `unknown` | 7 | No usable key; recorded as `no-trace` rather than guessed |
+| `unknown` | 4 | No usable key; recorded as `no-trace` rather than guessed |
+
+Four keys that no search could recover were supplied directly and are now confirmed: Liberty Costa
+Rica (`libertycr.com`, `lla.com`), C&W Panama (`cwpanama.com`), AG Group (`somosgrupoag.com`) and
+Nativa Agronegocios (`agroamazonia.com` — it trades as Agroamazonia, which is why no name-derived
+token could ever have found it). The four remaining unknowns are two deals with no Client linked on
+the board, and two where the counterparty is only ever reached through a partner.
 
 Each weekly run is told to add any new client address it discovers, so the map improves on its own.
 
