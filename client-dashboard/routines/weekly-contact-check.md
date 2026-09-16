@@ -85,13 +85,24 @@ nothing, and say which one is gone. Never write a partial or guessed result.
    Capture any FUTURE meeting with a client attendee separately as nextMeeting / nextMeetingSubject /
    nextMeetingWith. A meeting already in the diary matters more than the gap number.
 
-6. WRITE `contact/current` to the artifact database, whole-document replace, with: checkedAt, method,
+6. DEAL ACTIVITY. Separately from contact, find the newest message whose SUBJECT carries the deal or
+   programme name (outlook_email_search `query`, limit 1 — it returns newest-first). Internal threads
+   count: they are evidence the deal is moving, which is the point. Classify each as "client" (the
+   thread reaches a client address), "partner" (Bladex, IADB, Kapital, MUFG) or "internal".
+   Write these to `activity/current` as deals[] of { id, date, kind, who, subject, note? }.
+   Activity is CONTEXT ONLY. It never shortens a contact gap and never changes a verdict — a deal
+   worked internally for months with no client contact is exactly what the contact check should flag.
+   Prioritise deals whose contact verdict is no-trace or unconfirmed; those are where it changes the
+   reading. A large part of this book transacts through Bladex, so a deal can be active for weeks
+   without a single message reaching a client address.
+
+7. WRITE `contact/current` to the artifact database, whole-document replace, with: checkedAt, method,
    source, caveats[], toleranceDays 7, unconfirmedAfterDays 21, and deals[] of { id, verdict, board,
    outlook, channel ("email" or "meeting"), who, subject, gap, note?, nextMeeting?,
    nextMeetingSubject?, nextMeetingWith? }. Plain ASCII punctuation only. Pin the write with
    if_version from your read. Do NOT republish the artifact — the page reads this live.
 
-7. REPORT. Under 120 words, no preamble. Only: deals that moved into unconfirmed since last week; any
+8. REPORT. Under 120 words, no preamble. Only: deals that moved into unconfirmed since last week; any
    Live or Implementation deal whose real gap is now past double its stage tolerance; and any client
    meeting in the diary for the coming week. If none of those apply, say "No change worth acting on"
    and nothing else.

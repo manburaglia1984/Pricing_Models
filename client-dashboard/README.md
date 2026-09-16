@@ -183,9 +183,21 @@ client-domain search structurally under-reports them.
 Vitali is the clearest case: Trade #24 documentation went to the Bladex team on 24 Aug — the deal is
 plainly active — while a client-domain search sees nothing at all and the deal reads as `no-trace`.
 
-**Deal activity and client contact are different signals and should not be conflated.** The check
-currently measures only the second. Measuring the first needs a subject-line key on the deal or
-programme name ("Vitali", "Cartera Brilla", "Audio TEF"), kept as its own field.
+**Deal activity and client contact are different signals and are kept apart.** `activity/current`
+holds the second one: the newest message whose subject carries the deal or programme name, classified
+as `client`, `partner` or `internal`.
+
+It is **context only**. It never shortens a contact gap and never changes a verdict — a deal worked
+internally for months with no client contact is exactly what the contact check should be flagging, so
+letting activity mask that would defeat the purpose. It renders as a muted line under the day count
+("deal active 16 Sep - internal only"), not as a competing number.
+
+The pattern it exists to catch: **deal moving, client silent**. Flexdomes was discussed internally
+this morning while reading as a no-trace deal with no Client linked. Grupo Penoles has no Date Last
+Contact at all on the board, and a Call Report documenting a call on 27 Aug.
+
+A deal whose client has no usable search key now shows a dotted `no key` chip rather than rendering
+identically to a genuine contact gap. Those mean opposite things.
 
 ---
 

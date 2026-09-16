@@ -384,6 +384,13 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
   letter-spacing:.03em;white-space:nowrap;border:1px dashed var(--line-2);color:var(--ink-3);background:transparent}
 .dchip.unconf{border-style:solid;border-color:var(--ink-3);color:var(--ink-2);font-weight:650}
 .dchip.meet{border-style:solid;border-color:var(--ink-2);color:var(--ink);font-weight:650}
+.dchip.nokey{border-style:dotted;border-color:var(--ink-3);color:var(--ink-3)}
+.act-line{display:block;font-size:10.5px;color:var(--ink-3);margin-top:4px;white-space:nowrap;font-family:var(--sans)}
+.act-line b{font-weight:600;color:var(--ink-2)}
+.act-box{background:var(--surface-2);border:1px solid var(--line);border-radius:var(--radius);padding:11px 13px;margin-top:9px}
+.act-box .ch{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
+.act-box .sub{font-size:13px;font-weight:500;margin-top:4px;line-height:1.4}
+.act-box .wh{font-size:11.5px;color:var(--ink-2);margin-top:5px;font-family:var(--mono)}
 .cc-grid{display:grid;grid-template-columns:auto 1fr;gap:5px 14px;font-size:12.5px;margin:0 0 8px}
 .cc-grid dt{color:var(--ink-3);white-space:nowrap}
 .cc-grid dd{margin:0;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
@@ -798,6 +805,8 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
   var DATA = { deals: [], rev: {}, monthly: null, revOk: false };
   var NEWS = { items: [], byDeal: {}, meta: null };
   var CONTACT = { byDeal: {}, meta: null };
+  var ACTIVITY = { byDeal: {}, meta: null };
+  var KEYS = { byDeal: {} };
   var DB = null, lastRosterSig = null;
   var UI = { stage: "All", mine: false, q: "", key: "days", dir: -1 };
   var stamps = { deals: 0, rev: 0 };
@@ -855,6 +864,8 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
       DB = db;
       syncRoster();
       loadContact(db);
+      loadActivity(db);
+      loadKeys(db);
       return db.doc("news/current").get().then(function (snap) {
         if (!snap || !snap.exists) {
           newsUnavailable("No news has been screened yet. The daily screen writes it; ask Claude to run one now if you do not want to wait.");
@@ -925,6 +936,40 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
       contactUnavailable("Could not read the contact check" + (e && e.code ? " (" + e.code + ")" : "") + ".");
     });
   }
+  /* Whether the DEAL is moving — a different question from whether the CLIENT
+     was contacted. Context only: it must never shrink a contact gap, or a deal
+     worked internally for months would read as healthy. */
+  function loadActivity(db) {
+    db.doc("activity/current").get().then(function (snap) {
+      if (!snap || !snap.exists) return;
+      var d = (typeof snap.data === "function") ? snap.data() : snap.data;
+      if (!d || !Array.isArray(d.deals)) return;
+      ACTIVITY.meta = { checkedAt: d.checkedAt, coverage: d.coverage };
+      var by = {};
+      d.deals.forEach(function (x) { if (x && x.id) by[String(x.id)] = x; });
+      ACTIVITY.byDeal = by;
+      if (DATA.deals.length) renderTable();
+    }).catch(function () { /* activity is additive; absence changes nothing */ });
+  }
+
+  /* A deal whose client has no usable search key must not read the same as a
+     deal with a genuine contact gap. Those mean opposite things. */
+  function loadKeys(db) {
+    db.doc("domains/current").get().then(function (snap) {
+      if (!snap || !snap.exists) return;
+      var d = (typeof snap.data === "function") ? snap.data() : snap.data;
+      if (!d || !Array.isArray(d.clients)) return;
+      var by = {};
+      d.clients.forEach(function (c) {
+        (c.dealIds || []).forEach(function (id) { by[String(id)] = { status: c.status, client: c.client }; });
+      });
+      KEYS.byDeal = by;
+      if (DATA.deals.length) renderTable();
+    }).catch(function () {});
+  }
+
+  function actFor(id) { return ACTIVITY.byDeal[id] || null; }
+
   function applyContactStatus() {
     var el = $("src-contact"); el.hidden = false;
     var v = { "board-stale": 0, "unconfirmed": 0, "corroborated": 0, "no-trace": 0 };
@@ -1323,6 +1368,22 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     return "";
   }
 
+  function keyChip(d) {
+    var k = KEYS.byDeal[d.id];
+    if (!k || k.status !== "unknown") return "";
+    return '<span class="dchip nokey" title="No usable search key for this client, so Outlook cannot be checked. This is not evidence of a contact gap.">no key</span>';
+  }
+
+  function actLine(d) {
+    var a = actFor(d.id);
+    if (!a || !a.date) return "";
+    var dt = new Date(parseDate(a.date));
+    var K = { client: "with the client", partner: "via a partner", internal: "internal only" };
+    return '<span class="act-line" title="' + esc((a.subject || "") + (a.who ? " \u00b7 " + a.who : "")) + '">' +
+      "deal active <b>" + dt.getUTCDate() + " " + MON[dt.getUTCMonth()] + "</b> \u00b7 " +
+      (K[a.kind] || a.kind) + "</span>";
+  }
+
   function newsChip(id) {
     var n = newsFor(id);
     if (!n.length) return "";
@@ -1363,7 +1424,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
         '<td class="r num">' + (d.facility ? fmtM(d.facility) : "—") + "</td>" +
         '<td class="r">' + revCell + "</td>" +
         '<td class="r"><span class="num" style="margin-right:7px">' + (d.effFrom !== "none" ? d.days + "d" : "—") + "</span>" +
-          '<span class="pill ' + d.status + '">' + pill + "</span>" + divChip(d) + meetChip(d) + "</td>" +
+          '<span class="pill ' + d.status + '">' + pill + "</span>" + divChip(d) + keyChip(d) + meetChip(d) + actLine(d) + "</td>" +
         "<td>" + docPill(d.legalDoc) + "</td></tr>";
     }).join("");
   }
@@ -1419,6 +1480,17 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
         h += '<p class="note">There is a later touch the board does not know about, so the gap above uses the Outlook date. Worth updating Date Last Contact on the board.</p>';
       }
       h += "</div>";
+    }
+
+    var av = actFor(d.id);
+    if (av) {
+      var KN = { client: "Reached the client", partner: "Through a partner", internal: "Silver Birch only" };
+      h += '<div class="dr-sec"><h4>Deal activity</h4>' +
+        '<div class="act-box"><div class="ch">' + esc(KN[av.kind] || av.kind) + " \u00b7 " + fmtDate(av.date) + "</div>" +
+        '<div class="sub">' + esc(av.subject || "") + "</div>" +
+        (av.who ? '<div class="wh">' + esc(av.who) + "</div>" : "") + "</div>" +
+        (av.note ? '<p class="note">' + esc(av.note) + "</p>" : "") +
+        '<p class="note">Whether the deal is moving, which is not the same as whether the client has heard from us. It is shown as context and never shortens the contact gap above.</p></div>';
     }
 
     h += '<div class="dr-sec"><h4>Position</h4><dl class="dl">' +
