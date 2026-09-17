@@ -181,6 +181,21 @@ button{font:inherit;color:inherit;cursor:pointer}
 .op:last-child{border-bottom:0}
 .op.matched{border-left-color:var(--st-4);background:var(--accent-soft)}
 .op.ours{border-left-style:dashed;border-left-color:var(--watch)}
+.op.risk{border-left-color:var(--overdue)}
+.op.risk .op-kind{border-color:var(--overdue);color:var(--overdue);background:var(--overdue-soft)}
+.op.risk .op-angle{border-left-color:var(--overdue)}
+.nitem{border-left:2px solid var(--accent);padding:2px 0 2px 11px;margin-top:11px}
+.nitem:first-of-type{margin-top:7px}
+.nitem .nmeta{display:flex;gap:8px;align-items:center;margin-bottom:4px}
+.nitem .nmeta .num{font-size:10.5px;color:var(--ink-3)}
+.nitem > b{display:block;font-size:12.5px;font-weight:600;line-height:1.45;letter-spacing:-.005em}
+.nitem > p{margin:4px 0 0;font-size:12px;line-height:1.5;color:var(--ink-2)}
+.nitem .nsrc{margin-top:5px;font-size:10.5px;color:var(--ink-3)}
+.nitem .nsrc a{color:var(--accent);text-decoration:none;font-weight:500}
+.nitem .nsrc a:hover{text-decoration:underline}
+.nitem.risk{border-left-color:var(--overdue)}
+.nitem.risk .nsrc a{color:var(--overdue)}
+.nchip.risk{border-color:var(--overdue);color:var(--overdue);background:var(--overdue-soft)}
 .op.ours .op-name,.op.ours .op-head{color:var(--ink-2)}
 .op-top{display:flex;gap:9px;align-items:baseline;flex-wrap:wrap;margin-bottom:5px}
 .op-name{font-weight:600;font-size:13.5px;letter-spacing:-.005em}
@@ -207,6 +222,7 @@ button{font:inherit;color:inherit;cursor:pointer}
            border:1px solid var(--accent);color:var(--accent);background:var(--accent-soft);
            border-radius:3px;padding:1px 6px;font-family:var(--mono)}
 .sigcell b.plain{border-color:var(--line-2);color:var(--ink-2);background:transparent}
+.sigcell b.risk{border-color:var(--overdue);color:var(--overdue);background:var(--overdue-soft)}
 
 /* ---------- provenance strip ---------- */
 .prov{background:var(--watch-soft);border-bottom:1px solid var(--line)}
@@ -684,11 +700,16 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
         <span id="cold-warn-text"></span>
       </div>
 
-      <section class="kpi kpi-3" aria-label="Re-engagement summary">
+      <section class="kpi" aria-label="Re-engagement summary">
         <div>
           <div class="kpi-l">Openings this week</div>
           <div class="kpi-v" id="k-open">&mdash;</div>
           <div class="kpi-s" id="k-open-sub">&nbsp;</div>
+        </div>
+        <div>
+          <div class="kpi-l">Risk flags</div>
+          <div class="kpi-v" id="k-risk">&mdash;</div>
+          <div class="kpi-s" id="k-risk-sub">&nbsp;</div>
         </div>
         <div>
           <div class="kpi-l">Names watched</div>
@@ -710,6 +731,16 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
           </div>
         </div>
         <div class="panel-b"><div id="openings"></div></div>
+      </section>
+
+      <section class="panel" id="risk-panel" style="margin-top:16px" hidden>
+        <div class="panel-h">
+          <div>
+            <h2>Watch-outs</h2>
+            <p>Adverse news on the same names. Not a reason to call &mdash; a reason to check first.</p>
+          </div>
+        </div>
+        <div class="panel-b"><div id="risks"></div></div>
       </section>
 
       <div class="ctrls">
@@ -879,14 +910,27 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
   /* The standing list, applied to every cold name whatever the reason.
      Order here is the ranking order when nothing is reason-matched. */
   var KINDS = {
-    "cfo-change": { rank:1, label:"New finance leadership", note:"A new CFO or Treasurer resets every previous no, including the ones with no stated reason." },
-    "wc-stress":  { rank:2, label:"Working capital under pressure", note:"Receivables stretching, inventory building, suppliers pushing on terms." },
-    "funding":    { rank:3, label:"Funding event", note:"A bond, a refinancing, a new credit line, an IPO." },
-    "capex":      { rank:4, label:"Capex or expansion", note:"A plant, added capacity, a new market." },
-    "ma":         { rank:5, label:"M&A or divestment", note:"A balance sheet about to change shape." },
-    "rating":     { rank:6, label:"Rating action", note:"An upgrade, a downgrade, an outlook change." },
-    "other":      { rank:7, label:"Other", note:"Screened as relevant but outside the standing list." }
+    "cfo-change": { rank:1, short:"cfo", label:"New finance leadership", note:"A new CFO or Treasurer resets every previous no, including the ones with no stated reason." },
+    "wc-stress":  { rank:2, short:"wc", label:"Working capital under pressure", note:"Receivables stretching, inventory building, suppliers pushing on terms." },
+    "funding":    { rank:3, short:"funding", label:"Funding event", note:"A bond, a refinancing, a new credit line, an IPO." },
+    "capex":      { rank:4, short:"capex", label:"Capex or expansion", note:"A plant, added capacity, a new market." },
+    "ma":         { rank:5, short:"m&a", label:"M&A or divestment", note:"A balance sheet about to change shape." },
+    "rating":     { rank:6, short:"rating", label:"Rating action", note:"An upgrade, a downgrade, an outlook change." },
+    "other":      { rank:7, short:"other", label:"Other", note:"Screened as relevant but outside the standing list." }
   };
+
+  /* Adverse news is not an opening and must never be ranked as one. It is kept
+     apart, in its own panel, with its own colour: a fine or a downgrade is a
+     reason to check before approaching, not a reason to call. */
+  var RISKS = {
+    "risk-credit":      { rank:1, label:"Credit deterioration", note:"A downgrade, a covenant breach, a default, a liquidity squeeze." },
+    "risk-legal":       { rank:2, label:"Legal or regulatory",  note:"A fine, an investigation, litigation, a sanction, a licence at risk." },
+    "risk-governance":  { rank:3, label:"Governance",           note:"Fraud, an auditor resigning, a finance chief leaving under a cloud." },
+    "risk-operational": { rank:4, label:"Operational",          note:"A plant closing, a strike, a supply failure, a major disruption." },
+    "risk-other":       { rank:5, label:"Adverse",              note:"Adverse, but outside the listed kinds." }
+  };
+  function isRisk(sg) { return !!(sg && (sg.tone === "risk" || RISKS[sg.kind])); }
+  function kindOf(sg) { return RISKS[sg.kind] || KINDS[sg.kind] || (isRisk(sg) ? RISKS["risk-other"] : KINDS.other); }
 
   var STAGES = [
     { key: "Discovery",      rank: 1, tol: 30 },
@@ -1514,16 +1558,29 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
   /* Ranking is the whole product here. A signal that answers this name's own
      stated reason beats any standing-list hit; below that the standing list's
      own order decides, and recency breaks ties. */
-  function sigScore(sg) {
+  /* A screen can mark a signal as answering the stated reason for a name that
+     has no stated reason. It cannot: the claim needs something to answer. */
+  function isMatched(sg, d) { return !!(sg && sg.matched && d && d.reason && d.posture === "catalyst"); }
+  function sigScore(sg, d) {
     if (!sg) return 0;
-    var k = KINDS[sg.kind] || KINDS.other;
-    var base = (sg.matched ? 100 : 0) + (10 - k.rank);
+    var k = kindOf(sg);
+    /* A risk never outranks an opening: they answer different questions and the
+       list is called Openings. Risks are scored only against each other. */
+    var base = isRisk(sg) ? (6 - k.rank) : (isMatched(sg, d) ? 100 : 0) + (10 - k.rank);
     var age = sg.date ? daysSince(sg.date) : 60;
     return base * 1000 - Math.min(age, 999);
   }
+  function openingsOf(id) { return sigsOf(id).filter(function (sg) { return !isRisk(sg); }); }
+  function risksOf(id)    { return sigsOf(id).filter(isRisk); }
   function bestSig(id) {
-    var a = sigsOf(id); if (!a.length) return null;
-    return a.slice().sort(function (x, y) { return sigScore(y) - sigScore(x); })[0];
+    var a = openingsOf(id); if (!a.length) return null;
+    var d = coldById(id);
+    return a.slice().sort(function (x, y) { return sigScore(y, d) - sigScore(x, d); })[0];
+  }
+  function bestRisk(id) {
+    var a = risksOf(id); if (!a.length) return null;
+    var d = coldById(id);
+    return a.slice().sort(function (x, y) { return sigScore(y, d) - sigScore(x, d); })[0];
   }
 
   function buildRevenue(items) {
@@ -1836,11 +1893,14 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
 
   function coldById(id) { return COLD.rows.filter(function (x) { return x.id === id; })[0] || null; }
 
-  /* Every signal in the book, ranked, with its name attached. */
-  function allSignals() {
+  /* Two separate feeds, never merged: one answers "why call them", the other
+     answers "what should stop me". */
+  function feed(risk) {
     var out = [];
     COLD.rows.forEach(function (d) {
-      sigsOf(d.id).forEach(function (sg) { out.push({ d: d, sg: sg, score: sigScore(sg) }); });
+      (risk ? risksOf(d.id) : openingsOf(d.id)).forEach(function (sg) {
+        out.push({ d: d, sg: sg, score: sigScore(sg, d) });
+      });
     });
     return out.sort(function (a, b) { return b.score - a.score; });
   }
@@ -1853,7 +1913,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
         '<br><span style="color:var(--ink-3)">The weekly screen writes it. Ask Claude to run one now if you do not want to wait for Monday.</span></div>';
       return;
     }
-    var all = allSignals();
+    var all = feed(false);
     if (!all.length) {
       host.innerHTML = '<div class="empty">Nothing this week.' +
         (SIGNALS.meta && SIGNALS.meta.screened ? ' ' + SIGNALS.meta.screened + ' names were screened' +
@@ -1861,19 +1921,26 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
         '<br><span style="color:var(--ink-3)">A quiet week is a result, not a failure. Sort the table by <em>Why it stalled</em> to work the watch list instead.</span></div>';
       return;
     }
-    host.innerHTML = all.slice(0, 14).map(function (o) {
-      var d = o.d, sg = o.sg, k = KINDS[sg.kind] || KINDS.other;
+    host.innerHTML = all.slice(0, 14).map(card).join("");
+  }
+
+  /* One card shape for both feeds. The tone decides the colour and what the
+     kind chip says; everything else is the same question asked twice. */
+  function card(o) {
+      var d = o.d, sg = o.sg, k = kindOf(sg), risk = isRisk(sg), matched = isMatched(sg, d);
       var ctx = [];
       if (d.lostDate) ctx.push("Lost " + fmtDate(d.lostDate));
       else if (d.stage === "Prospect") ctx.push("Prospect");
       if (d.reason) ctx.push(d.reason.toLowerCase());
       if (d.route) ctx.push("via " + d.route);
-      return '<article class="op' + (sg.matched ? " matched" : "") + (d.posture === "ours" ? " ours" : "") +
+      return '<article class="op' + (risk ? " risk" : (matched ? " matched" : "")) +
+        (!risk && d.posture === "ours" ? " ours" : "") +
         '" data-id="' + d.id + '" tabindex="0">' +
         '<div class="op-top"><span class="op-name">' + esc(d.client || d.name) + "</span>" +
           '<span class="op-meta">' + esc(d.country) + " · " + esc(d.solution) + "</span>" +
-          (d.posture === "ours" ? '<span class="pchip ours">waiting on us</span>' : "") +
-          '<span class="op-kind" style="margin-left:auto">' + (sg.matched ? "answers why it stalled" : esc(k.label)) + "</span></div>" +
+          (!risk && d.posture === "ours" ? '<span class="pchip ours">waiting on us</span>' : "") +
+          '<span class="op-kind" style="margin-left:auto">' +
+            (!risk && matched ? "answers why it stalled" : esc(k.label)) + "</span></div>" +
         '<p class="op-head">' + esc(sg.headline || "") + "</p>" +
         (sg.angle ? '<p class="op-angle">' + esc(sg.angle) + "</p>" : "") +
         '<div class="op-foot"><span class="num">' + (sg.date ? fmtDate(sg.date) : "—") + "</span>" +
@@ -1881,19 +1948,39 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
           (sg.url ? '<a href="' + esc(sg.url) + '" target="_blank" rel="noopener">source ↗</a>' : "") +
           (ctx.length ? '<span style="margin-left:auto">' + esc(ctx.join(" · ")) + "</span>" : "") +
         "</div></article>";
-    }).join("");
+  }
+
+  /* Adverse news gets its own panel, below the openings and visually apart.
+     Folding it in would make a fine read like an opportunity. */
+  function renderRisks() {
+    var host = $("risks"), sec = $("risk-panel");
+    var all = feed(true);
+    sec.hidden = !COLD.ok || !!(SIGNALS.meta && SIGNALS.meta.error);
+    if (sec.hidden) return;
+    if (!all.length) {
+      host.innerHTML = '<div class="empty">Nothing adverse surfaced this week.</div>';
+      return;
+    }
+    host.innerHTML = all.slice(0, 10).map(card).join("");
   }
 
   function sigCell(d) {
-    var a = sigsOf(d.id);
-    if (!a.length) {
+    var ops = openingsOf(d.id), rks = risksOf(d.id);
+    if (!ops.length && !rks.length) {
       if (d.posture === "ours") return '<span class="sigcell c-none">n/a</span>';
       return '<span class="sigcell">—</span>';
     }
-    var b = bestSig(d.id);
-    return '<span class="sigcell"><b' + (b && b.matched ? "" : " class=\"plain\"") + '>' +
-      (b && b.matched ? "match" : esc((KINDS[b.kind] || KINDS.other).label.split(" ")[0].toLowerCase())) + "</b>" +
-      (a.length > 1 ? ' <span>+' + (a.length - 1) + "</span>" : "") + "</span>";
+    var out = "";
+    if (ops.length) {
+      var b = bestSig(d.id);
+      out += "<b" + (isMatched(b, d) ? "" : ' class="plain"') + ">" +
+        (isMatched(b, d) ? "match" : esc(kindOf(b).short || "signal")) + "</b>" +
+        (ops.length > 1 ? ' <span>+' + (ops.length - 1) + "</span>" : "");
+    }
+    /* A risk is shown even when there is also an opening: the two together are
+       exactly the case worth seeing before picking up the phone. */
+    if (rks.length) out += (out ? " " : "") + '<b class="risk">risk' + (rks.length > 1 ? " " + rks.length : "") + "</b>";
+    return '<span class="sigcell">' + out + "</span>";
   }
 
   function renderCold() {
@@ -1904,12 +1991,15 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
       return;
     }
     var nProspect = 0, nLost = 0, nOurs = 0, nSigNames = 0, nMatched = 0, nSig = 0;
+    var nRiskNames = 0, nRisk = 0, nBoth = 0;
     COLD.rows.forEach(function (d) {
       if (d.stage === "Prospect") nProspect++; else nLost++;
       if (d.posture === "ours") nOurs++;
-      var a = sigsOf(d.id);
+      var a = openingsOf(d.id), r = risksOf(d.id);
       if (a.length) { nSigNames++; nSig += a.length; }
-      a.forEach(function (sg) { if (sg.matched) nMatched++; });
+      if (r.length) { nRiskNames++; nRisk += r.length; }
+      if (a.length && r.length) nBoth++;
+      a.forEach(function (sg) { if (isMatched(sg, d)) nMatched++; });
     });
 
     $("k-open").textContent = nSigNames;
@@ -1917,6 +2007,12 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
       ? nSig + (nSig === 1 ? " signal" : " signals") +
         (nMatched ? ', <span class="pos">' + nMatched + " answering a stated reason</span>" : ", none reason-matched")
       : (SIGNALS.meta && SIGNALS.meta.error ? "No screen has run yet" : "Nothing surfaced this week");
+
+    $("k-risk").textContent = nRiskNames;
+    $("k-risk-sub").textContent = nRiskNames
+      ? nRisk + (nRisk === 1 ? " flag" : " flags") +
+        (nBoth ? ", " + nBoth + " on a name that also has an opening" : ", none on a name with an opening")
+      : (SIGNALS.meta && SIGNALS.meta.error ? "No screen has run yet" : "Nothing adverse this week");
 
     $("k-watched").textContent = COLD.rows.length;
     $("k-watched-sub").textContent = nProspect + " Prospect · " + nLost + " Lost, lost since " +
@@ -1935,6 +2031,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
       : "What happened this week that gives you a reason to go back.";
 
     renderOpenings();
+    renderRisks();
 
     var seg = $("post-seg");
     if (!seg.children.length) {
@@ -2129,27 +2226,34 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     h += "<p>" + esc(d.posture === "ours" ? "Blocked on our side. " : "") + esc("What to watch for: " + d.watch) + "</p>";
     h += "</div>";
 
-    var sgs = sigsOf(d.id).slice().sort(function (x, y) { return sigScore(y) - sigScore(x); });
-    h += '<div class="dr-sec"><h4>Signals' + (sgs.length ? " (" + sgs.length + ")" : "") + "</h4>";
-    if (!sgs.length) {
-      h += "<p>" + (SIGNALS.meta && SIGNALS.meta.error
-        ? esc(SIGNALS.meta.error)
-        : "Nothing surfaced in the last screen. The watch list above is what to look for.") + "</p>";
-    } else {
-      sgs.forEach(function (sg) {
-        var k = KINDS[sg.kind] || KINDS.other;
-        h += '<div class="nitem">' +
+    function sigBlock(list, isR) {
+      return list.slice().sort(function (x, y) { return sigScore(y, d) - sigScore(x, d); }).map(function (sg) {
+        var k = kindOf(sg), m = isMatched(sg, d);
+        return '<div class="nitem' + (isR ? " risk" : "") + '">' +
           '<div class="nmeta"><span class="num">' + (sg.date ? fmtDate(sg.date) : "—") + "</span>" +
-            '<span class="nchip' + (sg.matched ? " signal" : "") + '">' +
-            (sg.matched ? "answers why it stalled" : esc(k.label)) + "</span></div>" +
+            '<span class="nchip' + (isR ? " risk" : (m ? " signal" : "")) + '">' +
+            (!isR && m ? "answers why it stalled" : esc(k.label)) + "</span></div>" +
           "<b>" + esc(sg.headline || "") + "</b>" +
           (sg.angle ? "<p>" + esc(sg.angle) + "</p>" : "") +
           '<div class="nsrc">' + esc(sg.source || "") +
             (sg.url ? ' <a href="' + esc(sg.url) + '" target="_blank" rel="noopener">source ↗</a>' : "") +
           "</div></div>";
-      });
+      }).join("");
     }
+
+    var ops = openingsOf(d.id), rks = risksOf(d.id);
+    h += '<div class="dr-sec"><h4>Signals' + (ops.length ? " (" + ops.length + ")" : "") + "</h4>";
+    h += ops.length ? sigBlock(ops, false)
+      : "<p>" + (SIGNALS.meta && SIGNALS.meta.error
+          ? esc(SIGNALS.meta.error)
+          : "Nothing surfaced in the last screen. The watch list above is what to look for.") + "</p>";
     h += "</div>";
+
+    if (rks.length) {
+      h += '<div class="dr-sec"><h4>Watch-outs (' + rks.length + ")</h4>";
+      h += "<p>Adverse news. Check these before approaching, not a reason to call.</p>";
+      h += sigBlock(rks, true) + "</div>";
+    }
 
     h += '<div class="dr-sec"><h4>The relationship</h4><dl class="kv">';
     h += "<dt>Status</dt><dd>" + esc(d.stage) + "</dd>";
@@ -2225,13 +2329,15 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     if (e.key !== "Enter" && e.key !== " ") return;
     var tr = e.target.closest("tr[data-cid]"); if (tr) { e.preventDefault(); openCold(tr.getAttribute("data-cid")); }
   });
-  $("openings").addEventListener("click", function (e) {
-    if (e.target.closest("a")) return;
-    var a = e.target.closest("article[data-id]"); if (a) openCold(a.getAttribute("data-id"));
-  });
-  $("openings").addEventListener("keydown", function (e) {
-    if (e.key !== "Enter" && e.key !== " ") return;
-    var a = e.target.closest("article[data-id]"); if (a) { e.preventDefault(); openCold(a.getAttribute("data-id")); }
+  ["openings", "risks"].forEach(function (id) {
+    $(id).addEventListener("click", function (e) {
+      if (e.target.closest("a")) return;
+      var a = e.target.closest("article[data-id]"); if (a) openCold(a.getAttribute("data-id"));
+    });
+    $(id).addEventListener("keydown", function (e) {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      var a = e.target.closest("article[data-id]"); if (a) { e.preventDefault(); openCold(a.getAttribute("data-id")); }
+    });
   });
   $("dr-close").addEventListener("click", closeDrawer);
   $("scrim").addEventListener("click", closeDrawer);

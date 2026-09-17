@@ -380,6 +380,46 @@ Every reason label maps to one of three postures, in `REASONS`:
 Each posture carries a `watch` line — what would reopen this name. It shows in the drawer whether or
 not there is news, which is the point: in a quiet week the watch list is the deliverable.
 
+
+### Watch-outs — the adverse lane
+
+Not everything found is an opening. A fine, a downgrade, a restructuring is real and useful and
+must never be ranked as a reason to call. Signals carrying `tone: "risk"` (or any `risk-*` kind)
+are held out of Openings entirely and rendered in a separate **Watch-outs** panel in the reserved
+overdue red, ranked only against each other:
+
+| Kind | Means |
+|---|---|
+| `risk-credit` | A downgrade, a covenant breach, a default, a restructuring, a liquidity squeeze |
+| `risk-legal` | A fine, an investigation, litigation, a sanction, a licence at risk |
+| `risk-governance` | Fraud, an auditor resigning, a finance chief leaving under a cloud |
+| `risk-operational` | A plant closing, a strike, a supply failure, a major disruption |
+
+Three rules hold this apart:
+
+- **A risk can never outscore an opening.** `sigScore` branches on tone, so the two are ranked in
+  separate universes and merged nowhere.
+- **A risk is never `matched`.** It does not answer why a deal stalled; it asks whether to approach
+  at all.
+- **A name can carry both**, and that is the most useful case this produces — a reason to call and
+  a reason to check first, side by side. The Signal column shows both chips.
+
+Red is reserved for contact gap in the Pipeline view. The Re-engage view has no contact column, so
+there is no collision within a view, and red means the same thing in both: something here is wrong.
+
+> **Risk flags have a longer shelf life than openings.** An opening goes stale in a fortnight; a
+> restructuring does not. The screen holds openings to a two-week window and lets risks run longer,
+> saying so in the angle.
+
+### Two guards on what a screen may claim
+
+- **`matched: true` needs a stated reason to answer.** `isMatched()` requires the board to actually
+  record a reason with a `catalyst` posture before the page will honour the flag. The first screen
+  tripped this: it marked a Vanti signal as answering a stated reason on a row whose reason column
+  is blank. The data was corrected and the page now ignores the claim regardless.
+- **A date that cannot be confirmed is said, not guessed.** Several signals in the first screen are
+  anchored to an approximate date and say so in the angle.
+
 ### Ranking
 
 `sigScore` decides the order of the Openings list and the Signal column:
@@ -398,11 +438,26 @@ not there is news, which is the point: in a quiet week the watch list is the del
 The roster is self-maintaining: a name moved to Prospect or Lost on the board is screened the
 following week without anyone editing a prompt. See `routines/weekly-reengagement-screen.md`.
 
-### Known search-key traps in this cohort
+### What the first full screen found
 
-A trial screen of 8 of the 137 names, run when the module was built, returned exactly one usable
-signal. That is evidence for the weekly cadence rather than a daily one, and it surfaced two traps
-worth keeping:
+Run by hand on 17 Sep 2026 over a two-week window. **112 of 131 clients screened, 28 produced
+something: 25 openings and 5 risk flags, 1 reason-matched.** Roughly one name in four.
+
+That yield is the argument for a weekly cadence rather than a daily one, and it makes the module's
+own caveats concrete:
+
+- **19 clients could not be screened at all.** Akron, Alhel, Anagra, Arzyz, BAIT, BofA Mexican Deal,
+  Eisa, Equirent, Exitus, Fuller, Gatun Energy, Grupo Dokka, LHG Mining, Lord Capital, Macropay,
+  Mattilda, Penguin, South Mill, Square Trading Singapore. Names this short or this generic return
+  the wrong company on a name-only search, and a wrong match is worse than a gap. These are the
+  names a confirmed domain in `domains/current` would unlock.
+- **Nothing was screened by domain.** All 112 were matched on company name, because `domains/current`
+  covers the live book and not this cohort.
+- **One risk flag lands on a live obligor.** Liberty Puerto Rico's creditors tabled a restructuring
+  counterproposal on 11 Sep while *Liberty Puerto Rico Handsets AFL* sits Live in the pipeline. The
+  Re-engage view surfaced an exposure question the Pipeline view had no way to raise.
+
+Two search-key traps worth keeping:
 
 - **A renamed company is a dead search key.** The board carries `Cepsa S.A.`; the company has traded
   as **Moeve** since October 2024. Every search on "Cepsa" returns pre-rename history and nothing

@@ -78,6 +78,29 @@ Names with posture "ours" — Lack of investor appetite, SB Declined — are blo
 side, not the client's. Still screen them, but never mark a hit `matched`, and say plainly in the
 angle that this reopens on our own distribution appetite rather than on anything they announced.
 
+STEP 2b - ADVERSE NEWS IS A SEPARATE LANE
+Some of what you find will be bad news. Record it, but never as an opening. Give the signal
+"tone": "risk" and one of these kinds, and it goes to a separate Watch-outs panel:
+
+  risk-credit       A downgrade, a covenant breach, a default, a restructuring, a liquidity squeeze.
+  risk-legal        A fine, an investigation, litigation, a sanction, a licence at risk.
+  risk-governance   Fraud, an auditor resigning, a finance chief leaving under a cloud.
+  risk-operational  A plant closing, a strike, a supply failure, a major disruption.
+  risk-other        Adverse, outside the listed kinds.
+
+A risk never carries "matched": true, and its angle should say what it means for us rather than how
+to sell into it - whether the name is approachable at all, whether the exposure touches something
+already live, whether Credit should see it first.
+
+Risk flags have a longer shelf life than openings. An opening goes stale in a fortnight; a
+restructuring does not. Where you record an older risk, say so in the angle.
+
+A name can carry both. That case is the most useful thing this screen produces: a reason to call
+and a reason to check first, side by side.
+
+"matched": true requires a stated reason to answer. Where the board records no reason the flag is
+meaningless, and the page will ignore it.
+
 STEP 3 — WRITE THE ANGLE
 Each signal carries an `angle`: one or two sentences saying why this specific event gives us a way
 back in with this specific name. The angle is the product. A headline with no angle is noise.
@@ -109,8 +132,9 @@ Write the artifact data store document `reengage/current`, replacing it wholly, 
       "client": "<client name>",
       "signals": [
         { "date": "YYYY-MM-DD",
-          "kind": "cfo-change|wc-stress|funding|capex|ma|rating|other",
-          "matched": true|false,
+          "kind": "cfo-change|wc-stress|funding|capex|ma|rating|other|risk-credit|risk-legal|risk-governance|risk-operational|risk-other",
+          "tone": "risk",          (omit this line entirely for an opening)
+          "matched": true|false,   (only ever true when the board records a reason this answers)
           "headline": "<what happened, one line, factual>",
           "angle": "<why it gives us a way back in>",
           "source": "<publication>",
@@ -125,9 +149,11 @@ Cap it at three signals per name, strongest first, and do not carry a signal ove
 this document is replaced whole each run, and the view is meant to read as "this week".
 
 STEP 6 — REPORT
-Reply with a short summary: how many names screened, how many produced a signal, how many were
-reason-matched, and the two or three you would actually call first. Name anything you could not
-screen and why.
+Reply with a short summary: how many names screened, how many
+produced an opening, how many produced a risk flag, how many were reason-matched, and the two or
+three you would actually call first. Name any name carrying both an opening and a risk. Name
+anything you could not screen and why - a company too small or too generically named to match
+safely is a gap to report, not a gap to fill with a guess.
 ```
 
 ---
@@ -139,4 +165,7 @@ screen and why.
   (cfo-change, wc-stress, funding, capex, ma, rating), then recency.
 - A name with posture `ours` gets a dashed amber border and a "waiting on us" chip, whatever the
   signal says.
+- Anything with `tone: "risk"` is kept out of Openings entirely and rendered in **Watch-outs**, in
+  red, ranked only against other risks. It can never outscore an opening.
+- `matched: true` is ignored unless the board actually records a reason for that name.
 - No screen yet, or an unreadable one, shows a named empty state rather than a blank panel.
