@@ -325,6 +325,55 @@ attention reads as coloured.
 
 ---
 
+## Watch-outs on the live book
+
+The Re-engage view asks whether adverse news should stop us approaching. The Pipeline view asks a
+harder question: does it threaten something we are already committed to. Same lane, different
+ranking.
+
+Items in `news/current` carrying `tone: "risk"` are pulled out of the news chips entirely and
+rendered in a **Watch-outs — live book** panel above the fold, ordered by **exposure**, then risk
+kind, then recency. A row with a risk gets a red `risk` chip beside (never folded into) its news
+count, and the drawer splits Watch-outs above In the news.
+
+### Exposure
+
+Stage alone is too blunt — a Discovery name with a signed mandate and executed documentation is
+further along than a Live name with neither — so `exposure()` scores what it would cost to be
+caught out:
+
+| Component | Points |
+|---|---|
+| Live or Implementation | 4 |
+| Validation | 2 |
+| Discovery | 1 |
+| Mandate signed | +2 |
+| Term sheet shared | +1 |
+| Legal documentation executed | +2 (in progress: +1) |
+
+Bands: high ≥ 6, mid ≥ 3, low below. The score, band and a plain-English `exposureWhy` ride on
+`roster/current`, so the daily screen can rank and write its email without recomputing anything.
+
+> **The threshold is set by the case it must not get wrong.** Live plus executed documentation
+> scores exactly 6. If high started at 7 that deal would read as merely "mid" unless a mandate date
+> were also on the board — and the oldest, most committed deals are precisely the ones whose
+> earlier columns were never filled in. Set the band by the case that matters, not by the midpoint
+> of the range.
+
+### What this caught
+
+On 17 September the daily screen searched **Liberty Latin America** and filed a preferred dividend
+as a routine note. It never saw the creditor restructuring counterproposal at **Liberty Puerto
+Rico** on 11 September — USD 3.1bn of debt, 8.0x net leverage, 14.1x on covenant terms, USD 90mm of
+negative free cash flow in the half — while *Liberty Puerto Rico Handsets AFL* sits **Live with
+documentation executed**. The same item had already surfaced in the Re-engage screen against the
+Lost row for the same client; the live book had no way to raise it.
+
+Two fixes went into the daily prompt: search the **entity as well as the group**, preferring what
+comes back at entity level; and keep risk items for **30 days** rather than 7, because a
+restructuring does not stop mattering because a week passed.
+---
+
 ## Re-engage — Prospect and Lost
 
 A second view on the same page, for the names that are not in the pipeline. Its question is not

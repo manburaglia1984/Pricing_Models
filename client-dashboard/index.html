@@ -196,6 +196,15 @@ button{font:inherit;color:inherit;cursor:pointer}
 .nitem.risk{border-left-color:var(--overdue)}
 .nitem.risk .nsrc a{color:var(--overdue)}
 .nchip.risk{border-color:var(--overdue);color:var(--overdue);background:var(--overdue-soft)}
+.pw{border-color:var(--overdue)}
+.pw .panel-h{border-bottom-color:var(--line)}
+.pw .panel-h h2{color:var(--overdue)}
+.pchip.exp{border-style:solid;font-family:var(--sans);font-weight:500;letter-spacing:0}
+.pchip.exp.high{border-color:var(--overdue);color:var(--overdue);background:var(--overdue-soft);font-weight:600}
+.pchip.exp.mid{border-color:var(--line-2);color:var(--ink-2)}
+.pchip.exp.low{border-color:var(--line);color:var(--ink-3)}
+.op.exp-high{background:var(--overdue-soft)}
+.op.exp-low{border-left-color:var(--line-2)}
 .op.ours .op-name,.op.ours .op-head{color:var(--ink-2)}
 .op-top{display:flex;gap:9px;align-items:baseline;flex-wrap:wrap;margin-bottom:5px}
 .op-name{font-weight:600;font-size:13.5px;letter-spacing:-.005em}
@@ -591,6 +600,16 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
         <div class="kpi-v" id="k-att">&mdash;</div>
         <div class="kpi-s" id="k-att-sub">&nbsp;</div>
       </div>
+    </section>
+
+    <section class="panel pw" id="pipe-risk" style="margin-top:16px" hidden>
+      <div class="panel-h">
+        <div>
+          <h2>Watch-outs &mdash; live book</h2>
+          <p id="pipe-risk-sub">Adverse news on deals you are working now, most exposed first.</p>
+        </div>
+      </div>
+      <div class="panel-b"><div id="pipe-risks"></div></div>
     </section>
 
     <div class="grid2">
@@ -1152,7 +1171,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
         });
         NEWS.byDeal = by;
         applyNews();
-        if (DATA.deals.length) renderTable();
+        if (DATA.deals.length) { renderTable(); renderPipeRisks(); }
       });
     }).catch(function (e) {
       /* Never fail silently: an empty panel and a broken one must look different. */
@@ -1174,9 +1193,13 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
      free: opening the dashboard is what refreshes it. */
   function syncRoster() {
     if (!DB || !DATA.deals.length) return;
+    /* Documentation state travels with the roster so the daily screen can rank
+       an adverse story by how committed we are, not just by stage. */
     var deals = DATA.deals.map(function (d) {
       return { id: d.id, name: d.name, client: d.client, stage: d.stage,
-               country: d.country, solution: d.solution, url: d.url };
+               country: d.country, solution: d.solution, url: d.url,
+               mandate: d.mandate || null, termSheet: d.termSheet, legalDoc: d.legalDoc,
+               exposure: exposure(d), exposureBand: expBand(exposure(d)), exposureWhy: expWhy(d) };
     });
     var sig = JSON.stringify(deals);
     if (sig === lastRosterSig) return;
@@ -1344,7 +1367,35 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
 
   function newsFor(id) { return NEWS.byDeal[id] || []; }
   function hasSignal(id) {
-    return newsFor(id).some(function (n) { return n.tier === "signal"; });
+    return newsFor(id).some(function (n) { return n.tier === "signal" && !isRisk(n); });
+  }
+  function newsRisks(id) { return newsFor(id).filter(isRisk); }
+
+  /* How much it would cost to be caught out on this deal. Stage alone is too
+     blunt: a Discovery name with a signed mandate and executed documentation is
+     further along than a Live name with neither. Documentation state is the
+     part that is hard to unwind, so it weighs most. */
+  function exposure(d) {
+    var n = (d.stage === "Live" || d.stage === "Implementation") ? 4
+          : (d.stage === "Validation") ? 2 : 1;
+    if (d.mandate) n += 2;
+    if (d.termSheet === "Shared") n += 1;
+    if (d.legalDoc === "Executed") n += 2;
+    else if (d.legalDoc === "In Progress") n += 1;
+    return n;
+  }
+  /* Live plus executed documentation scores 6 and must read as high: money is
+     out and the paper is signed. Requiring a mandate date on top would punish
+     exactly the oldest, most committed deals, whose earlier columns were never
+     filled in. */
+  function expBand(n) { return n >= 6 ? "high" : (n >= 3 ? "mid" : "low"); }
+  function expWhy(d) {
+    var out = [d.stage];
+    if (d.mandate) out.push("mandate signed");
+    if (d.termSheet === "Shared") out.push("term sheet shared");
+    if (d.legalDoc === "Executed") out.push("documentation executed");
+    else if (d.legalDoc === "In Progress") out.push("documentation in progress");
+    return out.join(" \u00b7 ");
   }
 
   var TIER_RANK = { signal: 0, context: 1, note: 2 };
@@ -1354,9 +1405,11 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
   function applyNews() {
     var el = $("src-news");
     el.hidden = false;
-    var sig = NEWS.items.filter(function (n) { return n.tier === "signal"; }).length;
-    setSrc("src-news", "ok", NEWS.items.length + " item" + (NEWS.items.length === 1 ? "" : "s") +
+    var sig = NEWS.items.filter(function (n) { return n.tier === "signal" && !isRisk(n); }).length;
+    var rsk = NEWS.items.filter(isRisk).length;
+    setSrc("src-news", rsk ? "warn" : "ok", NEWS.items.length + " item" + (NEWS.items.length === 1 ? "" : "s") +
       (sig ? " \u00b7 " + sig + " signal" + (sig === 1 ? "" : "s") : "") +
+      (rsk ? " \u00b7 " + rsk + " risk" + (rsk === 1 ? "" : "s") : "") +
       (NEWS.meta && NEWS.meta.to ? " \u00b7 to " + fmtDate(NEWS.meta.to) : ""));
     var nc = (NEWS.meta && NEWS.meta.noCoverage) || [];
     el.title = "Screened against your deal names" +
@@ -1676,6 +1729,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     drawAttention(need);
     buildSegments(ds);
     renderTable();
+    renderPipeRisks();
     renderCold();
   }
 
@@ -1819,12 +1873,58 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
       (K[a.kind] || a.kind) + "</span>";
   }
 
+  /* Ranked by what it would cost us, not by how loud the story is. A downgrade
+     on a Live deal with executed documentation outranks a bigger story on a
+     Discovery name we have not committed to. */
+  function renderPipeRisks() {
+    var sec = $("pipe-risk"), host = $("pipe-risks");
+    var all = [];
+    DATA.deals.forEach(function (d) {
+      newsRisks(d.id).forEach(function (n) { all.push({ d: d, n: n, exp: exposure(d) }); });
+    });
+    if (!all.length) { sec.hidden = true; host.innerHTML = ""; return; }
+    sec.hidden = false;
+    all.sort(function (x, y) {
+      if (y.exp !== x.exp) return y.exp - x.exp;
+      var rk = (RISKS[x.n.kind] || RISKS["risk-other"]).rank - (RISKS[y.n.kind] || RISKS["risk-other"]).rank;
+      if (rk !== 0) return rk;
+      return String(y.n.date).localeCompare(String(x.n.date));
+    });
+    var hi = all.filter(function (o) { return expBand(o.exp) === "high"; }).length;
+    $("pipe-risk-sub").textContent = all.length + (all.length === 1 ? " item" : " items") +
+      " on " + (function (n) { return n + (n === 1 ? " deal" : " deals"); })(
+        new Set(all.map(function (o) { return o.d.id; })).size) +
+      (hi ? " \u00b7 " + hi + " on a deal at or past documentation" : "") + ".";
+    host.innerHTML = all.slice(0, 12).map(function (o) {
+      var d = o.d, n = o.n, k = RISKS[n.kind] || RISKS["risk-other"], band = expBand(o.exp);
+      return '<article class="op risk exp-' + band + '" data-id="' + d.id + '" tabindex="0">' +
+        '<div class="op-top"><span class="op-name">' + esc(d.client || d.name) + "</span>" +
+          '<span class="op-meta">' + esc(d.country) + " \u00b7 " + esc(d.solution) + "</span>" +
+          '<span class="pchip exp ' + band + '">' + esc(expWhy(d)) + "</span>" +
+          '<span class="op-kind" style="margin-left:auto">' + esc(k.label) + "</span></div>" +
+        '<p class="op-head">' + esc(n.headline || "") + "</p>" +
+        (n.why ? '<p class="op-angle">' + esc(n.why) + "</p>" : "") +
+        '<div class="op-foot"><span class="num">' + (n.date ? fmtDate(n.date) : "\u2014") + "</span>" +
+          (n.source ? "<span>" + esc(n.source) + "</span>" : "") +
+          (n.url ? '<a href="' + esc(n.url) + '" target="_blank" rel="noopener">source \u2197</a>' : "") +
+          '<span style="margin-left:auto">' + esc(d.name) + "</span>" +
+        "</div></article>";
+    }).join("");
+  }
+
   function newsChip(id) {
-    var n = newsFor(id);
-    if (!n.length) return "";
-    var sig = hasSignal(id);
-    return '<span class="nchip' + (sig ? " signal" : "") + '">' +
-      (sig ? "news" : n.length + " item" + (n.length === 1 ? "" : "s")) + "</span>";
+    var all = newsFor(id);
+    if (!all.length) return "";
+    var rk = newsRisks(id), rest = all.length - rk.length, out = "";
+    if (rest) {
+      var sig = hasSignal(id);
+      out += '<span class="nchip' + (sig ? " signal" : "") + '">' +
+        (sig ? "news" : rest + " item" + (rest === 1 ? "" : "s")) + "</span>";
+    }
+    /* A risk chip is never folded into the news count: the whole point is that
+       it reads differently at a glance. */
+    if (rk.length) out += '<span class="nchip risk">risk' + (rk.length > 1 ? " " + rk.length : "") + "</span>";
+    return out;
   }
 
   function docPill(v) {
@@ -2170,7 +2270,25 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
 
     var dn = newsFor(d.id);
     if (dn.length) {
-      h += '<div class="dr-sec"><h4>In the news (' + dn.length + ")</h4><ul class=\"news-list\">" +
+      var drk = dn.filter(isRisk); dn = dn.filter(function (n) { return !isRisk(n); });
+      if (drk.length) {
+        h += '<div class="dr-sec"><h4>Watch-outs (' + drk.length + ")</h4>" +
+          "<p>Adverse news on a deal you are working. " + esc(expWhy(d)) + ".</p>" +
+          drk.slice().sort(function (a, b) {
+            return (RISKS[a.kind] || RISKS["risk-other"]).rank - (RISKS[b.kind] || RISKS["risk-other"]).rank;
+          }).map(function (n) {
+            var k = RISKS[n.kind] || RISKS["risk-other"];
+            return '<div class="nitem risk"><div class="nmeta"><span class="num">' +
+              (n.date ? fmtDate(n.date) : "\u2014") + '</span><span class="nchip risk">' + esc(k.label) +
+              "</span></div><b>" + esc(n.headline || "") + "</b>" +
+              (n.why ? "<p>" + esc(n.why) + "</p>" : "") +
+              '<div class="nsrc">' + esc(n.source || "") +
+                (n.url ? ' <a href="' + esc(n.url) + '" target="_blank" rel="noopener">source \u2197</a>' : "") +
+              "</div></div>";
+          }).join("") + "</div>";
+      }
+      if (!dn.length) h += '<div class="dr-sec"><h4>In the news</h4><p class="note">Nothing else picked up for this name in the screened window.</p></div>';
+      else h += '<div class="dr-sec"><h4>In the news (' + dn.length + ")</h4><ul class=\"news-list\">" +
         dn.slice().sort(function (a, b) {
           var t = (TIER_RANK[a.tier] || 9) - (TIER_RANK[b.tier] || 9);
           return t !== 0 ? t : String(b.date).localeCompare(String(a.date));
