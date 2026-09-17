@@ -166,6 +166,48 @@ button{font:inherit;color:inherit;cursor:pointer}
 .ghost{background:transparent;border:1px solid var(--line-2);border-radius:var(--radius);padding:6px 11px;font-size:12.5px;font-weight:500;color:var(--ink-2)}
 .ghost:hover{border-color:var(--accent);color:var(--accent)}
 
+/* ---------- view switch ---------- */
+.views{display:flex;gap:2px;margin-top:20px;border-bottom:1px solid var(--line)}
+.views button{border:0;background:transparent;padding:9px 15px 10px;font-size:13px;font-weight:600;
+              color:var(--ink-3);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.views button:hover{color:var(--ink-2)}
+.views button[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent)}
+.vn{display:inline-block;margin-left:7px;padding:1px 6px;border-radius:999px;font-size:10.5px;font-weight:700;
+    background:var(--accent);color:var(--accent-ink);font-family:var(--mono)}
+
+/* ---------- re-engagement ---------- */
+.kpi.kpi-3{grid-template-columns:repeat(3,1fr)}
+.op{border-left:3px solid var(--accent);padding:13px 16px 14px;border-bottom:1px solid var(--line)}
+.op:last-child{border-bottom:0}
+.op.matched{border-left-color:var(--st-4);background:var(--accent-soft)}
+.op.ours{border-left-style:dashed;border-left-color:var(--watch)}
+.op.ours .op-name,.op.ours .op-head{color:var(--ink-2)}
+.op-top{display:flex;gap:9px;align-items:baseline;flex-wrap:wrap;margin-bottom:5px}
+.op-name{font-weight:600;font-size:13.5px;letter-spacing:-.005em}
+.op-meta{font-size:11px;color:var(--ink-3)}
+.op-kind{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
+         color:var(--ink-2);border:1px solid var(--line-2);border-radius:3px;padding:1px 6px;white-space:nowrap}
+.op.matched .op-kind{border-color:var(--accent);color:var(--accent);background:var(--surface)}
+.op-head{font-size:13px;line-height:1.45;margin:0 0 6px}
+.op-angle{font-size:12.5px;line-height:1.5;color:var(--ink-2);margin:0;
+          border-left:2px solid var(--line-2);padding-left:10px}
+.op-angle b{color:var(--ink);font-weight:600}
+.op-foot{margin-top:7px;font-size:11px;color:var(--ink-3);display:flex;gap:9px;flex-wrap:wrap;align-items:baseline}
+.op-foot a{color:var(--accent);text-decoration:none;font-weight:500}
+.op-foot a:hover{text-decoration:underline}
+.pchip{display:inline-block;padding:1px 7px;border-radius:3px;font-size:10px;font-weight:600;
+       border:1px solid var(--line-2);color:var(--ink-3);white-space:nowrap;letter-spacing:.02em}
+.pchip.ours{border-style:dashed;border-color:var(--watch);color:var(--watch);background:var(--watch-soft)}
+.pchip.catalyst{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+.pchip.open{border-style:dotted}
+.c-reason{font-size:12px;color:var(--ink-2);max-width:23ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.c-none{color:var(--ink-3);font-style:italic}
+.sigcell{font-size:11px;color:var(--ink-3);white-space:nowrap}
+.sigcell b{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+           border:1px solid var(--accent);color:var(--accent);background:var(--accent-soft);
+           border-radius:3px;padding:1px 6px;font-family:var(--mono)}
+.sigcell b.plain{border-color:var(--line-2);color:var(--ink-2);background:transparent}
+
 /* ---------- provenance strip ---------- */
 .prov{background:var(--watch-soft);border-bottom:1px solid var(--line)}
 .prov-in{display:flex;gap:12px;align-items:baseline;padding-block:9px;flex-wrap:wrap}
@@ -469,6 +511,8 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     <span class="src" id="src-rev"><span class="dot"></span>2026 revenue <span class="when"></span></span>
     <span class="src" id="src-news" hidden><span class="dot"></span>News <span class="when"></span></span>
     <span class="src" id="src-contact" hidden><span class="dot"></span>Contact check <span class="when"></span></span>
+    <span class="src" id="src-cold" hidden><span class="dot"></span>Prospect &amp; Lost <span class="when"></span></span>
+    <span class="src" id="src-signals" hidden><span class="dot"></span>Re-engage screen <span class="when"></span></span>
     <div class="conn-act">
       <button class="btn-refresh" id="refresh" type="button"><span class="spin" aria-hidden="true"></span><span id="refresh-label">Refresh</span></button>
     </div>
@@ -497,6 +541,13 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
   </section>
 
   <div id="content" hidden>
+
+    <div class="views" role="tablist" aria-label="Choose a view">
+      <button type="button" id="tab-pipeline" role="tab" aria-selected="true">Pipeline</button>
+      <button type="button" id="tab-reengage" role="tab" aria-selected="false">Re-engage<span class="vn" id="tab-n" hidden></span></button>
+    </div>
+
+    <div id="view-pipeline" role="tabpanel" aria-labelledby="tab-pipeline">
 
     <div class="sec-warn hidden" id="rev-warn">
       <b>Revenue unavailable</b>
@@ -623,6 +674,88 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
       from each deal&rsquo;s trade subitems dated in 2026.
       See <code>client-dashboard/README.md</code> for the full column mapping.
     </footer>
+
+    </div><!-- /view-pipeline -->
+
+    <div id="view-reengage" role="tabpanel" aria-labelledby="tab-reengage" hidden>
+
+      <div class="sec-warn hidden" id="cold-warn">
+        <b>Prospect and Lost unavailable</b>
+        <span id="cold-warn-text"></span>
+      </div>
+
+      <section class="kpi kpi-3" aria-label="Re-engagement summary">
+        <div>
+          <div class="kpi-l">Openings this week</div>
+          <div class="kpi-v" id="k-open">&mdash;</div>
+          <div class="kpi-s" id="k-open-sub">&nbsp;</div>
+        </div>
+        <div>
+          <div class="kpi-l">Names watched</div>
+          <div class="kpi-v" id="k-watched">&mdash;</div>
+          <div class="kpi-s" id="k-watched-sub">&nbsp;</div>
+        </div>
+        <div>
+          <div class="kpi-l">Waiting on us</div>
+          <div class="kpi-v" id="k-ours">&mdash;</div>
+          <div class="kpi-s" id="k-ours-sub">&nbsp;</div>
+        </div>
+      </section>
+
+      <section class="panel" style="margin-top:16px">
+        <div class="panel-h">
+          <div>
+            <h2>Openings</h2>
+            <p id="open-sub">What happened this week that gives you a reason to go back.</p>
+          </div>
+        </div>
+        <div class="panel-b"><div id="openings"></div></div>
+      </section>
+
+      <div class="ctrls">
+        <h2>Prospect &amp; Lost</h2>
+        <div class="seg" id="post-seg" role="group" aria-label="Filter by posture"></div>
+        <div class="seg" role="group" aria-label="Filter by owner">
+          <button type="button" id="cbtn-all" aria-pressed="true">All O2D</button>
+          <button type="button" id="cbtn-mine" aria-pressed="false">Mine</button>
+        </div>
+        <div class="srch">
+          <label for="cq" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Search names</label>
+          <input id="cq" type="search" placeholder="Search name, client, country, reason" autocomplete="off">
+        </div>
+      </div>
+
+      <div class="tbl-wrap">
+        <table id="ctbl">
+          <thead>
+            <tr>
+              <th class="sortable" data-ck="name" scope="col">Name<span class="arr"></span></th>
+              <th class="sortable" data-ck="stage" scope="col">Status<span class="arr"></span></th>
+              <th class="sortable" data-ck="solution" scope="col">Solution<span class="arr"></span></th>
+              <th class="sortable" data-ck="reason" scope="col">Why it stalled<span class="arr"></span></th>
+              <th class="sortable r" data-ck="lostDays" scope="col">Lost<span class="arr"></span></th>
+              <th class="sortable" data-ck="route" scope="col">Route in<span class="arr"></span></th>
+              <th class="sortable r" data-ck="sig" scope="col">Signal<span class="arr"></span></th>
+            </tr>
+          </thead>
+          <tbody id="cbody"></tbody>
+        </table>
+        <div class="empty" id="ctbl-empty" hidden>No names match that filter.</div>
+      </div>
+
+      <footer>
+        <strong style="color:var(--ink-2)">Sources.</strong>
+        Prospect and Lost are read live from the same <em>Americas</em> group of the
+        <em>Global Pipeline</em> board. Names lost before <span class="num" id="foot-cutoff"></span>
+        are left out: at that distance a re-approach is a fresh pitch, not a re-engagement.
+        <strong style="color:var(--ink-2)">No revenue figure appears anywhere in this view</strong> &mdash;
+        these are not forecastable, and a number beside a lost name invites exactly the wrong reading.
+        Signals come from a weekly news screen written by a Claude Routine, not from the board.
+        See <code>client-dashboard/README.md</code>.
+      </footer>
+
+    </div><!-- /view-reengage -->
+
   </div>
 </main>
 
@@ -668,7 +801,12 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     term:     "color_mm2p96gr",
     afl:      "dropdown_mkx6a8g2",
     mandate:  "date_mm3s3y8p",
-    updated:  "date_mkygjyac"
+    updated:  "date_mkygjyac",
+    /* cold cohort only */
+    reason:   "dropdown_mkxjctk",
+    lostDate: "date_mm3xj054",
+    source:   "color_mm3td94",
+    firstCt:  "date_mkx6mes"
   };
   var SUB = { date: "date_mkwx4xga", booked: "formula_mkzd8c7v", forecast: "formula_mkxft3xn" };
 
@@ -696,6 +834,58 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     includeGroup: false,
     filters: [{ columnId: SUB.date, compareValue: [FY + "-01-01", FY + "-12-31"], operator: "between" }],
     columnIds: [SUB.date, SUB.booked, SUB.forecast]
+  };
+
+  /* ---------- cold cohort: Prospect and Lost ----------
+     A second read of the same board, for names that are not in the pipeline.
+     No revenue is attached to any of it: these are not forecastable, and
+     putting a number beside them would invite exactly the wrong reading. */
+  var COLD_CUTOFF = "2024-01-01";   /* Lost before this is a cold pitch, not a re-approach */
+  var COLD_INPUT = {
+    boardId: 18299408349,
+    limit: 200,
+    includeColumns: true,
+    includeGroup: true,
+    filtersOperator: "and",
+    filters: [
+      { columnId: "group", compareValue: "group_mkx6kssm", operator: "any_of" },
+      /* label IDS, not indices: Prospect 3, Hold 4, Lost 9 */
+      { columnId: C.stage, compareValue: [3, 4, 9], operator: "any_of" }
+    ],
+    columnIds: [C.client, C.solution, C.subSol, C.o2d, C.stage, C.country, C.lastCt,
+                C.reason, C.lostDate, C.source, C.firstCt, C.calls, C.indFac, C.indRev]
+  };
+
+  /* Why they said no decides which news would change the answer. Three postures:
+       ours     — the block is on our side, so no client news reopens it
+       catalyst — a specific event flips it, and we know which
+       open     — no usable reason on the board, so only the standing list applies */
+  var REASONS = {
+    "Price too high":                        { posture:"catalyst", watch:"funding cost rising — a bond priced wide, a downgrade, a bank line repriced. Their cost of capital moving toward ours is the opening." },
+    "Accounting treatment":                  { posture:"catalyst", watch:"a peer winning derecognition, an auditor change, or a standard revision. Precedent is what moves this one." },
+    "Tax/Regulation/Legal":                  { posture:"catalyst", watch:"the rule itself changing, or a structure approved in-country for someone else." },
+    "Competitor offer preferred":            { posture:"catalyst", watch:"the incumbent facility maturing, the competitor retrenching from the market, or terms being repriced." },
+    "Client opted for alternative solution": { posture:"catalyst", watch:"the alternative underperforming, or the need outgrowing it." },
+    "Client busy with other projects":       { posture:"catalyst", watch:"that project finishing — an ERP go-live, an IPO priced, an acquisition closed. Then the calendar clears." },
+    "Geopolitical events":                   { posture:"catalyst", watch:"the situation resolving, or capital controls easing." },
+    "Solution not appropriate for client":   { posture:"catalyst", watch:"a change in what they need — an acquisition, a new supply chain, a move into a market where the solution does fit." },
+    "One-time deal":                         { posture:"catalyst", watch:"a second transaction of the same shape appearing." },
+    "Lack of investor appetite":             { posture:"ours",     watch:"nothing on their side. This reopens when our own distribution appetite changes, not when they announce something." },
+    "SB Declined":                           { posture:"ours",     watch:"nothing on their side. We passed; the decision to revisit is ours." },
+    "Client not interested":                 { posture:"open",     watch:"no stated reason to aim at. The standing list applies — a new CFO above all." },
+    "Other":                                 { posture:"open",     watch:"the reason is not on the board. The standing list applies." }
+  };
+
+  /* The standing list, applied to every cold name whatever the reason.
+     Order here is the ranking order when nothing is reason-matched. */
+  var KINDS = {
+    "cfo-change": { rank:1, label:"New finance leadership", note:"A new CFO or Treasurer resets every previous no, including the ones with no stated reason." },
+    "wc-stress":  { rank:2, label:"Working capital under pressure", note:"Receivables stretching, inventory building, suppliers pushing on terms." },
+    "funding":    { rank:3, label:"Funding event", note:"A bond, a refinancing, a new credit line, an IPO." },
+    "capex":      { rank:4, label:"Capex or expansion", note:"A plant, added capacity, a new market." },
+    "ma":         { rank:5, label:"M&A or divestment", note:"A balance sheet about to change shape." },
+    "rating":     { rank:6, label:"Rating action", note:"An upgrade, a downgrade, an outlook change." },
+    "other":      { rank:7, label:"Other", note:"Screened as relevant but outside the standing list." }
   };
 
   var STAGES = [
@@ -833,9 +1023,12 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
   var CONTACT = { byDeal: {}, meta: null };
   var ACTIVITY = { byDeal: {}, meta: null };
   var KEYS = { byDeal: {} };
-  var DB = null, lastRosterSig = null;
-  var UI = { stage: "All", mine: false, q: "", key: "days", dir: -1 };
-  var stamps = { deals: 0, rev: 0 };
+  var COLD = { rows: [], ok: false, more: false };
+  var SIGNALS = { byDeal: {}, meta: null };
+  var DB = null, lastRosterSig = null, lastColdSig = null;
+  var UI = { view: "pipeline", stage: "All", mine: false, q: "", key: "days", dir: -1,
+             cPost: "All", cMine: false, cq: "", cKey: "sig", cDir: -1 };
+  var stamps = { deals: 0, rev: 0, cold: 0 };
 
   function setSrc(id, cls, when) {
     var el = $(id);
@@ -893,6 +1086,8 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
       loadActivity(db);
       loadKeys(db);
       loadLogo(db);
+      loadSignals(db);
+      syncColdRoster();
       return db.doc("news/current").get().then(function (snap) {
         if (!snap || !snap.exists) {
           newsUnavailable("No news has been screened yet. The daily screen writes it; ask Claude to run one now if you do not want to wait.");
@@ -944,6 +1139,53 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     DB.doc("roster/current").set({ updatedAt: new Date().toISOString().slice(0, 10), deals: deals })
       .then(function () { lastRosterSig = sig; })
       .catch(function () { /* read-only viewer, or the write was refused */ });
+  }
+
+  /* The weekly re-engagement screen runs in a Routine, which has no board access
+     of its own. It reads its search list from here, so names moved to Prospect or
+     Lost during the week are screened the following Monday without anyone editing
+     a prompt. The reason travels with each name: it is what the screen aims at. */
+  function syncColdRoster() {
+    if (!DB || !COLD.rows.length) return;
+    var rows = COLD.rows.map(function (d) {
+      return { id: d.id, name: d.name, client: d.client, stage: d.stage, country: d.country,
+               solution: d.solution, reason: d.reason, posture: d.posture,
+               lostDate: d.lostDate, route: d.route, url: d.url };
+    });
+    var sig = JSON.stringify(rows);
+    if (sig === lastColdSig) return;
+    DB.doc("coldroster/current").set({ updatedAt: new Date().toISOString().slice(0, 10),
+                                       cutoff: COLD_CUTOFF, rows: rows })
+      .then(function () { lastColdSig = sig; })
+      .catch(function () { /* read-only viewer, or the write was refused */ });
+  }
+
+  function loadSignals(db) {
+    db.doc("reengage/current").get().then(function (snap) {
+      if (!snap || !snap.exists) { signalsUnavailable("No re-engagement screen has run yet."); return; }
+      var d = (typeof snap.data === "function") ? snap.data() : snap.data;
+      if (!d || !Array.isArray(d.rows)) { signalsUnavailable("The stored screen is not in a shape this page can read."); return; }
+      var by = {};
+      d.rows.forEach(function (x) {
+        if (x && x.id && Array.isArray(x.signals) && x.signals.length) by[String(x.id)] = x.signals;
+      });
+      SIGNALS.byDeal = by;
+      SIGNALS.meta = { screenedAt: d.screenedAt, window: d.window, coverage: d.coverage,
+                       screened: d.screened, caveats: d.caveats || [] };
+      var n = 0; Object.keys(by).forEach(function (k) { n += by[k].length; });
+      setSrc("src-signals", "ok", n + (n === 1 ? " signal" : " signals") + " \u00b7 " +
+        Object.keys(by).length + " names" + (d.screenedAt ? " \u00b7 " + fmtDate(d.screenedAt) : ""));
+      $("src-signals").hidden = false;
+      if (COLD.rows.length) renderCold();
+    }).catch(function (e) {
+      signalsUnavailable("Could not read the re-engagement screen" + (e && e.code ? " (" + e.code + ")" : "") + ".");
+    });
+  }
+  function signalsUnavailable(msg) {
+    SIGNALS.byDeal = {}; SIGNALS.meta = { error: msg };
+    setSrc("src-signals", "warn", "no screen yet");
+    $("src-signals").hidden = false;
+    if (COLD.rows.length) renderCold();
   }
 
   /* Outlook corroboration of the board's Date Last Contact, written here by a
@@ -1095,9 +1337,10 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     setBusy(true);
     Promise.allSettled([
       callOnce(DEALS_INPUT, force, true),
-      callOnce(REV_INPUT, force, true)
+      callOnce(REV_INPUT, force, true),
+      callOnce(COLD_INPUT, force, true)
     ]).then(function (r) {
-      var dRes = r[0], rRes = r[1];
+      var dRes = r[0], rRes = r[1], cRes = r[2];
 
       if (dRes.status === "rejected") {
         var c = errCopy(dRes.reason);
@@ -1149,8 +1392,33 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
         $("rev-warn-text").textContent = rc.b + " Pipeline, stage and contact figures below are still live.";
       }
 
+      /* The cold cohort fails on its own: losing it must never take the pipeline
+         down with it, and vice versa. */
+      COLD.ok = false;
+      if (cRes.status === "fulfilled") {
+        var cold = asJson(cRes.value);
+        if (cold && Array.isArray(cold.items)) {
+          stamps.cold = stampOf(cRes.value);
+          buildCold(cold.items);
+          COLD.more = !!(cold.pagination && cold.pagination.has_more);
+          COLD.ok = true;
+          setSrc("src-cold", "ok", COLD.rows.length + " names \u00b7 " + fmtClock(stamps.cold));
+        }
+      }
+      if (!COLD.ok) {
+        COLD.rows = [];
+        var cc = cRes.status === "rejected" ? errCopy(cRes.reason) : { b: "Prospect and Lost came back in an unexpected shape." };
+        setSrc("src-cold", "bad", "unavailable");
+        $("cold-warn").classList.remove("hidden");
+        $("cold-warn-text").textContent = cc.b;
+      } else {
+        $("cold-warn").classList.add("hidden");
+      }
+      $("src-cold").hidden = false;
+
       showOnly(null);
       syncRoster();
+      syncColdRoster();
       renderAll();
       setBusy(false);
     });
@@ -1197,6 +1465,65 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
       };
     });
     recomputeContact();
+  }
+
+  /* Prospect and Lost. Deliberately no revenue, no forecast, no facility value —
+     the question here is whether something happened that reopens the conversation,
+     and a number beside a lost name only invites false precision. */
+  function buildCold(items) {
+    var rows = [];
+    items.forEach(function (it) {
+      var cv = it.column_values || {};
+      var stage = txt(cv[C.stage]) || "\u2014";
+      var lost = txt(cv[C.lostDate]);
+      /* Prospects have never been lost, so they carry no date and always stay in.
+         A Lost name from before the cutoff is a cold pitch, not a re-approach. */
+      if (stage !== "Prospect" && lost && lost < COLD_CUTOFF) return;
+      var reason = txt(cv[C.reason]);
+      var meta = REASONS[reason] || null;
+      var rel = cv[C.client];
+      var lastCt = txt(cv[C.lastCt]);
+      rows.push({
+        id: String(it.id),
+        name: it.name,
+        url: it.url,
+        client: (Array.isArray(rel) && rel.length) ? rel[0].name : null,
+        stage: stage,
+        solution: txt(cv[C.solution]) || "\u2014",
+        subSol: txt(cv[C.subSol]),
+        country: txt(cv[C.country]) || "\u2014",
+        o2d: txt(cv[C.o2d]) || "\u2014",
+        reason: reason || "",
+        posture: meta ? meta.posture : "open",
+        watch: meta ? meta.watch : REASONS["Client not interested"].watch,
+        lostDate: lost,
+        lostDays: lost ? daysSince(lost) : null,
+        firstContact: txt(cv[C.firstCt]),
+        lastContact: lastCt,
+        days: lastCt ? daysSince(lastCt) : null,
+        route: txt(cv[C.source]) || "",
+        calls: num(cv[C.calls]),
+        mine: (txt(cv[C.o2d]) || "").indexOf(OWNER) > -1
+      });
+    });
+    COLD.rows = rows;
+  }
+
+  function sigsOf(id) { return SIGNALS.byDeal[id] || []; }
+
+  /* Ranking is the whole product here. A signal that answers this name's own
+     stated reason beats any standing-list hit; below that the standing list's
+     own order decides, and recency breaks ties. */
+  function sigScore(sg) {
+    if (!sg) return 0;
+    var k = KINDS[sg.kind] || KINDS.other;
+    var base = (sg.matched ? 100 : 0) + (10 - k.rank);
+    var age = sg.date ? daysSince(sg.date) : 60;
+    return base * 1000 - Math.min(age, 999);
+  }
+  function bestSig(id) {
+    var a = sigsOf(id); if (!a.length) return null;
+    return a.slice().sort(function (x, y) { return sigScore(y) - sigScore(x); })[0];
   }
 
   function buildRevenue(items) {
@@ -1292,6 +1619,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     drawAttention(need);
     buildSegments(ds);
     renderTable();
+    renderCold();
   }
 
   function drawChart(totForecast) {
@@ -1449,7 +1777,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
 
   function renderTable() {
     var rows = visible();
-    Array.prototype.forEach.call(document.querySelectorAll("th.sortable"), function (th) {
+    Array.prototype.forEach.call(document.querySelectorAll("#tbl th.sortable"), function (th) {
       var on = th.getAttribute("data-k") === UI.key;
       if (on) th.setAttribute("aria-sort", UI.dir === 1 ? "ascending" : "descending");
       else th.removeAttribute("aria-sort");
@@ -1477,6 +1805,184 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
           '<span class="pill ' + d.status + '">' + pill + "</span>" + divChip(d) + keyChip(d) + meetChip(d) + actLine(d) + "</td>" +
         "<td>" + docPill(d.legalDoc) + "</td></tr>";
     }).join("");
+  }
+
+  /* ---------- re-engagement view ---------- */
+  var CVAR = { Prospect: "--st-1", Hold: "--ink-2", Lost: "--line-2" };
+  var POSTURES = [
+    { key: "All",      label: "All" },
+    { key: "catalyst", label: "Has a catalyst" },
+    { key: "open",     label: "No stated reason" },
+    { key: "ours",     label: "Waiting on us" }
+  ];
+
+  function cVisible() {
+    return COLD.rows.filter(function (d) {
+      if (UI.cPost !== "All" && d.posture !== UI.cPost) return false;
+      if (UI.cMine && !d.mine) return false;
+      if (!UI.cq) return true;
+      return (d.name + " " + (d.client || "") + " " + d.country + " " + d.solution + " " + d.reason)
+        .toLowerCase().indexOf(UI.cq) > -1;
+    }).sort(function (a, b) {
+      var x, y;
+      if (UI.cKey === "sig") { x = sigScore(bestSig(a.id)); y = sigScore(bestSig(b.id)); }
+      else { x = a[UI.cKey]; y = b[UI.cKey]; }
+      if (x === null || x === undefined) x = (typeof y === "string") ? "" : -1;
+      if (y === null || y === undefined) y = (typeof x === "string") ? "" : -1;
+      if (typeof x === "string") return String(x).localeCompare(String(y)) * UI.cDir;
+      return ((x || 0) - (y || 0)) * UI.cDir;
+    });
+  }
+
+  function coldById(id) { return COLD.rows.filter(function (x) { return x.id === id; })[0] || null; }
+
+  /* Every signal in the book, ranked, with its name attached. */
+  function allSignals() {
+    var out = [];
+    COLD.rows.forEach(function (d) {
+      sigsOf(d.id).forEach(function (sg) { out.push({ d: d, sg: sg, score: sigScore(sg) }); });
+    });
+    return out.sort(function (a, b) { return b.score - a.score; });
+  }
+
+  function renderOpenings() {
+    var host = $("openings");
+    if (!COLD.ok) { host.innerHTML = '<div class="empty">Prospect and Lost could not be read, so nothing can be screened.</div>'; return; }
+    if (SIGNALS.meta && SIGNALS.meta.error) {
+      host.innerHTML = '<div class="empty">' + esc(SIGNALS.meta.error) +
+        '<br><span style="color:var(--ink-3)">The weekly screen writes it. Ask Claude to run one now if you do not want to wait for Monday.</span></div>';
+      return;
+    }
+    var all = allSignals();
+    if (!all.length) {
+      host.innerHTML = '<div class="empty">Nothing this week.' +
+        (SIGNALS.meta && SIGNALS.meta.screened ? ' ' + SIGNALS.meta.screened + ' names were screened' +
+          (SIGNALS.meta.screenedAt ? " to " + fmtDate(SIGNALS.meta.screenedAt) : "") + "." : "") +
+        '<br><span style="color:var(--ink-3)">A quiet week is a result, not a failure. Sort the table by <em>Why it stalled</em> to work the watch list instead.</span></div>';
+      return;
+    }
+    host.innerHTML = all.slice(0, 14).map(function (o) {
+      var d = o.d, sg = o.sg, k = KINDS[sg.kind] || KINDS.other;
+      var ctx = [];
+      if (d.lostDate) ctx.push("Lost " + fmtDate(d.lostDate));
+      else if (d.stage === "Prospect") ctx.push("Prospect");
+      if (d.reason) ctx.push(d.reason.toLowerCase());
+      if (d.route) ctx.push("via " + d.route);
+      return '<article class="op' + (sg.matched ? " matched" : "") + (d.posture === "ours" ? " ours" : "") +
+        '" data-id="' + d.id + '" tabindex="0">' +
+        '<div class="op-top"><span class="op-name">' + esc(d.client || d.name) + "</span>" +
+          '<span class="op-meta">' + esc(d.country) + " · " + esc(d.solution) + "</span>" +
+          (d.posture === "ours" ? '<span class="pchip ours">waiting on us</span>' : "") +
+          '<span class="op-kind" style="margin-left:auto">' + (sg.matched ? "answers why it stalled" : esc(k.label)) + "</span></div>" +
+        '<p class="op-head">' + esc(sg.headline || "") + "</p>" +
+        (sg.angle ? '<p class="op-angle">' + esc(sg.angle) + "</p>" : "") +
+        '<div class="op-foot"><span class="num">' + (sg.date ? fmtDate(sg.date) : "—") + "</span>" +
+          (sg.source ? "<span>" + esc(sg.source) + "</span>" : "") +
+          (sg.url ? '<a href="' + esc(sg.url) + '" target="_blank" rel="noopener">source ↗</a>' : "") +
+          (ctx.length ? '<span style="margin-left:auto">' + esc(ctx.join(" · ")) + "</span>" : "") +
+        "</div></article>";
+    }).join("");
+  }
+
+  function sigCell(d) {
+    var a = sigsOf(d.id);
+    if (!a.length) {
+      if (d.posture === "ours") return '<span class="sigcell c-none">n/a</span>';
+      return '<span class="sigcell">—</span>';
+    }
+    var b = bestSig(d.id);
+    return '<span class="sigcell"><b' + (b && b.matched ? "" : " class=\"plain\"") + '>' +
+      (b && b.matched ? "match" : esc((KINDS[b.kind] || KINDS.other).label.split(" ")[0].toLowerCase())) + "</b>" +
+      (a.length > 1 ? ' <span>+' + (a.length - 1) + "</span>" : "") + "</span>";
+  }
+
+  function renderCold() {
+    if (!COLD.ok && !COLD.rows.length) {
+      $("k-open").textContent = "—"; $("k-watched").textContent = "—"; $("k-ours").textContent = "—";
+      $("cbody").innerHTML = ""; $("ctbl-empty").hidden = false;
+      renderOpenings();
+      return;
+    }
+    var nProspect = 0, nLost = 0, nOurs = 0, nSigNames = 0, nMatched = 0, nSig = 0;
+    COLD.rows.forEach(function (d) {
+      if (d.stage === "Prospect") nProspect++; else nLost++;
+      if (d.posture === "ours") nOurs++;
+      var a = sigsOf(d.id);
+      if (a.length) { nSigNames++; nSig += a.length; }
+      a.forEach(function (sg) { if (sg.matched) nMatched++; });
+    });
+
+    $("k-open").textContent = nSigNames;
+    $("k-open-sub").innerHTML = nSigNames
+      ? nSig + (nSig === 1 ? " signal" : " signals") +
+        (nMatched ? ', <span class="pos">' + nMatched + " answering a stated reason</span>" : ", none reason-matched")
+      : (SIGNALS.meta && SIGNALS.meta.error ? "No screen has run yet" : "Nothing surfaced this week");
+
+    $("k-watched").textContent = COLD.rows.length;
+    $("k-watched-sub").textContent = nProspect + " Prospect · " + nLost + " Lost, lost since " +
+      fmtDate(COLD_CUTOFF) + (COLD.more ? " · first 200 only" : "");
+
+    $("k-ours").textContent = nOurs;
+    $("k-ours-sub").textContent = nOurs
+      ? "Blocked on our side, not theirs. Client news will not move these."
+      : "Nothing is blocked on our side.";
+
+    $("tab-n").textContent = nSigNames || "";
+    $("tab-n").hidden = !nSigNames;
+    $("foot-cutoff").textContent = fmtDate(COLD_CUTOFF);
+    $("open-sub").textContent = SIGNALS.meta && SIGNALS.meta.coverage
+      ? SIGNALS.meta.coverage
+      : "What happened this week that gives you a reason to go back.";
+
+    renderOpenings();
+
+    var seg = $("post-seg");
+    if (!seg.children.length) {
+      seg.innerHTML = POSTURES.map(function (x) {
+        return '<button type="button" data-post="' + x.key + '" aria-pressed="' + (x.key === UI.cPost) + '">' +
+          esc(x.label) + "</button>";
+      }).join("");
+    } else {
+      Array.prototype.forEach.call(seg.children, function (b) {
+        b.setAttribute("aria-pressed", String(b.getAttribute("data-post") === UI.cPost));
+      });
+    }
+
+    Array.prototype.forEach.call(document.querySelectorAll("#ctbl th.sortable"), function (th) {
+      var on = th.getAttribute("data-ck") === UI.cKey;
+      if (on) th.setAttribute("aria-sort", UI.cDir === 1 ? "ascending" : "descending");
+      else th.removeAttribute("aria-sort");
+      th.querySelector(".arr").textContent = on ? (UI.cDir === 1 ? "↑" : "↓") : "↕";
+    });
+
+    var rows = cVisible();
+    $("ctbl-empty").hidden = rows.length > 0;
+    $("cbody").innerHTML = rows.map(function (d) {
+      return '<tr data-cid="' + d.id + '" tabindex="0">' +
+        '<td><div class="c-name">' + esc(d.name) + '</div><div class="c-sub">' +
+          (d.client ? esc(d.client) + " · " : "") + esc(d.country) +
+          ' · <span class="owner-pill">' + esc(d.o2d) + "</span></div></td>" +
+        '<td><span class="stage-pill"><span class="stage-dot" style="background:var(' +
+          (CVAR[d.stage] || "--line-2") + ')"></span>' + esc(d.stage) + "</span></td>" +
+        "<td>" + esc(d.solution) + (d.subSol ? '<div class="c-sub">' + esc(d.subSol) + "</div>" : "") + "</td>" +
+        '<td><div class="c-reason"' + (d.reason ? ' title="' + esc(d.reason) + '"' : "") + ">" +
+          (d.reason ? esc(d.reason) : '<span class="c-none">not recorded</span>') + "</div>" +
+          '<span class="pchip ' + d.posture + '">' +
+          (d.posture === "ours" ? "on us" : (d.posture === "catalyst" ? "catalyst known" : "no reason")) + "</span></td>" +
+        '<td class="r num">' + (d.lostDate ? fmtDate(d.lostDate) : "—") + "</td>" +
+        "<td>" + (d.route ? esc(d.route) : '<span class="c-none">—</span>') + "</td>" +
+        '<td class="r">' + sigCell(d) + "</td></tr>";
+    }).join("");
+  }
+
+  function setView(v) {
+    UI.view = v;
+    $("tab-pipeline").setAttribute("aria-selected", String(v === "pipeline"));
+    $("tab-reengage").setAttribute("aria-selected", String(v === "reengage"));
+    $("view-pipeline").hidden = v !== "pipeline";
+    $("view-reengage").hidden = v !== "reengage";
+    store.set("sb-view", v);
+    if (v === "reengage") renderCold();
   }
 
   /* ---------- drawer ---------- */
@@ -1596,9 +2102,71 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
   }
   function closeDrawer() {
     $("drawer").classList.remove("on"); $("scrim").classList.remove("on");
-    Array.prototype.forEach.call($("tbody").children, function (tr) { tr.setAttribute("aria-selected", "false"); });
+    [$("tbody"), $("cbody")].forEach(function (tb) {
+      if (tb) Array.prototype.forEach.call(tb.children, function (tr) { tr.setAttribute("aria-selected", "false"); });
+    });
     setTimeout(function () { $("drawer").hidden = true; $("scrim").hidden = true; }, 200);
     if (lastFocus && lastFocus.focus) lastFocus.focus();
+  }
+
+  /* A cold name usually has no news in any given week, and that is the normal
+     case. What it always has is a reason it stalled and therefore a thing to
+     watch for — which is the part worth reading when nothing has happened. */
+  function openCold(id) {
+    var d = coldById(id); if (!d) return;
+    lastFocus = document.activeElement;
+    Array.prototype.forEach.call($("cbody").children, function (tr) {
+      tr.setAttribute("aria-selected", String(tr.getAttribute("data-cid") === id));
+    });
+    $("dr-name").textContent = d.name;
+    $("dr-sub").textContent = (d.client ? d.client + " · " : "") + d.country + " · " + d.o2d;
+
+    var h = "";
+    h += '<div class="dr-sec"><h4>Why it stalled</h4>';
+    h += '<div class="dr-note"><b>' + (d.reason ? esc(d.reason) : "No reason recorded on the board") + "</b>" +
+         (d.lostDate ? '<div class="c-sub" style="margin-top:3px">' + esc(d.stage) + " since " + fmtDate(d.lostDate) +
+           " · " + d.lostDays + " days</div>" : "") + "</div>";
+    h += "<p>" + esc(d.posture === "ours" ? "Blocked on our side. " : "") + esc("What to watch for: " + d.watch) + "</p>";
+    h += "</div>";
+
+    var sgs = sigsOf(d.id).slice().sort(function (x, y) { return sigScore(y) - sigScore(x); });
+    h += '<div class="dr-sec"><h4>Signals' + (sgs.length ? " (" + sgs.length + ")" : "") + "</h4>";
+    if (!sgs.length) {
+      h += "<p>" + (SIGNALS.meta && SIGNALS.meta.error
+        ? esc(SIGNALS.meta.error)
+        : "Nothing surfaced in the last screen. The watch list above is what to look for.") + "</p>";
+    } else {
+      sgs.forEach(function (sg) {
+        var k = KINDS[sg.kind] || KINDS.other;
+        h += '<div class="nitem">' +
+          '<div class="nmeta"><span class="num">' + (sg.date ? fmtDate(sg.date) : "—") + "</span>" +
+            '<span class="nchip' + (sg.matched ? " signal" : "") + '">' +
+            (sg.matched ? "answers why it stalled" : esc(k.label)) + "</span></div>" +
+          "<b>" + esc(sg.headline || "") + "</b>" +
+          (sg.angle ? "<p>" + esc(sg.angle) + "</p>" : "") +
+          '<div class="nsrc">' + esc(sg.source || "") +
+            (sg.url ? ' <a href="' + esc(sg.url) + '" target="_blank" rel="noopener">source ↗</a>' : "") +
+          "</div></div>";
+      });
+    }
+    h += "</div>";
+
+    h += '<div class="dr-sec"><h4>The relationship</h4><dl class="kv">';
+    h += "<dt>Status</dt><dd>" + esc(d.stage) + "</dd>";
+    h += "<dt>Solution</dt><dd>" + esc(d.solution) + (d.subSol ? " · " + esc(d.subSol) : "") + "</dd>";
+    h += "<dt>Route in</dt><dd>" + (d.route ? esc(d.route) : "—") + "</dd>";
+    h += "<dt>First contact</dt><dd>" + (d.firstContact ? fmtDate(d.firstContact) : "—") + "</dd>";
+    h += "<dt>Last contact</dt><dd>" + (d.lastContact ? fmtDate(d.lastContact) + " · " + d.days + "d" : "—") + "</dd>";
+    h += "<dt>Calls logged</dt><dd>" + (d.calls || 0) + "</dd>";
+    h += "<dt>O2D owner</dt><dd>" + esc(d.o2d) + "</dd>";
+    h += "</dl>";
+    if (d.url) h += '<p style="margin-top:9px"><a href="' + esc(d.url) + '" target="_blank" rel="noopener">Open on monday.com ↗</a></p>';
+    h += "</div>";
+
+    $("dr-body").innerHTML = h;
+    $("drawer").hidden = false; $("scrim").hidden = false;
+    requestAnimationFrame(function () { $("drawer").classList.add("on"); $("scrim").classList.add("on"); });
+    $("dr-close").focus();
   }
 
   /* ---------- wiring ---------- */
@@ -1611,7 +2179,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
   $("btn-mine").addEventListener("click", function () {
     UI.mine = true; $("btn-mine").setAttribute("aria-pressed", "true"); $("btn-all").setAttribute("aria-pressed", "false"); renderTable();
   });
-  Array.prototype.forEach.call(document.querySelectorAll("th.sortable"), function (th) {
+  Array.prototype.forEach.call(document.querySelectorAll("#tbl th.sortable"), function (th) {
     th.addEventListener("click", function () {
       var k = th.getAttribute("data-k");
       if (UI.key === k) UI.dir = -UI.dir;
@@ -1629,10 +2197,47 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
   $("att-list").addEventListener("click", function (e) {
     var li = e.target.closest("li[data-id]"); if (li) openDrawer(li.getAttribute("data-id"));
   });
+  $("tab-pipeline").addEventListener("click", function () { setView("pipeline"); });
+  $("tab-reengage").addEventListener("click", function () { setView("reengage"); });
+  $("cq").addEventListener("input", function (e) { UI.cq = e.target.value.toLowerCase().trim(); renderCold(); });
+  $("cbtn-all").addEventListener("click", function () {
+    UI.cMine = false; $("cbtn-all").setAttribute("aria-pressed", "true"); $("cbtn-mine").setAttribute("aria-pressed", "false"); renderCold();
+  });
+  $("cbtn-mine").addEventListener("click", function () {
+    UI.cMine = true; $("cbtn-mine").setAttribute("aria-pressed", "true"); $("cbtn-all").setAttribute("aria-pressed", "false"); renderCold();
+  });
+  $("post-seg").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-post]"); if (!b) return;
+    UI.cPost = b.getAttribute("data-post"); renderCold();
+  });
+  Array.prototype.forEach.call(document.querySelectorAll("#ctbl th.sortable"), function (th) {
+    th.addEventListener("click", function () {
+      var k = th.getAttribute("data-ck");
+      if (UI.cKey === k) UI.cDir = -UI.cDir;
+      else { UI.cKey = k; UI.cDir = (k === "name" || k === "solution" || k === "reason" || k === "stage" || k === "route") ? 1 : -1; }
+      renderCold();
+    });
+  });
+  $("cbody").addEventListener("click", function (e) {
+    var tr = e.target.closest("tr[data-cid]"); if (tr) openCold(tr.getAttribute("data-cid"));
+  });
+  $("cbody").addEventListener("keydown", function (e) {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    var tr = e.target.closest("tr[data-cid]"); if (tr) { e.preventDefault(); openCold(tr.getAttribute("data-cid")); }
+  });
+  $("openings").addEventListener("click", function (e) {
+    if (e.target.closest("a")) return;
+    var a = e.target.closest("article[data-id]"); if (a) openCold(a.getAttribute("data-id"));
+  });
+  $("openings").addEventListener("keydown", function (e) {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    var a = e.target.closest("article[data-id]"); if (a) { e.preventDefault(); openCold(a.getAttribute("data-id")); }
+  });
   $("dr-close").addEventListener("click", closeDrawer);
   $("scrim").addEventListener("click", closeDrawer);
   document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !$("drawer").hidden) closeDrawer(); });
 
+  setView(store.get("sb-view") === "reengage" ? "reengage" : "pipeline");
   start();
 })();
 </script>

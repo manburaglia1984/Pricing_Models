@@ -17,9 +17,10 @@ The page is published as a private Artifact and declares the `mcp` runtime capab
 capabilities: { mcp: { servers: [ { server: "monday.com", tools: ["get_board_items_page"] } ] } }
 ```
 
-At load it calls `claude.use("mcp")` and then issues two `get_board_items_page` calls — one for
-deals, one for 2026 trade subitems — joining them on `parent_item_id`. Calls run with the viewer's
-monday.com credentials; the page never sees a token.
+At load it calls `claude.use("mcp")` and then issues three `get_board_items_page` calls — one for
+pipeline deals, one for 2026 trade subitems (joined on `parent_item_id`), and one for the Prospect
+and Lost cohort behind the **Re-engage** view. Calls run with the viewer's monday.com credentials;
+the page never sees a token.
 
 Because of this it **only works when opened from claude.ai**. Opened as a local file or from a
 share it has no `window.claude`, and says so rather than appearing broken.
@@ -31,8 +32,9 @@ load the calls use a 2-minute `staleTime`, so reopening the page is instant but 
 minutes behind. The two dots in the header show each source independently, with the time its data
 was actually produced (`result.cache.storedAt`, not the clock).
 
-If one of the two calls fails the other still renders — a revenue failure leaves pipeline, stage and
-contact figures live, with a banner naming what is missing.
+Each call fails on its own. A revenue failure leaves pipeline, stage and contact figures live; a
+Prospect-and-Lost failure leaves the whole Pipeline view untouched. Each names what is missing in a
+banner inside the view that lost it, rather than taking the page down.
 
 ---
 
@@ -320,6 +322,96 @@ attention reads as coloured.
 - Every connector error branches on its own code — `needs_reauth`, `server_not_connected`,
   `selection_required`, `blocked_by_policy` and the rest each get the copy that names the fix.
   Only `retryable` errors auto-retry, once.
+
+---
+
+## Re-engage — Prospect and Lost
+
+A second view on the same page, for the names that are not in the pipeline. Its question is not
+"how is this deal doing" but "did something happen that gives me a reason to go back".
+
+**There is no revenue figure anywhere in it.** These names are not forecastable, and a number beside
+a lost name invites exactly the wrong reading.
+
+### Who is in it
+
+A second `get_board_items_page` call against the same board and the same Americas group, filtered to
+Status label **ids** `[3, 4, 9]` — Prospect, Hold, Lost. The page then drops any Lost or Hold name
+whose *Date client was Lost or put on Hold* is before `COLD_CUTOFF` (`2024-01-01`): at that distance
+a re-approach is a fresh pitch, not a re-engagement.
+
+Two deliberate asymmetries:
+
+- **Prospects are never dropped.** They carry no lost-date because they were never lost.
+- **A Lost name with a blank lost-date is kept.** The board not recording when it was lost is not
+  evidence that it was lost long ago. Same rule that governs contact dates elsewhere in this page.
+
+At the time of writing that leaves 138 of the 159 Prospect/Lost rows in the Americas group.
+
+### Extra columns this view reads
+
+| JSON field | Column | Id |
+|---|---|---|
+| `reason` | Reasons Lost/Hold | `dropdown_mkxjctk` |
+| `lostDate` | Date client was Lost or put on Hold | `date_mm3xj054` |
+| `route` | Source of Contact | `color_mm3td94` |
+| `firstContact` | Date First Contact | `date_mkx6mes` |
+
+### Posture — the reason decides which news matters
+
+Every reason label maps to one of three postures, in `REASONS`:
+
+| Posture | Meaning | Labels |
+|---|---|---|
+| `catalyst` | A specific event would flip it, and we know which | Price too high · Accounting treatment · Tax/Regulation/Legal · Competitor offer preferred · Client opted for alternative solution · Client busy with other projects · Geopolitical events · Solution not appropriate · One-time deal |
+| `ours` | Blocked on Silver Birch's side, not the client's | Lack of investor appetite · SB Declined |
+| `open` | No usable reason on the board | Client not interested · Other · blank |
+
+> **The reason column is the engine of this module, and it is mostly empty.** 76 of 119 Lost rows say
+> "Client not interested" and 42 carry no reason at all. For those the screen falls back to the
+> standing catalyst list, with a new CFO or Treasurer as the strongest signal — it resets a "no" that
+> was never explained.
+
+> **`ours` names are marked, never hidden.** 19 of the 138 are blocked on our own distribution
+> appetite. Client news does not move them, so their cards carry a dashed amber border and a
+> "waiting on us" chip. Dropping them would lose sight of them; mixing them in unmarked would
+> produce alerts you cannot act on.
+
+Each posture carries a `watch` line — what would reopen this name. It shows in the drawer whether or
+not there is news, which is the point: in a quiet week the watch list is the deliverable.
+
+### Ranking
+
+`sigScore` decides the order of the Openings list and the Signal column:
+
+1. `matched` — the signal answers this name's own stated reason. Beats everything.
+2. Then the standing list's own order: `cfo-change`, `wc-stress`, `funding`, `capex`, `ma`, `rating`.
+3. Recency breaks ties.
+
+### The two documents
+
+| Document | Written by | Holds |
+|---|---|---|
+| `coldroster/current` | the page, on every load | the names to screen, with reason, posture and route |
+| `reengage/current` | the weekly Routine | the signals, replaced whole each run |
+
+The roster is self-maintaining: a name moved to Prospect or Lost on the board is screened the
+following week without anyone editing a prompt. See `routines/weekly-reengagement-screen.md`.
+
+### Known search-key traps in this cohort
+
+A trial screen of 8 of the 137 names, run when the module was built, returned exactly one usable
+signal. That is evidence for the weekly cadence rather than a daily one, and it surfaced two traps
+worth keeping:
+
+- **A renamed company is a dead search key.** The board carries `Cepsa S.A.`; the company has traded
+  as **Moeve** since October 2024. Every search on "Cepsa" returns pre-rename history and nothing
+  current. Board names drift out of date and the screen cannot tell — only a person can. Where a
+  name is known to have changed, record the current one in `domains/current`.
+- **Adverse news is discarded by design.** Citrofrut drew an environmental fine on 5 Sep 2026, with
+  local calls for the plant to close. It is real, it is in window, and it is not an opening — the
+  screen looks for reasons to go back, not reasons to worry. If a risk lane is wanted it should be a
+  separate signal kind with its own treatment, not folded in where it would read as an opportunity.
 
 ---
 
