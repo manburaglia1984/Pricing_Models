@@ -49,6 +49,7 @@
   --watch-soft:#f5efdd;
   --overdue:#b3243a;
   --overdue-soft:#f8e3e6;
+  --on-overdue:#ffffff;   /* 6.5:1 on light overdue, 5.6:1 on dark */
 
   --grid:#e2dfea;
   --track:#e3e0eb;
@@ -177,13 +178,6 @@ button{font:inherit;color:inherit;cursor:pointer}
 
 /* ---------- re-engagement ---------- */
 .kpi.kpi-3{grid-template-columns:repeat(3,1fr)}
-.op{border-left:3px solid var(--accent);padding:13px 16px 14px;border-bottom:1px solid var(--line)}
-.op:last-child{border-bottom:0}
-.op.matched{border-left-color:var(--st-4);background:var(--accent-soft)}
-.op.ours{border-left-style:dashed;border-left-color:var(--watch)}
-.op.risk{border-left-color:var(--overdue)}
-.op.risk .op-kind{border-color:var(--overdue);color:var(--overdue);background:var(--overdue-soft)}
-.op.risk .op-angle{border-left-color:var(--overdue)}
 .nitem{border-left:2px solid var(--accent);padding:2px 0 2px 11px;margin-top:11px}
 .nitem:first-of-type{margin-top:7px}
 .nitem .nmeta{display:flex;gap:8px;align-items:center;margin-bottom:4px}
@@ -196,29 +190,14 @@ button{font:inherit;color:inherit;cursor:pointer}
 .nitem.risk{border-left-color:var(--overdue)}
 .nitem.risk .nsrc a{color:var(--overdue)}
 .nchip.risk{border-color:var(--overdue);color:var(--overdue);background:var(--overdue-soft)}
-.pw{border-color:var(--overdue)}
+/* .panel sets the border later in the sheet, so this needs the extra class to win */
+.panel.pw{border-top:3px solid var(--overdue)}
 .pw .panel-h{border-bottom-color:var(--line)}
 .pw .panel-h h2{color:var(--overdue)}
 .pchip.exp{border-style:solid;font-family:var(--sans);font-weight:500;letter-spacing:0}
 .pchip.exp.high{border-color:var(--overdue);color:var(--overdue);background:var(--overdue-soft);font-weight:600}
 .pchip.exp.mid{border-color:var(--line-2);color:var(--ink-2)}
 .pchip.exp.low{border-color:var(--line);color:var(--ink-3)}
-.op.exp-high{background:var(--overdue-soft)}
-.op.exp-low{border-left-color:var(--line-2)}
-.op.ours .op-name,.op.ours .op-head{color:var(--ink-2)}
-.op-top{display:flex;gap:9px;align-items:baseline;flex-wrap:wrap;margin-bottom:5px}
-.op-name{font-weight:600;font-size:13.5px;letter-spacing:-.005em}
-.op-meta{font-size:11px;color:var(--ink-3)}
-.op-kind{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
-         color:var(--ink-2);border:1px solid var(--line-2);border-radius:3px;padding:1px 6px;white-space:nowrap}
-.op.matched .op-kind{border-color:var(--accent);color:var(--accent);background:var(--surface)}
-.op-head{font-size:13px;line-height:1.45;margin:0 0 6px}
-.op-angle{font-size:12.5px;line-height:1.5;color:var(--ink-2);margin:0;
-          border-left:2px solid var(--line-2);padding-left:10px}
-.op-angle b{color:var(--ink);font-weight:600}
-.op-foot{margin-top:7px;font-size:11px;color:var(--ink-3);display:flex;gap:9px;flex-wrap:wrap;align-items:baseline}
-.op-foot a{color:var(--accent);text-decoration:none;font-weight:500}
-.op-foot a:hover{text-decoration:underline}
 .pchip{display:inline-block;padding:1px 7px;border-radius:3px;font-size:10px;font-weight:600;
        border:1px solid var(--line-2);color:var(--ink-3);white-space:nowrap;letter-spacing:.02em}
 .pchip.ours{border-style:dashed;border-color:var(--watch);color:var(--watch);background:var(--watch-soft)}
@@ -232,6 +211,130 @@ button{font:inherit;color:inherit;cursor:pointer}
            border-radius:3px;padding:1px 6px;font-family:var(--mono)}
 .sigcell b.plain{border-color:var(--line-2);color:var(--ink-2);background:transparent}
 .sigcell b.risk{border-color:var(--overdue);color:var(--overdue);background:var(--overdue-soft)}
+
+/* ---------- alert rows: one compact line per deal ---------- */
+.panel-b.flush{padding:0}
+.ar-list{display:flex;flex-direction:column}
+.ar{display:grid;grid-template-columns:3px minmax(0,16.5rem) minmax(0,1fr) auto;align-items:center;column-gap:14px;
+    width:100%;min-height:50px;margin:0;padding:8px 14px 8px 0;background:transparent;border:0;border-top:1px solid var(--line);
+    text-align:left;font:inherit;color:inherit;cursor:pointer;transition:background-color .12s ease}
+.ar-list > .ar:first-child,.ar-sec + .ar{border-top:0}
+.ar:hover{background:var(--surface-2)}
+.ar:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;border-radius:2px}
+.ar-mk{align-self:stretch;margin-block:-8px;background:var(--accent);opacity:.5}
+.b-high .ar-mk{background:var(--overdue);opacity:1}
+.b-mid .ar-mk{background:var(--overdue);opacity:.42}
+.b-low .ar-mk{background:var(--line-2);opacity:1}
+.b-risk .ar-mk{background:var(--overdue);opacity:.8}
+.b-match .ar-mk{background:var(--st-4);opacity:1}
+.ar-who{display:flex;flex-direction:column;min-width:0;line-height:1.3}
+.ar-who b{font-size:13px;font-weight:600;letter-spacing:-.005em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ar-who i{font-style:normal;font-size:11px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.ar-hl{min-width:0;font-size:12.5px;line-height:1.4;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ar-hl .pchip{vertical-align:1px}
+.ar-meta{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.ak{display:inline-flex;align-items:baseline;gap:3px;font-family:var(--mono);font-size:9.5px;font-weight:600;letter-spacing:.06em;
+    text-transform:uppercase;line-height:1;padding:3px 5px 2px;border-radius:3px;border:1px solid var(--line-2);color:var(--ink-2)}
+.ak em{font-style:normal;font-weight:500;letter-spacing:0;opacity:.75}
+.ak.r{border-color:var(--overdue);color:var(--overdue);background:var(--overdue-soft)}
+.ak.m{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+.ar-n{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 6px;border-radius:10px;
+      background:var(--surface-3);color:var(--ink-2);font-family:var(--mono);font-size:11px;font-weight:600}
+.b-high .ar-n{background:var(--overdue);color:var(--on-overdue)}
+.ar-d{min-width:3.4em;text-align:right;font-size:11px;color:var(--ink-3)}
+.ar-go{font-size:17px;line-height:1;color:var(--ink-3);margin-left:1px;transition:transform .15s ease,color .15s ease}
+.ar:hover .ar-go,.ar:focus-visible .ar-go{transform:translateX(3px);color:var(--accent)}
+.ar-sec{padding:9px 16px 5px 17px;border-top:1px solid var(--line);background:var(--surface-2);
+        font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-weight:600;color:var(--ink-3)}
+.ar-list > .ar-sec:first-child{border-top:0}
+.ar-more{display:block;width:100%;margin:0;padding:10px 17px;text-align:left;background:transparent;border:0;border-top:1px solid var(--line);
+         font:inherit;font-size:12px;font-weight:600;color:var(--accent);cursor:pointer}
+.ar-more:hover{background:var(--surface-2)}
+.ac-open{align-self:center;margin-left:auto;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.ac-open span{font-size:15px;line-height:1;transition:transform .15s ease}
+.ac-open:hover span{transform:translateX(2px)}
+
+/* ---------- alert centre ---------- */
+.ac[hidden],.ac-scrim[hidden]{display:none}
+html.ac-lock,html.ac-lock body{overflow:hidden}
+.ac-scrim{position:fixed;inset:0;z-index:70;background:rgba(16,13,24,.5);opacity:0;transition:opacity .16s ease}
+.ac-scrim.on{opacity:1}
+.ac{position:fixed;z-index:71;left:50%;top:50%;width:min(1060px,calc(100vw - 32px));height:min(760px,calc(100vh - 48px));
+    display:flex;flex-direction:column;overflow:hidden;background:var(--surface);border:1px solid var(--line);border-radius:10px;
+    box-shadow:0 28px 70px rgba(10,6,20,.30),0 2px 8px rgba(10,6,20,.14);
+    opacity:0;transform:translate(-50%,-48%) scale(.985);transition:opacity .16s ease,transform .2s cubic-bezier(.2,.8,.2,1)}
+.ac.on{opacity:1;transform:translate(-50%,-50%) scale(1)}
+.ac-h{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:14px 16px 13px 22px;border-bottom:1px solid var(--line)}
+.ac-ttl{min-width:0;margin-right:auto}
+.ac-ttl h3{font-family:var(--serif);font-size:19px;font-weight:600;letter-spacing:-.015em;line-height:1.15;color:var(--brand)}
+.ac-ttl p{margin:3px 0 0;font-size:11.5px;color:var(--ink-3)}
+.ac-tabs button[aria-selected="true"]{background:var(--accent);color:var(--accent-ink)}
+.ac-tabs button[aria-disabled="true"]{opacity:.45;cursor:default}
+.ac-tabs .tn{margin-left:6px;font-family:var(--mono);font-size:10.5px;opacity:.75}
+.ac-b{flex:1;min-height:0;display:grid;grid-template-columns:minmax(232px,300px) minmax(0,1fr)}
+.ac-rail{overflow-y:auto;overscroll-behavior:contain;padding:0 0 14px;background:var(--surface-2);border-right:1px solid var(--line)}
+.ac-sec{position:sticky;top:0;z-index:1;padding:12px 16px 6px 17px;background:var(--surface-2);
+        font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-weight:600;color:var(--ink-3)}
+.ac-i{display:grid;grid-template-columns:3px minmax(0,1fr) auto;align-items:center;column-gap:12px;width:100%;margin:0;
+      padding:8px 14px 8px 0;background:transparent;border:0;text-align:left;font:inherit;color:inherit;cursor:pointer}
+.ac-i .ar-mk{margin-block:-8px}
+.ac-i:hover{background:var(--surface-3)}
+.ac-i[aria-current="true"]{background:var(--surface);box-shadow:inset 0 1px 0 var(--line),inset 0 -1px 0 var(--line)}
+.ac-i[aria-current="true"] .ac-in b{color:var(--accent)}
+.ac-i:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.ac-in{display:flex;flex-direction:column;min-width:0;line-height:1.3}
+.ac-in b{font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ac-in i{margin-top:1px;font-style:normal;font-size:11px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ac-det{display:flex;flex-direction:column;overflow-y:auto;overscroll-behavior:contain;padding:22px 28px 0}
+.ac-back{display:none;align-self:flex-start;margin:0 0 10px;padding:4px 9px;background:transparent;border:1px solid var(--line-2);
+         border-radius:var(--radius);font:inherit;font-size:12px;font-weight:500;color:var(--ink-2);cursor:pointer}
+.ac-dh h4{margin:0;font-family:var(--serif);font-size:22px;font-weight:600;letter-spacing:-.015em;line-height:1.2}
+.ac-dh p{margin:4px 0 0;font-size:12px;color:var(--ink-3)}
+.ac-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.ac-list{flex:1;list-style:none;margin:18px 0 0;padding:0}
+.ai{position:relative;padding:15px 0 16px 20px;border-top:1px solid var(--line)}
+.ai::before{content:"";position:absolute;left:0;top:20px;width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.ai::after{content:"";position:absolute;left:3.5px;top:32px;bottom:-20px;width:1px;background:var(--line-2)}
+.ai:last-child::after{display:none}
+.ai.r::before{background:var(--overdue)}
+.ai.m::before{background:var(--st-4)}
+.ai-m{display:flex;align-items:center;gap:9px;margin-bottom:6px}
+.ai-m .num{font-size:11px;color:var(--ink-3)}
+.ai-h{margin:0;font-size:14px;font-weight:600;line-height:1.45;letter-spacing:-.004em;text-wrap:pretty}
+.ai-b{margin:7px 0 0;font-size:12.75px;line-height:1.6;color:var(--ink-2);text-wrap:pretty}
+.ai-s{margin-top:8px;font-size:11px;color:var(--ink-3)}
+.ai-s a{color:var(--accent);text-decoration:none;font-weight:500}
+.ai-s a:hover{text-decoration:underline}
+.ac-df{position:sticky;bottom:0;display:flex;align-items:center;justify-content:space-between;gap:12px;
+       margin-top:6px;padding:12px 0 16px;background:var(--surface);border-top:1px solid var(--line);font-size:11.5px;color:var(--ink-3)}
+.ac-deal{padding:7px 14px;background:var(--accent);color:var(--accent-ink);border:0;border-radius:var(--radius);
+         font:inherit;font-size:12.5px;font-weight:600;cursor:pointer}
+.ac-deal:hover{filter:brightness(1.08)}
+
+@media (max-width:760px){
+  .ar{grid-template-columns:3px minmax(0,1fr) auto;row-gap:3px;padding-block:9px}
+  .ar-mk{grid-column:1;grid-row:1 / span 2;margin-block:-9px}
+  .ar-who{grid-column:2;grid-row:1}
+  .ar-meta{grid-column:3;grid-row:1}
+  .ar-hl{grid-column:2 / 4;grid-row:2;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  .ar-meta .ak{display:none}
+  .ac-open{margin-left:0}
+  .ac{left:0;top:auto;bottom:0;width:100%;height:calc(100vh - 20px);border-radius:14px 14px 0 0;
+      transform:translateY(28px);border-bottom:0}
+  .ac.on{transform:none}
+  .ac-h{padding:12px 12px 11px 16px}
+  .ac-tabs{order:3;width:100%;overflow-x:auto}
+  .ac-tabs button{flex:1}
+  .ac-b{grid-template-columns:1fr}
+  .ac-rail{border-right:0}
+  .ac[data-mode="detail"] .ac-rail{display:none}
+  .ac[data-mode="rail"] .ac-det{display:none}
+  .ac-back{display:inline-block}
+  .ac-det{padding:14px 16px 0}
+}
+@media (prefers-reduced-motion:reduce){
+  .ac,.ac-scrim,.ar,.ar-go,.ac-open span{transition:none}
+}
 
 /* ---------- provenance strip ---------- */
 .prov{background:var(--watch-soft);border-bottom:1px solid var(--line)}
@@ -433,6 +536,12 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
 .src.bad .dot{background:var(--overdue)}
 .src.warn .dot{background:var(--watch)}
 .src .when{font-family:var(--mono);font-size:11.5px;color:var(--ink-3)}
+/* Status lines grow with the data (16 risks made the news line wider than a
+   phone). Let the detail wrap under its label rather than push the page wide. */
+@media (max-width:560px){
+  .src{white-space:normal;flex-wrap:wrap;row-gap:1px;min-width:0;max-width:100%}
+  .src .when{flex-basis:100%;padding-left:15px}
+}
 .conn-act{margin-left:auto;display:flex;align-items:center;gap:9px}
 .btn-refresh{display:inline-flex;align-items:center;gap:7px;background:var(--accent);color:var(--accent-ink);
   border:1px solid var(--accent);border-radius:var(--radius);padding:6px 13px;font-size:12.5px;font-weight:600}
@@ -608,8 +717,9 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
           <h2>Watch-outs &mdash; live book</h2>
           <p id="pipe-risk-sub">Adverse news on deals you are working now, most exposed first.</p>
         </div>
+        <button type="button" class="ghost ac-open" data-feed="pipe-risk">Alert centre <span aria-hidden="true">&rsaquo;</span></button>
       </div>
-      <div class="panel-b"><div id="pipe-risks"></div></div>
+      <div class="panel-b flush"><div id="pipe-risks" class="ar-list"></div></div>
     </section>
 
     <div class="grid2">
@@ -748,8 +858,9 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
             <h2>Openings</h2>
             <p id="open-sub">What happened this week that gives you a reason to go back.</p>
           </div>
+          <button type="button" class="ghost ac-open" data-feed="re-open">Alert centre <span aria-hidden="true">&rsaquo;</span></button>
         </div>
-        <div class="panel-b"><div id="openings"></div></div>
+        <div class="panel-b flush"><div id="openings" class="ar-list"></div></div>
       </section>
 
       <section class="panel" id="risk-panel" style="margin-top:16px" hidden>
@@ -758,8 +869,9 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
             <h2>Watch-outs</h2>
             <p>Adverse news on the same names. Not a reason to call &mdash; a reason to check first.</p>
           </div>
+          <button type="button" class="ghost ac-open" data-feed="re-risk">Alert centre <span aria-hidden="true">&rsaquo;</span></button>
         </div>
-        <div class="panel-b"><div id="risks"></div></div>
+        <div class="panel-b flush"><div id="risks" class="ar-list"></div></div>
       </section>
 
       <div class="ctrls">
@@ -820,6 +932,22 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
   </div>
   <div class="dr-b" id="dr-body"></div>
 </aside>
+
+<div class="ac-scrim" id="ac-scrim" hidden></div>
+<div class="ac" id="ac" role="dialog" aria-modal="true" aria-labelledby="ac-title" data-mode="rail" hidden>
+  <div class="ac-h">
+    <div class="ac-ttl">
+      <h3 id="ac-title">Alert centre</h3>
+      <p id="ac-sub"></p>
+    </div>
+    <div class="seg ac-tabs" id="ac-tabs" role="tablist" aria-label="Alert feeds"></div>
+    <button class="dr-x" id="ac-close" type="button" aria-label="Close alert centre">&times;</button>
+  </div>
+  <div class="ac-b">
+    <nav class="ac-rail" id="ac-rail" aria-label="Deals with alerts"></nav>
+    <section class="ac-det" id="ac-det" aria-label="Alerts for the selected deal"></section>
+  </div>
+</div>
 
 <script>
 (function () {
@@ -1389,6 +1517,15 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
      exactly the oldest, most committed deals, whose earlier columns were never
      filled in. */
   function expBand(n) { return n >= 6 ? "high" : (n >= 3 ? "mid" : "low"); }
+  /* The row version: fits a compact line where expWhy would truncate. */
+  function expShort(d) {
+    var out = [d.stage];
+    if (d.mandate) out.push("mandate");
+    if (d.termSheet === "Shared") out.push("term sheet");
+    if (d.legalDoc === "Executed") out.push("docs executed");
+    else if (d.legalDoc === "In Progress") out.push("docs in progress");
+    return out.join(" \u00b7 ");
+  }
   function expWhy(d) {
     var out = [d.stage];
     if (d.mandate) out.push("mandate signed");
@@ -1873,43 +2010,158 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
       (K[a.kind] || a.kind) + "</span>";
   }
 
+  /* ---------- alerts: one model, three panels, one centre ----------
+     Every alert panel on the page is the same thing seen three ways: a list of
+     deals, each carrying one or more stories. The panels show one compact row
+     per deal; the full text lives in the alert centre, which opens over the
+     page. Grouping by deal rather than by story is the point - on 23 Sep the
+     live book held 16 risk items on 8 deals, four of them on one obligor. */
+  var FEEDS = {
+    "pipe-risk": { title: "Watch-outs", scope: "live book", view: "pipeline", tab: "Live book" },
+    "re-open":   { title: "Openings",   scope: "re-engage", view: "reengage", tab: "Openings" },
+    "re-risk":   { title: "Watch-outs", scope: "re-engage", view: "reengage", tab: "Re-engage risks" }
+  };
+  var BAND_LABEL = { high: "High exposure", mid: "Mid exposure", low: "Low exposure" };
+  var BAND_ORDER = { high: 0, mid: 1, low: 2 };
+
+  function byDateDesc(a, b) { return String(b.date || "").localeCompare(String(a.date || "")); }
+  function shortDate(s) {
+    if (!s) return "";
+    var f = fmtDate(s);
+    return f.slice(-4) === String(new Date(TODAY).getUTCFullYear()) ? f.slice(0, -5) : f;
+  }
+
+  function buildFeed(key) {
+    var groups = [];
+    if (key === "pipe-risk") {
+      DATA.deals.forEach(function (d) {
+        var raw = newsRisks(d.id);
+        if (!raw.length) return;
+        var exp = exposure(d), band = expBand(exp);
+        var items = raw.map(function (n) {
+          var k = RISKS[n.kind] || RISKS["risk-other"];
+          return { date: n.date, label: k.label, short: (n.kind || "risk-other").replace(/^risk-/, "").replace("operational", "ops").replace("governance", "gov"),
+                   rank: k.rank, risk: true, headline: n.headline, body: n.why, source: n.source, url: n.url };
+        }).sort(byDateDesc);
+        var worst = Math.min.apply(null, items.map(function (x) { return x.rank; }));
+        groups.push({
+          id: d.id, name: d.name, sub: [d.client, d.country, d.solution].filter(Boolean).join(" · "),
+          tag: expShort(d), tagLong: expWhy(d), band: band, section: BAND_LABEL[band], sOrder: BAND_ORDER[band],
+          score: exp * 100 + (10 - worst), items: items,
+          open: function () { setView("pipeline"); openDrawer(d.id); }
+        });
+      });
+    } else {
+      /* Re-engage rows are named by client, and one client can hold several
+         Lost or Prospect deals that the weekly screen tags with the same story.
+         Grouped by deal, WOM and Corteva each showed twice; grouped by client,
+         with stories de-duplicated, each shows once. The live book stays per
+         deal, because there two deals on one client carry different exposure. */
+      var risk = key === "re-risk", byClient = {}, order = [];
+      COLD.rows.forEach(function (d) {
+        var raw = risk ? risksOf(d.id) : openingsOf(d.id);
+        if (!raw.length) return;
+        var ck = d.client || d.name, g = byClient[ck];
+        if (!g) { g = byClient[ck] = { deals: [], seen: {}, items: [], lead: null, leadScore: -Infinity }; order.push(ck); }
+        g.deals.push(d);
+        raw.forEach(function (sg) {
+          var sig = sg.url || sg.headline;
+          if (g.seen[sig]) return;
+          g.seen[sig] = true;
+          var k = kindOf(sg), m = !risk && isMatched(sg, d);
+          g.items.push({ date: sg.date, label: m ? "Answers why it stalled" : k.label,
+                   short: m ? "match" : (k.short || (sg.kind || "").replace(/^risk-/, "").replace("operational", "ops").replace("governance", "gov") || "other"),
+                   rank: k.rank, risk: risk, matched: m,
+                   headline: sg.headline, body: sg.angle, source: sg.source, url: sg.url });
+        });
+        var best = risk ? bestRisk(d.id) : bestSig(d.id), sc = sigScore(best, d);
+        if (sc > g.leadScore) { g.leadScore = sc; g.lead = { d: d, best: best }; }
+      });
+      order.forEach(function (ck) {
+        var g = byClient[ck], d = g.lead.d, bk = kindOf(g.lead.best);
+        var matched = !risk && isMatched(g.lead.best, d);
+        var ctx = [d.stage];
+        if (d.lostDate) ctx.push("lost " + shortDate(d.lostDate));
+        if (d.reason) ctx.push(d.reason.toLowerCase());
+        var sub = g.deals.length > 1
+          ? g.deals.length + " deals: " + g.deals.map(function (x) { return x.name; }).join(", ")
+          : [d.client && d.name !== d.client ? d.name : null, d.country, d.solution].filter(Boolean).join(" \u00b7 ");
+        groups.push({
+          id: d.id, name: ck, sub: sub, tag: ctx.join(" \u00b7 "),
+          /* "Waiting on us" qualifies an opening - it says the block is ours.
+             On a risk it is noise: the story is about them either way. */
+          ours: !risk && d.posture === "ours",
+          band: risk ? "risk" : (matched ? "match" : "open"),
+          section: matched ? "Answers why it stalled" : bk.label, sOrder: matched ? 0 : bk.rank,
+          score: g.leadScore, items: g.items.sort(byDateDesc),
+          open: function () { setView("reengage"); openCold(d.id); }
+        });
+      });
+    }
+    return groups.sort(function (a, b) {
+      return (a.sOrder - b.sOrder) || (b.score - a.score) || byDateDesc(a.items[0], b.items[0]);
+    });
+  }
+
+  /* Kinds on a row, counted: "credit x3  legal" says more than four chips. */
+  function kindChips(items, max) {
+    var seen = {}, order = [];
+    items.forEach(function (x) {
+      var s = x.short || "other";
+      if (!seen[s]) { seen[s] = { n: 0, risk: x.risk, m: x.matched }; order.push(s); }
+      seen[s].n++;
+    });
+    return order.slice(0, max).map(function (s) {
+      var o = seen[s];
+      return '<span class="ak' + (o.risk ? " r" : (o.m ? " m" : "")) + '">' + esc(s) +
+        (o.n > 1 ? '<em>×' + o.n + "</em>" : "") + "</span>";
+    }).join("") + (order.length > max ? '<span class="ak">+' + (order.length - max) + "</span>" : "");
+  }
+
+  function alertRow(key, g) {
+    var lead = g.items[0];
+    return '<button type="button" class="ar b-' + g.band + '" data-feed="' + key + '" data-gid="' + esc(g.id) + '">' +
+      '<span class="ar-mk" aria-hidden="true"></span>' +
+      '<span class="ar-who"><b>' + esc(g.name) + "</b><i>" + esc(g.tag) + "</i></span>" +
+      '<span class="ar-hl">' + (g.ours ? '<span class="pchip ours">waiting on us</span> ' : "") + esc(lead.headline || "") + "</span>" +
+      '<span class="ar-meta">' + kindChips(g.items, 2) +
+        '<span class="ar-n" aria-label="' + g.items.length + ' alerts">' + g.items.length + "</span>" +
+        '<span class="ar-d num">' + esc(shortDate(lead.date)) + "</span>" +
+        '<span class="ar-go" aria-hidden="true">›</span></span>' +
+    "</button>";
+  }
+
+  /* Section dividers only where there are few sections (exposure bands). On
+     Re-engage every kind would get a header of its own and the list would be
+     as long as the cards it replaced. */
+  function renderAlertPanel(key, hostId, limit, withSections) {
+    var host = $(hostId), groups = buildFeed(key);
+    if (!groups.length) return groups;
+    var shown = groups.slice(0, limit), more = groups.length - shown.length, html = "", sec = null;
+    shown.forEach(function (g) {
+      if (withSections && g.section !== sec) { sec = g.section; html += '<div class="ar-sec">' + esc(sec) + "</div>"; }
+      html += alertRow(key, g);
+    });
+    if (more > 0) html += '<button type="button" class="ar-more" data-feed="' + key + '" data-gid="' + esc(groups[limit].id) + '">' +
+      more + " more " + (more === 1 ? "deal" : "deals") + " in the alert centre ›</button>";
+    host.innerHTML = html;
+    return groups;
+  }
+
+  function totalAlerts(groups) { return groups.reduce(function (a, g) { return a + g.items.length; }, 0); }
+
   /* Ranked by what it would cost us, not by how loud the story is. A downgrade
      on a Live deal with executed documentation outranks a bigger story on a
      Discovery name we have not committed to. */
   function renderPipeRisks() {
-    var sec = $("pipe-risk"), host = $("pipe-risks");
-    var all = [];
-    DATA.deals.forEach(function (d) {
-      newsRisks(d.id).forEach(function (n) { all.push({ d: d, n: n, exp: exposure(d) }); });
-    });
-    if (!all.length) { sec.hidden = true; host.innerHTML = ""; return; }
+    var sec = $("pipe-risk");
+    var groups = renderAlertPanel("pipe-risk", "pipe-risks", 10, true);
+    if (!groups.length) { sec.hidden = true; $("pipe-risks").innerHTML = ""; return; }
     sec.hidden = false;
-    all.sort(function (x, y) {
-      if (y.exp !== x.exp) return y.exp - x.exp;
-      var rk = (RISKS[x.n.kind] || RISKS["risk-other"]).rank - (RISKS[y.n.kind] || RISKS["risk-other"]).rank;
-      if (rk !== 0) return rk;
-      return String(y.n.date).localeCompare(String(x.n.date));
-    });
-    var hi = all.filter(function (o) { return expBand(o.exp) === "high"; }).length;
-    $("pipe-risk-sub").textContent = all.length + (all.length === 1 ? " item" : " items") +
-      " on " + (function (n) { return n + (n === 1 ? " deal" : " deals"); })(
-        new Set(all.map(function (o) { return o.d.id; })).size) +
-      (hi ? " \u00b7 " + hi + " on a deal at or past documentation" : "") + ".";
-    host.innerHTML = all.slice(0, 12).map(function (o) {
-      var d = o.d, n = o.n, k = RISKS[n.kind] || RISKS["risk-other"], band = expBand(o.exp);
-      return '<article class="op risk exp-' + band + '" data-id="' + d.id + '" tabindex="0">' +
-        '<div class="op-top"><span class="op-name">' + esc(d.client || d.name) + "</span>" +
-          '<span class="op-meta">' + esc(d.country) + " \u00b7 " + esc(d.solution) + "</span>" +
-          '<span class="pchip exp ' + band + '">' + esc(expWhy(d)) + "</span>" +
-          '<span class="op-kind" style="margin-left:auto">' + esc(k.label) + "</span></div>" +
-        '<p class="op-head">' + esc(n.headline || "") + "</p>" +
-        (n.why ? '<p class="op-angle">' + esc(n.why) + "</p>" : "") +
-        '<div class="op-foot"><span class="num">' + (n.date ? fmtDate(n.date) : "\u2014") + "</span>" +
-          (n.source ? "<span>" + esc(n.source) + "</span>" : "") +
-          (n.url ? '<a href="' + esc(n.url) + '" target="_blank" rel="noopener">source \u2197</a>' : "") +
-          '<span style="margin-left:auto">' + esc(d.name) + "</span>" +
-        "</div></article>";
-    }).join("");
+    var n = totalAlerts(groups), hi = groups.filter(function (g) { return g.band === "high"; }).length;
+    $("pipe-risk-sub").textContent = n + (n === 1 ? " alert" : " alerts") + " on " + groups.length +
+      (groups.length === 1 ? " deal" : " deals") + (hi ? " · " + hi + " high exposure" : "") + " · most exposed first";
+    if (AC.open) renderCentre();
   }
 
   function newsChip(id) {
@@ -1993,18 +2245,6 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
 
   function coldById(id) { return COLD.rows.filter(function (x) { return x.id === id; })[0] || null; }
 
-  /* Two separate feeds, never merged: one answers "why call them", the other
-     answers "what should stop me". */
-  function feed(risk) {
-    var out = [];
-    COLD.rows.forEach(function (d) {
-      (risk ? risksOf(d.id) : openingsOf(d.id)).forEach(function (sg) {
-        out.push({ d: d, sg: sg, score: sigScore(sg, d) });
-      });
-    });
-    return out.sort(function (a, b) { return b.score - a.score; });
-  }
-
   function renderOpenings() {
     var host = $("openings");
     if (!COLD.ok) { host.innerHTML = '<div class="empty">Prospect and Lost could not be read, so nothing can be screened.</div>'; return; }
@@ -2013,55 +2253,134 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
         '<br><span style="color:var(--ink-3)">The weekly screen writes it. Ask Claude to run one now if you do not want to wait for Monday.</span></div>';
       return;
     }
-    var all = feed(false);
-    if (!all.length) {
+    if (!renderAlertPanel("re-open", "openings", 6, false).length) {
       host.innerHTML = '<div class="empty">Nothing this week.' +
         (SIGNALS.meta && SIGNALS.meta.screened ? ' ' + SIGNALS.meta.screened + ' names were screened' +
           (SIGNALS.meta.screenedAt ? " to " + fmtDate(SIGNALS.meta.screenedAt) : "") + "." : "") +
         '<br><span style="color:var(--ink-3)">A quiet week is a result, not a failure. Sort the table by <em>Why it stalled</em> to work the watch list instead.</span></div>';
-      return;
     }
-    host.innerHTML = all.slice(0, 14).map(card).join("");
-  }
-
-  /* One card shape for both feeds. The tone decides the colour and what the
-     kind chip says; everything else is the same question asked twice. */
-  function card(o) {
-      var d = o.d, sg = o.sg, k = kindOf(sg), risk = isRisk(sg), matched = isMatched(sg, d);
-      var ctx = [];
-      if (d.lostDate) ctx.push("Lost " + fmtDate(d.lostDate));
-      else if (d.stage === "Prospect") ctx.push("Prospect");
-      if (d.reason) ctx.push(d.reason.toLowerCase());
-      if (d.route) ctx.push("via " + d.route);
-      return '<article class="op' + (risk ? " risk" : (matched ? " matched" : "")) +
-        (!risk && d.posture === "ours" ? " ours" : "") +
-        '" data-id="' + d.id + '" tabindex="0">' +
-        '<div class="op-top"><span class="op-name">' + esc(d.client || d.name) + "</span>" +
-          '<span class="op-meta">' + esc(d.country) + " · " + esc(d.solution) + "</span>" +
-          (!risk && d.posture === "ours" ? '<span class="pchip ours">waiting on us</span>' : "") +
-          '<span class="op-kind" style="margin-left:auto">' +
-            (!risk && matched ? "answers why it stalled" : esc(k.label)) + "</span></div>" +
-        '<p class="op-head">' + esc(sg.headline || "") + "</p>" +
-        (sg.angle ? '<p class="op-angle">' + esc(sg.angle) + "</p>" : "") +
-        '<div class="op-foot"><span class="num">' + (sg.date ? fmtDate(sg.date) : "—") + "</span>" +
-          (sg.source ? "<span>" + esc(sg.source) + "</span>" : "") +
-          (sg.url ? '<a href="' + esc(sg.url) + '" target="_blank" rel="noopener">source ↗</a>' : "") +
-          (ctx.length ? '<span style="margin-left:auto">' + esc(ctx.join(" · ")) + "</span>" : "") +
-        "</div></article>";
   }
 
   /* Adverse news gets its own panel, below the openings and visually apart.
      Folding it in would make a fine read like an opportunity. */
   function renderRisks() {
-    var host = $("risks"), sec = $("risk-panel");
-    var all = feed(true);
+    var sec = $("risk-panel");
     sec.hidden = !COLD.ok || !!(SIGNALS.meta && SIGNALS.meta.error);
     if (sec.hidden) return;
-    if (!all.length) {
-      host.innerHTML = '<div class="empty">Nothing adverse surfaced this week.</div>';
-      return;
+    if (!renderAlertPanel("re-risk", "risks", 6, false).length) {
+      $("risks").innerHTML = '<div class="empty">Nothing adverse surfaced this week.</div>';
     }
-    host.innerHTML = all.slice(0, 10).map(card).join("");
+  }
+
+  /* ---------- alert centre ----------
+     A window over the page rather than a new browser tab: a tab would lose the
+     live data and the link back into each deal. Deals down the left, the
+     selected deal's stories in full on the right; on a phone, one pane at a
+     time with a way back. */
+  var AC = { open: false, key: "pipe-risk", gid: null, groups: [], mode: "rail", last: null };
+
+  function screenedLine(key) {
+    if (key === "pipe-risk") return NEWS.meta && NEWS.meta.checkedAt ? "screened " + fmtDate(NEWS.meta.checkedAt) : "";
+    return SIGNALS.meta && SIGNALS.meta.screenedAt ? "screened " + fmtDate(SIGNALS.meta.screenedAt) : "";
+  }
+
+  function openCentre(key, gid) {
+    AC.key = key; AC.gid = gid || null; AC.mode = gid ? "detail" : "rail";
+    if (!AC.open) {
+      AC.last = document.activeElement;
+      AC.open = true;
+      $("ac").hidden = false; $("ac-scrim").hidden = false;
+      void $("ac").offsetWidth;   /* commit the start state so the entrance animates */
+      $("ac").classList.add("on"); $("ac-scrim").classList.add("on");
+      document.documentElement.classList.add("ac-lock");
+    }
+    renderCentre();
+    var cur = $("ac-rail").querySelector('.ac-i[aria-current="true"]');
+    (AC.mode === "detail" ? $("ac-close") : (cur || $("ac-close"))).focus();
+  }
+
+  function closeCentre(then) {
+    if (!AC.open) return;
+    AC.open = false;
+    $("ac").classList.remove("on"); $("ac-scrim").classList.remove("on");
+    document.documentElement.classList.remove("ac-lock");
+    setTimeout(function () { if (!AC.open) { $("ac").hidden = true; $("ac-scrim").hidden = true; } }, 190);
+    /* Return focus first, so a drawer opened next remembers the row, not a
+       button inside a window that has just gone. */
+    if (AC.last && AC.last.focus) AC.last.focus();
+    if (typeof then === "function") then();
+  }
+
+  function renderCentre() {
+    var f = FEEDS[AC.key];
+    AC.groups = buildFeed(AC.key);
+    if (!AC.groups.some(function (g) { return g.id === AC.gid; })) AC.gid = AC.groups.length ? AC.groups[0].id : null;
+    $("ac").setAttribute("data-mode", AC.mode);
+
+    $("ac-title").textContent = f.title + " · " + f.scope;
+    var n = totalAlerts(AC.groups);
+    $("ac-sub").textContent = n + (n === 1 ? " alert" : " alerts") + " on " + AC.groups.length +
+      (AC.groups.length === 1 ? " deal" : " deals") + (screenedLine(AC.key) ? " · " + screenedLine(AC.key) : "");
+
+    $("ac-tabs").innerHTML = Object.keys(FEEDS).map(function (k) {
+      var c = buildFeed(k).length, on = k === AC.key;
+      return '<button type="button" role="tab" data-tab="' + k + '" aria-selected="' + on + '"' +
+        (!c && !on ? ' aria-disabled="true" tabindex="-1"' : "") + ">" + esc(FEEDS[k].tab) +
+        '<span class="tn">' + c + "</span></button>";
+    }).join("");
+
+    var rail = $("ac-rail"), keep = rail.scrollTop, sec = null, html = "";
+    AC.groups.forEach(function (g) {
+      if (g.section !== sec) { sec = g.section; html += '<div class="ac-sec">' + esc(sec) + "</div>"; }
+      html += '<button type="button" class="ac-i b-' + g.band + '" data-gid="' + esc(g.id) + '"' +
+        (g.id === AC.gid ? ' aria-current="true"' : "") + ">" +
+        '<span class="ar-mk" aria-hidden="true"></span>' +
+        '<span class="ac-in"><b>' + esc(g.name) + "</b><i>" + esc(g.items[0].headline || "") + "</i></span>" +
+        '<span class="ar-n">' + g.items.length + "</span></button>";
+    });
+    rail.innerHTML = html || '<div class="empty">Nothing in this feed.</div>';
+    rail.scrollTop = keep;
+    renderDetail();
+  }
+
+  function renderDetail() {
+    var det = $("ac-det"), g = AC.groups.filter(function (x) { return x.id === AC.gid; })[0];
+    if (!g) { det.innerHTML = '<div class="empty">Nothing to show here.</div>'; return; }
+    var chip = AC.key === "pipe-risk"
+      ? '<span class="pchip exp ' + g.band + '">' + esc(g.tagLong || g.tag) + "</span>"
+      : '<span class="pchip">' + esc(g.tag) + "</span>" + (g.ours ? '<span class="pchip ours">waiting on us</span>' : "");
+    det.innerHTML =
+      '<div class="ac-dh">' +
+        '<button type="button" class="ac-back">‹ All deals</button>' +
+        "<h4>" + esc(g.name) + "</h4>" + (g.sub ? "<p>" + esc(g.sub) + "</p>" : "") +
+        '<div class="ac-tags">' + chip + "</div>" +
+      "</div>" +
+      '<ol class="ac-list">' + g.items.map(function (x) {
+        return '<li class="ai' + (x.risk ? " r" : (x.matched ? " m" : "")) + '">' +
+          '<div class="ai-m"><span class="num">' + esc(fmtDate(x.date)) + "</span>" +
+            '<span class="ak' + (x.risk ? " r" : (x.matched ? " m" : "")) + '">' + esc(x.label) + "</span></div>" +
+          '<p class="ai-h">' + esc(x.headline || "") + "</p>" +
+          (x.body ? '<p class="ai-b">' + esc(x.body) + "</p>" : "") +
+          '<div class="ai-s">' + esc(x.source || "") +
+            (x.url ? ' <a href="' + esc(x.url) + '" target="_blank" rel="noopener">source ↗</a>' : "") + "</div>" +
+        "</li>";
+      }).join("") + "</ol>" +
+      '<div class="ac-df"><span>' + g.items.length + (g.items.length === 1 ? " alert" : " alerts") + " · newest first</span>" +
+        '<button type="button" class="ac-deal">Open deal →</button></div>';
+    det.scrollTop = 0;
+  }
+
+  function selectGroup(id, focusRail) {
+    AC.gid = id; AC.mode = "detail";
+    $("ac").setAttribute("data-mode", "detail");
+    Array.prototype.forEach.call($("ac-rail").querySelectorAll(".ac-i"), function (b) {
+      if (b.getAttribute("data-gid") === id) {
+        b.setAttribute("aria-current", "true");
+        b.scrollIntoView({ block: "nearest" });
+        if (focusRail) b.focus();
+      } else b.removeAttribute("aria-current");
+    });
+    renderDetail();
   }
 
   function sigCell(d) {
@@ -2132,6 +2451,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
 
     renderOpenings();
     renderRisks();
+    if (AC.open) renderCentre();
 
     var seg = $("post-seg");
     if (!seg.children.length) {
@@ -2447,19 +2767,64 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     if (e.key !== "Enter" && e.key !== " ") return;
     var tr = e.target.closest("tr[data-cid]"); if (tr) { e.preventDefault(); openCold(tr.getAttribute("data-cid")); }
   });
-  ["openings", "risks"].forEach(function (id) {
-    $(id).addEventListener("click", function (e) {
-      if (e.target.closest("a")) return;
-      var a = e.target.closest("article[data-id]"); if (a) openCold(a.getAttribute("data-id"));
-    });
-    $(id).addEventListener("keydown", function (e) {
-      if (e.key !== "Enter" && e.key !== " ") return;
-      var a = e.target.closest("article[data-id]"); if (a) { e.preventDefault(); openCold(a.getAttribute("data-id")); }
-    });
+  /* Alert rows, "more" links and the panel headers' Alert centre buttons are
+     all real buttons, so Enter and Space come for free. */
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest(".ar, .ar-more, .ac-open");
+    if (!b || !b.hasAttribute("data-feed")) return;
+    openCentre(b.getAttribute("data-feed"), b.getAttribute("data-gid") || null);
   });
+
+  $("ac-close").addEventListener("click", function () { closeCentre(); });
+  $("ac-scrim").addEventListener("click", function () { closeCentre(); });
+  $("ac-tabs").addEventListener("click", function (e) {
+    var t = e.target.closest("button[data-tab]");
+    if (!t || t.getAttribute("aria-disabled") === "true" || t.getAttribute("data-tab") === AC.key) return;
+    AC.key = t.getAttribute("data-tab"); AC.gid = null; AC.mode = "rail";
+    $("ac-rail").scrollTop = 0;
+    renderCentre();
+    var nt = $("ac-tabs").querySelector('[data-tab="' + AC.key + '"]'); if (nt) nt.focus();
+  });
+  $("ac-rail").addEventListener("click", function (e) {
+    var i = e.target.closest(".ac-i"); if (i) selectGroup(i.getAttribute("data-gid"), false);
+  });
+  $("ac-det").addEventListener("click", function (e) {
+    if (e.target.closest(".ac-back")) {
+      AC.mode = "rail"; $("ac").setAttribute("data-mode", "rail");
+      var cur = $("ac-rail").querySelector('.ac-i[aria-current="true"]'); if (cur) cur.focus();
+      return;
+    }
+    if (e.target.closest(".ac-deal")) {
+      var g = AC.groups.filter(function (x) { return x.id === AC.gid; })[0];
+      if (g) closeCentre(g.open);
+    }
+  });
+
+  /* Arrow keys walk the deal list; Tab stays inside the window while it is open. */
+  $("ac").addEventListener("keydown", function (e) {
+    if ((e.key === "ArrowDown" || e.key === "ArrowUp") && e.target.closest(".ac-rail")) {
+      var ids = AC.groups.map(function (g) { return g.id; }), i = ids.indexOf(AC.gid);
+      var nx = ids[Math.max(0, Math.min(ids.length - 1, i + (e.key === "ArrowDown" ? 1 : -1)))];
+      if (nx && nx !== AC.gid) { e.preventDefault(); selectGroup(nx, true); }
+      return;
+    }
+    if (e.key !== "Tab") return;
+    var f = Array.prototype.filter.call($("ac").querySelectorAll("button, a[href]"), function (el) {
+      return el.offsetParent !== null && el.getAttribute("tabindex") !== "-1";
+    });
+    if (!f.length) return;
+    var first = f[0], last = f[f.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  });
+
   $("dr-close").addEventListener("click", closeDrawer);
   $("scrim").addEventListener("click", closeDrawer);
-  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !$("drawer").hidden) closeDrawer(); });
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape") return;
+    if (AC.open) { closeCentre(); return; }
+    if (!$("drawer").hidden) closeDrawer();
+  });
 
   setView(store.get("sb-view") === "reengage" ? "reengage" : "pipeline");
   start();

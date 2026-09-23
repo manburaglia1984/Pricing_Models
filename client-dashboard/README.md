@@ -332,9 +332,10 @@ harder question: does it threaten something we are already committed to. Same la
 ranking.
 
 Items in `news/current` carrying `tone: "risk"` are pulled out of the news chips entirely and
-rendered in a **Watch-outs — live book** panel above the fold, ordered by **exposure**, then risk
-kind, then recency. A row with a risk gets a red `risk` chip beside (never folded into) its news
-count, and the drawer splits Watch-outs above In the news.
+rendered in a **Watch-outs — live book** panel above the fold, one compact row per deal, ordered
+by **exposure**, then risk kind, then recency (see *Alerts* below for the row and the alert centre).
+A table row with a risk gets a red `risk` chip beside (never folded into) its news count, and the
+drawer splits Watch-outs above In the news.
 
 ### Exposure
 
@@ -372,6 +373,62 @@ Lost row for the same client; the live book had no way to raise it.
 Two fixes went into the daily prompt: search the **entity as well as the group**, preferring what
 comes back at entity level; and keep risk items for **30 days** rather than 7, because a
 restructuring does not stop mattering because a week passed.
+---
+
+## Alerts: compact rows and the alert centre
+
+All three alert panels — Watch-outs on the live book, and Openings and Watch-outs on Re-engage —
+share one model and one component. Each panel lists **one compact row per deal** (per client on
+Re-engage), and clicking a row opens the **alert centre**: a window over the page with every flagged
+deal down the left and the selected deal's stories in full on the right.
+
+The card layout it replaced broke down on volume. By 23 September the live book held 16 risk items
+on 8 deals, with headlines up to 443 characters, and the panel ran to roughly 2,900 pixels of red.
+The same content now takes 8 rows and about 550 pixels.
+
+### Why group, and by what
+
+- **Live book: by deal.** Two deals on one client carry different exposure — a Live PRM line and a
+  Discovery inventory idea are not the same risk — so a story that touches both is shown on both.
+- **Re-engage: by client.** Rows are named by client, and one client can hold several Lost or
+  Prospect deals that the weekly screen tags with the same story. Grouped by deal, WOM and Corteva
+  each appeared twice with identical text. Stories are de-duplicated by URL, then headline.
+
+### A row
+
+`marker · name + stage line · newest headline (one line) · kinds · count · date · ›`
+
+- The marker is the exposure band on the live book (solid red high, faded red mid, grey low) and the
+  tone on Re-engage (red risk, deep purple reason-matched, light purple opening).
+- Kinds are counted, not repeated: `CREDIT ×3  LEGAL` rather than four chips.
+- The count badge goes solid red on a high-exposure deal, so the eye finds it without reading.
+- The live book shows up to 10 rows with exposure-band dividers; Re-engage shows 6 and hands the rest
+  to the centre with an "N more deals" link. Dividers are left off Re-engage, where every signal
+  kind would get a header of its own and the list would be as long as the cards it replaced.
+
+### The centre
+
+- **A window, not a browser tab.** A new tab would lose the live data and the link back into each
+  deal. The centre is a modal dialog: focus moves in, Tab stays inside, Escape closes, and focus
+  returns to the row that opened it.
+- **Tabs switch feed** — live book, Openings, Re-engage risks — with a count on each.
+- **Arrow keys walk the deal list.** The rail keeps its scroll position when the data refreshes.
+- **Open deal** closes the centre and opens that deal's drawer on the right view. Focus is returned
+  to the row first, so the drawer remembers the row rather than a button in a window that has gone.
+- **On a phone** it becomes a bottom sheet showing one pane at a time, with a back button.
+
+> **An overlay needs its own `[hidden]` rule.** The page has no global `[hidden]{display:none}`, and
+> the centre is `display:flex`. Without `.ac[hidden]{display:none}` the closed window would sit over
+> the page at zero opacity and swallow every click in the middle of the screen. The existing deal
+> drawer survives the same gap only because it is translated off-screen.
+
+### The data has to fit the display
+
+Compact rows hide long text; the centre does not. Both Routines now cap a headline at 140
+characters and a why/angle line at 280, keep research notes out of both, and fold a developing story
+into its existing alert instead of adding another — one Bogotá council debate had been stored as
+four Enel Colombia alerts. The daily Routine also rewrites any stored item that breaks the limits,
+so the long September items are cleaned up on its next run rather than lingering for their 30 days.
 ---
 
 ## Re-engage — Prospect and Lost

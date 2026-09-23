@@ -112,6 +112,17 @@ Write it the way you would brief someone walking into the call:
 Use Silver Birch terminology: AFL, not SPV. IPU, not guarantee. Servicer, not collector. PRM, not
 receivables finance. SB TradeCo, not trading entity. Offer File, not portfolio submission.
 
+STEP 3b — LENGTH, AND ONE STORY PER CLIENT
+The dashboard shows each client as one compact row, with the newest headline cut to a single
+line; the full text is only in the alert centre window. So:
+  - headline: one sentence, at most 140 characters. What happened, plainly.
+  - angle: at most 280 characters, at most two sentences.
+  - no research notes in either field - filing sequences and "rechecked via ..." are working,
+    not reading.
+Where a client holds several Lost or Prospect deals, put a story on the one deal it most
+concerns, not on all of them. The page merges by client anyway, but a story repeated across
+deals inflates every count it appears in.
+
 STEP 4 — BE HONEST ABOUT WHAT YOU COULD NOT DO
 Most of these clients have no confirmed domain, so you are matching on company name. That produces
 false positives on short or common names. Do not record a signal you cannot tie to the right

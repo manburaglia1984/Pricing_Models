@@ -60,6 +60,17 @@ Two things came from that: the prompt now requires searching the **entity as wel
 and preferring what it finds at entity level, and risk items are kept for **30 days** rather than
 7, because a restructuring does not stop mattering because a week passed.
 
+## Length and merging (added 23 September)
+
+The dashboard shows each deal as one compact row and keeps full text for the alert centre, so the
+prompt now caps a **headline at 140 characters** and a **why line at 280**, keeps research notes out
+of both, allows **at most 3 items per deal**, and **folds a developing story into its existing alert**
+rather than adding a new one. It also rewrites any stored item that breaks those limits — including
+items written before the rule — so the long September entries are cleaned up on the next run.
+
+The prompt was changed in place with `update_trigger`; this Routine was created by an agent, so that
+is allowed. The weekly Re-engage Routine was created from the web form and must be edited there.
+
 ## Rebuilding it
 
 Everything is in the prompt stored on the Routine. To change the schedule, name or enabled state,
