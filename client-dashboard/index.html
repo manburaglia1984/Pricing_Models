@@ -323,8 +323,12 @@ html.ac-lock,html.ac-lock body{overflow:hidden}
       transform:translateY(28px);border-bottom:0}
   .ac.on{transform:none}
   .ac-h{padding:12px 12px 11px 16px}
-  .ac-tabs{order:3;width:100%;overflow-x:auto}
-  .ac-tabs button{flex:1}
+  /* Four feeds do not fit one row at phone width; a 2x2 grid keeps every
+     label whole instead of scrolling the selected one out of sight. */
+  .ac-h .ac-tabs{order:3;width:100%;display:grid;grid-template-columns:1fr 1fr}
+  .ac-h .ac-tabs button{border-left:0;border-top:1px solid var(--line)}
+  .ac-h .ac-tabs button:nth-child(even){border-left:1px solid var(--line)}
+  .ac-h .ac-tabs button:nth-child(-n+2){border-top:0}
   .ac-b{grid-template-columns:1fr}
   .ac-rail{border-right:0}
   .ac[data-mode="detail"] .ac-rail{display:none}
@@ -437,6 +441,11 @@ html.ac-lock,html.ac-lock body{overflow:hidden}
 /* ---------- table ---------- */
 .tbl-wrap{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow-x:auto}
 table{width:100%;min-width:880px;border-collapse:collapse}
+#tbl{min-width:1000px}
+/* Eight columns fit the 1238px frame only if the long legal names under a deal
+   are allowed to wrap; the deal name itself stays on one line. */
+#tbl td:first-child .c-sub{white-space:normal;max-width:19rem}
+#tbl th,#tbl td{padding-inline:10px}
 thead th{position:sticky;top:0;background:var(--surface-2);text-align:left;font-size:10.5px;letter-spacing:.09em;
          text-transform:uppercase;color:var(--ink-3);font-weight:600;padding:10px 12px;white-space:nowrap;
          border-bottom:1px solid var(--line);z-index:2}
@@ -611,6 +620,55 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
   border:1px solid var(--line-2);color:var(--ink-2);background:var(--surface-2)}
 .doc-pill.done{border-color:var(--st-4);color:var(--st-4);background:var(--accent-soft)}
 .doc-pill.prog{border-color:var(--watch);color:var(--watch);background:var(--watch-soft)}
+
+/* ---------- investor distribution ---------- */
+.inv-cell{display:flex;flex-direction:column;white-space:nowrap;line-height:1.35}
+.inv-cell > span{font-size:12.5px;color:var(--ink-2)}
+.inv-cell > span b{font-family:var(--mono);font-weight:600;color:var(--ink)}
+.inv-cell i{font-style:normal;font-size:11px;color:var(--ink-3);margin-top:1px}
+.ichip{display:inline-block;margin-left:7px;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600;
+       border:1px solid var(--watch);color:var(--watch);background:var(--watch-soft);vertical-align:1px}
+.ichip.late{border-color:var(--overdue);color:var(--overdue);background:var(--overdue-soft)}
+.b-wait .ar-mk{background:var(--watch);opacity:1}
+.b-late .ar-mk{background:var(--overdue);opacity:1}
+.b-late .ar-n{background:var(--overdue);color:var(--on-overdue)}
+.ai.w::before{background:var(--watch)}
+.ai.l::before{background:var(--overdue)}
+.ar-empty{padding:13px 17px;font-size:12.5px;color:var(--ink-3)}
+.ar-empty b{color:var(--ink-2);font-weight:600}
+.inv-sum{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 10px}
+.inv-sum span{font-size:11px;padding:2px 7px;border-radius:3px;border:1px solid var(--line-2);color:var(--ink-2);white-space:nowrap}
+.inv-sum span.w{border-color:var(--watch);color:var(--watch);background:var(--watch-soft);font-weight:600}
+.inv-sum span.l{border-color:var(--overdue);color:var(--overdue);background:var(--overdue-soft);font-weight:600}
+.inv-list{list-style:none;margin:0;padding:0;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+.inv-i{position:relative;padding:11px 13px 12px 15px;border-top:1px solid var(--line);background:var(--surface)}
+.inv-i:first-child{border-top:0}
+.inv-i.w{box-shadow:inset 3px 0 0 var(--watch)}
+.inv-i.l{box-shadow:inset 3px 0 0 var(--overdue)}
+.inv-i.out{background:var(--surface-2)}
+.inv-i.out .inv-top b{color:var(--ink-2)}
+.inv-top{display:flex;align-items:baseline;gap:10px;min-width:0}
+.inv-top b{font-size:13px;font-weight:600;letter-spacing:-.005em;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.inv-top .ist{margin-left:auto;font-size:11.5px;font-weight:500;color:var(--ink-2);white-space:nowrap}
+.inv-top .ist.won{color:var(--st-4);font-weight:600}
+.inv-top .ist.dec{color:var(--overdue)}
+.inv-top .ist.idle,.inv-top .ist.hold{color:var(--ink-3)}
+.inv-line{font-size:11px;color:var(--ink-3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.isteps{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin:8px 0 0;max-width:196px}
+.isteps i{height:4px;border-radius:1px;background:var(--track)}
+.isteps i.on{background:var(--accent)}
+.isteps.won i{background:var(--st-4)}
+.inv-dates{display:flex;flex-wrap:wrap;gap:3px 14px;margin-top:8px;font-size:11px;color:var(--ink-3)}
+.inv-dates b{font-family:var(--mono);font-weight:500;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.inv-flag{margin-top:7px;font-size:11.5px;font-weight:600;color:var(--watch)}
+.inv-i.l .inv-flag{color:var(--overdue)}
+.inv-fb{margin:7px 0 0;padding-left:9px;border-left:2px solid var(--line-2);font-size:12px;line-height:1.5;color:var(--ink-2);white-space:pre-line}
+.inv-kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:9px 0 0;font-size:12px}
+.inv-kv dt{color:var(--ink-3);white-space:nowrap}
+.inv-kv dd{margin:0;text-align:right;color:var(--ink);overflow-wrap:anywhere}
+.inv-kv dd.px{font-family:var(--mono);font-weight:600;color:var(--accent)}
+.inv-a{display:inline-block;margin-top:8px;font-size:11px;color:var(--accent);text-decoration:none;font-weight:500}
+.inv-a:hover{text-decoration:underline}
 </style>
 </head>
 <body>
@@ -643,6 +701,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
   <div class="wrap conn-in">
     <span class="src" id="src-deals"><span class="dot"></span>Global Pipeline <span class="when"></span></span>
     <span class="src" id="src-rev"><span class="dot"></span>2026 revenue <span class="when"></span></span>
+    <span class="src" id="src-inv" hidden><span class="dot"></span>Investors <span class="when"></span></span>
     <span class="src" id="src-news" hidden><span class="dot"></span>News <span class="when"></span></span>
     <span class="src" id="src-contact" hidden><span class="dot"></span>Contact check <span class="when"></span></span>
     <span class="src" id="src-cold" hidden><span class="dot"></span>Prospect &amp; Lost <span class="when"></span></span>
@@ -720,6 +779,17 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
         <button type="button" class="ghost ac-open" data-feed="pipe-risk">Alert centre <span aria-hidden="true">&rsaquo;</span></button>
       </div>
       <div class="panel-b flush"><div id="pipe-risks" class="ar-list"></div></div>
+    </section>
+
+    <section class="panel" id="inv-panel" style="margin-top:16px" hidden>
+      <div class="panel-h">
+        <div>
+          <h2>Awaiting investor feedback</h2>
+          <p id="inv-sub">Investors we have asked and not heard back from in <span class="num">10</span> days or more.</p>
+        </div>
+        <button type="button" class="ghost ac-open" data-feed="inv-chase">Alert centre <span aria-hidden="true">&rsaquo;</span></button>
+      </div>
+      <div class="panel-b flush"><div id="inv-chasers" class="ar-list"></div></div>
     </section>
 
     <div class="grid2">
@@ -803,6 +873,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
             <th class="sortable r" data-k="attain" scope="col">Booked vs forecast<span class="arr"></span></th>
             <th class="sortable r" data-k="days" scope="col">Last contact<span class="arr"></span></th>
             <th class="sortable" data-k="legalDoc" scope="col">Documentation<span class="arr"></span></th>
+            <th class="sortable" data-k="invSort" scope="col">Investors<span class="arr"></span></th>
           </tr>
         </thead>
         <tbody id="tbody"></tbody>
@@ -817,6 +888,8 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
       <em>Global Pipeline</em> board, in stages Live, Implementation, Validation and Discovery.
       Last contact is the board&rsquo;s own <em>Date Last Contact</em> column. Booked and forecast 2026 revenue are summed
       from each deal&rsquo;s trade subitems dated in 2026.
+      Investors are the subitems of the <em>Investors_2026</em> board whose <em>Deal</em> is one of these deals; indicative
+      pricing appears only inside a deal&rsquo;s panel.
       See <code>client-dashboard/README.md</code> for the full column mapping.
     </footer>
 
@@ -1034,6 +1107,56 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
                 C.reason, C.lostDate, C.source, C.firstCt, C.calls, C.indFac, C.indRev]
   };
 
+  /* ---------- investor distribution ----------
+     Ella's Investors_2026 board: one item per investor, one subitem per deal
+     that investor has been shown. The dashboard reads the subitems through the
+     parent board (includeSubItems) so each line arrives with its investor's
+     name, and keeps only the lines whose Deal is in the pipeline read above.
+     Read-only, like everything else here: the board is where it is updated. */
+  var IC = {
+    status:     "status",                   /* older column: Reviewing / Live / Cancelled/Hold */
+    deal:       "board_relation_mm31m0gz",  /* → Global Pipeline */
+    size:       "numeric_mm31n1m9",
+    ccy:        "dropdown_mm31f6e8",
+    stage:      "color_mm7g87a6",           /* Distribution stage */
+    teaser:     "date_mm7gc63h",
+    outreach:   "date_mm7grcw9",
+    feedbackOn: "date_mm7gjyr5",
+    feedback:   "long_text_mm7gbqrx",
+    pricing:    "text_mm7gtwx9",
+    next:       "text_mm7gjdma"
+  };
+  var INV_INPUT = {
+    boardId: 18392428674,
+    limit: 500,
+    includeColumns: true,
+    includeGroup: false,
+    includeSubItems: true,
+    subItemLimit: 100,
+    columnIds: [IC.status, IC.deal, IC.size, IC.ccy, IC.stage, IC.teaser, IC.outreach,
+                IC.feedbackOn, IC.feedback, IC.pricing, IC.next]
+  };
+  /* Ten days from our last ask with nothing back. Three weeks reads as late. */
+  var CHASE_DAYS = 10, LATE_DAYS = 21;
+  /* step places a stage on the seven-segment bar in the deal panel; bucket is
+     what the counts are made of. Live and IAA signed are both money committed. */
+  var ISTAGES = {
+    "Not approached":   { step: 0, bucket: "idle" },
+    "Teaser sent":      { step: 1, bucket: "play", short: "teaser" },
+    "NDA signed":       { step: 2, bucket: "play", short: "nda" },
+    "Info shared":      { step: 3, bucket: "play", short: "info" },
+    "Under review":     { step: 4, bucket: "play", short: "review" },
+    "Indicative terms": { step: 5, bucket: "play", short: "terms" },
+    "Credit approved":  { step: 6, bucket: "play", short: "credit" },
+    "IAA signed":       { step: 7, bucket: "won",  short: "iaa" },
+    "Live":             { step: 7, bucket: "won",  short: "live" },
+    "Declined":         { step: 0, bucket: "out",  short: "declined" },
+    "On hold":          { step: 0, bucket: "out",  short: "hold" }
+  };
+  /* Lines logged before Distribution stage existed carry only the older Status.
+     It is read in until someone sets the new column, and marked as such. */
+  var ISTATUS = { "Live": "Live", "Reviewing": "Under review", "Cancelled/Hold": "On hold" };
+
   /* Why they said no decides which news would change the answer. Three postures:
        ours     — the block is on our side, so no client news reopens it
        catalyst — a specific event flips it, and we know which
@@ -1216,10 +1339,11 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
   var KEYS = { byDeal: {} };
   var COLD = { rows: [], ok: false, more: false };
   var SIGNALS = { byDeal: {}, meta: null };
+  var INV = { ok: false, byDeal: {}, lines: 0, more: false, err: null };
   var DB = null, lastRosterSig = null, lastColdSig = null;
   var UI = { view: "pipeline", stage: "All", mine: false, q: "", key: "days", dir: -1,
              cPost: "All", cMine: false, cq: "", cKey: "sig", cDir: -1 };
-  var stamps = { deals: 0, rev: 0, cold: 0 };
+  var stamps = { deals: 0, rev: 0, cold: 0, inv: 0 };
 
   function setSrc(id, cls, when) {
     var el = $(id);
@@ -1572,9 +1696,10 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     Promise.allSettled([
       callOnce(DEALS_INPUT, force, true),
       callOnce(REV_INPUT, force, true),
-      callOnce(COLD_INPUT, force, true)
+      callOnce(COLD_INPUT, force, true),
+      callOnce(INV_INPUT, force, true)
     ]).then(function (r) {
-      var dRes = r[0], rRes = r[1], cRes = r[2];
+      var dRes = r[0], rRes = r[1], cRes = r[2], iRes = r[3];
 
       if (dRes.status === "rejected") {
         var c = errCopy(dRes.reason);
@@ -1649,6 +1774,28 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
         $("cold-warn").classList.add("hidden");
       }
       $("src-cold").hidden = false;
+
+      /* Investors fail on their own too. A failed read says so in the table and
+         the panel rather than showing every deal as having no investors. */
+      INV.ok = false; INV.err = null;
+      if (iRes.status === "fulfilled") {
+        var inv = asJson(iRes.value);
+        if (inv && Array.isArray(inv.items)) {
+          stamps.inv = stampOf(iRes.value);
+          buildInvestors(inv.items);
+          INV.more = !!(inv.pagination && inv.pagination.has_more);
+          INV.ok = true;
+          setSrc("src-inv", INV.more ? "warn" : "ok", INV.lines + " lines" + (INV.more ? " · first 500 investors" : "") +
+            " · " + fmtClock(stamps.inv));
+        }
+      }
+      if (!INV.ok) {
+        INV.byDeal = {}; INV.lines = 0;
+        INV.err = iRes.status === "rejected" ? errCopy(iRes.reason).b : "Investors_2026 came back in an unexpected shape.";
+        setSrc("src-inv", "bad", "unavailable");
+        $("src-inv").title = INV.err;
+      } else { $("src-inv").title = "Subitems of Investors_2026 linked to a pipeline deal."; }
+      $("src-inv").hidden = false;
 
       showOnly(null);
       syncRoster();
@@ -1741,6 +1888,82 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
       });
     });
     COLD.rows = rows;
+  }
+
+  /* ---------- investors on each deal ---------- */
+  function isoDay(v) { var s = txt(v); return (s && /^\d{4}-\d{2}-\d{2}/.test(s)) ? s.slice(0, 10) : null; }
+
+  function buildInvestors(items) {
+    var ids = {}; DATA.deals.forEach(function (d) { ids[d.id] = true; });
+    var by = {}, n = 0;
+    items.forEach(function (it) {
+      (it.subitems || []).forEach(function (s) {
+        var cv = s.column_values || {}, rel = cv[IC.deal];
+        if (!Array.isArray(rel) || !rel.length) return;
+        var set = txt(cv[IC.stage]), old = txt(cv[IC.status]);
+        var l = {
+          id: String(s.id), investor: it.name, line: s.name, url: s.url,
+          stage: set || ISTATUS[old] || null, legacy: !set && !!ISTATUS[old],
+          teaser: isoDay(cv[IC.teaser]), outreach: isoDay(cv[IC.outreach]), feedbackOn: isoDay(cv[IC.feedbackOn]),
+          feedback: txt(cv[IC.feedback]), pricing: txt(cv[IC.pricing]), next: txt(cv[IC.next]),
+          size: num(cv[IC.size]), ccy: txt(cv[IC.ccy])
+        };
+        l.ask = invAsk(l);
+        l.wait = invWait(l);
+        rel.forEach(function (r) {
+          var id = r && r.id != null ? String(r.id) : null;
+          if (!id || !ids[id]) return;
+          (by[id] = by[id] || []).push(l); n++;
+        });
+      });
+    });
+    INV.byDeal = by; INV.lines = n;
+    DATA.deals.forEach(function (d) { var s = invSummary(d.id); d.invSort = s.waiting * 1000 + s.total; });
+  }
+
+  function invOf(id) { return INV.byDeal[id] || []; }
+  function invAsk(l) {
+    var a = [l.teaser, l.outreach].filter(Boolean).sort();
+    return a.length ? a[a.length - 1] : null;
+  }
+  /* A date says more than a label: a line still marked Not approached with a
+     teaser date on it has been approached. */
+  function invBucket(l) {
+    var st = ISTAGES[l.stage];
+    if (!st) return l.ask ? "play" : "idle";
+    return (st.bucket === "idle" && l.ask) ? "play" : st.bucket;
+  }
+  function invStageLabel(l) {
+    if ((!l.stage || l.stage === "Not approached") && l.ask) return l.teaser ? "Teaser sent" : "Approached";
+    return l.stage || "Not set";
+  }
+  /* Days we have been waiting, or null when nothing is owed to us: the investor
+     has answered since our last ask, has committed or stepped away, or has not
+     been asked. Feedback dated the same day as the ask counts as an answer. */
+  function invWait(l) {
+    var b = invBucket(l);
+    if (b === "won" || b === "out" || !l.ask) return null;
+    if (l.feedbackOn && l.feedbackOn >= l.ask) return null;
+    var n = daysSince(l.ask);
+    return n >= CHASE_DAYS ? n : null;
+  }
+  function invSummary(id) {
+    var s = { total: 0, play: 0, won: 0, out: 0, idle: 0, waiting: 0, late: 0, undated: 0, longest: 0 };
+    invOf(id).forEach(function (l) {
+      var b = invBucket(l);
+      s.total++; s[b]++;
+      if (l.wait != null) { s.waiting++; if (l.wait >= LATE_DAYS) s.late++; if (l.wait > s.longest) s.longest = l.wait; }
+      if (b === "play" && !l.ask) s.undated++;
+    });
+    return s;
+  }
+  function invParts(s) {
+    var out = [];
+    if (s.won) out.push(s.won + " committed");
+    if (s.play) out.push(s.play + " in play");
+    if (s.idle) out.push(s.idle + " not approached");
+    if (s.out) out.push(s.out + " out");
+    return out;
   }
 
   function sigsOf(id) { return SIGNALS.byDeal[id] || []; }
@@ -1867,6 +2090,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     buildSegments(ds);
     renderTable();
     renderPipeRisks();
+    renderInvChasers();
     renderCold();
   }
 
@@ -2019,7 +2243,9 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
   var FEEDS = {
     "pipe-risk": { title: "Watch-outs", scope: "live book", view: "pipeline", tab: "Live book" },
     "re-open":   { title: "Openings",   scope: "re-engage", view: "reengage", tab: "Openings" },
-    "re-risk":   { title: "Watch-outs", scope: "re-engage", view: "reengage", tab: "Re-engage risks" }
+    "re-risk":   { title: "Watch-outs", scope: "re-engage", view: "reengage", tab: "Re-engage risks" },
+    "inv-chase": { title: "Awaiting feedback", scope: "investors", view: "pipeline", tab: "Investor chasers",
+                   unit: ["investor waiting", "investors waiting"], order: "longest wait first" }
   };
   var BAND_LABEL = { high: "High exposure", mid: "Mid exposure", low: "Low exposure" };
   var BAND_ORDER = { high: 0, mid: 1, low: 2 };
@@ -2033,7 +2259,35 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
 
   function buildFeed(key) {
     var groups = [];
-    if (key === "pipe-risk") {
+    if (key === "inv-chase") {
+      /* One row per deal, one item per investor owed a chase. Feedback text is
+         left out on purpose: it is where pricing tends to get written, and
+         pricing belongs in the deal panel only. */
+      if (!INV.ok) return groups;
+      DATA.deals.forEach(function (d) {
+        var ls = invOf(d.id).filter(function (l) { return l.wait != null; });
+        if (!ls.length) return;
+        ls.sort(function (a, b) { return b.wait - a.wait; });
+        var top = ls[0].wait, late = top >= LATE_DAYS, all = invOf(d.id).length;
+        groups.push({
+          id: d.id, name: d.name, sub: [d.client, d.country, d.solution].filter(Boolean).join(" \u00b7 "),
+          tag: d.stage + " \u00b7 " + all + (all === 1 ? " investor" : " investors") + " logged",
+          hl: ls.map(function (l) { return l.investor; }).join(", "), when: top + "d",
+          band: late ? "late" : "wait", section: late ? "Three weeks or more" : CHASE_DAYS + " to " + (LATE_DAYS - 1) + " days",
+          sOrder: late ? 0 : 1, score: top,
+          items: ls.map(function (l) {
+            var st = ISTAGES[invStageLabel(l)];
+            return { date: l.ask, label: invStageLabel(l), short: (st && st.short) || "asked", tone: l.wait >= LATE_DAYS ? "l" : "w",
+                     headline: l.investor + " \u00b7 " + l.wait + " days, nothing back",
+                     body: (l.feedbackOn ? "Last feedback " + fmtDate(l.feedbackOn) + ", before this ask." : "No feedback logged yet.") +
+                           (l.next ? " Next step: " + l.next : ""),
+                     source: "Asked " + fmtDate(l.ask) + (l.ask === l.outreach ? " \u00b7 last outreach" : " \u00b7 teaser"),
+                     url: l.url, linkText: "open on Investors_2026 \u2197" };
+          }),
+          open: function () { setView("pipeline"); openDrawer(d.id); }
+        });
+      });
+    } else if (key === "pipe-risk") {
       DATA.deals.forEach(function (d) {
         var raw = newsRisks(d.id);
         if (!raw.length) return;
@@ -2123,10 +2377,10 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     return '<button type="button" class="ar b-' + g.band + '" data-feed="' + key + '" data-gid="' + esc(g.id) + '">' +
       '<span class="ar-mk" aria-hidden="true"></span>' +
       '<span class="ar-who"><b>' + esc(g.name) + "</b><i>" + esc(g.tag) + "</i></span>" +
-      '<span class="ar-hl">' + (g.ours ? '<span class="pchip ours">waiting on us</span> ' : "") + esc(lead.headline || "") + "</span>" +
+      '<span class="ar-hl">' + (g.ours ? '<span class="pchip ours">waiting on us</span> ' : "") + esc(g.hl || lead.headline || "") + "</span>" +
       '<span class="ar-meta">' + kindChips(g.items, 2) +
         '<span class="ar-n" aria-label="' + g.items.length + ' alerts">' + g.items.length + "</span>" +
-        '<span class="ar-d num">' + esc(shortDate(lead.date)) + "</span>" +
+        '<span class="ar-d num"' + (g.when ? ' title="Longest wait"' : "") + ">" + esc(g.when || shortDate(lead.date)) + "</span>" +
         '<span class="ar-go" aria-hidden="true">›</span></span>' +
     "</button>";
   }
@@ -2162,6 +2416,45 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     $("pipe-risk-sub").textContent = n + (n === 1 ? " alert" : " alerts") + " on " + groups.length +
       (groups.length === 1 ? " deal" : " deals") + (hi ? " · " + hi + " high exposure" : "") + " · most exposed first";
     if (AC.open) renderCentre();
+  }
+
+  /* Shown whenever the board was read, even with nothing to chase: an empty
+     panel says the check ran, a hidden one could mean anything. */
+  function renderInvChasers() {
+    var sec = $("inv-panel"), host = $("inv-chasers");
+    sec.hidden = false;
+    if (!INV.ok) {
+      host.innerHTML = '<div class="ar-empty"><b>Investors_2026 could not be read.</b> ' + esc(INV.err || "") + "</div>";
+      $("inv-sub").textContent = "Investor feedback cannot be checked until the board reads again.";
+      if (AC.open) renderCentre();
+      return;
+    }
+    var groups = renderAlertPanel("inv-chase", "inv-chasers", 6, true);
+    if (!groups.length) {
+      var tot = 0, deals = 0, undated = 0;
+      DATA.deals.forEach(function (d) { var s = invSummary(d.id); tot += s.total; if (s.total) deals++; undated += s.undated; });
+      host.innerHTML = '<div class="ar-empty"><b>No investor is past ' + CHASE_DAYS + " days without feedback.</b> " +
+        tot + (tot === 1 ? " investor line" : " investor lines") + " on " + deals + (deals === 1 ? " pipeline deal" : " pipeline deals") +
+        (undated ? "; " + undated + " in play " + (undated === 1 ? "has" : "have") + " no outreach date, so " +
+          (undated === 1 ? "it cannot" : "they cannot") + " be tracked" : "") + ".</div>";
+      $("inv-sub").textContent = "Investors we have asked and not heard back from in " + CHASE_DAYS + " days or more.";
+    } else {
+      var n = totalAlerts(groups), late = 0;
+      groups.forEach(function (g) { g.items.forEach(function (x) { if (x.tone === "l") late++; }); });
+      $("inv-sub").textContent = n + (n === 1 ? " investor" : " investors") + " waiting on " + groups.length +
+        (groups.length === 1 ? " deal" : " deals") + (late ? " \u00b7 " + late + " three weeks or more" : "") + " \u00b7 longest wait first";
+    }
+    if (AC.open) renderCentre();
+  }
+
+  function invCell(d) {
+    if (!INV.ok) return '<span class="c-none" title="Investors_2026 could not be read">\u2014</span>';
+    var s = invSummary(d.id);
+    if (!s.total) return '<span class="c-none">none logged</span>';
+    return '<div class="inv-cell"><span><b>' + s.total + "</b> " + (s.total === 1 ? "investor" : "investors") +
+      (s.waiting ? '<span class="ichip' + (s.late ? " late" : "") + '" title="' + s.waiting + " without feedback for " +
+        CHASE_DAYS + "+ days; longest " + s.longest + ' days">chase ' + s.waiting + "</span>" : "") +
+      "</span><i>" + esc(invParts(s).join(" \u00b7 ")) + "</i></div>";
   }
 
   function newsChip(id) {
@@ -2212,7 +2505,8 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
         '<td class="r">' + revCell + "</td>" +
         '<td class="r"><span class="num" style="margin-right:7px">' + (d.effFrom !== "none" ? d.days + "d" : "—") + "</span>" +
           '<span class="pill ' + d.status + '">' + pill + "</span>" + divChip(d) + keyChip(d) + meetChip(d) + actLine(d) + "</td>" +
-        "<td>" + docPill(d.legalDoc) + "</td></tr>";
+        "<td>" + docPill(d.legalDoc) + "</td>" +
+        "<td>" + invCell(d) + "</td></tr>";
     }).join("");
   }
 
@@ -2280,6 +2574,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
   var AC = { open: false, key: "pipe-risk", gid: null, groups: [], mode: "rail", last: null };
 
   function screenedLine(key) {
+    if (key === "inv-chase") return stamps.inv ? "read live " + fmtClock(stamps.inv) : "";
     if (key === "pipe-risk") return NEWS.meta && NEWS.meta.checkedAt ? "screened " + fmtDate(NEWS.meta.checkedAt) : "";
     return SIGNALS.meta && SIGNALS.meta.screenedAt ? "screened " + fmtDate(SIGNALS.meta.screenedAt) : "";
   }
@@ -2318,8 +2613,8 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     $("ac").setAttribute("data-mode", AC.mode);
 
     $("ac-title").textContent = f.title + " · " + f.scope;
-    var n = totalAlerts(AC.groups);
-    $("ac-sub").textContent = n + (n === 1 ? " alert" : " alerts") + " on " + AC.groups.length +
+    var n = totalAlerts(AC.groups), u = f.unit || ["alert", "alerts"];
+    $("ac-sub").textContent = n + " " + (n === 1 ? u[0] : u[1]) + " on " + AC.groups.length +
       (AC.groups.length === 1 ? " deal" : " deals") + (screenedLine(AC.key) ? " · " + screenedLine(AC.key) : "");
 
     $("ac-tabs").innerHTML = Object.keys(FEEDS).map(function (k) {
@@ -2335,7 +2630,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
       html += '<button type="button" class="ac-i b-' + g.band + '" data-gid="' + esc(g.id) + '"' +
         (g.id === AC.gid ? ' aria-current="true"' : "") + ">" +
         '<span class="ar-mk" aria-hidden="true"></span>' +
-        '<span class="ac-in"><b>' + esc(g.name) + "</b><i>" + esc(g.items[0].headline || "") + "</i></span>" +
+        '<span class="ac-in"><b>' + esc(g.name) + "</b><i>" + esc(g.hl || g.items[0].headline || "") + "</i></span>" +
         '<span class="ar-n">' + g.items.length + "</span></button>";
     });
     rail.innerHTML = html || '<div class="empty">Nothing in this feed.</div>';
@@ -2346,6 +2641,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
   function renderDetail() {
     var det = $("ac-det"), g = AC.groups.filter(function (x) { return x.id === AC.gid; })[0];
     if (!g) { det.innerHTML = '<div class="empty">Nothing to show here.</div>'; return; }
+    var f = FEEDS[AC.key], u = f.unit || ["alert", "alerts"];
     var chip = AC.key === "pipe-risk"
       ? '<span class="pchip exp ' + g.band + '">' + esc(g.tagLong || g.tag) + "</span>"
       : '<span class="pchip">' + esc(g.tag) + "</span>" + (g.ours ? '<span class="pchip ours">waiting on us</span>' : "");
@@ -2356,16 +2652,16 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
         '<div class="ac-tags">' + chip + "</div>" +
       "</div>" +
       '<ol class="ac-list">' + g.items.map(function (x) {
-        return '<li class="ai' + (x.risk ? " r" : (x.matched ? " m" : "")) + '">' +
+        return '<li class="ai' + (x.risk ? " r" : (x.matched ? " m" : (x.tone ? " " + x.tone : ""))) + '">' +
           '<div class="ai-m"><span class="num">' + esc(fmtDate(x.date)) + "</span>" +
             '<span class="ak' + (x.risk ? " r" : (x.matched ? " m" : "")) + '">' + esc(x.label) + "</span></div>" +
           '<p class="ai-h">' + esc(x.headline || "") + "</p>" +
           (x.body ? '<p class="ai-b">' + esc(x.body) + "</p>" : "") +
           '<div class="ai-s">' + esc(x.source || "") +
-            (x.url ? ' <a href="' + esc(x.url) + '" target="_blank" rel="noopener">source ↗</a>' : "") + "</div>" +
+            (x.url ? ' <a href="' + esc(x.url) + '" target="_blank" rel="noopener">' + esc(x.linkText || "source ↗") + "</a>" : "") + "</div>" +
         "</li>";
       }).join("") + "</ol>" +
-      '<div class="ac-df"><span>' + g.items.length + (g.items.length === 1 ? " alert" : " alerts") + " · newest first</span>" +
+      '<div class="ac-df"><span>' + g.items.length + " " + (g.items.length === 1 ? u[0] : u[1]) + " · " + (f.order || "newest first") + "</span>" +
         '<button type="button" class="ac-deal">Open deal →</button></div>';
     det.scrollTop = 0;
   }
@@ -2583,6 +2879,8 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
       (d.updated ? '<br><strong style="color:var(--ink-2)">Board last updated.</strong> ' + fmtDate(d.updated) : "") +
       "</p></div>";
 
+    h += invSection(d);
+
     if (DATA.revOk && r.forecast > 0 && r.booked === 0) {
       h += '<div class="dr-sec"><h4>Worth checking</h4><p class="note">This deal carries ' + fmtM(r.forecast) +
         " of 2026 forecast but nothing booked. On this board booked revenue only appears once a trade subitem is linked to a row on the Trades board — so this is either genuinely unbilled, or the trade link is missing.</p></div>";
@@ -2635,6 +2933,71 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     requestAnimationFrame(function () { $("drawer").classList.add("on"); $("scrim").classList.add("on"); });
     $("dr-close").focus();
   }
+  /* The one place indicative pricing and feedback text appear. */
+  var IBO = { play: 0, won: 1, idle: 2, out: 3 };
+  function invSection(d) {
+    var ls = invOf(d.id);
+    var h = '<div class="dr-sec"><h4>Investors' + (INV.ok && ls.length ? " (" + ls.length + ")" : "") + "</h4>";
+    if (!INV.ok) return h + '<p class="note">Investors_2026 could not be read. ' + esc(INV.err || "") + "</p></div>";
+    if (!ls.length) return h + '<p class="note">No investor is logged against this deal. On <em>Investors_2026</em>, add a subitem ' +
+      "under the investor and set its <em>Deal</em> to this deal.</p></div>";
+    var s = invSummary(d.id), seen = {};
+    ls.forEach(function (l) { seen[l.investor] = (seen[l.investor] || 0) + 1; });
+    var chips = invParts(s).map(function (t) { return "<span>" + esc(t) + "</span>"; });
+    if (s.waiting) chips.unshift('<span class="' + (s.late ? "l" : "w") + '">' + s.waiting + " awaiting feedback</span>");
+    h += '<div class="inv-sum">' + chips.join("") + "</div>";
+    h += '<ul class="inv-list">' + ls.slice().sort(function (a, b) {
+      var wa = a.wait != null, wb = b.wait != null;
+      if (wa !== wb) return wa ? -1 : 1;
+      if (wa) return b.wait - a.wait;
+      var ba = IBO[invBucket(a)], bb = IBO[invBucket(b)];
+      if (ba !== bb) return ba - bb;
+      var sa = (ISTAGES[a.stage] || {}).step || 0, sb = (ISTAGES[b.stage] || {}).step || 0;
+      return (sb - sa) || a.investor.localeCompare(b.investor);
+    }).map(function (l) { return invItem(l, seen[l.investor] > 1); }).join("") + "</ul>";
+    var notes = [];
+    if (s.undated) notes.push(s.undated + (s.undated === 1 ? " line is" : " lines are") + " in play with no Teaser sent or " +
+      "Last outreach date, so " + (s.undated === 1 ? "it" : "they") + " cannot be tracked for feedback.");
+    if (ls.some(function (l) { return l.legacy; })) notes.push("\u2020 Stage read from the older Status column. Setting Distribution stage replaces it.");
+    notes.push("Awaiting feedback: " + CHASE_DAYS + " days or more since the later of Teaser sent and Last outreach, with no " +
+      "Last feedback on or after it.");
+    return h + '<p class="note">' + notes.map(esc).join(" ") + "</p></div>";
+  }
+
+  function invItem(l, showLine) {
+    var st = ISTAGES[l.stage], b = invBucket(l), step = st ? st.step : 0;
+    if (b === "play" && !step) step = 1;
+    var cls = l.wait != null ? (l.wait >= LATE_DAYS ? " l" : " w") : (b === "out" ? " out" : "");
+    var stCls = b === "won" ? "won" : (l.stage === "Declined" ? "dec" : (b === "out" ? "hold" : (b === "idle" ? "idle" : "")));
+    var bar = "";
+    if (b === "play" || b === "won") {
+      bar = '<div class="isteps' + (b === "won" ? " won" : "") + '" aria-hidden="true">';
+      for (var i = 1; i <= 7; i++) bar += "<i" + (i <= step ? ' class="on"' : "") + "></i>";
+      bar += "</div>";
+    }
+    var dates = [];
+    if (l.teaser) dates.push("Teaser <b>" + esc(shortDate(l.teaser)) + "</b>");
+    if (l.outreach) dates.push("Last outreach <b>" + esc(shortDate(l.outreach)) + "</b>");
+    if (l.teaser || l.outreach || l.feedbackOn) dates.push("Last feedback <b>" + (l.feedbackOn ? esc(shortDate(l.feedbackOn)) : "\u2014") + "</b>");
+    else if (b === "play") dates.push("No outreach date logged");
+    var kv = "";
+    if (l.pricing) kv += '<dt>Indicative pricing</dt><dd class="px">' + esc(l.pricing) + "</dd>";
+    if (l.size) kv += "<dt>Ticket</dt><dd>" + fmtM(l.size) + (l.ccy && l.ccy !== "USD" ? " \u00b7 " + esc(l.ccy) + " facility" : "") + "</dd>";
+    if (l.next) kv += "<dt>Next step</dt><dd>" + esc(l.next) + "</dd>";
+    return '<li class="inv-i' + cls + '">' +
+      '<div class="inv-top"><b>' + esc(l.investor) + '</b><span class="ist ' + stCls + '"' +
+        (l.legacy ? ' title="From the older Status column"' : "") + ">" + esc(invStageLabel(l)) + (l.legacy ? " \u2020" : "") + "</span></div>" +
+      (showLine && l.line ? '<div class="inv-line">' + esc(l.line) + "</div>" : "") +
+      bar +
+      (dates.length ? '<div class="inv-dates">' + dates.map(function (x) { return "<span>" + x + "</span>"; }).join("") + "</div>" : "") +
+      (l.wait != null ? '<div class="inv-flag">No feedback for ' + l.wait + " days since " +
+        (l.ask === l.outreach ? "last outreach" : "the teaser") + " on " + esc(fmtDate(l.ask)) + "</div>" : "") +
+      (l.feedback ? '<p class="inv-fb">' + esc(l.feedback) + "</p>" : "") +
+      (kv ? '<dl class="inv-kv">' + kv + "</dl>" : "") +
+      (l.url ? '<a class="inv-a" href="' + esc(l.url) + '" target="_blank" rel="noopener">Open on Investors_2026 \u2197</a>' : "") +
+    "</li>";
+  }
+
   function closeDrawer() {
     $("drawer").classList.remove("on"); $("scrim").classList.remove("on");
     [$("tbody"), $("cbody")].forEach(function (tb) {
