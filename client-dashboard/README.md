@@ -19,7 +19,7 @@ capabilities: { mcp: { servers: [ { server: "monday.com", tools: ["get_board_ite
 
 At load it calls `claude.use("mcp")` and then issues four `get_board_items_page` calls — one for
 pipeline deals, one for 2026 trade subitems (joined on `parent_item_id`), one for the Prospect
-and Lost cohort behind the **Re-engage** view, and one for the investor lines on **Investors_2026**. Calls run with the viewer's monday.com credentials;
+and Lost cohort behind the **Re-engage** view, and one for the **Investor Distribution** board. Calls run with the viewer's monday.com credentials;
 the page never sees a token.
 
 Because of this it **only works when opened from claude.ai**. Opened as a local file or from a
@@ -33,7 +33,7 @@ minutes behind. The two dots in the header show each source independently, with 
 was actually produced (`result.cache.storedAt`, not the clock).
 
 Each call fails on its own. A revenue failure leaves pipeline, stage and contact figures live; a
-Prospect-and-Lost failure leaves the whole Pipeline view untouched; an Investors_2026 failure shows
+Prospect-and-Lost failure leaves the whole Pipeline view untouched; an Investor Distribution failure shows
 a dash in the Investors column and says so in the feedback panel, rather than reading as "no
 investors". Each names what is missing in a
 banner inside the view that lost it, rather than taking the page down.
@@ -440,44 +440,72 @@ priced, and who owes us an answer. Pipeline deals only; nothing here touches Re-
 
 ### Where it lives
 
-On Ella's **Investors_2026** board (`18392428674`): one item per investor, one **subitem per deal**
-that investor has been shown, with the subitem's *Deal* column linking to the Global Pipeline row.
-The subitems already existed for funded positions (Bladex, IDB, Pemberton). Seven columns were added
-to the subitems board (`18396236022`) on 24 September 2026; nothing existing was changed.
+On the **Investor Distribution** board (`18432728154`, in the pipeline folder beside Global Pipeline
+and Investors_2026), created 25 September 2026: **one row per investor per deal, grouped by deal**.
+Rows are named `Deal · Investor`, so the linked columns on both other boards read sensibly.
+
+Two earlier homes were tried and set aside:
+
+- **Subitems of Global Pipeline** are taken: they are the trades, and 2026 revenue is summed from
+  them. A distribution row there would sit inside the revenue totals.
+- **Subitems of Investors_2026** (one subitem per deal under each investor) worked, but showing one
+  deal to six investors meant six trips into six investor items, and a deal was scattered across the
+  board. The page read them for one day, 24 September.
 
 | Field | Column | Id | Notes |
 |---|---|---|---|
-| `stage` | Distribution stage | `color_mm7g87a6` | see ladder below |
-| `teaser` | Teaser sent | `date_mm7gc63h` | |
-| `outreach` | Last outreach | `date_mm7grcw9` | our last chase, call or send |
-| `feedbackOn` | Last feedback | `date_mm7gjyr5` | their last answer |
-| `feedback` | Feedback | `long_text_mm7gbqrx` | deal panel only |
-| `pricing` | Indicative pricing | `text_mm7gtwx9` | deal panel only |
-| `next` | Next step | `text_mm7gjdma` | |
-| — | Deal | `board_relation_mm31m0gz` | → Global Pipeline; the join key |
-| — | Status (older) | `status` | read only when Distribution stage is blank |
-| — | Facility_Size_USD, Currency | `numeric_mm31n1m9`, `dropdown_mm31f6e8` | shown as ticket |
+| — | Deal | `board_relation_mm7h71e0` | → Global Pipeline; the join key |
+| `investor` | Investor | `board_relation_mm7hde4g` | → Investors_2026; name falls back to the row name |
+| `stage` | Stage | `color_mm7hqct8` | see ladder below |
+| `teaser` | Teaser sent | `date_mm7hshxm` | |
+| `outreach` | Last outreach | `date_mm7hz4nz` | our last chase, call or send |
+| `feedbackOn` | Last feedback | `date_mm7hresx` | their last answer |
+| `feedback` | Feedback | `long_text_mm7hde0y` | deal panel only |
+| `pricing` | Indicative pricing | `text_mm7hpzfk` | deal panel only |
+| `next` | Next step | `text_mm7hhbne` | |
+| `size` | Ticket (USD) | `numeric_mm7hkatj` | |
+| `ccy` | Facility currency | `dropdown_mm7hy5ds` | |
 
-The page reads the **parent** board with `includeSubItems: true` rather than the subitems board
-directly, so each line arrives with its investor's name, and keeps only lines whose *Deal* is in the
-pipeline read. A line linked to a Lost or Hold deal is ignored.
+Both links are two-way. Global Pipeline gained **Investor distribution** (`board_relation_mm7hqnnb`)
+listing each deal's rows — named so, because Global Pipeline already has an *Investors* mirror that
+reads from the trades — and Investors_2026 gained **Deals shown** (`board_relation_mm7h887d`). Both
+are filled by monday from the links on this board; nothing is typed into them.
+
+The page keeps only rows whose *Deal* is in the pipeline read; a row on a Lost or Hold deal is
+ignored. One page of 500 rows is read; past that the source dot turns amber.
+
+### The 17 lines copied from Investors_2026
+
+The funded and legacy positions (Bladex, IDB, Pemberton) were **copied**, not moved. The originals
+stay as subitems on Investors_2026 with the seven columns added there on 24 September, and the
+dashboard no longer reads them. Until Ella retires them there are two copies, and an edit to the old
+one will not reach the page. The older Status was mapped once, at copy time: `Live` → Live,
+`Reviewing` → Under review, `Cancelled/Hold` → On hold.
+
+One copied value looks wrong and was kept as found: **Pegaso Handsets · Bladex** carries 40,000,000
+in a USD column with currency MXN.
 
 ### Stages
 
 `Not approached → Teaser sent → NDA signed → Info shared → Under review → Indicative terms →
-Credit approved → IAA signed`, plus `Declined` and `On hold` off the ladder. The deal panel draws the
-ladder as a seven-segment bar. Counts use four buckets: **in play** (Teaser sent to Credit approved),
-**committed** (IAA signed, or Live), **out** (Declined, On hold), **not approached**.
+Credit approved → IAA signed → Live`, plus `Declined` and `On hold` off the ladder. The deal panel
+draws the ladder as a seven-segment bar. Counts use four buckets: **in play** (Teaser sent to Credit
+approved), **committed** (IAA signed, Live), **out** (Declined, On hold), **not approached**. A row
+marked *Not approached* that carries a Teaser sent or Last outreach date is treated as approached:
+the date is harder evidence than the label.
 
-Lines logged before the column existed carry only the older Status, which is read in —
-`Live` → Live, `Reviewing` → Under review, `Cancelled/Hold` → On hold — and marked † in the panel
-until someone sets Distribution stage. A line marked *Not approached* that carries a Teaser sent or
-Last outreach date is treated as approached: the date is harder evidence than the label.
+> **Label id 5 is monday's "unset" label.** On Investors_2026 the column was first created with
+> *Not approached* on id 5, which made every existing line — including funded Live positions — read
+> *Not approached* on Ella's board. There and on Investor Distribution, id 5 is a blank label and
+> *Not approached* has its own id. Any new status column needs the same care: whatever sits on id 5
+> is what every untouched row shows.
 
-> **Label id 5 is monday's "unset" label.** The column was first created with *Not approached* on id
-> 5, which made every existing line — including funded Live positions — read *Not approached* on
-> Ella's board. Id 5 is now a blank label and *Not approached* has its own id. Any new status column
-> needs the same care: whatever sits on id 5 is what every untouched row shows.
+### Adding a deal to several investors
+
+Create a group named after the deal, then one row per investor with *Deal*, *Investor*, *Stage* and
+*Teaser sent*. Or ask Claude — "ETB PRM: teaser to Bladex, IDB, Santander, CACIB NY on 3 Sep" — which
+creates the group and rows in one go. A Distribute form inside the dashboard was considered and left
+for later: it would make the page write to monday, which it deliberately does not.
 
 ### Awaiting feedback
 
@@ -509,8 +537,8 @@ written ("came back at S+300"). The centre shows only when we asked, the stage, 
 
 The tracker is only as good as two dates: **Last outreach** each time we chase, and **Last
 feedback** each time they answer. Setting *Last feedback* is what clears a chase. As of
-24 September no line carries either date yet, so the panel starts empty — the 17 existing lines are
-funded or legacy positions.
+25 September no row carries either date yet, so the panel starts empty — the 17 rows are funded or
+legacy positions.
 
 ---
 
@@ -683,7 +711,7 @@ bad URL degrades rather than breaks.
 ## Not built, deliberately
 
 - **Write-back to monday.com.** The board stays the system of record. That includes investor
-  feedback: the dashboard shows who owes an answer, and the answer is logged on Investors_2026. A dashboard you can edit
+  feedback: the dashboard shows who owes an answer, and the answer is logged on Investor Distribution. A dashboard you can edit
   becomes a second source of truth that silently disagrees with the board.
 - **Outlook as the primary contact source.** The board's `Date Last Contact` stays the system of
   record. Outlook only corroborates it — see below.

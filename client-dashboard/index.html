@@ -888,7 +888,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
       <em>Global Pipeline</em> board, in stages Live, Implementation, Validation and Discovery.
       Last contact is the board&rsquo;s own <em>Date Last Contact</em> column. Booked and forecast 2026 revenue are summed
       from each deal&rsquo;s trade subitems dated in 2026.
-      Investors are the subitems of the <em>Investors_2026</em> board whose <em>Deal</em> is one of these deals; indicative
+      Investors are the rows of the <em>Investor Distribution</em> board whose <em>Deal</em> is one of these deals; indicative
       pricing appears only inside a deal&rsquo;s panel.
       See <code>client-dashboard/README.md</code> for the full column mapping.
     </footer>
@@ -1108,33 +1108,30 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
   };
 
   /* ---------- investor distribution ----------
-     Ella's Investors_2026 board: one item per investor, one subitem per deal
-     that investor has been shown. The dashboard reads the subitems through the
-     parent board (includeSubItems) so each line arrives with its investor's
-     name, and keeps only the lines whose Deal is in the pipeline read above.
-     Read-only, like everything else here: the board is where it is updated. */
+     The Investor Distribution board: one row per investor per deal, grouped by
+     deal, linked to Global Pipeline (Deal) and Investors_2026 (Investor). The
+     page keeps only rows whose Deal is in the pipeline read above. Read-only,
+     like everything else here: the board is where it is updated. */
   var IC = {
-    status:     "status",                   /* older column: Reviewing / Live / Cancelled/Hold */
-    deal:       "board_relation_mm31m0gz",  /* → Global Pipeline */
-    size:       "numeric_mm31n1m9",
-    ccy:        "dropdown_mm31f6e8",
-    stage:      "color_mm7g87a6",           /* Distribution stage */
-    teaser:     "date_mm7gc63h",
-    outreach:   "date_mm7grcw9",
-    feedbackOn: "date_mm7gjyr5",
-    feedback:   "long_text_mm7gbqrx",
-    pricing:    "text_mm7gtwx9",
-    next:       "text_mm7gjdma"
+    deal:       "board_relation_mm7h71e0",  /* → Global Pipeline */
+    investor:   "board_relation_mm7hde4g",  /* → Investors_2026 */
+    stage:      "color_mm7hqct8",
+    teaser:     "date_mm7hshxm",
+    outreach:   "date_mm7hz4nz",
+    feedbackOn: "date_mm7hresx",
+    feedback:   "long_text_mm7hde0y",
+    pricing:    "text_mm7hpzfk",
+    next:       "text_mm7hhbne",
+    size:       "numeric_mm7hkatj",
+    ccy:        "dropdown_mm7hy5ds"
   };
   var INV_INPUT = {
-    boardId: 18392428674,
+    boardId: 18432728154,
     limit: 500,
     includeColumns: true,
     includeGroup: false,
-    includeSubItems: true,
-    subItemLimit: 100,
-    columnIds: [IC.status, IC.deal, IC.size, IC.ccy, IC.stage, IC.teaser, IC.outreach,
-                IC.feedbackOn, IC.feedback, IC.pricing, IC.next]
+    columnIds: [IC.deal, IC.investor, IC.stage, IC.teaser, IC.outreach, IC.feedbackOn,
+                IC.feedback, IC.pricing, IC.next, IC.size, IC.ccy]
   };
   /* Ten days from our last ask with nothing back. Three weeks reads as late. */
   var CHASE_DAYS = 10, LATE_DAYS = 21;
@@ -1153,10 +1150,6 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     "Declined":         { step: 0, bucket: "out",  short: "declined" },
     "On hold":          { step: 0, bucket: "out",  short: "hold" }
   };
-  /* Lines logged before Distribution stage existed carry only the older Status.
-     It is read in until someone sets the new column, and marked as such. */
-  var ISTATUS = { "Live": "Live", "Reviewing": "Under review", "Cancelled/Hold": "On hold" };
-
   /* Why they said no decides which news would change the answer. Three postures:
        ours     — the block is on our side, so no client news reopens it
        catalyst — a specific event flips it, and we know which
@@ -1791,10 +1784,10 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
       }
       if (!INV.ok) {
         INV.byDeal = {}; INV.lines = 0;
-        INV.err = iRes.status === "rejected" ? errCopy(iRes.reason).b : "Investors_2026 came back in an unexpected shape.";
+        INV.err = iRes.status === "rejected" ? errCopy(iRes.reason).b : "Investor Distribution came back in an unexpected shape.";
         setSrc("src-inv", "bad", "unavailable");
         $("src-inv").title = INV.err;
-      } else { $("src-inv").title = "Subitems of Investors_2026 linked to a pipeline deal."; }
+      } else { $("src-inv").title = "Rows on the Investor Distribution board linked to a pipeline deal."; }
       $("src-inv").hidden = false;
 
       showOnly(null);
@@ -1897,24 +1890,25 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     var ids = {}; DATA.deals.forEach(function (d) { ids[d.id] = true; });
     var by = {}, n = 0;
     items.forEach(function (it) {
-      (it.subitems || []).forEach(function (s) {
-        var cv = s.column_values || {}, rel = cv[IC.deal];
-        if (!Array.isArray(rel) || !rel.length) return;
-        var set = txt(cv[IC.stage]), old = txt(cv[IC.status]);
-        var l = {
-          id: String(s.id), investor: it.name, line: s.name, url: s.url,
-          stage: set || ISTATUS[old] || null, legacy: !set && !!ISTATUS[old],
-          teaser: isoDay(cv[IC.teaser]), outreach: isoDay(cv[IC.outreach]), feedbackOn: isoDay(cv[IC.feedbackOn]),
-          feedback: txt(cv[IC.feedback]), pricing: txt(cv[IC.pricing]), next: txt(cv[IC.next]),
-          size: num(cv[IC.size]), ccy: txt(cv[IC.ccy])
-        };
-        l.ask = invAsk(l);
-        l.wait = invWait(l);
-        rel.forEach(function (r) {
-          var id = r && r.id != null ? String(r.id) : null;
-          if (!id || !ids[id]) return;
-          (by[id] = by[id] || []).push(l); n++;
-        });
+      var cv = it.column_values || {}, rel = cv[IC.deal], who = cv[IC.investor];
+      if (!Array.isArray(rel) || !rel.length) return;
+      /* Rows are named "Deal · Investor"; the Investor link is the real name,
+         the tail of the row name the fallback when the link was left empty. */
+      var named = String(it.name || "").split(" \u00b7 ");
+      var l = {
+        id: String(it.id), line: it.name, url: it.url,
+        investor: (Array.isArray(who) && who.length && who[0].name) || named[named.length - 1] || it.name,
+        stage: txt(cv[IC.stage]),
+        teaser: isoDay(cv[IC.teaser]), outreach: isoDay(cv[IC.outreach]), feedbackOn: isoDay(cv[IC.feedbackOn]),
+        feedback: txt(cv[IC.feedback]), pricing: txt(cv[IC.pricing]), next: txt(cv[IC.next]),
+        size: num(cv[IC.size]), ccy: txt(cv[IC.ccy])
+      };
+      l.ask = invAsk(l);
+      l.wait = invWait(l);
+      rel.forEach(function (r) {
+        var id = r && r.id != null ? String(r.id) : null;
+        if (!id || !ids[id]) return;
+        (by[id] = by[id] || []).push(l); n++;
       });
     });
     INV.byDeal = by; INV.lines = n;
@@ -2282,7 +2276,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
                      body: (l.feedbackOn ? "Last feedback " + fmtDate(l.feedbackOn) + ", before this ask." : "No feedback logged yet.") +
                            (l.next ? " Next step: " + l.next : ""),
                      source: "Asked " + fmtDate(l.ask) + (l.ask === l.outreach ? " \u00b7 last outreach" : " \u00b7 teaser"),
-                     url: l.url, linkText: "open on Investors_2026 \u2197" };
+                     url: l.url, linkText: "open on monday \u2197" };
           }),
           open: function () { setView("pipeline"); openDrawer(d.id); }
         });
@@ -2424,7 +2418,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     var sec = $("inv-panel"), host = $("inv-chasers");
     sec.hidden = false;
     if (!INV.ok) {
-      host.innerHTML = '<div class="ar-empty"><b>Investors_2026 could not be read.</b> ' + esc(INV.err || "") + "</div>";
+      host.innerHTML = '<div class="ar-empty"><b>Investor Distribution could not be read.</b> ' + esc(INV.err || "") + "</div>";
       $("inv-sub").textContent = "Investor feedback cannot be checked until the board reads again.";
       if (AC.open) renderCentre();
       return;
@@ -2448,7 +2442,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
   }
 
   function invCell(d) {
-    if (!INV.ok) return '<span class="c-none" title="Investors_2026 could not be read">\u2014</span>';
+    if (!INV.ok) return '<span class="c-none" title="Investor Distribution could not be read">\u2014</span>';
     var s = invSummary(d.id);
     if (!s.total) return '<span class="c-none">none logged</span>';
     return '<div class="inv-cell"><span><b>' + s.total + "</b> " + (s.total === 1 ? "investor" : "investors") +
@@ -2938,9 +2932,9 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
   function invSection(d) {
     var ls = invOf(d.id);
     var h = '<div class="dr-sec"><h4>Investors' + (INV.ok && ls.length ? " (" + ls.length + ")" : "") + "</h4>";
-    if (!INV.ok) return h + '<p class="note">Investors_2026 could not be read. ' + esc(INV.err || "") + "</p></div>";
-    if (!ls.length) return h + '<p class="note">No investor is logged against this deal. On <em>Investors_2026</em>, add a subitem ' +
-      "under the investor and set its <em>Deal</em> to this deal.</p></div>";
+    if (!INV.ok) return h + '<p class="note">Investor Distribution could not be read. ' + esc(INV.err || "") + "</p></div>";
+    if (!ls.length) return h + '<p class="note">No investor is logged against this deal. On <em>Investor Distribution</em>, add a ' +
+      "group for this deal and one row per investor, with <em>Deal</em> and <em>Investor</em> set.</p></div>";
     var s = invSummary(d.id), seen = {};
     ls.forEach(function (l) { seen[l.investor] = (seen[l.investor] || 0) + 1; });
     var chips = invParts(s).map(function (t) { return "<span>" + esc(t) + "</span>"; });
@@ -2958,7 +2952,6 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     var notes = [];
     if (s.undated) notes.push(s.undated + (s.undated === 1 ? " line is" : " lines are") + " in play with no Teaser sent or " +
       "Last outreach date, so " + (s.undated === 1 ? "it" : "they") + " cannot be tracked for feedback.");
-    if (ls.some(function (l) { return l.legacy; })) notes.push("\u2020 Stage read from the older Status column. Setting Distribution stage replaces it.");
     notes.push("Awaiting feedback: " + CHASE_DAYS + " days or more since the later of Teaser sent and Last outreach, with no " +
       "Last feedback on or after it.");
     return h + '<p class="note">' + notes.map(esc).join(" ") + "</p></div>";
@@ -2985,8 +2978,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     if (l.size) kv += "<dt>Ticket</dt><dd>" + fmtM(l.size) + (l.ccy && l.ccy !== "USD" ? " \u00b7 " + esc(l.ccy) + " facility" : "") + "</dd>";
     if (l.next) kv += "<dt>Next step</dt><dd>" + esc(l.next) + "</dd>";
     return '<li class="inv-i' + cls + '">' +
-      '<div class="inv-top"><b>' + esc(l.investor) + '</b><span class="ist ' + stCls + '"' +
-        (l.legacy ? ' title="From the older Status column"' : "") + ">" + esc(invStageLabel(l)) + (l.legacy ? " \u2020" : "") + "</span></div>" +
+      '<div class="inv-top"><b>' + esc(l.investor) + '</b><span class="ist ' + stCls + '">' + esc(invStageLabel(l)) + "</span></div>" +
       (showLine && l.line ? '<div class="inv-line">' + esc(l.line) + "</div>" : "") +
       bar +
       (dates.length ? '<div class="inv-dates">' + dates.map(function (x) { return "<span>" + x + "</span>"; }).join("") + "</div>" : "") +
@@ -2994,7 +2986,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
         (l.ask === l.outreach ? "last outreach" : "the teaser") + " on " + esc(fmtDate(l.ask)) + "</div>" : "") +
       (l.feedback ? '<p class="inv-fb">' + esc(l.feedback) + "</p>" : "") +
       (kv ? '<dl class="inv-kv">' + kv + "</dl>" : "") +
-      (l.url ? '<a class="inv-a" href="' + esc(l.url) + '" target="_blank" rel="noopener">Open on Investors_2026 \u2197</a>' : "") +
+      (l.url ? '<a class="inv-a" href="' + esc(l.url) + '" target="_blank" rel="noopener">Open on monday \u2197</a>' : "") +
     "</li>";
   }
 
