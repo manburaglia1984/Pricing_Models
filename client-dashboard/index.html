@@ -888,7 +888,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
       <em>Global Pipeline</em> board, in stages Live, Implementation, Validation and Discovery.
       Last contact is the board&rsquo;s own <em>Date Last Contact</em> column. Booked and forecast 2026 revenue are summed
       from each deal&rsquo;s trade subitems dated in 2026.
-      Investors are the rows of the <em>Investor Distribution</em> board whose <em>Deal</em> is one of these deals; indicative
+      Investors are the subitems under each deal on the <em>Investor Distribution</em> board; indicative
       pricing appears only inside a deal&rsquo;s panel.
       See <code>client-dashboard/README.md</code> for the full column mapping.
     </footer>
@@ -1108,28 +1108,34 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
   };
 
   /* ---------- investor distribution ----------
-     The Investor Distribution board: one row per investor per deal, grouped by
-     deal, linked to Global Pipeline (Deal) and Investors_2026 (Investor). The
-     page keeps only rows whose Deal is in the pipeline read above. Read-only,
-     like everything else here: the board is where it is updated. */
+     The Investor Distribution board: one item per deal, grouped by pipeline
+     stage and linked to Global Pipeline (Deal); one SUBITEM per investor shown
+     that deal, linked to Investors_2026 (Investor) and carrying the tracking
+     columns. A weekday Claude Routine keeps the deal list and its groups in
+     step with Global Pipeline. The page reads the deals with their subitems and
+     keeps only deals in the pipeline read above. Read-only, like everything
+     else here: the board is where it is updated. */
   var IC = {
-    deal:       "board_relation_mm7h71e0",  /* → Global Pipeline */
-    investor:   "board_relation_mm7hde4g",  /* → Investors_2026 */
-    stage:      "color_mm7hqct8",
-    teaser:     "date_mm7hshxm",
-    outreach:   "date_mm7hz4nz",
-    feedbackOn: "date_mm7hresx",
-    feedback:   "long_text_mm7hde0y",
-    pricing:    "text_mm7hpzfk",
-    next:       "text_mm7hhbne",
-    size:       "numeric_mm7hkatj",
-    ccy:        "dropdown_mm7hy5ds"
+    deal:       "board_relation_mm7h71e0",  /* item: → Global Pipeline */
+    investor:   "board_relation_mm7hajtn",  /* subitem: → Investors_2026 */
+    stage:      "color_mm7h1n0d",
+    teaser:     "date_mm7h93t",
+    outreach:   "date_mm7hb7vv",
+    feedbackOn: "date_mm7h7gr5",
+    feedback:   "long_text_mm7hqtb1",
+    pricing:    "text_mm7h1zf9",
+    next:       "text_mm7h17bk",
+    size:       "numeric_mm7hp43d",
+    ccy:        "dropdown_mm7hz5g"
   };
   var INV_INPUT = {
     boardId: 18432728154,
     limit: 500,
     includeColumns: true,
     includeGroup: false,
+    includeSubItems: true,
+    subItemLimit: 100,
+    /* item and subitem columns share one list; each level returns its own */
     columnIds: [IC.deal, IC.investor, IC.stage, IC.teaser, IC.outreach, IC.feedbackOn,
                 IC.feedback, IC.pricing, IC.next, IC.size, IC.ccy]
   };
@@ -1787,7 +1793,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
         INV.err = iRes.status === "rejected" ? errCopy(iRes.reason).b : "Investor Distribution came back in an unexpected shape.";
         setSrc("src-inv", "bad", "unavailable");
         $("src-inv").title = INV.err;
-      } else { $("src-inv").title = "Rows on the Investor Distribution board linked to a pipeline deal."; }
+      } else { $("src-inv").title = "Investor subitems on the Investor Distribution board, under deals in this pipeline."; }
       $("src-inv").hidden = false;
 
       showOnly(null);
@@ -1890,24 +1896,23 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     var ids = {}; DATA.deals.forEach(function (d) { ids[d.id] = true; });
     var by = {}, n = 0;
     items.forEach(function (it) {
-      var cv = it.column_values || {}, rel = cv[IC.deal], who = cv[IC.investor];
-      if (!Array.isArray(rel) || !rel.length) return;
-      /* Rows are named "Deal · Investor"; the Investor link is the real name,
-         the tail of the row name the fallback when the link was left empty. */
-      var named = String(it.name || "").split(" \u00b7 ");
-      var l = {
-        id: String(it.id), line: it.name, url: it.url,
-        investor: (Array.isArray(who) && who.length && who[0].name) || named[named.length - 1] || it.name,
-        stage: txt(cv[IC.stage]),
-        teaser: isoDay(cv[IC.teaser]), outreach: isoDay(cv[IC.outreach]), feedbackOn: isoDay(cv[IC.feedbackOn]),
-        feedback: txt(cv[IC.feedback]), pricing: txt(cv[IC.pricing]), next: txt(cv[IC.next]),
-        size: num(cv[IC.size]), ccy: txt(cv[IC.ccy])
-      };
-      l.ask = invAsk(l);
-      l.wait = invWait(l);
-      rel.forEach(function (r) {
-        var id = r && r.id != null ? String(r.id) : null;
-        if (!id || !ids[id]) return;
+      var rel = (it.column_values || {})[IC.deal];
+      var id = Array.isArray(rel) && rel.length && rel[0] && rel[0].id != null ? String(rel[0].id) : null;
+      if (!id || !ids[id]) return;
+      (it.subitems || []).forEach(function (s) {
+        var cv = s.column_values || {}, who = cv[IC.investor];
+        /* The Investor link is the real name; the subitem's own name is the
+           fallback when someone typed the investor without linking it. */
+        var l = {
+          id: String(s.id), line: s.name, url: s.url,
+          investor: (Array.isArray(who) && who.length && who[0].name) || s.name,
+          stage: txt(cv[IC.stage]),
+          teaser: isoDay(cv[IC.teaser]), outreach: isoDay(cv[IC.outreach]), feedbackOn: isoDay(cv[IC.feedbackOn]),
+          feedback: txt(cv[IC.feedback]), pricing: txt(cv[IC.pricing]), next: txt(cv[IC.next]),
+          size: num(cv[IC.size]), ccy: txt(cv[IC.ccy])
+        };
+        l.ask = invAsk(l);
+        l.wait = invWait(l);
         (by[id] = by[id] || []).push(l); n++;
       });
     });
@@ -2933,8 +2938,8 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     var ls = invOf(d.id);
     var h = '<div class="dr-sec"><h4>Investors' + (INV.ok && ls.length ? " (" + ls.length + ")" : "") + "</h4>";
     if (!INV.ok) return h + '<p class="note">Investor Distribution could not be read. ' + esc(INV.err || "") + "</p></div>";
-    if (!ls.length) return h + '<p class="note">No investor is logged against this deal. On <em>Investor Distribution</em>, add a ' +
-      "group for this deal and one row per investor, with <em>Deal</em> and <em>Investor</em> set.</p></div>";
+    if (!ls.length) return h + '<p class="note">No investor is logged against this deal. On <em>Investor Distribution</em>, open ' +
+      "this deal and add a subitem per investor, with <em>Investor</em> set.</p></div>";
     var s = invSummary(d.id), seen = {};
     ls.forEach(function (l) { seen[l.investor] = (seen[l.investor] || 0) + 1; });
     var chips = invParts(s).map(function (t) { return "<span>" + esc(t) + "</span>"; });
