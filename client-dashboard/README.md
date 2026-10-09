@@ -441,10 +441,16 @@ priced, and who owes us an answer. Pipeline deals only; nothing here touches Re-
 ### Where it lives
 
 On the **Investor Distribution** board (`18432728154`, in the pipeline folder beside Global Pipeline
-and Investors_2026): **one item per deal, in a group for its pipeline stage, with one subitem per
-investor** shown that deal. Groups are Live, Implementation, Validation, Discovery and Off pipeline.
-The list covers **Americas and RoW** — 81 pipeline deals on 25 September, plus the six off-pipeline
-deals that carried investor history — though the dashboard itself still shows Americas only.
+and Investors_2026): **one item per deal, grouped by region, with one subitem per investor** shown
+that deal. Groups are **Americas**, **RoW** and **Off pipeline**. The list covers both regions —
+on 9 October, 44 Americas and 40 RoW pipeline deals, plus 10 off pipeline — though the dashboard
+itself still shows Americas only.
+
+Region is Global Pipeline's own grouping, not one derived from country: Hyundai – IDB PRM (a Korean
+client) sits in Americas and Cargill Coffee Intermediation (a US client) in RoW, because that is
+where the team filed them. Stage is read from the *Pipeline status* mirror column, not from the
+group. The board was grouped by stage from 25 September to 9 October and regrouped at Manuel's
+request; the stage groups were removed once empty.
 
 Three layouts were tried in two days, and the reasons matter for anyone tempted to go back:
 
@@ -454,6 +460,9 @@ Three layouts were tried in two days, and the reasons matter for anyone tempted 
   six investors meant six trips into six investor items, and a deal was scattered across the board.
 - **One row per investor-deal pair, a group per deal** (morning of 25 September): the groups grew
   with every deal and said nothing about stage.
+
+Group ids: Americas `group_mm7hf6z7`, RoW `group_mm7hprvx`, Off pipeline `group_mm7hhqgw`. The first
+two are the former Live and Implementation groups, renamed — the ids did not change.
 
 Deal items (`18432728154`):
 
@@ -491,13 +500,15 @@ under them as an investor line.
 
 ### Keeping the deal list in step
 
-A weekday Claude Routine, `routines/investor-distribution-sync.md`, adds new pipeline deals, moves
-items between stage groups, and moves leavers to Off pipeline. It matches on the *Deal* link, never
+A weekday Claude Routine, `routines/investor-distribution-sync.md`, adds new pipeline deals, files
+each in its region group, and moves leavers to Off pipeline. It matches on the *Deal* link, never
 on name, never deletes, and never touches subitems. monday's own automations were ruled out: they
 can create the item but, as far as their documentation goes, cannot check it is not already there
 or move an item between groups on another board.
 
-> **The Routine cannot reach monday yet.** It was created from a session that could not attach
+> **The Routine cannot reach monday yet.** Between 25 September and 9 October it fired every weekday
+> and changed nothing, so the board drifted: seven new deals, six leavers, two returns and one
+> renamed deal were caught up by hand on 9 October. It was created from a session that could not attach
 > connectors, so until monday.com is added to it in claude.ai it reports that it could not run.
 > Until then, new deals are added by asking Claude to run the sync.
 
@@ -507,9 +518,9 @@ The funded and legacy positions (Bladex, IDB, Pemberton) were **copied**, not mo
 stay as subitems on Investors_2026 with the seven columns added there on 24 September, and the
 dashboard no longer reads them. Until Ella retires them there are two copies, and an edit to the old
 one will not reach the page. The older Status was mapped once, at copy time: `Live` → Live,
-`Reviewing` → Under review, `Cancelled/Hold` → On hold. Six of the 17 sit on deals now in Off
-pipeline (Macropay is Prospect; Pegaso Services, ColTel, both old WOM IDB deals and Acerias Paz del
-Rio are Lost).
+`Reviewing` → Under review, `Cancelled/Hold` → On hold. On 9 October four of the 17 sit on deals in
+Off pipeline (ColTel, both old WOM IDB deals and Acerias Paz del Rio are Lost); Macropay and Pegaso
+Services, which were off pipeline on 25 September, are back in the Americas group.
 
 One copied value looks wrong and was kept as found: **Pegaso Handsets · Bladex** carries 40,000,000
 in a USD column with currency MXN.
