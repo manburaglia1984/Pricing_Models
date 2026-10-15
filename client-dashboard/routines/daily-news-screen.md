@@ -13,6 +13,12 @@ Covers the **live book only**. Prospect and Lost are screened by
   drawer entries; items carrying `tone: "risk"` go to the **Watch-outs — live book** panel.
 - Emails and pushes to the owner **only when there is something**, and on **Fridays regardless**,
   so that silence on the other four days reads as "clear" rather than "broken".
+- Never drops a story. Items that age out of the live window (7 days for signals and notes, 30 for
+  risks, 90 for context), items folded under the 3-per-deal cap, and the previous state of a story
+  it updates in place all go to `newsarchive/<YYYY-MM>` (month of the item's date) before
+  `news/current` is written. If an archive write fails, the items stay in `news/current` for that
+  run. The page lists the archive under **Earlier** in each deal's panel. Added 15 October via
+  `update_trigger`; stories that aged out before then were already gone.
 
 ## Delivery, and its limit
 

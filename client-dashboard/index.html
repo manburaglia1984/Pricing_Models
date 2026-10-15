@@ -311,6 +311,34 @@ html.ac-lock,html.ac-lock body{overflow:hidden}
          font:inherit;font-size:12.5px;font-weight:600;cursor:pointer}
 .ac-deal:hover{filter:brightness(1.08)}
 
+/* ---------- read state ---------- */
+.ac-tools{order:4;flex-basis:100%;display:flex;align-items:center;gap:12px;margin-top:-2px}
+.ac-tools[hidden]{display:none}
+.ac-view button[aria-pressed="true"]{background:var(--surface-3);color:var(--ink)}
+.ac-view .tn{margin-left:5px;font-family:var(--mono);font-size:10.5px;opacity:.75}
+.ac-note{flex:1;min-width:0;font-size:11.5px;color:var(--ink-3)}
+.ac-markall{padding:5px 10px;font-size:12px}
+.ac-markall[disabled]{opacity:.45;cursor:default}
+.ac-i.is-read .ac-in b,.ac-i.is-read .ac-in i{color:var(--ink-3);font-weight:500}
+.ac-i.is-read .ar-mk{opacity:.25}
+.ac-i.is-read .ar-n{background:transparent;color:var(--ink-3);box-shadow:inset 0 0 0 1px var(--line-2)}
+.ai.read .ai-h,.ai.read .ai-b{color:var(--ink-3)}
+.ai.read::before{background:var(--line-2)}
+.ai-new,.nnew{display:inline-block;font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--accent);border:1px solid var(--accent);border-radius:3px;padding:1px 5px 0;line-height:1.4}
+.ai.r .ai-new{color:var(--overdue);border-color:var(--overdue)}
+.ac-unread{padding:6px 11px;font-size:12px}
+.ar-empty a,.ar-empty button.linkish{color:var(--accent);background:none;border:0;padding:0;font:inherit;font-weight:600;cursor:pointer}
+.ar-empty button.linkish:hover{text-decoration:underline}
+.dr-mark{margin-left:auto;padding:3px 8px;font-size:11px;font-weight:600;letter-spacing:0;text-transform:none}
+.dr-sec > h4.with-act{display:flex;align-items:center;gap:8px}
+details.earlier{margin-top:12px;border-top:1px dashed var(--line-2);padding-top:9px}
+details.earlier > summary{cursor:pointer;font-size:11.5px;font-weight:600;color:var(--ink-2);list-style:none}
+details.earlier > summary::-webkit-details-marker{display:none}
+details.earlier > summary::before{content:"\203A";display:inline-block;margin-right:6px;transition:transform .15s ease}
+details.earlier[open] > summary::before{transform:rotate(90deg)}
+details.earlier .nitem{opacity:.85}
+
 @media (max-width:760px){
   .ar{grid-template-columns:3px minmax(0,1fr) auto;row-gap:3px;padding-block:9px}
   .ar-mk{grid-column:1;grid-row:1 / span 2;margin-block:-9px}
@@ -335,6 +363,8 @@ html.ac-lock,html.ac-lock body{overflow:hidden}
   .ac[data-mode="rail"] .ac-det{display:none}
   .ac-back{display:inline-block}
   .ac-det{padding:14px 16px 0}
+  .ac-tools{flex-wrap:wrap;row-gap:6px}
+  .ac-note{order:3;flex-basis:100%}
 }
 @media (prefers-reduced-motion:reduce){
   .ac,.ac-scrim,.ar,.ar-go,.ac-open span{transition:none}
@@ -654,7 +684,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
 .inv-top .ist.dec{color:var(--overdue)}
 .inv-top .ist.idle,.inv-top .ist.hold{color:var(--ink-3)}
 .inv-line{font-size:11px;color:var(--ink-3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.isteps{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin:8px 0 0;max-width:196px}
+.isteps{display:grid;grid-template-columns:repeat(8,1fr);gap:2px;margin:8px 0 0;max-width:224px}
 .isteps i{height:4px;border-radius:1px;background:var(--track)}
 .isteps i.on{background:var(--accent)}
 .isteps.won i{background:var(--st-4)}
@@ -1015,6 +1045,14 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     </div>
     <div class="seg ac-tabs" id="ac-tabs" role="tablist" aria-label="Alert feeds"></div>
     <button class="dr-x" id="ac-close" type="button" aria-label="Close alert centre">&times;</button>
+    <div class="ac-tools" id="ac-tools">
+      <div class="seg ac-view" id="ac-view" role="group" aria-label="Show">
+        <button type="button" data-view="unread" aria-pressed="true">Unread <span class="tn" id="ac-n-unread"></span></button>
+        <button type="button" data-view="all" aria-pressed="false">All <span class="tn" id="ac-n-all"></span></button>
+      </div>
+      <span class="ac-note" id="ac-note"></span>
+      <button type="button" class="ghost ac-markall" id="ac-markall">Mark all read</button>
+    </div>
   </div>
   <div class="ac-b">
     <nav class="ac-rail" id="ac-rail" aria-label="Deals with alerts"></nav>
@@ -1059,7 +1097,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     source:   "color_mm3td94",
     firstCt:  "date_mkx6mes"
   };
-  var SUB = { date: "date_mkwx4xga", booked: "formula_mkzd8c7v", forecast: "formula_mkxft3xn" };
+  var SUB = { date: "date_mkwx4xga", forecast: "formula_mkxft3xn" };
 
   var FY = 2026;
   var OWNER = "Manuel Buraglia";
@@ -1084,8 +1122,29 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     includeColumns: true,
     includeGroup: false,
     filters: [{ columnId: SUB.date, compareValue: [FY + "-01-01", FY + "-12-31"], operator: "between" }],
-    columnIds: [SUB.date, SUB.booked, SUB.forecast]
+    columnIds: [SUB.date, SUB.forecast]
   };
+
+  /* Booked revenue comes from the Trades board itself, not from the subitem's
+     "Total Revenue (Booked) 2026". That formula reads a mirror of the Trades
+     board, and since early October monday returns it empty to the connector:
+     every 2026 line read zero while the trades held about $129k for the
+     Americas. Upfront and Excess are plain number columns, so they always read.
+     A trade reaches its deal through the trade line it links to. */
+  var TR = { date: "date4", upfront: "numeric_mky26s7e", excess: "numeric_mky216f8", line: "board_relation_mkxxbwqj" };
+  var TRADES_INPUT = {
+    boardId: 18387665751,
+    limit: 500,
+    includeColumns: true,
+    includeGroup: false,
+    filters: [{ columnId: TR.date, compareValue: [FY + "-01-01", FY + "-12-31"], operator: "between" }],
+    columnIds: [TR.date, TR.upfront, TR.excess, TR.line]
+  };
+  /* A trade dated this year can sit on a line whose expected date was last year,
+     so that line is not in the REV read. Its deal is looked up by id. */
+  function linesInput(ids) {
+    return { boardId: 18299408615, itemIds: ids.map(Number), limit: 100, includeColumns: false, includeGroup: false };
+  }
 
   /* ---------- cold cohort: Prospect and Lost ----------
      A second read of the same board, for names that are not in the pipeline.
@@ -1141,18 +1200,20 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
   };
   /* Ten days from our last ask with nothing back. Three weeks reads as late. */
   var CHASE_DAYS = 10, LATE_DAYS = 21;
-  /* step places a stage on the seven-segment bar in the deal panel; bucket is
-     what the counts are made of. Live and IAA signed are both money committed. */
+  /* step places a stage on the eight-segment bar in the deal panel; bucket is
+     what the counts are made of. Live and IAA signed are both money committed.
+     Initial sounding is the informal first ask, before any teaser goes out. */
   var ISTAGES = {
     "Not approached":   { step: 0, bucket: "idle" },
-    "Teaser sent":      { step: 1, bucket: "play", short: "teaser" },
-    "NDA signed":       { step: 2, bucket: "play", short: "nda" },
-    "Info shared":      { step: 3, bucket: "play", short: "info" },
-    "Under review":     { step: 4, bucket: "play", short: "review" },
-    "Indicative terms": { step: 5, bucket: "play", short: "terms" },
-    "Credit approved":  { step: 6, bucket: "play", short: "credit" },
-    "IAA signed":       { step: 7, bucket: "won",  short: "iaa" },
-    "Live":             { step: 7, bucket: "won",  short: "live" },
+    "Initial sounding": { step: 1, bucket: "play", short: "sounding" },
+    "Teaser sent":      { step: 2, bucket: "play", short: "teaser" },
+    "NDA signed":       { step: 3, bucket: "play", short: "nda" },
+    "Info shared":      { step: 4, bucket: "play", short: "info" },
+    "Under review":     { step: 5, bucket: "play", short: "review" },
+    "Indicative terms": { step: 6, bucket: "play", short: "terms" },
+    "Credit approved":  { step: 7, bucket: "play", short: "credit" },
+    "IAA signed":       { step: 8, bucket: "won",  short: "iaa" },
+    "Live":             { step: 8, bucket: "won",  short: "live" },
     "Declined":         { step: 0, bucket: "out",  short: "declined" },
     "On hold":          { step: 0, bucket: "out",  short: "hold" }
   };
@@ -1387,14 +1448,130 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
   /* News is written into this artifact's own store by a Claude session,
      because a published page cannot run a web search itself. Absent store,
      absent doc and a rejected read all degrade to the same thing: no panel. */
+  /* ---------- read state ----------
+     Per person, never shared: one colleague opening a watch-out must not clear
+     it for everyone else. Kept in the viewer's private subtree of the data
+     store (data/users/<id>/reads), so it follows them across devices; when this
+     view has no identity it falls back to this browser. A story is identified
+     by its link (or headline) and its date, so when a Routine moves a story on
+     to a new development it comes back as unread. Nothing is ever deleted
+     here: reading only changes what the panels show. */
+  var READS = { keys: {}, mode: "none", uid: null, ready: false, timer: null };
+  var READ_KEEP_DAYS = 180;
+  function hashStr(t) {
+    var h = 5381;
+    for (var i = 0; i < t.length; i++) h = ((h << 5) + h + t.charCodeAt(i)) | 0;
+    return (h >>> 0).toString(36);
+  }
+  function storyKey(prefix, it) {
+    return prefix + hashStr(String(it.url || it.headline || "") + "|" + String(it.date || ""));
+  }
+  function isRead(k) { return !!(k && READS.keys[k]); }
+  function todayISO() { return new Date(TODAY).toISOString().slice(0, 10); }
+  function markRead(keys) {
+    var t = todayISO(), changed = false;
+    keys.forEach(function (k) { if (k && !READS.keys[k]) { READS.keys[k] = t; changed = true; } });
+    if (changed) saveReads();
+    return changed;
+  }
+  function markUnread(keys) {
+    var changed = false;
+    keys.forEach(function (k) { if (k && READS.keys[k]) { delete READS.keys[k]; changed = true; } });
+    if (changed) saveReads();
+    return changed;
+  }
+  function saveReads() {
+    clearTimeout(READS.timer);
+    READS.timer = setTimeout(function () {
+      var cut = new Date(TODAY - READ_KEEP_DAYS * DAY).toISOString().slice(0, 10);
+      Object.keys(READS.keys).forEach(function (k) { if (READS.keys[k] < cut) delete READS.keys[k]; });
+      var body = { v: 1, updatedAt: todayISO(), keys: READS.keys };
+      store.set("sb-desk-reads", JSON.stringify(body));
+      if (READS.mode === "db" && DB) {
+        DB.doc("data/users/" + READS.uid + "/reads").set(body).catch(function () { /* the browser copy still holds it */ });
+      }
+    }, 700);
+  }
+  function loadReads(db) {
+    var local = {};
+    try { local = (JSON.parse(store.get("sb-desk-reads") || "{}").keys) || {}; } catch (e) { local = {}; }
+    var uidP = (window.claude && typeof window.claude.use === "function")
+      ? window.claude.use("user").then(function (u) { return u ? u.id() : null; }).catch(function () { return null; })
+      : Promise.resolve(null);
+    uidP.then(function (uid) {
+      if (!uid || !db) { READS.mode = "local"; READS.keys = local; return; }
+      READS.uid = uid; READS.mode = "db";
+      return db.doc("data/users/" + uid + "/reads").get().then(function (snap) {
+        var d = snap && snap.exists ? snap.data() : null;
+        /* Union, so a read made in this browser while offline is not lost. */
+        READS.keys = Object.assign({}, local, (d && d.keys) || {});
+      }).catch(function () { READS.mode = "local"; READS.keys = local; });
+    }).then(function () {
+      READS.ready = true;
+      onReadsChanged();
+    });
+  }
+  /* Everything that shows a count or a list of alerts redraws from here. */
+  function onReadsChanged() {
+    if (DATA.deals.length) { renderTable(); renderPipeRisks(); }
+    if (COLD.rows.length) renderCold();
+    if (AC.open) renderCentre();
+  }
+
+  /* Archive: the Routines move stories that age out of their live window into
+     monthly documents (newsarchive/<YYYY-MM>, reengagearchive/<YYYY-MM>) rather
+     than dropping them. The page only reads them, for the "Earlier" list in a
+     deal's panel. Absent archives are normal and change nothing. */
+  var ARCH = { news: {}, sig: {} };
+  function loadArchive(db) {
+    function read(coll, done) {
+      db.collection(coll).get().then(function (q) {
+        var items = [];
+        (q && q.docs ? q.docs : []).forEach(function (doc) {
+          var d = doc.data();
+          if (d && Array.isArray(d.items)) items = items.concat(d.items);
+        });
+        done(items);
+      }).catch(function () { /* no archive yet */ });
+    }
+    read("newsarchive", function (items) {
+      var by = {};
+      items.forEach(function (it) {
+        if (!it) return;
+        (it.appliesTo || []).forEach(function (id) { (by[String(id)] = by[String(id)] || []).push(it); });
+      });
+      ARCH.news = by;
+    });
+    read("reengagearchive", function (items) {
+      var by = {};
+      items.forEach(function (it) { if (it && it.id) (by[String(it.id)] = by[String(it.id)] || []).push(it); });
+      ARCH.sig = by;
+    });
+  }
+  /* Earlier items for a deal, newest first, minus anything still live. */
+  function earlierOf(list, live) {
+    var seen = {};
+    (live || []).forEach(function (x) { seen[String(x.url || x.headline)] = true; });
+    var out = [], dup = {};
+    (list || []).forEach(function (x) {
+      var k = String(x.url || x.headline);
+      if (seen[k] || dup[k]) return;
+      dup[k] = true; out.push(x);
+    });
+    return out.sort(function (a, b) { return String(b.date || "").localeCompare(String(a.date || "")); });
+  }
+
   function loadNews() {
     if (!window.claude || typeof window.claude.use !== "function") return;
     window.claude.use("db").then(function (db) {
       if (!db) {
         newsUnavailable("This view cannot reach the artifact's data store, so screened news is unavailable here.");
+        loadReads(null);
         return;
       }
       DB = db;
+      loadReads(db);
+      loadArchive(db);
       syncRoster();
       loadContact(db);
       loadActivity(db);
@@ -1416,6 +1593,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
         NEWS.meta = { checkedAt: d.checkedAt, from: d.windowFrom, to: d.windowTo,
                       noCoverage: d.noCoverage || [] };
         NEWS.items = d.items;
+        NEWS.items.forEach(function (it) { if (it) it._k = storyKey("n", it); });
         var by = {};
         NEWS.items.forEach(function (it) {
           (it.appliesTo || []).forEach(function (id) { (by[id] = by[id] || []).push(it); });
@@ -1485,7 +1663,10 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
       if (!d || !Array.isArray(d.rows)) { signalsUnavailable("The stored screen is not in a shape this page can read."); return; }
       var by = {};
       d.rows.forEach(function (x) {
-        if (x && x.id && Array.isArray(x.signals) && x.signals.length) by[String(x.id)] = x.signals;
+        if (x && x.id && Array.isArray(x.signals) && x.signals.length) {
+          x.signals.forEach(function (sg) { if (sg) sg._k = storyKey("s", sg); });
+          by[String(x.id)] = x.signals;
+        }
       });
       SIGNALS.byDeal = by;
       SIGNALS.meta = { screenedAt: d.screenedAt, window: d.window, coverage: d.coverage,
@@ -1696,9 +1877,10 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
       callOnce(DEALS_INPUT, force, true),
       callOnce(REV_INPUT, force, true),
       callOnce(COLD_INPUT, force, true),
-      callOnce(INV_INPUT, force, true)
+      callOnce(INV_INPUT, force, true),
+      callOnce(TRADES_INPUT, force, true)
     ]).then(function (r) {
-      var dRes = r[0], rRes = r[1], cRes = r[2], iRes = r[3];
+      var dRes = r[0], rRes = r[1], cRes = r[2], iRes = r[3], tRes = r[4];
 
       if (dRes.status === "rejected") {
         var c = errCopy(dRes.reason);
@@ -1731,19 +1913,25 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
         setSrc("src-deals", "ok", "updated " + fmtClock(stamps.deals));
       }
 
+      /* Revenue needs both reads: forecast from the trade lines, booked from the
+         Trades board. Either one missing would show a ratio that means nothing. */
       DATA.revOk = false;
-      if (rRes.status === "fulfilled") {
-        var rev = asJson(rRes.value);
-        if (rev && Array.isArray(rev.items)) {
-          stamps.rev = stampOf(rRes.value);
-          buildRevenue(rev.items);
-          DATA.revOk = true;
-          setSrc("src-rev", "ok", "updated " + fmtClock(stamps.rev));
-          $("rev-warn").classList.add("hidden");
-        }
+      var missingLines = [];
+      var rev = rRes.status === "fulfilled" ? asJson(rRes.value) : null;
+      var trd = tRes.status === "fulfilled" ? asJson(tRes.value) : null;
+      if (rev && Array.isArray(rev.items) && trd && Array.isArray(trd.items)) {
+        stamps.rev = Math.min(stampOf(rRes.value), stampOf(tRes.value));
+        DATA.revItems = rev.items; DATA.tradeItems = trd.items;
+        missingLines = buildRevenue(rev.items, trd.items, null);
+        DATA.revOk = true;
+        revSource();
+        $("rev-warn").classList.add("hidden");
       }
       if (!DATA.revOk) {
-        var rc = rRes.status === "rejected" ? errCopy(rRes.reason) : { b: "The 2026 trade subitems came back in an unexpected shape." };
+        var bad = rRes.status === "rejected" ? rRes : (tRes.status === "rejected" ? tRes : null);
+        var rc = bad ? errCopy(bad.reason)
+          : { b: (rev && Array.isArray(rev.items)) ? "The Trades board came back in an unexpected shape, so booked revenue cannot be counted."
+                                                   : "The 2026 trade subitems came back in an unexpected shape." };
         DATA.rev = {}; DATA.monthly = null;
         setSrc("src-rev", "bad", "unavailable");
         $("rev-warn").classList.remove("hidden");
@@ -1801,6 +1989,37 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
       syncColdRoster();
       renderAll();
       setBusy(false);
+      if (missingLines.length) resolveLines(missingLines, force);
+    });
+  }
+
+  function revSource() {
+    var u = DATA.revUnlinked || { n: 0 };
+    setSrc("src-rev", u.n ? "warn" : "ok", "updated " + fmtClock(stamps.rev) +
+      (u.n ? " \u00b7 " + u.n + " trade" + (u.n === 1 ? "" : "s") + " unlinked" : ""));
+    $("src-rev").title = u.n
+      ? u.n + " trade" + (u.n === 1 ? "" : "s") + " dated " + FY + " (" + fmtM(u.sum) + ") on the Trades board link to no trade line, " +
+        "so " + (u.n === 1 ? "it is" : "they are") + " not counted against any deal. Fix by setting Link to Pipeline on the trade."
+      : "Booked: Upfront + Excess on Trades dated " + FY + ". Forecast: the trade lines' Total Revenue Estimated " + FY + ".";
+  }
+
+  /* Second pass for trades whose line was outside the REV read. Until it lands,
+     those trades are simply not counted yet; if it fails, they are reported as
+     unlinked rather than silently dropped. */
+  function resolveLines(ids, force) {
+    var chunks = [];
+    for (var i = 0; i < ids.length; i += 100) chunks.push(ids.slice(i, i + 100));
+    Promise.allSettled(chunks.map(function (c) { return callOnce(linesInput(c), force, true); })).then(function (r) {
+      var extra = {};
+      r.forEach(function (x) {
+        var j = x.status === "fulfilled" ? asJson(x.value) : null;
+        (j && Array.isArray(j.items) ? j.items : []).forEach(function (it) {
+          if (it && it.parent_item_id) extra[String(it.id)] = String(it.parent_item_id);
+        });
+      });
+      buildRevenue(DATA.revItems || [], DATA.tradeItems || [], extra);
+      revSource();
+      renderAll();
     });
   }
 
@@ -1995,27 +2214,43 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     return a.slice().sort(function (x, y) { return sigScore(y, d) - sigScore(x, d); })[0];
   }
 
-  function buildRevenue(items) {
-    var byDeal = {}, months = [];
+  /* Forecast by trade line, placed in the month of its expected trade date.
+     Booked by trade, placed in the month it actually traded. Returns the ids of
+     trade lines whose deal is still unknown, for one follow-up lookup. */
+  function buildRevenue(items, trades, extraParents) {
+    var byDeal = {}, months = [], parentOf = {}, missing = {}, unlinked = { n: 0, sum: 0 };
     for (var i = 0; i < 12; i++) months.push({ booked: 0, forecast: 0 });
     var ids = {}; DATA.deals.forEach(function (d) { ids[d.id] = true; });
+    function slot(p) { return byDeal[p] || (byDeal[p] = { booked: 0, forecast: 0, trades: 0 }); }
+    function monthOf(dt) { return dt ? new Date(parseDate(dt)).getUTCMonth() : -1; }
 
     items.forEach(function (it) {
       var p = String(it.parent_item_id || "");
       var cv = it.column_values || {};
-      var b = num(cv[SUB.booked]), f = num(cv[SUB.forecast]);
-      if (!byDeal[p]) byDeal[p] = { booked: 0, forecast: 0, trades: 0 };
-      byDeal[p].booked += b; byDeal[p].forecast += f; byDeal[p].trades += 1;
-      if (ids[p]) {
-        var dt = txt(cv[SUB.date]);
-        if (dt) {
-          var m = new Date(parseDate(dt)).getUTCMonth();
-          months[m].booked += b; months[m].forecast += f;
-        }
-      }
+      var f = num(cv[SUB.forecast]);
+      parentOf[String(it.id)] = p;
+      slot(p).forecast += f; slot(p).trades += 1;
+      var m = monthOf(txt(cv[SUB.date]));
+      if (ids[p] && m > -1) months[m].forecast += f;
+    });
+    Object.keys(extraParents || {}).forEach(function (k) { parentOf[k] = extraParents[k]; });
+
+    (trades || []).forEach(function (t) {
+      var cv = t.column_values || {};
+      var amt = num(cv[TR.upfront]) + num(cv[TR.excess]);
+      var rel = cv[TR.line];
+      var line = Array.isArray(rel) && rel.length && rel[0] && rel[0].id != null ? String(rel[0].id) : null;
+      var p = line ? parentOf[line] : null;
+      if (!line) { unlinked.n++; unlinked.sum += amt; return; }
+      if (!p) { if (extraParents) { unlinked.n++; unlinked.sum += amt; } else missing[line] = true; return; }
+      slot(p).booked += amt;
+      var m = monthOf(isoDay(cv[TR.date]));
+      if (ids[p] && m > -1) months[m].booked += amt;
     });
     DATA.rev = byDeal;
     DATA.monthly = months;
+    DATA.revUnlinked = unlinked;
+    return Object.keys(missing);
   }
 
   function revOf(id) { return DATA.rev[id] || { booked: 0, forecast: 0, trades: 0 }; }
@@ -2294,7 +2529,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
         var items = raw.map(function (n) {
           var k = RISKS[n.kind] || RISKS["risk-other"];
           return { date: n.date, label: k.label, short: (n.kind || "risk-other").replace(/^risk-/, "").replace("operational", "ops").replace("governance", "gov"),
-                   rank: k.rank, risk: true, headline: n.headline, body: n.why, source: n.source, url: n.url };
+                   rank: k.rank, risk: true, headline: n.headline, body: n.why, source: n.source, url: n.url, key: n._k };
         }).sort(byDateDesc);
         var worst = Math.min.apply(null, items.map(function (x) { return x.rank; }));
         groups.push({
@@ -2325,7 +2560,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
           g.items.push({ date: sg.date, label: m ? "Answers why it stalled" : k.label,
                    short: m ? "match" : (k.short || (sg.kind || "").replace(/^risk-/, "").replace("operational", "ops").replace("governance", "gov") || "other"),
                    rank: k.rank, risk: risk, matched: m,
-                   headline: sg.headline, body: sg.angle, source: sg.source, url: sg.url });
+                   headline: sg.headline, body: sg.angle, source: sg.source, url: sg.url, key: sg._k });
         });
         var best = risk ? bestRisk(d.id) : bestSig(d.id), sc = sigScore(best, d);
         if (sc > g.leadScore) { g.leadScore = sc; g.lead = { d: d, best: best }; }
@@ -2387,8 +2622,31 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
   /* Section dividers only where there are few sections (exposure bands). On
      Re-engage every kind would get a header of its own and the list would be
      as long as the cards it replaced. */
+  /* Which feeds carry read state. Investor chasers do not: they clear when
+     feedback is logged on the board, not when someone looks at them. */
+  function readable(key) { return key !== "inv-chase"; }
+  /* Keep only the stories not yet read; a deal with none left drops out. */
+  function onlyUnread(groups, readFn) {
+    var out = [];
+    groups.forEach(function (g) {
+      var items = g.items.filter(function (x) { return !readFn(x.key); });
+      if (!items.length) return;
+      var c = Object.assign({}, g); c.items = items; out.push(c);
+    });
+    return out;
+  }
+  function caughtUp(key, all) {
+    var n = totalAlerts(all), m = all.length;
+    return '<div class="ar-empty"><b>All caught up.</b> ' + n + (n === 1 ? " alert" : " alerts") + " on " + m +
+      (m === 1 ? " deal" : " deals") + ' already read. <button type="button" class="linkish ac-open" data-feed="' + key +
+      '" data-view="all">See them in the alert centre</button></div>';
+  }
+
   function renderAlertPanel(key, hostId, limit, withSections) {
-    var host = $(hostId), groups = buildFeed(key);
+    var host = $(hostId), all = buildFeed(key);
+    var groups = readable(key) ? onlyUnread(all, isRead) : all;
+    groups.all = all;
+    groups.readN = totalAlerts(all) - totalAlerts(groups);
     if (!groups.length) return groups;
     var shown = groups.slice(0, limit), more = groups.length - shown.length, html = "", sec = null;
     shown.forEach(function (g) {
@@ -2409,11 +2667,17 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
   function renderPipeRisks() {
     var sec = $("pipe-risk");
     var groups = renderAlertPanel("pipe-risk", "pipe-risks", 10, true);
-    if (!groups.length) { sec.hidden = true; $("pipe-risks").innerHTML = ""; return; }
+    if (!groups.all.length) { sec.hidden = true; $("pipe-risks").innerHTML = ""; return; }
     sec.hidden = false;
-    var n = totalAlerts(groups), hi = groups.filter(function (g) { return g.band === "high"; }).length;
-    $("pipe-risk-sub").textContent = n + (n === 1 ? " alert" : " alerts") + " on " + groups.length +
-      (groups.length === 1 ? " deal" : " deals") + (hi ? " · " + hi + " high exposure" : "") + " · most exposed first";
+    if (!groups.length) {
+      $("pipe-risks").innerHTML = caughtUp("pipe-risk", groups.all);
+      $("pipe-risk-sub").textContent = "Adverse news on deals you are working now. Nothing unread.";
+    } else {
+      var n = totalAlerts(groups), hi = groups.filter(function (g) { return g.band === "high"; }).length;
+      $("pipe-risk-sub").textContent = n + " unread on " + groups.length +
+        (groups.length === 1 ? " deal" : " deals") + (hi ? " · " + hi + " high exposure" : "") +
+        (groups.readN ? " · " + groups.readN + " read" : "") + " · most exposed first";
+    }
     if (AC.open) renderCentre();
   }
 
@@ -2456,12 +2720,14 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
       "</span><i>" + esc(invParts(s).join(" \u00b7 ")) + "</i></div>";
   }
 
+  /* Unread only: a story already read has done its job in the table, and the
+     deal's panel still lists it. */
   function newsChip(id) {
-    var all = newsFor(id);
+    var all = newsFor(id).filter(function (n) { return !isRead(n._k); });
     if (!all.length) return "";
-    var rk = newsRisks(id), rest = all.length - rk.length, out = "";
+    var rk = all.filter(isRisk), rest = all.length - rk.length, out = "";
     if (rest) {
-      var sig = hasSignal(id);
+      var sig = all.some(function (n) { return n.tier === "signal" && !isRisk(n); });
       out += '<span class="nchip' + (sig ? " signal" : "") + '">' +
         (sig ? "news" : rest + " item" + (rest === 1 ? "" : "s")) + "</span>";
     }
@@ -2546,7 +2812,9 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
         '<br><span style="color:var(--ink-3)">The weekly screen writes it. Ask Claude to run one now if you do not want to wait for Monday.</span></div>';
       return;
     }
-    if (!renderAlertPanel("re-open", "openings", 6, false).length) {
+    var og = renderAlertPanel("re-open", "openings", 6, false);
+    if (!og.length && og.all.length) { host.innerHTML = caughtUp("re-open", og.all); return; }
+    if (!og.length) {
       host.innerHTML = '<div class="empty">Nothing this week.' +
         (SIGNALS.meta && SIGNALS.meta.screened ? ' ' + SIGNALS.meta.screened + ' names were screened' +
           (SIGNALS.meta.screenedAt ? " to " + fmtDate(SIGNALS.meta.screenedAt) : "") + "." : "") +
@@ -2560,8 +2828,10 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     var sec = $("risk-panel");
     sec.hidden = !COLD.ok || !!(SIGNALS.meta && SIGNALS.meta.error);
     if (sec.hidden) return;
-    if (!renderAlertPanel("re-risk", "risks", 6, false).length) {
-      $("risks").innerHTML = '<div class="empty">Nothing adverse surfaced this week.</div>';
+    var rg = renderAlertPanel("re-risk", "risks", 6, false);
+    if (!rg.length) {
+      $("risks").innerHTML = rg.all.length ? caughtUp("re-risk", rg.all)
+        : '<div class="empty">Nothing adverse surfaced this week.</div>';
     }
   }
 
@@ -2570,7 +2840,25 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
      live data and the link back into each deal. Deals down the left, the
      selected deal's stories in full on the right; on a phone, one pane at a
      time with a way back. */
-  var AC = { open: false, key: "pipe-risk", gid: null, groups: [], mode: "rail", last: null };
+  var AC = { open: false, key: "pipe-risk", gid: null, groups: [], mode: "rail", last: null,
+             view: "unread", snap: {}, markT: null, hold: {} };
+
+  /* Inside the window, "unread" means unread WHEN IT OPENED: a deal you have
+     just read stays in the list until you close or switch tab, so it does not
+     vanish from under the cursor. */
+  function feedGroups(key, view) {
+    var all = buildFeed(key);
+    if (!readable(key) || view === "all") return all;
+    return onlyUnread(all, function (k) { return !!AC.snap[k]; });
+  }
+  function defaultView(key) {
+    if (!readable(key)) return "all";
+    return onlyUnread(buildFeed(key), isRead).length ? "unread" : "all";
+  }
+  function detailVisible() {
+    var det = $("ac-det");
+    return !!det && getComputedStyle(det).display !== "none";
+  }
 
   function screenedLine(key) {
     if (key === "inv-chase") return stamps.inv ? "read live " + fmtClock(stamps.inv) : "";
@@ -2578,8 +2866,10 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     return SIGNALS.meta && SIGNALS.meta.screenedAt ? "screened " + fmtDate(SIGNALS.meta.screenedAt) : "";
   }
 
-  function openCentre(key, gid) {
+  function openCentre(key, gid, view) {
     AC.key = key; AC.gid = gid || null; AC.mode = gid ? "detail" : "rail";
+    AC.snap = Object.assign({}, READS.keys); AC.hold = {};
+    AC.view = readable(key) ? (view || defaultView(key)) : "all";
     if (!AC.open) {
       AC.last = document.activeElement;
       AC.open = true;
@@ -2596,18 +2886,31 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
   function closeCentre(then) {
     if (!AC.open) return;
     AC.open = false;
+    clearTimeout(AC.markT);
     $("ac").classList.remove("on"); $("ac-scrim").classList.remove("on");
     document.documentElement.classList.remove("ac-lock");
     setTimeout(function () { if (!AC.open) { $("ac").hidden = true; $("ac-scrim").hidden = true; } }, 190);
+    /* What was read in the window now leaves the panels and chips. That
+       redraw replaces the row that opened the window, so focus goes back to
+       its replacement, or to the panel's own Alert centre button. */
+    var lf = AC.last, fd = lf && lf.getAttribute ? lf.getAttribute("data-feed") : null,
+        gd = lf && lf.getAttribute ? lf.getAttribute("data-gid") : null;
+    if (DATA.deals.length) { renderTable(); renderPipeRisks(); }
+    if (COLD.rows.length) renderCold();
+    var target = lf;
+    if (lf && !document.body.contains(lf) && fd) {
+      target = (gd && document.querySelector('.ar[data-feed="' + fd + '"][data-gid="' + gd + '"]')) ||
+               document.querySelector('.ac-open[data-feed="' + fd + '"]:not(.linkish)') || null;
+    }
     /* Return focus first, so a drawer opened next remembers the row, not a
        button inside a window that has just gone. */
-    if (AC.last && AC.last.focus) AC.last.focus();
+    if (target && target.focus) target.focus();
     if (typeof then === "function") then();
   }
 
   function renderCentre() {
     var f = FEEDS[AC.key];
-    AC.groups = buildFeed(AC.key);
+    AC.groups = feedGroups(AC.key, AC.view);
     if (!AC.groups.some(function (g) { return g.id === AC.gid; })) AC.gid = AC.groups.length ? AC.groups[0].id : null;
     $("ac").setAttribute("data-mode", AC.mode);
 
@@ -2615,13 +2918,6 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     var n = totalAlerts(AC.groups), u = f.unit || ["alert", "alerts"];
     $("ac-sub").textContent = n + " " + (n === 1 ? u[0] : u[1]) + " on " + AC.groups.length +
       (AC.groups.length === 1 ? " deal" : " deals") + (screenedLine(AC.key) ? " · " + screenedLine(AC.key) : "");
-
-    $("ac-tabs").innerHTML = Object.keys(FEEDS).map(function (k) {
-      var c = buildFeed(k).length, on = k === AC.key;
-      return '<button type="button" role="tab" data-tab="' + k + '" aria-selected="' + on + '"' +
-        (!c && !on ? ' aria-disabled="true" tabindex="-1"' : "") + ">" + esc(FEEDS[k].tab) +
-        '<span class="tn">' + c + "</span></button>";
-    }).join("");
 
     var rail = $("ac-rail"), keep = rail.scrollTop, sec = null, html = "";
     AC.groups.forEach(function (g) {
@@ -2632,15 +2928,49 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
         '<span class="ac-in"><b>' + esc(g.name) + "</b><i>" + esc(g.hl || g.items[0].headline || "") + "</i></span>" +
         '<span class="ar-n">' + g.items.length + "</span></button>";
     });
-    rail.innerHTML = html || '<div class="empty">Nothing in this feed.</div>';
+    rail.innerHTML = html || (AC.view === "unread"
+      ? '<div class="empty">All caught up.<br><button type="button" class="linkish ac-showall">Show read alerts</button></div>'
+      : '<div class="empty">Nothing in this feed.</div>');
     rail.scrollTop = keep;
+    paintReadState();
     renderDetail();
+  }
+
+  /* Counts, tab badges and dimmed rows, without rebuilding the detail pane. */
+  function paintReadState() {
+    var ro = readable(AC.key);
+    $("ac-tabs").innerHTML = Object.keys(FEEDS).map(function (k) {
+      var all = buildFeed(k), on = k === AC.key;
+      /* Alerts, not deals, so the tab and the Unread toggle never disagree. */
+      var c = totalAlerts(readable(k) ? onlyUnread(all, isRead) : all);
+      return '<button type="button" role="tab" data-tab="' + k + '" aria-selected="' + on + '"' +
+        (!all.length && !on ? ' aria-disabled="true" tabindex="-1"' : "") + ">" + esc(FEEDS[k].tab) +
+        '<span class="tn">' + c + "</span></button>";
+    }).join("");
+    $("ac-tools").hidden = !ro;
+    if (ro) {
+      var all = buildFeed(AC.key), unread = totalAlerts(onlyUnread(all, isRead));
+      $("ac-n-unread").textContent = unread;
+      $("ac-n-all").textContent = totalAlerts(all);
+      Array.prototype.forEach.call($("ac-view").children, function (b) {
+        b.setAttribute("aria-pressed", String(b.getAttribute("data-view") === AC.view));
+      });
+      $("ac-markall").disabled = !unread;
+      $("ac-note").textContent = READS.mode === "db" ? "Read marks are yours alone and follow you across devices."
+        : (READS.mode === "local" ? "Read marks are kept in this browser only." : "");
+    }
+    var byId = {}; AC.groups.forEach(function (g) { byId[g.id] = g; });
+    Array.prototype.forEach.call($("ac-rail").querySelectorAll(".ac-i"), function (b) {
+      var g = byId[b.getAttribute("data-gid")];
+      var done = ro && g && g.items.every(function (x) { return isRead(x.key); });
+      b.classList.toggle("is-read", !!done);
+    });
   }
 
   function renderDetail() {
     var det = $("ac-det"), g = AC.groups.filter(function (x) { return x.id === AC.gid; })[0];
     if (!g) { det.innerHTML = '<div class="empty">Nothing to show here.</div>'; return; }
-    var f = FEEDS[AC.key], u = f.unit || ["alert", "alerts"];
+    var f = FEEDS[AC.key], u = f.unit || ["alert", "alerts"], ro = readable(AC.key);
     var chip = AC.key === "pipe-risk"
       ? '<span class="pchip exp ' + g.band + '">' + esc(g.tagLong || g.tag) + "</span>"
       : '<span class="pchip">' + esc(g.tag) + "</span>" + (g.ours ? '<span class="pchip ours">waiting on us</span>' : "");
@@ -2651,9 +2981,11 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
         '<div class="ac-tags">' + chip + "</div>" +
       "</div>" +
       '<ol class="ac-list">' + g.items.map(function (x) {
-        return '<li class="ai' + (x.risk ? " r" : (x.matched ? " m" : (x.tone ? " " + x.tone : ""))) + '">' +
+        var before = ro && AC.snap[x.key];
+        return '<li class="ai' + (x.risk ? " r" : (x.matched ? " m" : (x.tone ? " " + x.tone : ""))) + (before ? " read" : "") + '">' +
           '<div class="ai-m"><span class="num">' + esc(fmtDate(x.date)) + "</span>" +
-            '<span class="ak' + (x.risk ? " r" : (x.matched ? " m" : "")) + '">' + esc(x.label) + "</span></div>" +
+            '<span class="ak' + (x.risk ? " r" : (x.matched ? " m" : "")) + '">' + esc(x.label) + "</span>" +
+            (ro && !before ? '<span class="ai-new">new</span>' : "") + "</div>" +
           '<p class="ai-h">' + esc(x.headline || "") + "</p>" +
           (x.body ? '<p class="ai-b">' + esc(x.body) + "</p>" : "") +
           '<div class="ai-s">' + esc(x.source || "") +
@@ -2661,8 +2993,18 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
         "</li>";
       }).join("") + "</ol>" +
       '<div class="ac-df"><span>' + g.items.length + " " + (g.items.length === 1 ? u[0] : u[1]) + " · " + (f.order || "newest first") + "</span>" +
+        (ro ? '<button type="button" class="ghost ac-unread">Mark unread</button>' : "") +
         '<button type="button" class="ac-deal">Open deal →</button></div>';
     det.scrollTop = 0;
+    /* Seen once it has been on screen for a moment: skimming the rail with
+       the arrow keys should not read every deal it passes. */
+    clearTimeout(AC.markT);
+    if (ro && detailVisible() && !AC.hold[g.id]) {
+      var gid = g.id, keys = g.items.map(function (x) { return x.key; });
+      AC.markT = setTimeout(function () {
+        if (AC.open && AC.gid === gid && markRead(keys)) paintReadState();
+      }, 900);
+    }
   }
 
   function selectGroup(id, focusRail) {
@@ -2737,8 +3079,12 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
       ? "Blocked on our side, not theirs. Client news will not move these."
       : "Nothing is blocked on our side.";
 
-    $("tab-n").textContent = nSigNames || "";
-    $("tab-n").hidden = !nSigNames;
+    var nNew = COLD.rows.filter(function (d) {
+      return openingsOf(d.id).some(function (sg) { return !isRead(sg._k); });
+    }).length;
+    $("tab-n").textContent = nNew || "";
+    $("tab-n").hidden = !nNew;
+    $("tab-n").title = nNew ? nNew + (nNew === 1 ? " name" : " names") + " with an unread opening" : "";
     $("foot-cutoff").textContent = fmtDate(COLD_CUTOFF);
     $("open-sub").textContent = SIGNALS.meta && SIGNALS.meta.coverage
       ? SIGNALS.meta.coverage
@@ -2798,10 +3144,39 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
   }
 
   /* ---------- drawer ---------- */
-  var lastFocus = null;
+  var lastFocus = null, drawerId = null;
+
+  /* Read state inside a deal's panel: a "new" mark on stories not yet read,
+     and one button per section to clear them. Opening the panel reads
+     nothing by itself: it is opened for contact, investors and revenue as
+     often as for news, and a watch-out below the fold is not "seen". */
+  function newBadge(n) { return n && n._k && !isRead(n._k) ? '<span class="nnew">new</span>' : ""; }
+  function markBtn(list) {
+    var u = (list || []).filter(function (n) { return n && n._k && !isRead(n._k); });
+    return u.length ? '<button type="button" class="ghost dr-mark" data-keys="' +
+      u.map(function (n) { return n._k; }).join(" ") + '">Mark read</button>' : "";
+  }
+  function earlierBlock(list) {
+    if (!list.length) return "";
+    return '<div class="dr-sec"><details class="earlier"><summary>Earlier (' + list.length + ")</summary>" +
+      list.map(function (n) {
+        var r = isRisk(n);
+        var lab = r ? (RISKS[n.kind] || RISKS["risk-other"]).label
+          : (KINDS[n.kind] ? KINDS[n.kind].label : (n.tier === "signal" ? "Signal" : (n.tier === "context" ? "Context" : "Note")));
+        var body = n.why || n.angle;
+        return '<div class="nitem' + (r ? " risk" : "") + '"><div class="nmeta"><span class="num">' +
+          (n.date ? fmtDate(n.date) : "\u2014") + '</span><span class="nchip' + (r ? " risk" : "") + '">' + esc(lab) +
+          "</span></div><b>" + esc(n.headline || "") + "</b>" + (body ? "<p>" + esc(body) + "</p>" : "") +
+          '<div class="nsrc">' + esc(n.source || "") +
+          (n.url ? ' <a href="' + esc(n.url) + '" target="_blank" rel="noopener">source \u2197</a>' : "") + "</div></div>";
+      }).join("") +
+      '<p class="note">Kept in the archive after leaving the live window, so nothing screened is lost.</p></details></div>';
+  }
+
   function openDrawer(id) {
     var d = DATA.deals.filter(function (x) { return x.id === id; })[0];
     if (!d) return;
+    drawerId = id;
     lastFocus = document.activeElement;
     var r = revOf(d.id);
     Array.prototype.forEach.call($("tbody").children, function (tr) {
@@ -2889,7 +3264,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     if (dn.length) {
       var drk = dn.filter(isRisk); dn = dn.filter(function (n) { return !isRisk(n); });
       if (drk.length) {
-        h += '<div class="dr-sec"><h4>Watch-outs (' + drk.length + ")</h4>" +
+        h += '<div class="dr-sec"><h4 class="with-act">Watch-outs (' + drk.length + ")" + markBtn(drk) + "</h4>" +
           "<p>Adverse news on a deal you are working. " + esc(expWhy(d)) + ".</p>" +
           drk.slice().sort(function (a, b) {
             return (RISKS[a.kind] || RISKS["risk-other"]).rank - (RISKS[b.kind] || RISKS["risk-other"]).rank;
@@ -2897,7 +3272,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
             var k = RISKS[n.kind] || RISKS["risk-other"];
             return '<div class="nitem risk"><div class="nmeta"><span class="num">' +
               (n.date ? fmtDate(n.date) : "\u2014") + '</span><span class="nchip risk">' + esc(k.label) +
-              "</span></div><b>" + esc(n.headline || "") + "</b>" +
+              "</span>" + newBadge(n) + "</div><b>" + esc(n.headline || "") + "</b>" +
               (n.why ? "<p>" + esc(n.why) + "</p>" : "") +
               '<div class="nsrc">' + esc(n.source || "") +
                 (n.url ? ' <a href="' + esc(n.url) + '" target="_blank" rel="noopener">source \u2197</a>' : "") +
@@ -2905,7 +3280,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
           }).join("") + "</div>";
       }
       if (!dn.length) h += '<div class="dr-sec"><h4>In the news</h4><p class="note">Nothing else picked up for this name in the screened window.</p></div>';
-      else h += '<div class="dr-sec"><h4>In the news (' + dn.length + ")</h4><ul class=\"news-list\">" +
+      else h += '<div class="dr-sec"><h4 class="with-act">In the news (' + dn.length + ")" + markBtn(dn) + "</h4><ul class=\"news-list\">" +
         dn.slice().sort(function (a, b) {
           var t = (TIER_RANK[a.tier] || 9) - (TIER_RANK[b.tier] || 9);
           return t !== 0 ? t : String(b.date).localeCompare(String(a.date));
@@ -2913,7 +3288,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
           var tag = n.tier === "signal" ? "Signal" : (n.tier === "context" ? "Context" : "Note");
           return '<li class="' + n.tier + '"><span class="nstripe"></span><div>' +
             '<div class="news-head"><span class="ndate">' + fmtDate(n.date) + "</span>" +
-            '<span class="ntag">' + tag + "</span></div>" +
+            '<span class="ntag">' + tag + "</span>" + newBadge(n) + "</div>" +
             '<div class="news-hl">' + esc(n.headline) + "</div>" +
             (n.why ? '<div class="news-why">' + esc(n.why) + "</div>" : "") +
             '<div class="news-src">' + esc(n.source) +
@@ -2923,6 +3298,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     } else if (NEWS.items.length) {
       h += '<div class="dr-sec"><h4>In the news</h4><p class="note">Nothing picked up for this name in the screened window.</p></div>';
     }
+    h += earlierBlock(earlierOf(ARCH.news[d.id], newsFor(d.id)));
 
     h += '<div class="dr-sec"><h4>On monday.com</h4><p class="note">' +
       '<a href="' + esc(d.url) + '" target="_blank" rel="noopener">Open this deal on the Global Pipeline board ↗</a></p></div>';
@@ -2970,7 +3346,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     var bar = "";
     if (b === "play" || b === "won") {
       bar = '<div class="isteps' + (b === "won" ? " won" : "") + '" aria-hidden="true">';
-      for (var i = 1; i <= 7; i++) bar += "<i" + (i <= step ? ' class="on"' : "") + "></i>";
+      for (var i = 1; i <= 8; i++) bar += "<i" + (i <= step ? ' class="on"' : "") + "></i>";
       bar += "</div>";
     }
     var dates = [];
@@ -3009,6 +3385,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
      watch for — which is the part worth reading when nothing has happened. */
   function openCold(id) {
     var d = coldById(id); if (!d) return;
+    drawerId = id;
     lastFocus = document.activeElement;
     Array.prototype.forEach.call($("cbody").children, function (tr) {
       tr.setAttribute("aria-selected", String(tr.getAttribute("data-cid") === id));
@@ -3030,7 +3407,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
         return '<div class="nitem' + (isR ? " risk" : "") + '">' +
           '<div class="nmeta"><span class="num">' + (sg.date ? fmtDate(sg.date) : "—") + "</span>" +
             '<span class="nchip' + (isR ? " risk" : (m ? " signal" : "")) + '">' +
-            (!isR && m ? "answers why it stalled" : esc(k.label)) + "</span></div>" +
+            (!isR && m ? "answers why it stalled" : esc(k.label)) + "</span>" + newBadge(sg) + "</div>" +
           "<b>" + esc(sg.headline || "") + "</b>" +
           (sg.angle ? "<p>" + esc(sg.angle) + "</p>" : "") +
           '<div class="nsrc">' + esc(sg.source || "") +
@@ -3040,7 +3417,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     }
 
     var ops = openingsOf(d.id), rks = risksOf(d.id);
-    h += '<div class="dr-sec"><h4>Signals' + (ops.length ? " (" + ops.length + ")" : "") + "</h4>";
+    h += '<div class="dr-sec"><h4 class="with-act">Signals' + (ops.length ? " (" + ops.length + ")" : "") + markBtn(ops) + "</h4>";
     h += ops.length ? sigBlock(ops, false)
       : "<p>" + (SIGNALS.meta && SIGNALS.meta.error
           ? esc(SIGNALS.meta.error)
@@ -3048,10 +3425,11 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     h += "</div>";
 
     if (rks.length) {
-      h += '<div class="dr-sec"><h4>Watch-outs (' + rks.length + ")</h4>";
+      h += '<div class="dr-sec"><h4 class="with-act">Watch-outs (' + rks.length + ")" + markBtn(rks) + "</h4>";
       h += "<p>Adverse news. Check these before approaching, not a reason to call.</p>";
       h += sigBlock(rks, true) + "</div>";
     }
+    h += earlierBlock(earlierOf(ARCH.sig[d.id], sigsOf(d.id)));
 
     h += '<div class="dr-sec"><h4>The relationship</h4><dl class="kv">';
     h += "<dt>Status</dt><dd>" + esc(d.stage) + "</dd>";
@@ -3132,7 +3510,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
   document.addEventListener("click", function (e) {
     var b = e.target.closest(".ar, .ar-more, .ac-open");
     if (!b || !b.hasAttribute("data-feed")) return;
-    openCentre(b.getAttribute("data-feed"), b.getAttribute("data-gid") || null);
+    openCentre(b.getAttribute("data-feed"), b.getAttribute("data-gid") || null, b.getAttribute("data-view") || null);
   });
 
   $("ac-close").addEventListener("click", function () { closeCentre(); });
@@ -3141,14 +3519,40 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     var t = e.target.closest("button[data-tab]");
     if (!t || t.getAttribute("aria-disabled") === "true" || t.getAttribute("data-tab") === AC.key) return;
     AC.key = t.getAttribute("data-tab"); AC.gid = null; AC.mode = "rail";
+    AC.snap = Object.assign({}, READS.keys); AC.hold = {}; AC.view = defaultView(AC.key);
     $("ac-rail").scrollTop = 0;
     renderCentre();
     var nt = $("ac-tabs").querySelector('[data-tab="' + AC.key + '"]'); if (nt) nt.focus();
   });
   $("ac-rail").addEventListener("click", function (e) {
+    if (e.target.closest(".ac-showall")) { AC.view = "all"; renderCentre(); return; }
     var i = e.target.closest(".ac-i"); if (i) selectGroup(i.getAttribute("data-gid"), false);
   });
+  $("ac-view").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-view]"); if (!b || b.getAttribute("data-view") === AC.view) return;
+    AC.view = b.getAttribute("data-view");
+    AC.snap = Object.assign({}, READS.keys);
+    renderCentre();
+  });
+  $("ac-markall").addEventListener("click", function () {
+    var keys = [];
+    buildFeed(AC.key).forEach(function (g) { g.items.forEach(function (x) { keys.push(x.key); }); });
+    markRead(keys);
+    AC.snap = Object.assign({}, READS.keys);
+    renderCentre();
+    $("ac-close").focus();
+  });
   $("ac-det").addEventListener("click", function (e) {
+    if (e.target.closest(".ac-unread")) {
+      var cg = AC.groups.filter(function (x) { return x.id === AC.gid; })[0];
+      if (!cg) return;
+      var ks = cg.items.map(function (x) { return x.key; });
+      markUnread(ks);
+      ks.forEach(function (k) { delete AC.snap[k]; });
+      AC.hold[cg.id] = true;   /* do not re-read it while it is still on screen */
+      renderCentre();
+      return;
+    }
     if (e.target.closest(".ac-back")) {
       AC.mode = "rail"; $("ac").setAttribute("data-mode", "rail");
       var cur = $("ac-rail").querySelector('.ac-i[aria-current="true"]'); if (cur) cur.focus();
@@ -3178,6 +3582,18 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
   });
 
+  $("dr-body").addEventListener("click", function (e) {
+    var b = e.target.closest(".dr-mark"); if (!b) return;
+    markRead(String(b.getAttribute("data-keys") || "").split(" ").filter(Boolean));
+    var sec = b.closest(".dr-sec");
+    Array.prototype.forEach.call(sec.querySelectorAll(".nnew"), function (x) { x.remove(); });
+    b.remove();
+    onReadsChanged();
+    [$("tbody"), $("cbody")].forEach(function (tb) {
+      var tr = tb && tb.querySelector('tr[data-id="' + drawerId + '"], tr[data-cid="' + drawerId + '"]');
+      if (tr) tr.setAttribute("aria-selected", "true");
+    });
+  });
   $("dr-close").addEventListener("click", closeDrawer);
   $("scrim").addEventListener("click", closeDrawer);
   document.addEventListener("keydown", function (e) {

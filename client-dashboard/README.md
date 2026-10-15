@@ -11,16 +11,22 @@ nothing confidential is stored in the file.
 
 ## How it works
 
-The page is published as a private Artifact and declares the `mcp` runtime capability:
+The page is published as a private Artifact and declares three runtime capabilities:
 
 ```
-capabilities: { mcp: { servers: [ { server: "monday.com", tools: ["get_board_items_page"] } ] } }
+capabilities: { mcp: { servers: [ { server: "monday.com", tools: ["get_board_items_page"] } ] },
+                db: {}, user: {} }
 ```
 
-At load it calls `claude.use("mcp")` and then issues four `get_board_items_page` calls — one for
-pipeline deals, one for 2026 trade subitems (joined on `parent_item_id`), one for the Prospect
-and Lost cohort behind the **Re-engage** view, and one for the **Investor Distribution** board. Calls run with the viewer's monday.com credentials;
-the page never sees a token.
+`db` is the artifact's own data store (news, screens, rosters, archive); `user` gives each viewer
+the opaque id behind their private read marks. A publish that passes a capabilities object replaces
+the whole set, so all three must be restated together.
+
+At load it calls `claude.use("mcp")` and then issues five `get_board_items_page` calls — one for
+pipeline deals, one for 2026 trade lines (joined on `parent_item_id`), one for 2026 trades on the
+Trades board, one for the Prospect and Lost cohort behind the **Re-engage** view, and one for the
+**Investor Distribution** board. Calls run with the viewer's monday.com credentials; the page never
+sees a token.
 
 Because of this it **only works when opened from claude.ai**. Opened as a local file or from a
 share it has no `window.claude`, and says so rather than appearing broken.
@@ -74,13 +80,29 @@ Deals are filtered to the Americas group and to `Status` label ids `[0, 1, 2, 8]
 | `termSheet` | Term Sheet | `color_mm2p96gr` |
 | `afl` | AFL Deal? | `dropdown_mkx6a8g2` |
 
-### Revenue columns (subitems, filtered to trade dates in 2026)
+### Revenue columns
 
-| JSON field | Column | Id |
+**Forecast** comes from the trade lines (Global Pipeline subitems, board `18299408615`, filtered to
+Exp Trade Date in 2026):
+
+| Use | Column | Id |
 |---|---|---|
-| `booked` | Total Revenue (Booked) 2026 | `formula_mkzd8c7v` |
-| `forecast` | Total Revenue Estimated 2026 | `formula_mkxft3xn` |
-| — | Exp Trade Date (drives the monthly chart) | `date_mkwx4xga` |
+| forecast | Total Revenue Estimated 2026 | `formula_mkxft3xn` |
+| forecast month | Exp Trade Date | `date_mkwx4xga` |
+
+**Booked** comes from the Trades board (`18387665751`, filtered to Trade Date in 2026), one row per
+executed trade, attributed to a deal through its trade line's parent:
+
+| Use | Column | Id |
+|---|---|---|
+| booked month | Trade Date | `date4` |
+| booked | Upfront + Excess (the board's own Total is `ROUND` of the same sum) | `numeric_mky26s7e`, `numeric_mky216f8` |
+| deal | Link to Pipeline → trade line → `parent_item_id` | `board_relation_mkxxbwqj` |
+
+A trade whose line falls outside the 2026 line read is looked up by id in a second pass. A trade
+with no Link to Pipeline at all is counted nowhere and flagged on the *2026 revenue* source pill,
+with the count and amount in its tooltip. On 15 October that was two OGA Mizuho trades (RoW, about
+$133k), so it does not touch the Americas figure.
 
 ### Two traps in the monday MCP responses
 
@@ -90,6 +112,12 @@ Deals are filtered to the Americas group and to `Status` label ids `[0, 1, 2, 8]
    which is why the page sums the underlying subitem formulas itself. Formula columns *do* resolve.
 2. **An empty dropdown returns an object, not null** — `{"ids":[],"changed_at":"…"}`. Anything not a
    non-empty string is treated as absent.
+3. **A formula that depends on a mirror column now returns `""`.** *Total Revenue (Booked) 2026*
+   (`formula_mkzd8c7v`) reads a mirror of the Trades board, and from early October the connector
+   returned it empty on every line, so the dashboard showed zero booked revenue for the year. The
+   same applies to *Trade Year* (`formula_mkxnbwce`). Booked is now summed from the Trades board's
+   own number columns instead. Formulas over plain columns on the same row, like the forecast, still
+   resolve. Before relying on any formula column, check that its inputs are not mirrors.
 
 ---
 
@@ -171,10 +199,15 @@ row on the Trades board) and **Estimated/Forecast** for 2026. The dashboard show
 forecast, and the pace marker is *forecast dated on or before today* — not a straight-line share of
 the year, because this book's forecast is heavily back-loaded.
 
-**Booked revenue only appears once a trade subitem is linked to the Trades board.** Several Live
-deals carry forecast with zero booked. That is either genuinely unbilled or a missing trade link,
-and the dashboard cannot tell which — so any deal in that state gets a "Worth checking" note in its
-drawer rather than being presented as a zero-revenue client.
+**Booked revenue only appears once a trade on the Trades board links to the deal's trade line.**
+Several Live deals carry forecast with zero booked. That is either genuinely unbilled or a missing
+trade link, and the dashboard cannot tell which — so any deal in that state gets a "Worth checking"
+note in its drawer rather than being presented as a zero-revenue client.
+
+**The forecast is unweighted.** It sums every pipeline deal's 2026 lines, Discovery included, and on
+15 October about $4.5mm of the $4.66mm landed in November and December — Pegaso Handsets alone
+carried about $2.0mm. Booked against full-year forecast therefore reads low (2.8% on that date). The
+pace marker is the fairer read: $129k booked against $140k forecast to land by that date.
 
 ---
 
@@ -413,7 +446,8 @@ The same content now takes 8 rows and about 550 pixels.
 - **A window, not a browser tab.** A new tab would lose the live data and the link back into each
   deal. The centre is a modal dialog: focus moves in, Tab stays inside, Escape closes, and focus
   returns to the row that opened it.
-- **Tabs switch feed** — live book, Openings, Re-engage risks — with a count on each.
+- **Tabs switch feed** — live book, Openings, Re-engage risks, Investor chasers — each with its
+  count of unread alerts (all alerts for chasers).
 - **Arrow keys walk the deal list.** The rail keeps its scroll position when the data refreshes.
 - **Open deal** closes the centre and opens that deal's drawer on the right view. Focus is returned
   to the row first, so the drawer remembers the row rather than a button in a window that has gone.
@@ -431,6 +465,40 @@ characters and a why/angle line at 280, keep research notes out of both, and fol
 into its existing alert instead of adding another — one Bogotá council debate had been stored as
 four Enel Colombia alerts. The daily Routine also rewrites any stored item that breaks the limits,
 so the long September items are cleaned up on its next run rather than lingering for their 30 days.
+### Read and unread
+
+Alerts a reader has already seen drop out of the panels, the table chips and the Re-engage tab
+count, so what is left is what is new to them. Nothing is deleted: read stories stay one click away.
+
+- **Each person's own.** One colleague opening a watch-out must not clear it for everyone else. Read
+  marks live in the viewer's private subtree of the data store, `data/users/<id>/reads`, which even
+  the artifact's owner cannot read, so they follow a person across devices. The page declares the
+  `user` capability for that id. A view with no identity falls back to this browser only, and the
+  alert centre says which of the two is in force.
+- **Marked when opened in the alert centre.** A deal's stories count as read once its detail has
+  been on screen for about a second, so skimming the list with the arrow keys does not read every
+  deal it passes. The window keeps what was unread when it opened marked *new* until it closes, so
+  nothing vanishes mid-read. *Mark unread* puts a deal back; *Mark all read* clears a feed.
+- **The deal panel does not auto-mark.** It is opened for contact, investors and revenue as often as
+  for news. Each news section there carries *new* badges and its own *Mark read* button instead.
+- **Unread / All.** The centre opens on *Unread* when there is anything unread, and on *All*
+  otherwise. A panel with everything read says *All caught up* with a link to the read stories.
+- **A story is its url (or headline) plus its date.** When the daily Routine folds a development
+  into an existing story it moves the date, so the story comes back as unread. That is intended.
+- **Investor chasers are not read-tracked.** They clear when feedback is logged on the board, not
+  when someone looks at them.
+- Marks older than 180 days are pruned; by then the story has left every live window.
+
+### The archive
+
+The Routines used to drop stories as they aged out of their window — 7 days for news signals, 30
+for risks, and a week for every Re-engage signal. They now move them to monthly documents instead:
+`newsarchive/<YYYY-MM>` (daily screen) and `reengagearchive/<YYYY-MM>` (weekly screen), by the
+month of the story's date. Each deal's or name's panel lists them under **Earlier**, collapsed,
+newest first, minus anything still live. The page only reads the archive; the Routines are the only
+writers, and they write the archive before the live document so a failure cannot lose anything.
+Stories dropped before 15 October were not recoverable.
+
 ---
 
 ## Investors on each deal
@@ -527,10 +595,12 @@ in a USD column with currency MXN.
 
 ### Stages
 
-`Not approached → Teaser sent → NDA signed → Info shared → Under review → Indicative terms →
-Credit approved → IAA signed → Live`, plus `Declined` and `On hold` off the ladder. The deal panel
-draws the ladder as a seven-segment bar. Counts use four buckets: **in play** (Teaser sent to Credit
-approved), **committed** (IAA signed, Live), **out** (Declined, On hold), **not approached**. A row
+`Not approached → Initial sounding → Teaser sent → NDA signed → Info shared → Under review →
+Indicative terms → Credit approved → IAA signed → Live`, plus `Declined` and `On hold` off the
+ladder. The deal panel draws the ladder as an eight-segment bar. *Initial sounding* was added on the
+board by the team in October, for the informal first ask before a teaser goes out. Counts use four
+buckets: **in play** (Initial sounding to Credit approved), **committed** (IAA signed, Live),
+**out** (Declined, On hold), **not approached**. A row
 marked *Not approached* that carries a Teaser sent or Last outreach date is treated as approached:
 the date is harder evidence than the label.
 

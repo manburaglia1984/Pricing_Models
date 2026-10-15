@@ -129,8 +129,22 @@ false positives on short or common names. Do not record a signal you cannot tie 
 company. Where a name is too ambiguous to screen safely, leave it out of `rows` entirely and count
 it in the coverage line.
 
-STEP 5 — WRITE THE RESULT
-Write the artifact data store document `reengage/current`, replacing it wholly, in this shape:
+STEP 5 — ARCHIVE LAST WEEK, THEN WRITE THE RESULT
+Before writing, read `reengage/current` as it stands: that is last week's screen. Every signal in
+it goes into the archive, never nowhere.
+  - One document per calendar month of the signal's date: `reengagearchive/<YYYY-MM>` (for example
+    `reengagearchive/2026-09`), in the shape { "month": "YYYY-MM", "items": [ ... ] }.
+  - Each archived item is the signal exactly as stored, plus "id" and "client" copied from its row
+    and "archivedAt": "YYYY-MM-DD". The page finds a name's earlier signals by that id.
+  - Read the month's document first; add to its items and write it back pinned to the version you
+    read (if_version). Create it if it does not exist.
+  - De-duplicate within the month by url, then by client plus the first 60 characters of the
+    headline; where the same story is already there, keep the later version.
+  - Write the archive before replacing `reengage/current`. If an archive write still fails after one
+    retry, stop: leave `reengage/current` as it is and report the failure. Losing last week's
+    signals is worse than showing a stale week.
+
+Then write the artifact data store document `reengage/current`, replacing it wholly, in this shape:
 
 {
   "screenedAt": "YYYY-MM-DD",
@@ -157,7 +171,9 @@ Include a name in `rows` only when it has at least one signal. Names with nothin
 omitted, and the dashboard reads their absence correctly.
 
 Cap it at three signals per name, strongest first, and do not carry a signal over from last week:
-this document is replaced whole each run, and the view is meant to read as "this week".
+this document is replaced whole each run, and the view is meant to read as "this week". Last week's
+signals are not lost: they are in the archive, and the page shows them under "Earlier" in each
+name's panel.
 
 STEP 6 — REPORT
 Reply with a short summary: how many names screened, how many
@@ -180,3 +196,17 @@ safely is a gap to report, not a gap to fill with a guess.
   red, ranked only against other risks. It can never outscore an opening.
 - `matched: true` is ignored unless the board actually records a reason for that name.
 - No screen yet, or an unreadable one, shows a named empty state rather than a blank panel.
+- Signals from earlier weeks, read from `reengagearchive/<YYYY-MM>`, are listed under **Earlier**
+  in each name's panel. The page only reads the archive; this Routine is the only writer.
+- Each reader marks signals read for themselves (alert centre, or **Mark read** in the panel). A
+  signal is identified by its url and date, so a story found again with a new date comes back as
+  unread.
+
+## Status
+
+`trig_01XYN25mYaUGyVYmDr2hnw27`, Mondays 12:00 UTC, with the monday.com connector attached (unused
+by this prompt, which reads only the data store). Created in the web UI, so an agent cannot edit it:
+when this file changes, paste the Prompt block above into the Routine at
+https://claude.ai/code/routines/trig_01XYN25mYaUGyVYmDr2hnw27. The archive step (STEP 5) was added on
+15 October and needs that paste before the next Monday run, or that week's signals are replaced
+without being archived.
