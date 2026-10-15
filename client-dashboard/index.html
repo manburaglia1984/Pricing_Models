@@ -1592,8 +1592,11 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
         }
         NEWS.meta = { checkedAt: d.checkedAt, from: d.windowFrom, to: d.windowTo,
                       noCoverage: d.noCoverage || [] };
-        NEWS.items = d.items;
-        NEWS.items.forEach(function (it) { if (it) it._k = storyKey("n", it); });
+        /* Snapshots are frozen, and this script is strict: tag copies, never
+           the stored items, or the assignment throws and every alert is lost. */
+        NEWS.items = d.items.map(function (it) {
+          return it && typeof it === "object" ? Object.assign({}, it, { _k: storyKey("n", it) }) : it;
+        });
         var by = {};
         NEWS.items.forEach(function (it) {
           (it.appliesTo || []).forEach(function (id) { (by[id] = by[id] || []).push(it); });
@@ -1664,8 +1667,10 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
       var by = {};
       d.rows.forEach(function (x) {
         if (x && x.id && Array.isArray(x.signals) && x.signals.length) {
-          x.signals.forEach(function (sg) { if (sg) sg._k = storyKey("s", sg); });
-          by[String(x.id)] = x.signals;
+          /* Copies, for the same reason as the news items: snapshots are frozen. */
+          by[String(x.id)] = x.signals.map(function (sg) {
+            return sg && typeof sg === "object" ? Object.assign({}, sg, { _k: storyKey("s", sg) }) : sg;
+          });
         }
       });
       SIGNALS.byDeal = by;

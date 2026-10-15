@@ -190,6 +190,13 @@ Reading it as a property is silent: `snap.data.items` is `undefined`, the array 
 panel never shows. Writes are unaffected (`set()` takes a plain object), so the roster kept saving
 while news never loaded — which is exactly what made it hard to spot.
 
+**What `data()` returns is frozen**, and the page script is strict, so writing a field onto a stored
+item throws. Version 18 (15 October) tagged each news item and signal with its read-tracking key in
+place; the throw aborted both loads and every alert panel went empty, with only *News unavailable*
+on the status line. The page now tags copies. Treat anything read from the store as read-only: copy
+it (`Object.assign({}, item, {...})`) before adding to it. The test harness freezes its fake store
+deeply for the same reason — an unfrozen mock is what let this through.
+
 ---
 
 ## Revenue: read this before trusting the number
