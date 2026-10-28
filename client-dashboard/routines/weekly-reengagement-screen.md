@@ -196,8 +196,11 @@ safely is a gap to report, not a gap to fill with a guess.
   red, ranked only against other risks. It can never outscore an opening.
 - `matched: true` is ignored unless the board actually records a reason for that name.
 - No screen yet, or an unreadable one, shows a named empty state rather than a blank panel.
-- Signals from earlier weeks, read from `reengagearchive/<YYYY-MM>`, are listed under **Earlier**
-  in each name's panel. The page only reads the archive; this Routine is the only writer.
+- Signals from earlier weeks, read from `reengagearchive/<YYYY-MM>`, stay in the Openings and
+  Watch-outs panels while still current — openings 30 days, watch-outs 90 days from the event
+  date — tagged as from an earlier screen. Older ones are listed under **Earlier** in each name's
+  panel. The page only reads the archive; this Routine is the only writer. Nothing here changes the
+  prompt: the screen still writes only this week.
 - Each reader marks signals read for themselves (alert centre, or **Mark read** in the panel). A
   signal is identified by its url and date, so a story found again with a new date comes back as
   unread.

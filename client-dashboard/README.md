@@ -506,6 +506,16 @@ newest first, minus anything still live. The page only reads the archive; the Ro
 writers, and they write the archive before the live document so a failure cannot lose anything.
 Stories dropped before 15 October were not recoverable.
 
+**Re-engage reads a rolling window, not one week.** The weekly screen replaces `reengage/current`
+whole, so a quiet week (26 October: 118 names, nothing dated in the window) used to blank both
+Re-engage panels while the previous week's openings — an AT&T Mexico sale, a new C&W Panama chairman
+— sat unseen in the archive. The page now merges archived signals back in while they are still
+worth acting on: **openings for 30 days and watch-outs for 90 days from the event date**
+(`SIG_KEEP`). Carried signals are tagged *from an earlier screen* in the alert centre and *earlier
+screen* in the name's panel, keep their read state (same url and date, same key), and the KPI says
+how many came from the latest screen. Older ones stay under **Earlier**. Both panels also say how many
+alerts they are not showing because you have read them.
+
 ---
 
 ## Investors on each deal
@@ -644,6 +654,13 @@ It shows in three places:
   with a one-line result, so an empty panel reads as "checked" rather than "not loaded".
 - **Alert centre**, as a fourth tab, *Investor chasers*.
 
+
+**Lines that cannot be chased are listed, not just counted.** An investor in play with no Teaser
+sent or Last outreach date has no clock to run against, so it can never trigger a chase. On 28
+October that was 22 of 65 lines, on 18 deals — which is why the panel looked empty while plenty was
+in flight. They now appear in the same panel under *No outreach date logged*, one row per deal, below
+any real chases, each linking to the line on monday. Adding the date clears the row and starts the
+10-day clock.
 ### Pricing stays in the deal panel
 
 *Indicative pricing* and the free-text *Feedback* appear only in a deal's panel, never in the table,

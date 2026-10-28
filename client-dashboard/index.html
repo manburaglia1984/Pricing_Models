@@ -662,8 +662,10 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
 .b-wait .ar-mk{background:var(--watch);opacity:1}
 .b-late .ar-mk{background:var(--overdue);opacity:1}
 .b-late .ar-n{background:var(--overdue);color:var(--on-overdue)}
+.b-nodate .ar-mk{background:var(--ink-3);opacity:.45}
 .ai.w::before{background:var(--watch)}
 .ai.l::before{background:var(--overdue)}
+.ai.u::before{background:var(--ink-3);opacity:.6}
 .ar-empty{padding:13px 17px;font-size:12.5px;color:var(--ink-3)}
 .ar-empty b{color:var(--ink-2);font-weight:600}
 .inv-sum{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 10px}
@@ -934,12 +936,12 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
 
       <section class="kpi" aria-label="Re-engagement summary">
         <div>
-          <div class="kpi-l">Openings this week</div>
+          <div class="kpi-l">Openings · last 30 days</div>
           <div class="kpi-v" id="k-open">&mdash;</div>
           <div class="kpi-s" id="k-open-sub">&nbsp;</div>
         </div>
         <div>
-          <div class="kpi-l">Risk flags</div>
+          <div class="kpi-l">Risk flags · last 90 days</div>
           <div class="kpi-v" id="k-risk">&mdash;</div>
           <div class="kpi-s" id="k-risk-sub">&nbsp;</div>
         </div>
@@ -959,7 +961,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
         <div class="panel-h">
           <div>
             <h2>Openings</h2>
-            <p id="open-sub">What happened this week that gives you a reason to go back.</p>
+            <p id="open-sub">What happened in the last 30 days that gives you a reason to go back.</p>
           </div>
           <button type="button" class="ghost ac-open" data-feed="re-open">Alert centre <span aria-hidden="true">&rsaquo;</span></button>
         </div>
@@ -970,7 +972,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
         <div class="panel-h">
           <div>
             <h2>Watch-outs</h2>
-            <p>Adverse news on the same names. Not a reason to call &mdash; a reason to check first.</p>
+            <p>Adverse news on the same names in the last 90 days. Not a reason to call &mdash; a reason to check first.</p>
           </div>
           <button type="button" class="ghost ac-open" data-feed="re-risk">Alert centre <span aria-hidden="true">&rsaquo;</span></button>
         </div>
@@ -1398,7 +1400,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
   var ACTIVITY = { byDeal: {}, meta: null };
   var KEYS = { byDeal: {} };
   var COLD = { rows: [], ok: false, more: false };
-  var SIGNALS = { byDeal: {}, meta: null };
+  var SIGNALS = { byDeal: {}, live: {}, carried: 0, meta: null };
   var INV = { ok: false, byDeal: {}, lines: 0, more: false, err: null };
   var DB = null, lastRosterSig = null, lastColdSig = null;
   var UI = { view: "pipeline", stage: "All", mine: false, q: "", key: "days", dir: -1,
@@ -1546,6 +1548,9 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
       var by = {};
       items.forEach(function (it) { if (it && it.id) (by[String(it.id)] = by[String(it.id)] || []).push(it); });
       ARCH.sig = by;
+      mergeSignals();
+      signalsSource();
+      if (COLD.rows.length) renderCold();
     });
   }
   /* Earlier items for a deal, newest first, minus anything still live. */
@@ -1673,23 +1678,58 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
           });
         }
       });
-      SIGNALS.byDeal = by;
+      SIGNALS.live = by;
+      mergeSignals();
       SIGNALS.meta = { screenedAt: d.screenedAt, window: d.window, coverage: d.coverage,
                        screened: d.screened, caveats: d.caveats || [] };
-      var n = 0; Object.keys(by).forEach(function (k) { n += by[k].length; });
-      setSrc("src-signals", "ok", n + (n === 1 ? " signal" : " signals") + " \u00b7 " +
-        Object.keys(by).length + " names" + (d.screenedAt ? " \u00b7 " + fmtDate(d.screenedAt) : ""));
-      $("src-signals").hidden = false;
+      signalsSource();
       if (COLD.rows.length) renderCold();
     }).catch(function (e) {
       signalsUnavailable("Could not read the re-engagement screen" + (e && e.code ? " (" + e.code + ")" : "") + ".");
     });
   }
   function signalsUnavailable(msg) {
-    SIGNALS.byDeal = {}; SIGNALS.meta = { error: msg };
+    SIGNALS.live = {}; mergeSignals(); SIGNALS.meta = { error: msg };
     setSrc("src-signals", "warn", "no screen yet");
     $("src-signals").hidden = false;
     if (COLD.rows.length) renderCold();
+  }
+
+  /* A quiet week must not blank the view. Signals found by earlier screens
+     stay on while they are still worth acting on - openings for 30 days from
+     the event, watch-outs for 90 - read back from the archive and marked as
+     earlier, so what is new this week still reads as new. */
+  var SIG_KEEP = { open: 30, risk: 90 };
+  function mergeSignals() {
+    var by = {}, live = SIGNALS.live || {}, n = 0;
+    Object.keys(live).forEach(function (id) { by[id] = live[id].slice(); });
+    Object.keys(ARCH.sig).forEach(function (id) {
+      var have = {};
+      (by[id] || []).forEach(function (sg) { if (sg) have[String(sg.url || sg.headline)] = true; });
+      ARCH.sig[id].forEach(function (it) {
+        if (!it || !it.date) return;
+        if ((TODAY - parseDate(it.date)) / DAY > (isRisk(it) ? SIG_KEEP.risk : SIG_KEEP.open)) return;
+        var k = String(it.url || it.headline);
+        if (have[k]) return;
+        have[k] = true;
+        (by[id] = by[id] || []).push(Object.assign({}, it, { _k: storyKey("s", it), _carried: true }));
+        n++;
+      });
+    });
+    SIGNALS.byDeal = by;
+    SIGNALS.carried = n;
+  }
+  function signalsSource() {
+    if (!SIGNALS.meta || SIGNALS.meta.error) return;
+    var live = SIGNALS.live || {}, n = 0;
+    Object.keys(live).forEach(function (k) { n += live[k].length; });
+    setSrc("src-signals", "ok", n + (n === 1 ? " signal" : " signals") + " \u00b7 " + Object.keys(live).length + " names" +
+      (SIGNALS.meta.screenedAt ? " \u00b7 " + fmtDate(SIGNALS.meta.screenedAt) : "") +
+      (SIGNALS.carried ? " \u00b7 " + SIGNALS.carried + " earlier" : ""));
+    $("src-signals").title = "Latest screen" + (SIGNALS.meta.screenedAt ? " " + fmtDate(SIGNALS.meta.screenedAt) : "") +
+      (SIGNALS.carried ? ", plus " + SIGNALS.carried + " from earlier screens still current: openings up to " +
+        SIG_KEEP.open + " days old, watch-outs up to " + SIG_KEEP.risk + "." : ".");
+    $("src-signals").hidden = false;
   }
 
   /* Outlook corroboration of the board's Date Last Contact, written here by a
@@ -2484,7 +2524,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     "re-open":   { title: "Openings",   scope: "re-engage", view: "reengage", tab: "Openings" },
     "re-risk":   { title: "Watch-outs", scope: "re-engage", view: "reengage", tab: "Re-engage risks" },
     "inv-chase": { title: "Awaiting feedback", scope: "investors", view: "pipeline", tab: "Investor chasers",
-                   unit: ["investor waiting", "investors waiting"], order: "longest wait first" }
+                   unit: ["investor line", "investor lines"], order: "longest wait first" }
   };
   var BAND_LABEL = { high: "High exposure", mid: "Mid exposure", low: "Low exposure" };
   var BAND_ORDER = { high: 0, mid: 1, low: 2 };
@@ -2503,6 +2543,26 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
          left out on purpose: it is where pricing tends to get written, and
          pricing belongs in the deal panel only. */
       if (!INV.ok) return groups;
+      /* In play with no Teaser sent or Last outreach date: the chase cannot
+         start its clock, so these are listed to get the date onto the board. */
+      DATA.deals.forEach(function (d) {
+        var nd = invOf(d.id).filter(function (l) { return invBucket(l) === "play" && !l.ask; });
+        if (!nd.length) return;
+        groups.push({
+          id: d.id + ":nodate", name: d.name, sub: [d.client, d.country, d.solution].filter(Boolean).join(" \u00b7 "),
+          tag: d.stage + " \u00b7 " + nd.length + " in play, no outreach date",
+          hl: nd.map(function (l) { return l.investor; }).join(", "), when: "no date",
+          band: "nodate", section: "No outreach date logged", sOrder: 2, score: nd.length, nodate: true,
+          items: nd.map(function (l) {
+            return { date: null, label: invStageLabel(l), short: "no date", tone: "u",
+                     headline: l.investor + " \u00b7 " + invStageLabel(l) + ", no outreach date",
+                     body: "Add Teaser sent or Last outreach on the Investor Distribution board, so a missing answer can be chased." +
+                           (l.next ? " Next step: " + l.next : ""),
+                     source: "Investor Distribution", url: l.url, linkText: "open on monday \u2197" };
+          }),
+          open: function () { setView("pipeline"); openDrawer(d.id); }
+        });
+      });
       DATA.deals.forEach(function (d) {
         var ls = invOf(d.id).filter(function (l) { return l.wait != null; });
         if (!ls.length) return;
@@ -2565,7 +2625,8 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
           g.items.push({ date: sg.date, label: m ? "Answers why it stalled" : k.label,
                    short: m ? "match" : (k.short || (sg.kind || "").replace(/^risk-/, "").replace("operational", "ops").replace("governance", "gov") || "other"),
                    rank: k.rank, risk: risk, matched: m,
-                   headline: sg.headline, body: sg.angle, source: sg.source, url: sg.url, key: sg._k });
+                   headline: sg.headline, body: sg.angle, url: sg.url, key: sg._k,
+                   source: (sg.source || "") + (sg._carried ? " \u00b7 from an earlier screen" : "") });
         });
         var best = risk ? bestRisk(d.id) : bestSig(d.id), sc = sigScore(best, d);
         if (sc > g.leadScore) { g.leadScore = sc; g.lead = { d: d, best: best }; }
@@ -2640,6 +2701,12 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     });
     return out;
   }
+  /* Under a panel that still has unread rows: how many it is not showing. */
+  function readNote(key, groups) {
+    var n = groups.readN || 0;
+    return n ? '<div class="ar-empty">' + n + (n === 1 ? " alert" : " alerts") + ' already read. <button type="button" class="linkish ac-open" data-feed="' +
+      key + '" data-view="all">See all in the alert centre</button></div>' : "";
+  }
   function caughtUp(key, all) {
     var n = totalAlerts(all), m = all.length;
     return '<div class="ar-empty"><b>All caught up.</b> ' + n + (n === 1 ? " alert" : " alerts") + " on " + m +
@@ -2698,6 +2765,8 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
       return;
     }
     var groups = renderAlertPanel("inv-chase", "inv-chasers", 6, true);
+    var chase = groups.filter(function (g) { return !g.nodate; });
+    var nUndated = totalAlerts(groups.filter(function (g) { return g.nodate; }));
     if (!groups.length) {
       var tot = 0, deals = 0, undated = 0;
       DATA.deals.forEach(function (d) { var s = invSummary(d.id); tot += s.total; if (s.total) deals++; undated += s.undated; });
@@ -2707,10 +2776,13 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
           (undated === 1 ? "it cannot" : "they cannot") + " be tracked" : "") + ".</div>";
       $("inv-sub").textContent = "Investors we have asked and not heard back from in " + CHASE_DAYS + " days or more.";
     } else {
-      var n = totalAlerts(groups), late = 0;
-      groups.forEach(function (g) { g.items.forEach(function (x) { if (x.tone === "l") late++; }); });
-      $("inv-sub").textContent = n + (n === 1 ? " investor" : " investors") + " waiting on " + groups.length +
-        (groups.length === 1 ? " deal" : " deals") + (late ? " \u00b7 " + late + " three weeks or more" : "") + " \u00b7 longest wait first";
+      var n = totalAlerts(chase), late = 0;
+      chase.forEach(function (g) { g.items.forEach(function (x) { if (x.tone === "l") late++; }); });
+      $("inv-sub").textContent = (n
+        ? n + (n === 1 ? " investor" : " investors") + " waiting on " + chase.length +
+          (chase.length === 1 ? " deal" : " deals") + (late ? " \u00b7 " + late + " three weeks or more" : "") + " \u00b7 longest wait first"
+        : "No investor is past " + CHASE_DAYS + " days without feedback") +
+        (nUndated ? " \u00b7 " + nUndated + (nUndated === 1 ? " line" : " lines") + " in play with no outreach date, so not yet trackable" : "");
     }
     if (AC.open) renderCentre();
   }
@@ -2819,8 +2891,9 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     }
     var og = renderAlertPanel("re-open", "openings", 6, false);
     if (!og.length && og.all.length) { host.innerHTML = caughtUp("re-open", og.all); return; }
+    if (og.length) host.insertAdjacentHTML("beforeend", readNote("re-open", og));
     if (!og.length) {
-      host.innerHTML = '<div class="empty">Nothing this week.' +
+      host.innerHTML = '<div class="empty">Nothing in the last ' + SIG_KEEP.open + ' days.' +
         (SIGNALS.meta && SIGNALS.meta.screened ? ' ' + SIGNALS.meta.screened + ' names were screened' +
           (SIGNALS.meta.screenedAt ? " to " + fmtDate(SIGNALS.meta.screenedAt) : "") + "." : "") +
         '<br><span style="color:var(--ink-3)">A quiet week is a result, not a failure. Sort the table by <em>Why it stalled</em> to work the watch list instead.</span></div>';
@@ -2834,9 +2907,10 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     sec.hidden = !COLD.ok || !!(SIGNALS.meta && SIGNALS.meta.error);
     if (sec.hidden) return;
     var rg = renderAlertPanel("re-risk", "risks", 6, false);
+    if (rg.length) $("risks").insertAdjacentHTML("beforeend", readNote("re-risk", rg));
     if (!rg.length) {
       $("risks").innerHTML = rg.all.length ? caughtUp("re-risk", rg.all)
-        : '<div class="empty">Nothing adverse surfaced this week.</div>';
+        : '<div class="empty">Nothing adverse in the last ' + SIG_KEEP.risk + ' days.</div>';
     }
   }
 
@@ -3052,7 +3126,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
       return;
     }
     var nProspect = 0, nLost = 0, nOurs = 0, nSigNames = 0, nMatched = 0, nSig = 0;
-    var nRiskNames = 0, nRisk = 0, nBoth = 0;
+    var nRiskNames = 0, nRisk = 0, nBoth = 0, nSigNew = 0;
     COLD.rows.forEach(function (d) {
       if (d.stage === "Prospect") nProspect++; else nLost++;
       if (d.posture === "ours") nOurs++;
@@ -3060,20 +3134,21 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
       if (a.length) { nSigNames++; nSig += a.length; }
       if (r.length) { nRiskNames++; nRisk += r.length; }
       if (a.length && r.length) nBoth++;
-      a.forEach(function (sg) { if (isMatched(sg, d)) nMatched++; });
+      a.forEach(function (sg) { if (isMatched(sg, d)) nMatched++; if (!sg._carried) nSigNew++; });
     });
 
     $("k-open").textContent = nSigNames;
     $("k-open-sub").innerHTML = nSigNames
       ? nSig + (nSig === 1 ? " signal" : " signals") +
-        (nMatched ? ', <span class="pos">' + nMatched + " answering a stated reason</span>" : ", none reason-matched")
-      : (SIGNALS.meta && SIGNALS.meta.error ? "No screen has run yet" : "Nothing surfaced this week");
+        (nMatched ? ', <span class="pos">' + nMatched + " answering a stated reason</span>" : ", none reason-matched") +
+        " \u00b7 " + (nSigNew ? nSigNew + " from the latest screen" : "none new in the latest screen")
+      : (SIGNALS.meta && SIGNALS.meta.error ? "No screen has run yet" : "Nothing in the last " + SIG_KEEP.open + " days");
 
     $("k-risk").textContent = nRiskNames;
     $("k-risk-sub").textContent = nRiskNames
       ? nRisk + (nRisk === 1 ? " flag" : " flags") +
         (nBoth ? ", " + nBoth + " on a name that also has an opening" : ", none on a name with an opening")
-      : (SIGNALS.meta && SIGNALS.meta.error ? "No screen has run yet" : "Nothing adverse this week");
+      : (SIGNALS.meta && SIGNALS.meta.error ? "No screen has run yet" : "Nothing adverse in the last " + SIG_KEEP.risk + " days");
 
     $("k-watched").textContent = COLD.rows.length;
     $("k-watched-sub").textContent = nProspect + " Prospect · " + nLost + " Lost, lost since " +
@@ -3092,8 +3167,8 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     $("tab-n").title = nNew ? nNew + (nNew === 1 ? " name" : " names") + " with an unread opening" : "";
     $("foot-cutoff").textContent = fmtDate(COLD_CUTOFF);
     $("open-sub").textContent = SIGNALS.meta && SIGNALS.meta.coverage
-      ? SIGNALS.meta.coverage
-      : "What happened this week that gives you a reason to go back.";
+      ? "Last " + SIG_KEEP.open + " days of screens. Latest: " + SIGNALS.meta.coverage
+      : "What happened in the last " + SIG_KEEP.open + " days that gives you a reason to go back.";
 
     renderOpenings();
     renderRisks();
@@ -3412,7 +3487,8 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
         return '<div class="nitem' + (isR ? " risk" : "") + '">' +
           '<div class="nmeta"><span class="num">' + (sg.date ? fmtDate(sg.date) : "—") + "</span>" +
             '<span class="nchip' + (isR ? " risk" : (m ? " signal" : "")) + '">' +
-            (!isR && m ? "answers why it stalled" : esc(k.label)) + "</span>" + newBadge(sg) + "</div>" +
+            (!isR && m ? "answers why it stalled" : esc(k.label)) + "</span>" + newBadge(sg) +
+            (sg._carried ? '<span class="nchip">earlier screen</span>' : "") + "</div>" +
           "<b>" + esc(sg.headline || "") + "</b>" +
           (sg.angle ? "<p>" + esc(sg.angle) + "</p>" : "") +
           '<div class="nsrc">' + esc(sg.source || "") +
@@ -3426,7 +3502,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     h += ops.length ? sigBlock(ops, false)
       : "<p>" + (SIGNALS.meta && SIGNALS.meta.error
           ? esc(SIGNALS.meta.error)
-          : "Nothing surfaced in the last screen. The watch list above is what to look for.") + "</p>";
+          : "Nothing in the last " + SIG_KEEP.open + " days. The watch list above is what to look for.") + "</p>";
     h += "</div>";
 
     if (rks.length) {
