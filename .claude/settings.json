@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "ArtifactData"
+    ]
+  },
+  "autoMode": {
+    "allow": [
+      "$defaults",
+      "Writing the weekly re-engagement screen results to the Americas Origination Desk artifact data store (collections reengage and reengagearchive) via ArtifactData is authorised for the scheduled routine 'Weekly re-engagement screen - Americas'."
+    ]
+  }
+}
