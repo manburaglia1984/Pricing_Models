@@ -821,6 +821,27 @@ Two search-key traps worth keeping:
 
 ---
 
+## My day — personal assistant
+
+A private tab driven by two Routines, a weekday **morning brief** (7:00am ET) and **evening check**
+(5:30pm ET), set up from `routines/personal-assistant.md`. The morning brief reads Outlook mail,
+Teams chats and the calendar, plus this page's published roster, and writes the day's list to
+`data/users/<id>/brief`; the evening check adds a `review` saying what was done. Ticks live in
+`data/users/<id>/ticks`. The `data/users/` subtree is private to each person, the dashboard owner
+included, so mail never reaches colleagues who open the same page; each of them sees only their own
+brief, or "No brief yet". The page only reads the brief and writes ticks.
+
+The roster published at `roster/current` now also carries, per deal, the owner (`o2d`),
+`lastContact`, `toleranceDays`, `contactStatus`, `nextMeeting`, `investorsWaiting` and
+`investorsUndated`, so the brief ranks exactly what the dashboard shows. These are deal facts
+already visible to every viewer, not personal data.
+
+Read-only limits: the Microsoft 365 connector has no `Mail.Send`, so the assistant suggests reply
+wording to copy and never sends. Agents here cannot attach connectors to a Routine they create,
+which is why both are created in the web UI.
+
+---
+
 ## Brand
 
 The header carries a drawn leaf mark in `--leaf` silver-grey with a `--brand` purple midrib, so the

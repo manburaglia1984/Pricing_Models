@@ -667,6 +667,41 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
 .ai.l::before{background:var(--overdue)}
 .ai.u::before{background:var(--ink-3);opacity:.6}
 .ar-empty{padding:13px 17px;font-size:12.5px;color:var(--ink-3)}
+/* My day */
+.day-h{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin:18px 0 12px}
+.day-h h2{font-family:var(--serif);font-size:22px;letter-spacing:-.01em}
+.day-h p{color:var(--ink-2);font-size:13px;flex:1 1 320px;min-width:0}
+.day-h .num{color:var(--ink-3);font-size:11.5px}
+.day-banner{margin:0 0 12px;padding:10px 14px;border:1px solid var(--watch);background:var(--watch-soft);border-radius:var(--radius);font-size:12.5px;color:var(--ink-2)}
+.day-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:16px;margin-top:16px;align-items:start}
+.dg{padding:9px 18px 5px;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);font-weight:600;background:var(--surface-2);border-bottom:1px solid var(--line)}
+.dg.p1{color:var(--overdue)}
+.di{display:grid;grid-template-columns:22px minmax(0,1fr);gap:10px;padding:12px 18px;border-bottom:1px solid var(--line)}
+.di:last-child{border-bottom:0}
+.di input{width:16px;height:16px;margin:2px 0 0;accent-color:var(--accent);cursor:pointer}
+.di input:disabled{cursor:default}
+.di-t{font-weight:600;font-size:13.5px;line-height:1.35}
+.di-w{color:var(--ink-2);font-size:12.5px;margin-top:3px;line-height:1.45}
+.di-m{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;margin-top:7px;font-size:11.5px;color:var(--ink-3)}
+.di-m a,.di-m button.linkish{color:var(--accent);font-weight:600;background:none;border:0;padding:0;font:inherit;cursor:pointer;text-decoration:none}
+.di-m a:hover,.di-m button.linkish:hover{text-decoration:underline}
+.di.done .di-t{text-decoration:line-through;color:var(--ink-3)}
+.di.done .di-w{color:var(--ink-3)}
+.di-st{font-size:11.5px;margin-top:5px;color:var(--accent);font-weight:600}
+.di-st.open{color:var(--watch)}
+.di details{margin-top:8px}
+.di summary{cursor:pointer;font-size:12px;font-weight:600;color:var(--ink-2)}
+.di pre{white-space:pre-wrap;font-family:var(--sans);font-size:12.5px;line-height:1.5;background:var(--surface-2);border:1px solid var(--line);border-radius:var(--radius);padding:10px 12px;margin:7px 0 6px;color:var(--ink)}
+.mt{display:grid;grid-template-columns:62px minmax(0,1fr);gap:10px;padding:11px 18px;border-bottom:1px solid var(--line)}
+.mt:last-child{border-bottom:0}
+.mt .num{font-size:12px;color:var(--ink-2);padding-top:1px}
+.mt b{font-size:13px;display:block;line-height:1.35}
+.mt i{font-style:normal;color:var(--ink-3);font-size:11.5px;display:block;margin-top:2px}
+.mt p{font-size:12.5px;color:var(--ink-2);margin-top:5px;line-height:1.45}
+.mt.past{opacity:.6}
+.rv{padding:13px 18px;font-size:13px;color:var(--ink-2);line-height:1.5}
+.rv b{color:var(--ink)}
+@media (max-width:900px){.day-grid{grid-template-columns:minmax(0,1fr)}}
 .ar-empty b{color:var(--ink-2);font-weight:600}
 .inv-sum{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 10px}
 .inv-sum span{font-size:11px;padding:2px 7px;border-radius:3px;border:1px solid var(--line-2);color:var(--ink-2);white-space:nowrap}
@@ -768,6 +803,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
   <div id="content" hidden>
 
     <div class="views" role="tablist" aria-label="Choose a view">
+      <button type="button" id="tab-day" role="tab" aria-selected="false">My day<span class="vn" id="tab-day-n" hidden></span></button>
       <button type="button" id="tab-pipeline" role="tab" aria-selected="true">Pipeline</button>
       <button type="button" id="tab-reengage" role="tab" aria-selected="false">Re-engage<span class="vn" id="tab-n" hidden></span></button>
     </div>
@@ -1022,6 +1058,24 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
       </footer>
 
     </div><!-- /view-reengage -->
+
+    <div id="view-day" role="tabpanel" aria-labelledby="tab-day" hidden>
+      <div class="day-h">
+        <h2 id="day-title">My day</h2>
+        <p id="day-lead"></p>
+        <span class="num" id="day-stamp"></span>
+      </div>
+      <div class="day-banner" id="day-banner" hidden></div>
+      <div id="day-body"></div>
+      <footer>
+        <strong style="color:var(--ink-2)">Private to you.</strong>
+        This tab is written by your own morning and evening Routines into your private part of the
+        artifact's data store. Colleagues who open the dashboard see their own tab, never yours, and
+        neither does the dashboard's owner. Ticks are saved there too. Nothing is sent or replied to
+        from here: the Outlook connection is read-only, so suggested replies are for you to copy.
+        See <code>client-dashboard/routines/personal-assistant.md</code>.
+      </footer>
+    </div><!-- /view-day -->
 
   </div>
 </main>
@@ -1572,10 +1626,12 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
       if (!db) {
         newsUnavailable("This view cannot reach the artifact's data store, so screened news is unavailable here.");
         loadReads(null);
+        DAYB.state = "nodb"; renderDay();
         return;
       }
       DB = db;
       loadReads(db);
+      loadDay();
       loadArchive(db);
       syncRoster();
       loadContact(db);
@@ -1636,7 +1692,15 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
       return { id: d.id, name: d.name, client: d.client, stage: d.stage,
                country: d.country, solution: d.solution, url: d.url,
                mandate: d.mandate || null, termSheet: d.termSheet, legalDoc: d.legalDoc,
-               exposure: exposure(d), exposureBand: expBand(exposure(d)), exposureWhy: expWhy(d) };
+               exposure: exposure(d), exposureBand: expBand(exposure(d)), exposureWhy: expWhy(d),
+               /* For the personal assistant: the same contact gap and investor
+                  chases this page shows, so its list matches the dashboard. */
+               o2d: d.o2d, lastContact: d.lastContact, toleranceDays: d.tol, contactStatus: d.status,
+               nextMeeting: d.cc && d.cc.nextMeeting ? d.cc.nextMeeting : null,
+               investorsWaiting: invOf(d.id).filter(function (l) { return l.wait != null; })
+                 .map(function (l) { return { investor: l.investor, since: l.ask, days: l.wait }; }),
+               investorsUndated: invOf(d.id).filter(function (l) { return invBucket(l) === "play" && !l.ask; })
+                 .map(function (l) { return l.investor; }) };
     });
     var sig = JSON.stringify(deals);
     if (sig === lastRosterSig) return;
@@ -3217,11 +3281,259 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     UI.view = v;
     $("tab-pipeline").setAttribute("aria-selected", String(v === "pipeline"));
     $("tab-reengage").setAttribute("aria-selected", String(v === "reengage"));
+    $("tab-day").setAttribute("aria-selected", String(v === "day"));
     $("view-pipeline").hidden = v !== "pipeline";
     $("view-reengage").hidden = v !== "reengage";
+    $("view-day").hidden = v !== "day";
     store.set("sb-view", v);
     if (v === "reengage") renderCold();
+    if (v === "day") renderDay();
   }
+
+  /* ---------- my day ----------
+     The personal assistant. A morning Routine writes the day's brief into the
+     viewer's private subtree (data/users/<id>/brief) and an evening Routine
+     adds its check of what got done. Ticks are the viewer's own, kept beside it
+     (data/users/<id>/ticks). The platform keeps that subtree private per
+     viewer, the dashboard's owner included, so mail never reaches colleagues
+     who open the same page. This tab only reads the brief; it never writes it. */
+  var DAYB = { uid: null, brief: null, ticks: {}, state: "loading", err: null, timer: null };
+  var DAY_TYPES = {
+    reply:    "Reply owed",
+    teams:    "Teams",
+    meeting:  "Meeting",
+    followup: "Follow-up",
+    deal:     "Deal",
+    investor: "Investor",
+    risk:     "Watch-out",
+    opening:  "Opening"
+  };
+  var DAY_PRI = [
+    { p: 1, label: "Must do today" },
+    { p: 2, label: "Should do today" },
+    { p: 3, label: "If there is time" }
+  ];
+
+  function loadDay() {
+    if (!DB) { if (DAYB.state !== "nodb") { DAYB.state = "loading"; } renderDay(); return; }
+    var uidP = DAYB.uid ? Promise.resolve(DAYB.uid)
+      : window.claude.use("user").then(function (u) { return u ? u.id() : null; }).catch(function () { return null; });
+    uidP.then(function (uid) {
+      if (!uid) { DAYB.state = "noid"; renderDay(); return; }
+      DAYB.uid = uid;
+      return Promise.all([
+        DB.doc("data/users/" + uid + "/brief").get(),
+        DB.doc("data/users/" + uid + "/ticks").get().catch(function () { return null; })
+      ]).then(function (r) {
+        var b = r[0] && r[0].exists ? r[0].data() : null;
+        var t = r[1] && r[1].exists ? r[1].data() : null;
+        DAYB.brief = b && Array.isArray(b.items) ? b : null;
+        DAYB.state = DAYB.brief ? "ok" : (b ? "bad" : "none");
+        /* Snapshots are frozen: keep a copy we can change. */
+        var days = (t && t.days) || {}, mine = {};
+        Object.keys(days).forEach(function (k) { mine[k] = Object.assign({}, days[k]); });
+        /* A tick made before this read landed is not lost. */
+        Object.keys(DAYB.ticks).forEach(function (k) { mine[k] = Object.assign(mine[k] || {}, DAYB.ticks[k]); });
+        DAYB.ticks = mine;
+        renderDay();
+      });
+    }).catch(function (e) {
+      DAYB.state = "err"; DAYB.err = e && e.code;
+      renderDay();
+    });
+  }
+
+  function dayTicks() {
+    var d = DAYB.brief && DAYB.brief.date;
+    return (d && DAYB.ticks[d]) || {};
+  }
+  function setTick(id, on) {
+    var d = DAYB.brief && DAYB.brief.date;
+    if (!d || !DAYB.uid) return;
+    var t = Object.assign({}, DAYB.ticks[d] || {});
+    if (on) t[id] = new Date().toISOString(); else delete t[id];
+    DAYB.ticks[d] = t;
+    clearTimeout(DAYB.timer);
+    DAYB.timer = setTimeout(function () {
+      var cut = new Date(TODAY - 21 * DAY).toISOString().slice(0, 10);
+      Object.keys(DAYB.ticks).forEach(function (k) { if (k < cut) delete DAYB.ticks[k]; });
+      DB.doc("data/users/" + DAYB.uid + "/ticks").set({ updatedAt: new Date().toISOString(), days: DAYB.ticks })
+        .catch(function () { $("day-banner").hidden = false; $("day-banner").textContent = "Your tick could not be saved. It is shown here but the evening check will not see it."; });
+    }, 500);
+  }
+
+  /* Done means you ticked it, or the evening check found it done. */
+  function dayStatus(it) {
+    var tk = dayTicks()[it.id];
+    var rv = DAYB.brief.review && DAYB.brief.review.items ? DAYB.brief.review.items[it.id] : null;
+    if (tk) return { done: true, by: "you", note: "Ticked " + fmtClock(Date.parse(tk)), rv: rv };
+    if (rv && rv.status === "done") return { done: true, by: "check", note: rv.note || "Done", rv: rv };
+    return { done: false, rv: rv };
+  }
+
+  function dayOpenCount() {
+    if (!DAYB.brief) return 0;
+    return DAYB.brief.items.filter(function (it) { return (it.priority || 2) <= 2 && !dayStatus(it).done; }).length;
+  }
+
+  function dayDeal(it) {
+    var id = it.deal && it.deal.id ? String(it.deal.id) : null;
+    if (!id) return "";
+    var where = DATA.deals.some(function (d) { return d.id === id; }) ? "pipeline"
+      : (COLD.rows.some(function (d) { return d.id === id; }) ? "reengage" : null);
+    var name = esc(it.deal.name || "deal");
+    return where ? '<button type="button" class="linkish day-deal" data-id="' + esc(id) + '" data-where="' + where + '">' + name + " →</button>"
+      : "<span>" + name + "</span>";
+  }
+
+  function dayItem(it) {
+    var st = dayStatus(it), rv = st.rv;
+    var meta = ['<span class="pchip">' + esc(DAY_TYPES[it.type] || it.type || "To do") + "</span>"];
+    if (it.carriedFrom) meta.push('<span class="pchip open">carried from ' + esc(shortDate(it.carriedFrom)) + "</span>");
+    if (it.due) meta.push("<span>Due " + esc(it.due) + "</span>");
+    if (it.person) meta.push("<span>" + esc(it.person) + "</span>");
+    var dl = dayDeal(it); if (dl) meta.push(dl);
+    if (it.link) meta.push('<a href="' + esc(it.link) + '" target="_blank" rel="noopener">' + esc(it.linkText || "Open ↗") + "</a>");
+    var stLine = "";
+    if (st.done) stLine = '<div class="di-st">' + esc(st.note) + "</div>";
+    else if (rv && rv.status) stLine = '<div class="di-st open">Evening check: ' + esc(rv.note || rv.status) + "</div>";
+    return '<div class="di' + (st.done ? " done" : "") + '">' +
+      '<input type="checkbox" data-tick="' + esc(it.id) + '"' + (st.done ? " checked" : "") +
+        (st.done && st.by === "check" ? ' disabled title="Marked done by the evening check"' : "") +
+        ' aria-label="Done: ' + esc(it.title || "") + '">' +
+      "<div>" +
+        '<div class="di-t">' + esc(it.title || "") + "</div>" +
+        (it.why ? '<div class="di-w">' + esc(it.why) + "</div>" : "") +
+        '<div class="di-m">' + meta.join("") + "</div>" + stLine +
+        (it.draft ? '<details><summary>Suggested reply</summary><pre>' + esc(it.draft) + "</pre>" +
+          '<button type="button" class="ghost day-copy">Copy</button></details>' : "") +
+      "</div></div>";
+  }
+
+  function dayMeetings(ms) {
+    if (!ms || !ms.length) return '<div class="ar-empty">No meetings in the diary today.</div>';
+    var now = new Date(), hhmm = String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
+    var today = DAYB.brief.date === todayISO();
+    return ms.map(function (m) {
+      var past = today && m.end && m.end < hhmm;
+      var who = Array.isArray(m["with"]) ? m["with"].join(", ") : (m["with"] || "");
+      return '<div class="mt' + (past ? " past" : "") + '"><span class="num">' + esc(m.start || "") +
+        (m.end ? "<br>" + esc(m.end) : "") + "</span><div><b>" + esc(m.subject || "") + "</b>" +
+        (who ? "<i>" + esc(who) + "</i>" : "") +
+        (m.deal && m.deal.name ? '<div class="di-m">' + dayDeal(m) + "</div>" : "") +
+        (m.prep ? "<p>" + esc(m.prep) + "</p>" : "") + "</div></div>";
+    }).join("");
+  }
+
+  function renderDay() {
+    var n = dayOpenCount();
+    $("tab-day-n").textContent = n || "";
+    $("tab-day-n").hidden = !n;
+    $("tab-day-n").title = n ? n + " still open today" : "";
+    if (UI.view !== "day") return;
+    var body = $("day-body"), ban = $("day-banner");
+    ban.hidden = true;
+    $("day-title").textContent = "My day";
+    $("day-stamp").textContent = "";
+    var msg = {
+      loading: "Loading your brief…",
+      nodb: "This view cannot reach the artifact's data store, where your brief is kept.",
+      noid: "This view cannot tell who you are, so it cannot open your private brief. Open the dashboard from claude.ai while signed in.",
+      err: "Your brief could not be read" + (DAYB.err ? " (" + DAYB.err + ")" : "") + ". Try Refresh.",
+      bad: "Your brief is stored in a shape this page cannot read. The next morning run will rewrite it.",
+      none: "No brief yet. Your morning Routine writes one at 7:00am ET on weekdays. If it is not set up, see routines/personal-assistant.md in the repository."
+    }[DAYB.state];
+    if (msg) { $("day-lead").textContent = ""; body.innerHTML = '<div class="panel"><div class="empty">' + esc(msg) + "</div></div>"; return; }
+
+    var b = DAYB.brief, items = b.items.slice(), st = items.map(dayStatus);
+    var p1 = items.filter(function (it) { return (it.priority || 2) === 1; });
+    var p1open = p1.filter(function (it) { return !dayStatus(it).done; }).length;
+    var replies = items.filter(function (it) { return it.type === "reply" || it.type === "teams"; });
+    var repOpen = replies.filter(function (it) { return !dayStatus(it).done; }).length;
+    var doneN = st.filter(function (x) { return x.done; }).length;
+
+    $("day-title").textContent = b.date ? fmtDay(b.date) : "My day";
+    $("day-lead").textContent = b.headline || "";
+    $("day-stamp").textContent = (b.generatedAt ? "Brief " + fmtClock(Date.parse(b.generatedAt)) : "") +
+      (b.review && b.review.at ? " · checked " + fmtClock(Date.parse(b.review.at)) : "");
+    if (b.date && b.date !== todayISO()) {
+      ban.hidden = false;
+      ban.textContent = "This is the brief for " + fmtDate(b.date) + ". Today's has not been written yet" +
+        (b.review ? "; anything left open there will be carried into it." : ".");
+    }
+
+    var h = '<div class="kpi">' +
+      '<div><div class="kpi-l">Must do today</div><div class="kpi-v">' + p1open + " <small>/ " + p1.length + "</small></div>" +
+        '<div class="kpi-s">' + (p1open ? p1open + " still open" : (p1.length ? "All done" : "Nothing critical")) + "</div></div>" +
+      '<div><div class="kpi-l">Replies owed</div><div class="kpi-v">' + repOpen + "</div>" +
+        '<div class="kpi-s">' + replies.length + " flagged this morning, email and Teams</div></div>" +
+      '<div><div class="kpi-l">Meetings</div><div class="kpi-v">' + ((b.meetings || []).length) + "</div>" +
+        '<div class="kpi-s">' + ((b.meetings || []).length ? "Prep notes alongside" : "A clear diary") + "</div></div>" +
+      '<div><div class="kpi-l">Done</div><div class="kpi-v">' + doneN + " <small>/ " + items.length + "</small></div>" +
+        '<div class="kpi-s">' + (b.yesterday && b.yesterday.total ? "Yesterday " + b.yesterday.covered + " of " + b.yesterday.total : "Ticked by you or found by the evening check") + "</div></div>" +
+      "</div>";
+
+    if (b.review) {
+      var rv = b.review;
+      h += '<section class="panel" style="margin-top:16px"><div class="panel-h"><div><h2>Evening check</h2>' +
+        "<p>" + (rv.total ? rv.covered + " of " + rv.total + " covered" : "") + (rv.at ? " · " + fmtClock(Date.parse(rv.at)) : "") + "</p></div></div>" +
+        '<div class="rv">' + esc(rv.summary || "") +
+        (rv.carry && rv.carry.length ? "<br><b>Carried into tomorrow:</b> " + rv.carry.length + (rv.carry.length === 1 ? " item." : " items.") : "") +
+        (rv.newSince ? "<br><b>New since this morning:</b> " + rv.newSince + (rv.newSince === 1 ? " message needs" : " messages need") + " a reply; they lead tomorrow's brief." : "") +
+        "</div>" +
+        (Array.isArray(rv.newFollowups) && rv.newFollowups.length
+          ? '<div class="dg">Follow-ups owed from today\u2019s meetings</div>' + rv.newFollowups.map(dayItem).join("") : "") +
+        "</section>";
+    }
+
+    h += '<div class="day-grid"><section class="panel"><div class="panel-h"><div><h2>To do</h2>' +
+      "<p>Ranked by what it costs to miss. Tick as you go; the evening check also marks what it can see was done.</p></div></div>" +
+      '<div class="panel-b flush">';
+    var any = false;
+    DAY_PRI.forEach(function (g) {
+      var list = items.filter(function (it) { return (it.priority || 2) === g.p; });
+      if (!list.length) return;
+      any = true;
+      list.sort(function (a, c) { return Number(dayStatus(a).done) - Number(dayStatus(c).done); });
+      h += '<div class="dg p' + g.p + '">' + esc(g.label) + "</div>" + list.map(dayItem).join("");
+    });
+    if (!any) h += '<div class="empty">Nothing on the list today.</div>';
+    h += "</div></section>";
+    h += '<section class="panel"><div class="panel-h"><div><h2>Meetings</h2><p>Today, with what each one is about.</p></div></div>' +
+      '<div class="panel-b flush">' + dayMeetings(b.meetings) + "</div></section></div>";
+    body.innerHTML = h;
+  }
+
+  function fmtDay(iso) {
+    var d = new Date(parseDate(iso));
+    return ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][d.getUTCDay()] + " " + fmtDate(iso);
+  }
+
+  $("day-body").addEventListener("change", function (e) {
+    var cb = e.target.closest("input[data-tick]"); if (!cb) return;
+    setTick(cb.getAttribute("data-tick"), cb.checked);
+    renderDay();
+  });
+  $("day-body").addEventListener("click", function (e) {
+    var dl = e.target.closest(".day-deal");
+    if (dl) {
+      var id = dl.getAttribute("data-id");
+      if (dl.getAttribute("data-where") === "reengage") { setView("reengage"); openCold(id); }
+      else { setView("pipeline"); openDrawer(id); }
+      return;
+    }
+    var cp = e.target.closest(".day-copy");
+    if (cp) {
+      var pre = cp.parentNode.querySelector("pre"), txt = pre ? pre.textContent : "";
+      var done = function () { cp.textContent = "Copied"; setTimeout(function () { cp.textContent = "Copy"; }, 1500); };
+      var fallback = function () {
+        var r = document.createRange(); r.selectNodeContents(pre);
+        var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+        cp.textContent = "Selected — press Ctrl+C";
+      };
+      try { navigator.clipboard.writeText(txt).then(done, fallback); } catch (err) { fallback(); }
+    }
+  });
 
   /* ---------- drawer ---------- */
   var lastFocus = null, drawerId = null;
@@ -3531,7 +3843,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
   }
 
   /* ---------- wiring ---------- */
-  $("refresh").addEventListener("click", function () { if (MCP) load(true); else start(); });
+  $("refresh").addEventListener("click", function () { if (MCP) { load(true); loadDay(); } else start(); });
   $("err-retry").addEventListener("click", function () { if (MCP) load(true); else start(); });
   $("q").addEventListener("input", function (e) { UI.q = e.target.value.toLowerCase().trim(); renderTable(); });
   $("btn-all").addEventListener("click", function () {
@@ -3560,6 +3872,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
   });
   $("tab-pipeline").addEventListener("click", function () { setView("pipeline"); });
   $("tab-reengage").addEventListener("click", function () { setView("reengage"); });
+  $("tab-day").addEventListener("click", function () { setView("day"); loadDay(); });
   $("cq").addEventListener("input", function (e) { UI.cq = e.target.value.toLowerCase().trim(); renderCold(); });
   $("cbtn-all").addEventListener("click", function () {
     UI.cMine = false; $("cbtn-all").setAttribute("aria-pressed", "true"); $("cbtn-mine").setAttribute("aria-pressed", "false"); renderCold();
@@ -3683,7 +3996,7 @@ footer code{font-family:var(--mono);font-size:11px;background:var(--surface-3);
     if (!$("drawer").hidden) closeDrawer();
   });
 
-  setView(store.get("sb-view") === "reengage" ? "reengage" : "pipeline");
+  setView({ reengage: 1, day: 1 }[store.get("sb-view")] ? store.get("sb-view") : "pipeline");
   start();
 })();
 </script>
