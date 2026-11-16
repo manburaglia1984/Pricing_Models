@@ -79,9 +79,15 @@ date it first appeared (keep an existing carriedFrom). Re-check it first (Step 3
 has been handled since, drop it. An item carried 3 working days or more stays, with the why line
 ending "Carried since <date> - do, delegate or drop."
 
-STEP 3 - REPLIES OWED, EMAIL. Search mail received in the last 5 working days (outlook_email_search
-with afterDateTime; page through up to 100 messages; at most 3 calls in parallel and honour any
-retryAfter). A message QUALIFIES when either:
+STEP 3 - REPLIES OWED, EMAIL. Read only mail received since yesterday's brief was generated
+(first run, or no brief: since 7:00am Eastern on the previous working day). The mailbox takes
+80-100 messages a day, so do not re-read older mail: anything older that is still owed is already
+on the list as a carried item. Page Inbox newest first (outlook_email_search folderName "Inbox",
+afterDateTime, limit 25, follow nextOffset) until you pass that time; at most 3 calls in parallel
+and honour any retryAfter. Then check his Sent Items once (folderName "Sent Items", order "newest",
+limit 25, two pages) - one read answers "has he replied?" for most threads without a search per
+sender. Most of his mail is colleagues' threads where he is copied and a colleague is handling
+it; those are not owed. A message QUALIFIES when either:
   a) it is from a deal counterparty - a client domain in domains/current, an investor or partner
      on his deals, or a client name from the roster in the sender's organisation; or
   b) it is addressed TO him (not only cc) by a person and asks a question or requests something.
@@ -101,7 +107,8 @@ For each owed message create one item (one per thread, newest message):
 
 STEP 4 - REPLIES OWED, TEAMS. chat_message_search with query "*", recipient = his address,
 afterDateTime two working days back. A message is owed when it is a direct question or request to
-him and he has not posted in that chat since (search sender = him, same window, and compare).
+him ("Hi Manuel, did you...") and he has not posted in that chat since: search sender = him, same
+window, and compare createdDateTime per chatId. Link the item to the message's webUrl.
 One item per chat: id "teams:" + chat or message id, type "teams", person, why.
 
 STEP 5 - TODAY'S CALENDAR. outlook_calendar_search query "*", today 00:00 to 23:59 Eastern, order
@@ -228,6 +235,16 @@ Use Silver Birch terminology: AFL (not SPV), IPU (not guarantee), Servicer (not 
 ```
 
 ---
+
+## First run (16 November)
+
+Run by hand from the build session at 2:50pm ET to seed the tab and test the prompt. It found the
+mailbox far busier than the first draft assumed (433 Inbox messages in five working days, mostly
+colleagues' threads with Manuel copied), which is why Step 3 now reads only mail since the previous
+brief and checks Sent Items once. It wrote two must-dos (an unanswered Teams question on a pricing
+model; an amendment summary awaiting sign-off), two should-dos and one prep item, and the day's
+seven meetings. Deal-deadline items were left out of that run because `roster/current` had not yet
+been republished with the new contact and investor fields; it is the next time the dashboard opens.
 
 ## What the tab does with it
 
