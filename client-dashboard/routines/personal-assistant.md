@@ -15,6 +15,11 @@ Microsoft 365 and monday.com connectors and refused ("the connectors parameter i
 for this organization"); a Routine created without them cannot read mail, so it would only fail.
 The 16 and 17 November briefs were run by hand from the build session.
 
+**Friday sweep (added 17 November).** The daily brief reads only mail since the previous brief, so
+Step 3b looks back 10 working days every Friday for counterparty mail that slipped through. A one-off
+sweep on 17 November (back to 3 November) added four items: the Telefónica NDA, the Bladex renewal
+pack, Tecnoglass bank feedback, and the CAFAM/IDB working session.
+
 ## Privacy
 
 Everything is written under `data/users/me/…`, which the platform keeps private to the person whose
@@ -110,6 +115,18 @@ For each owed message create one item (one per thread, newest message):
   draft: a short suggested reply in his voice (max 120 words, plain, no preamble), ONLY when the
   answer is clear from the thread or is an acknowledgement with a date. Use [placeholder] for any
   fact, figure or date you do not have. Omit draft otherwise.
+
+STEP 3b - FRIDAY SWEEP (Fridays only; skip on other days). Step 3 only reads new mail, so once a
+week look back 10 working days for counterparty mail that slipped through. For each domain in
+domains/current (and each investor or partner domain on his deals): outlook_email_search
+folderName "Inbox", sender = the domain, afterDateTime 10 working days back, limit 3. At most 3
+calls in parallel; honour any retryAfter. For each thread with a hit, check the reply with
+recipient = the domain (no folder), afterDateTime = the hit's date: a reply from him OR a colleague
+on the thread counts as handled. Also count as owed a promise he made ("le comparto el feedback",
+"I'll send...") with nothing sent since. Skip anything already on the list. Add each owed thread as
+a Step 3 item with carriedFrom = the date it was received and a why line starting "Found by the
+Friday sweep:". Record brief.sweep = { at, since, added: [ids] }. If more than 6 are found, keep
+the 6 oldest-and-most-material and say in the headline how many more there are.
 
 STEP 4 - REPLIES OWED, TEAMS. chat_message_search with query "*", recipient = his address,
 afterDateTime two working days back. A message is owed when it is a direct question or request to
