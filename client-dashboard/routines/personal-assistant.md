@@ -9,6 +9,12 @@ Feeds the **My day** tab of the Americas Origination Desk. Two Routines, both yo
   sent, a chat answered, the client contacted), adds your ticks, writes the result back to the same
   brief, and tells you what is still open. Anything open is carried into the next morning.
 
+**Status (17 November): not created yet.** Neither Routine exists, so no brief runs at 7:00am until
+they are set up as below. `create_trigger` was tried again from the build session with the
+Microsoft 365 and monday.com connectors and refused ("the connectors parameter is not available
+for this organization"); a Routine created without them cannot read mail, so it would only fail.
+The 16 and 17 November briefs were run by hand from the build session.
+
 ## Privacy
 
 Everything is written under `data/users/me/…`, which the platform keeps private to the person whose
